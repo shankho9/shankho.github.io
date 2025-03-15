@@ -52,7 +52,7 @@ export const socialLinks = {
   githubLink: 'https://github.com/shankho9',
   linkedinLink: 'https://www.linkedin.com/in/siddharthabasu/',
   twitterLink: 'https://twitter.com/shankho99',
-  stackoverflowLink: 'https://stackoverflow.com/users/16781395/nur-riyad',
+  spotifyLink: 'https://open.spotify.com/user/w7b38i9wif2jjq3hfx3ay30zj?si=6ac5c35594ec4d6f',
 }
 
 export const siteMetaData = [
