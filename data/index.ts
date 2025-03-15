@@ -50,8 +50,8 @@ export const seoData = {
 
 export const socialLinks = {
   githubLink: 'https://github.com/shankho9',
-  linkedinLink: 'https://www.linkedin.com/in/nur-riyad/',
-  twitterLink: 'https://twitter.com/qdnvubp',
+  linkedinLink: 'https://www.linkedin.com/in/siddharthabasu/',
+  twitterLink: 'https://twitter.com/shankho99',
   stackoverflowLink: 'https://stackoverflow.com/users/16781395/nur-riyad',
 }
 

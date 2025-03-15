@@ -41,6 +41,7 @@ import { footerData, socialLinks } from '~/data'
         class="p-2 bg-gray-300 text-gray-800 rounded-md dark:bg-sky-700 dark:text-[#F1F2F4]"
         aria-label="StackOverflow"
       >
+      // TODO - fix Stack Over flow and change it Spotify
         <Icon name="fa:stack-overflow" size="1em" />
       </NuxtLink>
     </div>
