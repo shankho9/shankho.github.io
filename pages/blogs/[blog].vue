@@ -83,7 +83,7 @@ console.log(articles.value)
 
 // Generate OG Image
 defineOgImageComponent('Test', {
-  headline: 'Shankho's Blog 👋',
+  headline: 'Shankhos Blog 👋',
   title: articles.value?.seo.title || '',
   description: articles.value?.seo.description || '',
   link: data.value.ogImage,
