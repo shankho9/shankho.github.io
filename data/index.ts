@@ -39,8 +39,8 @@ export const aboutPage = {
 export const seoData = {
   title: `Sid's Blog | Shankho Blog`,
   ogTitle: `Let's learn Javascript, Typescript, Vue, Nuxt, & Problem Solving - Sid's Blog | Shankho's Blog`,
-  description: `Hi I am Riyad. A Software Engineer at FieldNation, with over 3.5+ years experience in software development. - Sid's Blog | Shankho's Blog`,
-  twitterDescription: `Riyad's Blog, where I play around with Nuxt, Vue, and more and showcase my blog, resources, etc - Sid's Blog | Shankho's Blog`,
+  description: `Hi I am Shankho. A Software Engineer at FieldNation, with over 3.5+ years experience in software development. - Sid's Blog | Shankho's Blog`,
+  twitterDescription: `Sid's Blog, where I play around with Nuxt, Vue, and more and showcase my blog, resources, etc - Sid's Blog | Shankho's Blog`,
   image:
     'https://res.cloudinary.com/dmecmyphj/image/upload/v1673548905/nuxt-blog/cover_ntgs6u.webp',
   mySite: 'https://blog-nurriyad.vercel.app',
@@ -49,7 +49,7 @@ export const seoData = {
 }
 
 export const socialLinks = {
-  githubLink: 'https://github.com/nurRiyad',
+  githubLink: 'https://github.com/shankho9',
   linkedinLink: 'https://www.linkedin.com/in/nur-riyad/',
   twitterLink: 'https://twitter.com/qdnvubp',
   stackoverflowLink: 'https://stackoverflow.com/users/16781395/nur-riyad',
