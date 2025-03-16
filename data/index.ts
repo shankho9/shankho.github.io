@@ -31,8 +31,8 @@ export const categoryPage = {
 
 export const pesonalSpace = {
   title: 'My LifeLines',
-  description: 'abc',
-  aboutMe: 'def',
+  description: 'This is my space, Personal space and will be udpated to gain entry only for authorized users',
+  aboutMe: 'Google Auth ToDo',
 }
 
 export const aboutPage = {

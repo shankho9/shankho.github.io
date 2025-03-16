@@ -1,5 +1,5 @@
 {
-  "name": "@nurriyad/nuxt-blog",
+  "name": "@shankho/nuxt-blog",
   "version": "2.0.0",
   "private": true,
   "license": "MIT",
@@ -40,6 +40,6 @@
     "unenv": "^1.10.0"
   },
   "dependencies": {
-    "@nurriyad/nuxt-blog": "file:"
+    "@shankho/nuxt-blog": "file:"
   }
 }
