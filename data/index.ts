@@ -25,13 +25,13 @@ export const blogsPage = {
 
 export const categoryPage = {
   title: 'Categories',
-  description:
-    'Blow this category is generated from all the tags are mentioned in the different blog post',
+  description: 'Categories generated from all the tags are mentioned in the different blog post',
 }
 
 export const pesonalSpace = {
   title: 'My LifeLines',
-  description: 'This is my space, Personal space and will be udpated to gain entry only for authorized users',
+  description:
+    'This is my space, Personal space and will be udpated to gain entry only for authorized users',
   aboutMe: 'Google Auth ToDo',
 }
 
@@ -49,7 +49,7 @@ export const seoData = {
   twitterDescription: `Sid's Blog, where I play around content, resources, etc - Sid's Blog | Shankho's Blog`,
   image:
     'https://res.cloudinary.com/dmecmyphj/image/upload/v1673548905/nuxt-blog/cover_ntgs6u.webp',
-  mySite: 'http://localhost:3000/about',
+  mySite: 'http://localhost:3000',
   twitterHandle: '@shankho99',
   mailAddress: 'sid_bas@yahoo.com',
 }
