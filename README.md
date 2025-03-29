@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://blog.nurriyad.com" target="_blank">
+  <a href="https://shankho-blogsite.vercel.app/" target="_blank">
     <img  src="./assets/images/dark.png">
   </a>
 </p>
@@ -49,7 +49,7 @@ Nuxt Blog built with [Nuxt3](https://nuxt.com), [Nuxt-Content2](https://content.
 
 ## Demo
 
-https://blog.nurriyad.com
+https://shankho-blogsite.vercel.app/
 
 > Hosted on [Vercel](https://vercel.com/): `npm run build`
 
@@ -59,18 +59,15 @@ https://blog.nurriyad.com
 
 ```bash
 # install dependencies
-yarn install
+npm install
 
 # serve in dev mode, with hot reload at localhost:5173
-yarn run dev
+npm run dev
 
 # build for production
-yarn run build
+npm run build
 
 # serve in production mode
-yarn run  preview
+npm run  preview
 
 ```
-
-
-https://console.firebase.google.com/
