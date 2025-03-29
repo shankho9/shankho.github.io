@@ -28,7 +28,7 @@ function isActive(path: string) {
         </li>
         <li>
           <NuxtLink to="/personalSpace" :class="{ underline: isActive('/personalSpace') }">
-            My Life Lines
+            LifeLines
           </NuxtLink>
         </li>
         <li>

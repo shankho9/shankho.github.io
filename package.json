@@ -41,6 +41,8 @@
     "unenv": "^1.10.0"
   },
   "dependencies": {
-    "@shankho/nuxt-blog": "file:"
+    "@shankho/nuxt-blog": "file:",
+    "@vercel/analytics": "^1.5.0",
+    "@vercel/speed-insights": "^1.2.0"
   }
 }

@@ -1,5 +1,7 @@
 <script setup>
 import { siteMetaData } from './data'
+import { Analytics } from '@vercel/analytics/nuxt'
+import { SpeedInsights } from '@vercel/speed-insights/vue'
 
 useHead({
   htmlAttrs: {
@@ -10,6 +12,9 @@ useHead({
 </script>
 
 <template>
+  <Analytics />
+  <NuxtPath />
+  <SpeedInsights />
   <div class="bg-[#F1F2F4] dark:text-zinc-300 dark:bg-slate-950">
     <NuxtLoadingIndicator />
     <NuxtLayout>
