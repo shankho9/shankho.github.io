@@ -1,6 +1,6 @@
 import { Feed } from 'feed'
 
-const basePath = 'https://shankho.com'
+const basePath = 'https://shankho-blogsite-starter.firebaseapp.com'
 
 export default defineEventHandler(async (event) => {
   setHeader(event, 'content-type', 'text/xml')
@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
     copyright: 'MIT',
     author: {
       name: 'Siddhartha Basu',
-      email: 'sid_bas@yahoo.com',
+      email: 'siddhartha.basu@outlook.com',
       link: basePath,
     },
   })
