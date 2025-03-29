@@ -51,7 +51,7 @@ export const seoData = {
     'https://res.cloudinary.com/dmecmyphj/image/upload/v1673548905/nuxt-blog/cover_ntgs6u.webp',
   mySite: 'http://localhost:3000',
   twitterHandle: '@shankho99',
-  mailAddress: 'sid_bas@yahoo.com',
+  mailAddress: 'siddhartha.basu@outlook.com',
 }
 
 export const socialLinks = {

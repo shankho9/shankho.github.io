@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
     copyright: 'MIT',
     author: {
       name: 'Siddhartha Basu',
-      email: 'sid_bas@yahoo.com',
+      email: 'siddhartha.basu@outlook.com',
       link: basePath,
     },
   })
