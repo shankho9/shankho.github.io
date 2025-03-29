@@ -18,7 +18,7 @@ defineOgImageComponent('About', {
   title: navbarData.homeTitle,
   description:
     'I enjoy company of those who are willing to walk the extra mile. Test Automation Engineer by profession and a philanthropic by heart - `All things bright and beautiful, all creatures great and small`',
-  link: '/Sid_BetDwarka_Solo_w_Terrano.jpg',
+  link: '/blogs-img/personal/Sid_BetDwarka_Solo_w_Terrano.jpg',
 })
 </script>
 
