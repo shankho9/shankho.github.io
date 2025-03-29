@@ -180,7 +180,7 @@ const socialIcons = {
     <!-- Two Pictures Placeholder -->
     <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-5">
       <NuxtImg
-        src="/blogs-img/personal/All_Four.jpg"
+        src="/blogs-img/personal/All_four.jpg"
         class="rounded-md w-full h-auto shadow-lg"
         width="600"
         height="650"
