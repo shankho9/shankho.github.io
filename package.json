@@ -31,6 +31,7 @@
     "@vueuse/nuxt": "^10.9.0",
     "eslint-config-prettier": "^9.1.0",
     "feed": "^4.2.2",
+    "firebase": "^11.5.0",
     "fuse.js": "^7.0.0",
     "nuxt": "^3.16.0",
     "nuxt-icon": "^0.6.8",
@@ -40,7 +41,6 @@
     "unenv": "^1.10.0"
   },
   "dependencies": {
-    "@shankho/nuxt-blog": "file:",
-    "firebase": "^11.5.0"
+    "@shankho/nuxt-blog": "file:"
   }
 }
