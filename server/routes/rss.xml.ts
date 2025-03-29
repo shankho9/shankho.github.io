@@ -1,21 +1,21 @@
 import { Feed } from 'feed'
 
-const basePath = 'https://nurriyad.com'
+const basePath = 'https://shankho.com'
 
 export default defineEventHandler(async (event) => {
   setHeader(event, 'content-type', 'text/xml')
   const docs = await queryCollection(event, 'content').all()
   const feed = new Feed({
-    title: "Riyad's personal blog site",
-    description: "Riyad's personal blog site",
+    title: "Sid's personal blog site",
+    description: "Sid's personal blog site",
     id: basePath,
     link: basePath,
     language: 'en',
     favicon: `${basePath}/favicon.ico`,
     copyright: 'MIT',
     author: {
-      name: 'Al Asad Nur Riyad',
-      email: 'asadnurriyad@gmail.com',
+      name: 'Siddhartha Basu',
+      email: 'sid_bas@yahoo.com',
       link: basePath,
     },
   })

@@ -35,8 +35,7 @@ const siteData = useSiteConfig()
 defineOgImage({
   props: {
     title: 'Categories',
-    description:
-      'Below All the topics are listed on which either I have written a blog or will write a blog in near future.',
+    description: 'The blogger in me. Dedicated to my 2 kids Riya and Tiya',
     siteName: siteData.url,
   },
 })

@@ -19,5 +19,35 @@
     "spacegrotesk",
     "Tailwindcss",
     "vuex"
-  ]
+  ],
+  "todo-tree.customHighlight": {
+    "TODO": {
+      "icon": "check",
+      "type": "line",
+      "iconColour": "yellow",
+      "foreground": "red",
+      "background": "yellow"
+    },
+    "FIXME": {
+      "icon": "beaker",
+      "iconColour": "red",
+      "foreground": "white",
+      "background": "red"
+    }
+  },
+  "todo-tree.highlights.customHighlight": {
+    "TODO": {
+      "icon": "check",
+      "type": "line",
+      "iconColour": "yellow",
+      "foreground": "red",
+      "background": "yellow"
+    },
+    "FIXME": {
+      "icon": "beaker",
+      "iconColour": "red",
+      "foreground": "white",
+      "background": "red"
+    }
+  }
 }

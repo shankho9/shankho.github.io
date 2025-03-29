@@ -1,0 +1,7 @@
+{
+  "hosting": {
+    "public": "public",
+    "site": "shankho9-blogsite",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+  }
+}

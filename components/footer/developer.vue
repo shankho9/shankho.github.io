@@ -36,12 +36,12 @@ import { footerData, socialLinks } from '~/data'
         <Icon name="fa:twitter-square" size="1em" />
       </NuxtLink>
       <NuxtLink
-        :to="socialLinks.stackoverflowLink"
+        :to="socialLinks.spotifyLink"
         target="_blank"
         class="p-2 bg-gray-300 text-gray-800 rounded-md dark:bg-sky-700 dark:text-[#F1F2F4]"
-        aria-label="StackOverflow"
+        aria-label="Spotify"
       >
-        <Icon name="fa:stack-overflow" size="1em" />
+        <Icon name="fa:spotify" size="1em" />
       </NuxtLink>
     </div>
   </div>
