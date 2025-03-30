@@ -12,7 +12,7 @@ const filteredData = computed(() => {
   return (
     data.value?.filter((articles) => {
       const meta = articles.meta as unknown as BlogPost
-      return meta?.tags?.includes('lifelines') || (meta as any)?.category === 'lifelines'
+      return meta?.tags?.includes('lifelines') || meta?.category === 'lifelines'
     }) || []
   )
 })
