@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { homePage } from '~/data'
-import FastTransport from '~/components/logo/FastTransport.vue'
+import { pesonalSpace } from '~/data'
 </script>
 
 <template>
@@ -10,14 +9,14 @@ import FastTransport from '~/components/logo/FastTransport.vue'
         <h1
           class="text-black dark:text-zinc-300 font-semibold leading-tight text-4xl md:text-5xl my-5"
         >
-          {{ homePage.title }}
+          {{ pesonalSpace.title }}
         </h1>
         <p class="dark:text-zinc-300">
-          {{ homePage.description }}
+          {{ pesonalSpace.description }}
         </p>
       </div>
       <div class="px-6 justify-self-center">
-        <FastTransport />
+        <LogoDog />
       </div>
     </div>
   </div>

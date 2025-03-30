@@ -13,9 +13,21 @@ export const footerData = {
 }
 
 export const homePage = {
-  title: 'Welcome To My Blog Site',
-  description:
-    'Get Web Development, Javascript, Typescript, NodeJs, Vue, and Nuxt, Related Articles, Tips, Learning resources and more.',
+  title: 'Welcome To My Blog Site - Nomadic Notions!!',
+  description: `
+    Nomadic Notions is a space where leadership, strategy, and personal growth converge—
+    much like a seasoned traveler navigating the ever-changing corporate landscape. 
+
+    Just as a nomad moves with purpose yet adapts to the unknown, great leaders must balance
+    vision with agility. The mind journeys through challenges, decisions, and reflections,
+    shaping perspectives that drive transformation. 
+
+    Some insights leave lasting footprints, while others evolve with experience, reshaping
+    the path ahead. This blog is a collection of leadership wisdom—stories of resilience,
+    strategic thinking, and the quiet moments between action and reflection. 
+
+    Each post is a stop along the way, an invitation to pause, learn, and lead with clarity and purpose.
+  `,
 }
 
 export const blogsPage = {
@@ -31,7 +43,7 @@ export const categoryPage = {
 export const pesonalSpace = {
   title: 'My LifeLines',
   description:
-    'This is my space, Personal space and will be udpated to gain entry only for authorized users',
+    'This is my space. Welcome to my organized chaos — family, adventures, and thoughts that sounded better in my head.',
   aboutMe: 'Google Auth ToDo',
 }
 
@@ -49,16 +61,17 @@ export const seoData = {
   twitterDescription: `Sid's Blog, where I play around content, resources, etc - Sid's Blog | Shankho's Blog`,
   image:
     'https://res.cloudinary.com/dmecmyphj/image/upload/v1673548905/nuxt-blog/cover_ntgs6u.webp',
-  mySite: 'http://localhost:3000',
+  mySite: 'https://shankho-blogsite.vercel.app/',
   twitterHandle: '@shankho99',
   mailAddress: 'siddhartha.basu@outlook.com',
 }
 
 export const socialLinks = {
-  githubLink: 'https://github.com/shankho9',
-  linkedinLink: 'https://www.linkedin.com/in/siddharthabasu/',
-  twitterLink: 'https://twitter.com/shankho99',
-  spotifyLink: 'https://open.spotify.com/user/w7b38i9wif2jjq3hfx3ay30zj?si=6ac5c35594ec4d6f',
+  github: 'https://github.com/shankho9',
+  linkedin: 'https://www.linkedin.com/in/siddharthabasu/',
+  twitter: 'https://twitter.com/shankho99',
+  stackoverflow: 'https://stackoverflow.com/users/8872168/siddhartha-basu',
+  spotify: 'https://open.spotify.com/user/w7b38i9wif2jjq3hfx3ay30zj?si=6ac5c35594ec4d6f',
 }
 
 export const siteMetaData = [
