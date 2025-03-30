@@ -117,12 +117,28 @@ const socialIcons = {
         v-for="(img, index) in [
           '/blogs-img/personal/Riya_Solo.jpg',
           '/blogs-img/personal/Riya_Solo2.jpg',
-          '/blogs-img/personal/Sid-Tiya.jpg',
+          '/blogs-img/personal/Tiya_Solo2.jpg',
           '/blogs-img/personal/Tiya_Solo.jpg',
         ]"
         :key="index"
         class="rounded-md w-full h-[500px] object-cover shadow-lg"
         width="450"
+        height="500"
+        quality="85"
+        :src="img"
+      />
+    </div>
+
+    <!-- Second Row: 2 Images -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5">
+      <NuxtImg
+        v-for="(img, index) in [
+          '/blogs-img/personal/TheTwo.jpg',
+          '/blogs-img/personal/TheTwo_2.jpg',
+        ]"
+        :key="index"
+        class="rounded-md w-full h-[500px] object-cover shadow-lg"
+        width="600"
         height="500"
         quality="85"
         :src="img"

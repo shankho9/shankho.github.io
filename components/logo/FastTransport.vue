@@ -25,6 +25,21 @@
         <circle cx="250" cy="100" r="5" fill="black" />
       </g>
 
+      <!-- Superman (Random Horizontal Flight) -->
+      <g class="animate-superman">
+        <!-- Head -->
+        <circle cx="50" cy="150" r="10" fill="red" />
+        <!-- Body -->
+        <rect x="40" y="160" width="30" height="10" fill="blue" />
+        <!-- Arms (stretched forward) -->
+        <line x1="70" y1="165" x2="85" y2="160" stroke="red" stroke-width="3" />
+        <!-- Legs -->
+        <line x1="40" y1="170" x2="35" y2="180" stroke="blue" stroke-width="3" />
+        <line x1="45" y1="170" x2="50" y2="180" stroke="blue" stroke-width="3" />
+        <!-- Cape -->
+        <polygon points="40,160 25,165 20,175 50,165" fill="red" />
+      </g>
+
       <!-- Mountains -->
       <polygon points="100,350 350,100 600,350" fill="#6B8E23" />
       <polygon points="500,370 800,120 1100,370" fill="#556B2F" />
@@ -71,18 +86,6 @@
         <rect x="950" y="410" width="20" height="70" fill="brown" />
         <circle cx="960" cy="390" r="45" fill="darkgreen" />
       </g>
-
-      <!-- Moving Cars -->
-      <g class="animate-car">
-        <rect x="700" y="450" width="100" height="50" fill="red" />
-        <circle cx="720" cy="500" r="12" fill="black" />
-        <circle cx="780" cy="500" r="12" fill="black" />
-      </g>
-      <g class="animate-car">
-        <rect x="200" y="460" width="80" height="45" fill="blue" />
-        <circle cx="220" cy="505" r="10" fill="black" />
-        <circle cx="260" cy="505" r="10" fill="black" />
-      </g>
     </svg>
   </div>
 </template>
@@ -128,19 +131,6 @@
   animation: movePlane 15s linear infinite;
 }
 
-/* Moving Cars */
-@keyframes moveCar {
-  0% {
-    transform: translateX(-200px);
-  }
-  100% {
-    transform: translateX(1400px);
-  }
-}
-.animate-car {
-  animation: moveCar 8s linear infinite;
-}
-
 /* Parallax Trees */
 @keyframes moveParallax {
   0% {
@@ -152,5 +142,24 @@
 }
 .animate-parallax {
   animation: moveParallax 10s ease-in-out infinite alternate;
+}
+
+/* Superman (Random Horizontal Flight) */
+@keyframes moveSuperman {
+  0%,
+  90% {
+    opacity: 0;
+    transform: translateX(-200px) translateY(50px);
+  }
+  95% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(1400px) translateY(50px);
+  }
+}
+.animate-superman {
+  animation: moveSuperman 20s linear infinite;
 }
 </style>

@@ -12,7 +12,7 @@ const filteredData = computed(() => {
   return (
     data.value?.filter((articles) => {
       const meta = articles.meta as unknown as BlogPost
-      return meta?.tags?.includes('lifelines') || meta?.category === 'lifelines'
+      return meta?.tags?.includes('lifelines') || (meta as any)?.category === 'lifelines'
     }) || []
   )
 })
@@ -71,14 +71,6 @@ useHead({
       content: 'This section of my Blog is dedicated to Papiya, my 2 daughters - Riya and Tiya :)',
     },
   ],
-})
-
-const siteData = useSiteConfig()
-defineOgImage({
-  title: 'My Life, My Family, and Adventures',
-  description: 'This section of my Blog is dedicated to Papiya, my 2 daughters - Riya and Tiya :)',
-  image: '/default-og-image.jpg',
-  siteName: siteData.url,
 })
 </script>
 
