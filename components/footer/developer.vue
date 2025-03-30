@@ -1,47 +1,26 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { footerData, socialLinks } from '~/data'
 </script>
 
 <template>
-  <div>
+  <div class="text-center">
     <p class="text-black dark:text-zinc-300 text-2xl py-1 font-semibold">
       {{ footerData.author }}
     </p>
     <p class="py-2 dark:text-zinc-300">
       {{ footerData.aboutAuthor }}
     </p>
-    <div class="my-3 space-x-3 pb-3">
+    <div class="my-5 flex justify-center items-center gap-5">
       <NuxtLink
-        :to="socialLinks.githubLink"
+        v-for="(link, key) in socialLinks"
+        :key="key"
+        :to="link"
         target="_blank"
-        class="p-2 bg-gray-300 text-gray-800 rounded-md dark:bg-sky-700 dark:text-[#F1F2F4]"
-        aria-label="Github"
+        class="p-3 bg-blue-100 dark:bg-blue-600 text-blue-800 dark:text-white rounded-full shadow-md hover:shadow-lg transition transform hover:scale-110"
+        :aria-label="key"
       >
-        <Icon name="fa:github" size="1em" />
-      </NuxtLink>
-      <NuxtLink
-        :to="socialLinks.linkedinLink"
-        target="_blank"
-        class="p-2 bg-gray-300 text-gray-800 rounded-md dark:bg-sky-700 dark:text-[#F1F2F4]"
-        aria-label="LinkedIn"
-      >
-        <Icon name="fa:linkedin-square" size="1em" />
-      </NuxtLink>
-      <NuxtLink
-        :to="socialLinks.twitterLink"
-        target="_blank"
-        class="p-2 bg-gray-300 text-gray-800 rounded-md dark:bg-sky-700 dark:text-[#F1F2F4]"
-        aria-label="Twitter"
-      >
-        <Icon name="fa:twitter-square" size="1em" />
-      </NuxtLink>
-      <NuxtLink
-        :to="socialLinks.spotifyLink"
-        target="_blank"
-        class="p-2 bg-gray-300 text-gray-800 rounded-md dark:bg-sky-700 dark:text-[#F1F2F4]"
-        aria-label="Spotify"
-      >
-        <Icon name="fa:spotify" size="1em" />
+        <Icon :icon="`mdi:${key}`" width="28" height="28" />
       </NuxtLink>
     </div>
   </div>

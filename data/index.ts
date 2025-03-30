@@ -13,9 +13,21 @@ export const footerData = {
 }
 
 export const homePage = {
-  title: 'Welcome To My Blog Site',
-  description:
-    'Get Web Development, Javascript, Typescript, NodeJs, Vue, and Nuxt, Related Articles, Tips, Learning resources and more.',
+  title: 'Welcome To My Blog Site - Nomadic Notions!!',
+  description: `
+    Nomadic Notions is a space where leadership, strategy, and personal growth converge—
+    much like a seasoned traveler navigating the ever-changing corporate landscape. 
+
+    Just as a nomad moves with purpose yet adapts to the unknown, great leaders must balance
+    vision with agility. The mind journeys through challenges, decisions, and reflections,
+    shaping perspectives that drive transformation. 
+
+    Some insights leave lasting footprints, while others evolve with experience, reshaping
+    the path ahead. This blog is a collection of leadership wisdom—stories of resilience,
+    strategic thinking, and the quiet moments between action and reflection. 
+
+    Each post is a stop along the way, an invitation to pause, learn, and lead with clarity and purpose.
+  `,
 }
 
 export const blogsPage = {

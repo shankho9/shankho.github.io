@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { homePage } from '~/data'
+import FastTransport from '~/components/logo/FastTransport.vue'
 </script>
 
 <template>
@@ -16,7 +17,7 @@ import { homePage } from '~/data'
         </p>
       </div>
       <div class="px-6 justify-self-center">
-        <LogoDog />
+        <FastTransport />
       </div>
     </div>
   </div>
