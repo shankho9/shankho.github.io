@@ -1,6 +1,6 @@
 import { Feed } from 'feed'
 
-const basePath = 'https://shankho-blogsite-starter.firebaseapp.com'
+const basePath = 'https://shankho-blogsite.vercel.app/'
 
 export default defineEventHandler(async (event) => {
   setHeader(event, 'content-type', 'text/xml')
