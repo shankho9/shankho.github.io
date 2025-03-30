@@ -15,7 +15,8 @@ const path = computed(() => route.fullPath.replace('/', ''))
       </div>
 
       <div class="border-t dark:border-gray-800 mt-5 text-center p-2">
-        © 2020-2024 No Right is reserved. Who cares 🤷‍♂️ anyway. <a href="/rss.xml" aria-label="Website RSS Feed">
+        © 2020-2024 No Right is reserved. Who cares 🤷‍♂️ anyway.
+        <a href="/rss.xml" aria-label="Website RSS Feed">
           <span class="px-3"><Icon name="bi:rss-fill" /></span
         ></a>
       </div>

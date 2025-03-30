@@ -46,8 +46,7 @@ useHead({
   meta: [
     {
       name: 'description',
-      content:
-        'Welcome To My Blog Site. Stay connected for more insights',
+      content: 'Welcome To My Blog Site. Stay connected for more insights',
     },
   ],
 })
