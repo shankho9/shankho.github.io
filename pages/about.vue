@@ -19,28 +19,24 @@ defineOgImageComponent('About', {
   link: '/blogs-img/personal/Sid_BetDwarka_Solo_w_Terrano.jpg',
 })
 
-// FontAwesome icons for social media
 const socialIcons = {
-  github: 'fa-brands:github',
-  linkedin: 'fa-brands:linkedin',
-  twitter: 'fa-brands:twitter',
-  stackoverflow: 'fa-brands:stack-overflow',
+  github: 'mdi:github',
+  linkedin: 'mdi:linkedin',
+  twitter: 'mdi:twitter',
+  stackoverflow: 'mdi:stack-overflow',
+  spotify: 'mdi:spotify',
 }
 </script>
 
 <template>
   <div class="py-10 container mx-auto max-w-6xl">
-    <!-- Page Heading -->
-    <h1 class="text-3xl font-bold pb-5 text-center">
-      {{ aboutPage.title }}
-    </h1>
+    <h1 class="text-3xl font-bold pb-5 text-center">{{ aboutPage.title }}</h1>
 
-    <!-- First Row: Two Images with Text in Center -->
     <div class="flex flex-col sm:flex-row justify-between items-center gap-5">
-      <div class="w-full sm:w-1/3">
+      <div class="w-full sm:w-1/3 h-[650px] flex">
         <NuxtImg
           src="/blogs-img/personal/Sid_BetDwarka_Solo_w_Terrano.jpg"
-          class="rounded-md w-full h-auto shadow-lg"
+          class="rounded-md w-full h-full object-cover shadow-lg"
           width="600"
           height="650"
           quality="85"
@@ -48,13 +44,8 @@ const socialIcons = {
       </div>
 
       <div class="w-full sm:w-1/3 text-center px-5">
-        <h3 class="text-lg sm:text-2xl font-semibold mb-5">
-          {{ aboutPage.description }}
-        </h3>
-        <p class="text-base sm:text-lg">
-          {{ aboutPage.aboutMe }}
-        </p>
-
+        <h3 class="text-lg sm:text-2xl font-semibold mb-5">{{ aboutPage.description }}</h3>
+        <p class="text-base sm:text-lg">{{ aboutPage.aboutMe }}</p>
         <div class="my-5 flex flex-wrap justify-center gap-3">
           <NuxtLink
             v-for="(link, key) in socialLinks"
@@ -70,10 +61,10 @@ const socialIcons = {
         </div>
       </div>
 
-      <div class="w-full sm:w-1/3">
+      <div class="w-full sm:w-1/3 h-[650px] flex">
         <NuxtImg
           src="/blogs-img/personal/Sid_Specs.jpg"
-          class="rounded-md w-full h-auto shadow-lg"
+          class="rounded-md w-full h-full object-cover shadow-lg"
           width="600"
           height="650"
           quality="85"
@@ -81,12 +72,11 @@ const socialIcons = {
       </div>
     </div>
 
-    <!-- Second Row: Two Images and Text in the Center -->
     <div class="flex flex-col sm:flex-row justify-between items-center gap-5 mt-10">
-      <div class="w-full sm:w-1/3">
+      <div class="w-full sm:w-1/3 h-[550px] flex">
         <NuxtImg
           src="/blogs-img/personal/Sid-Papiya_DecadeBack.jpg"
-          class="rounded-md w-full h-auto shadow-lg"
+          class="rounded-md w-full h-full object-cover shadow-lg"
           width="500"
           height="550"
           quality="85"
@@ -95,17 +85,13 @@ const socialIcons = {
 
       <div class="w-full sm:w-1/3 text-center px-5">
         <h2 class="text-xl sm:text-2xl font-semibold mb-3">A Journey of Memories</h2>
-        <p class="text-base sm:text-lg">
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. Pellentesque
-          habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Mauris
-          tincidunt erat in nisl efficitur, at tempus felis aliquet.
-        </p>
+        <p class="text-base sm:text-lg">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
       </div>
 
-      <div class="w-full sm:w-1/3">
+      <div class="w-full sm:w-1/3 h-[550px] flex">
         <NuxtImg
           src="/blogs-img/personal/Sid-Papiya.jpg"
-          class="rounded-md w-full h-auto shadow-lg"
+          class="rounded-md w-full h-full object-cover shadow-lg"
           width="500"
           height="550"
           quality="85"
@@ -113,49 +99,28 @@ const socialIcons = {
       </div>
     </div>
 
-    <!-- Third Row: 4 Image Placeholders -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-10">
       <NuxtImg
-        src="/blogs-img/personal/Riya_Solo.jpg"
-        class="rounded-md w-full h-auto shadow-lg"
+        v-for="(img, index) in [
+          '/blogs-img/personal/Riya_Solo.jpg',
+          '/blogs-img/personal/Riya_Solo2.jpg',
+          '/blogs-img/personal/Sid-Tiya.jpg',
+          '/blogs-img/personal/Tiya_Solo.jpg',
+        ]"
+        :key="index"
+        class="rounded-md w-full h-[500px] object-cover shadow-lg"
         width="450"
         height="500"
         quality="85"
-      />
-      <NuxtImg
-        src="/blogs-img/personal/Riya_Solo2.jpg"
-        class="rounded-md w-full h-auto shadow-lg"
-        width="450"
-        height="500"
-        quality="85"
-      />
-      <NuxtImg
-        src="/blogs-img/personal/Sid-Tiya.jpg"
-        class="rounded-md w-full h-auto shadow-lg"
-        width="450"
-        height="500"
-        quality="85"
-      />
-      <NuxtImg
-        src="/blogs-img/personal/Tiya_Solo.jpg"
-        class="rounded-md w-full h-auto shadow-lg"
-        width="450"
-        height="500"
-        quality="85"
+        :src="img"
       />
     </div>
 
-    <!-- Additional Text Placeholder -->
     <div class="mt-10 text-center">
       <h2 class="text-2xl font-bold mb-4">More About My Journey</h2>
-      <p class="text-lg px-5">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. Pellentesque
-        habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Mauris
-        tincidunt erat in nisl efficitur, at tempus felis aliquet.
-      </p>
+      <p class="text-lg px-5">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
     </div>
 
-    <!-- Single Landscape Image Placeholder -->
     <div class="mt-10 flex justify-center">
       <NuxtImg
         src="/blogs-img/personal/MacquarieDays.jpg"
@@ -167,33 +132,23 @@ const socialIcons = {
       />
     </div>
 
-    <!-- Additional Text Placeholder -->
     <div class="mt-10 text-center">
       <h2 class="text-2xl font-bold mb-4">Happy Smiling Family</h2>
-      <p class="text-lg px-5">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. Pellentesque
-        habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Mauris
-        tincidunt erat in nisl efficitur, at tempus felis aliquet.
-      </p>
+      <p class="text-lg px-5">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
     </div>
 
-    <!-- Two Pictures Placeholder -->
     <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-5">
       <NuxtImg
-        src="/blogs-img/personal/All_four.jpg"
-        class="rounded-md w-full h-auto shadow-lg"
+        v-for="(img, index) in [
+          '/blogs-img/personal/All_four.jpg',
+          '/blogs-img/personal/TheThree.jpg',
+        ]"
+        :key="index"
+        class="rounded-md w-full h-[650px] object-cover shadow-lg"
         width="600"
         height="650"
         quality="85"
-        alt="Placeholder Image 1"
-      />
-      <NuxtImg
-        src="/blogs-img/personal/TheThree.jpg"
-        class="rounded-md w-full h-auto shadow-lg"
-        width="600"
-        height="650"
-        quality="85"
-        alt="Placeholder Image 2"
+        :src="img"
       />
     </div>
   </div>

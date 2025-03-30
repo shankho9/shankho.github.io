@@ -55,10 +55,11 @@ export const seoData = {
 }
 
 export const socialLinks = {
-  githubLink: 'https://github.com/shankho9',
-  linkedinLink: 'https://www.linkedin.com/in/siddharthabasu/',
-  twitterLink: 'https://twitter.com/shankho99',
-  spotifyLink: 'https://open.spotify.com/user/w7b38i9wif2jjq3hfx3ay30zj?si=6ac5c35594ec4d6f',
+  github: 'https://github.com/shankho9',
+  linkedin: 'https://www.linkedin.com/in/siddharthabasu/',
+  twitter: 'https://twitter.com/shankho99',
+  stackoverflow: 'https://stackoverflow.com/users/8872168/siddhartha-basu',
+  spotify: 'https://open.spotify.com/user/w7b38i9wif2jjq3hfx3ay30zj?si=6ac5c35594ec4d6f',
 }
 
 export const siteMetaData = [
