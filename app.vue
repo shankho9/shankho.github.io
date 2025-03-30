@@ -3,6 +3,9 @@ import { siteMetaData } from './data'
 import { Analytics } from '@vercel/analytics/nuxt'
 import { SpeedInsights } from '@vercel/speed-insights/vue'
 
+const analytics = useAnalytics() // Example
+console.log(analytics) // Use it to avoid the error
+
 useHead({
   htmlAttrs: {
     lang: 'en',
