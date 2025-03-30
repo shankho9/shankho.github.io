@@ -78,7 +78,7 @@ const socialIcons = {
     <div class="flex flex-col sm:flex-row justify-between items-center gap-5 mt-10">
       <div class="w-full sm:w-1/3 h-[550px] flex">
         <NuxtImg
-          src="/blogs-img/personal/Sid-Papiya_DecadeBack.jpg"
+          src="/blogs-img/personal/Sid_Papiya_DecadeBack.jpg"
           class="rounded-md w-full h-full object-cover shadow-lg"
           width="500"
           height="550"
@@ -103,7 +103,7 @@ const socialIcons = {
 
       <div class="w-full sm:w-1/3 h-[550px] flex">
         <NuxtImg
-          src="/blogs-img/personal/Sid-Papiya.jpg"
+          src="/blogs-img/personal/Sid_Papiya.jpg"
           class="rounded-md w-full h-full object-cover shadow-lg"
           width="500"
           height="550"
