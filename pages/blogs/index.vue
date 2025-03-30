@@ -8,86 +8,83 @@ const elementPerPage = ref(5)
 const pageNumber = ref(1)
 const searchTest = ref('')
 
-const formattedData = computed(() => {
+const filteredData = computed(() => {
   return (
-    data.value?.map((articles) => {
+    data.value?.filter((articles) => {
       const meta = articles.meta as unknown as BlogPost
-      return {
-        path: articles.path,
-        title: articles.title || 'no-title available',
-        description: articles.description || 'no-description available',
-        image: meta.image || '/not-found.jpg',
-        alt: meta.alt || 'no alter data available',
-        ogImage: meta.ogImage || '/not-found.jpg',
-        date: meta.date || 'not-date-available',
-        tags: meta.tags || [],
-        published: meta.published || false,
-      }
+      return !meta?.tags?.includes('lifelines') && meta?.category !== 'lifelines'
     }) || []
   )
 })
 
-const fuse = computed(() => {
-  return new Fuse(formattedData.value, {
-    keys: ['title', 'description'],
-    threshold: 0.4,
-    includeScore: false,
-  })
-})
+const formattedData = computed(() =>
+  filteredData.value.map((articles) => {
+    const meta = articles.meta as unknown as BlogPost
+    return {
+      path: articles.path,
+      title: articles.title || 'no-title available',
+      description: articles.description || 'no-description available',
+      image: meta.image || '/not-found.jpg',
+      alt: meta.alt || 'no alter data available',
+      ogImage: meta.ogImage || '/not-found.jpg',
+      date: meta.date || 'not-date-available',
+      tags: meta.tags?.filter((tag) => tag !== 'lifelines') || [],
+      published: meta.published || false,
+    }
+  }),
+)
+
+const fuse = computed(
+  () =>
+    new Fuse(formattedData.value, {
+      keys: ['title', 'description'],
+      threshold: 0.4,
+      includeScore: false,
+    }),
+)
 
 const searchData = computed(() => {
-  if (!searchTest.value.trim()) {
-    return formattedData.value
-  }
-
-  const results = fuse.value.search(searchTest.value)
-  return results.map((result) => result.item)
+  if (!searchTest.value.trim()) return formattedData.value
+  return fuse.value.search(searchTest.value).map((result) => result.item)
 })
 
 const paginatedData = computed(() => {
-  const startInd = (pageNumber.value - 1) * elementPerPage.value
-  const endInd = pageNumber.value * elementPerPage.value
-
-  return searchData.value.slice(startInd, endInd)
+  const start = (pageNumber.value - 1) * elementPerPage.value
+  return searchData.value.slice(start, start + elementPerPage.value)
 })
+
+const totalPage = computed(() => Math.ceil(searchData.value.length / elementPerPage.value))
 
 function onPreviousPageClick() {
   if (pageNumber.value > 1) pageNumber.value -= 1
 }
 
-const totalPage = computed(() => {
-  const ttlContent = searchData.value.length || 0
-  return Math.ceil(ttlContent / elementPerPage.value)
-})
-
 function onNextPageClick() {
-  if (pageNumber.value < totalPage.value) pageNumber.value += 1
+  if (pageNumber.value < totalPage.value) pageNumber.value++
 }
 
 useHead({
-  title: 'Archive',
+  title: 'Blog Posts',
   meta: [
     {
       name: 'description',
-      content: 'Here you will find all the blog posts I have written & published on this site.',
+      content: 'Explore various blog posts on diverse topics except lifelines.',
     },
   ],
 })
 
-// Generate OG Image
 const siteData = useSiteConfig()
 defineOgImage({
-  props: {
-    title: 'Archive',
-    description: 'Here you will find all the blog posts I have written & published on this site.',
-    siteName: siteData.url,
-  },
+  title: 'Blog Posts',
+  description: 'Explore various blog posts on diverse topics except lifelines.',
+  image: '/default-og-image.jpg',
+  siteName: siteData.url,
 })
 </script>
 
 <template>
   <main class="container max-w-5xl mx-auto text-zinc-600">
-    <ArchiveHero />
+    <ArchiveHero title="Blog Posts" description="Explore various blog posts on diverse topics." />
 
     <div class="px-6">
       <input

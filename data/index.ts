@@ -31,7 +31,7 @@ export const categoryPage = {
 export const pesonalSpace = {
   title: 'My LifeLines',
   description:
-    'This is my space, Personal space and will be udpated to gain entry only for authorized users',
+    'This is my space. Welcome to my organized chaos — family, adventures, and thoughts that sounded better in my head.',
   aboutMe: 'Google Auth ToDo',
 }
 
@@ -49,7 +49,7 @@ export const seoData = {
   twitterDescription: `Sid's Blog, where I play around content, resources, etc - Sid's Blog | Shankho's Blog`,
   image:
     'https://res.cloudinary.com/dmecmyphj/image/upload/v1673548905/nuxt-blog/cover_ntgs6u.webp',
-  mySite: 'http://localhost:3000',
+  mySite: 'https://shankho-blogsite.vercel.app/',
   twitterHandle: '@shankho99',
   mailAddress: 'siddhartha.basu@outlook.com',
 }
