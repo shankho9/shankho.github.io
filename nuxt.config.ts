@@ -18,6 +18,7 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     '@formkit/auto-animate',
     '@stefanobartoletti/nuxt-social-share',
+    '@nuxtjs/sitemap',
   ],
 
   app: {
