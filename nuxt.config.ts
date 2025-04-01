@@ -19,6 +19,7 @@ export default defineNuxtConfig({
     '@formkit/auto-animate',
     '@stefanobartoletti/nuxt-social-share',
     '@nuxtjs/sitemap',
+    '@nuxtjs/google-gtag',
   ],
 
   app: {
@@ -30,6 +31,15 @@ export default defineNuxtConfig({
     },
     pageTransition: { name: 'page', mode: 'out-in' },
     layoutTransition: { name: 'layout', mode: 'out-in' },
+  },
+
+  runtimeConfig: {
+    public: {
+      googleAnalytics: {
+        id: 'G-DBYSBNB70R', // Replace with your GA Measurement ID
+        debug: process.env.NODE_ENV !== 'production', // Debug in non-production environments
+      },
+    },
   },
 
   sitemap: {
