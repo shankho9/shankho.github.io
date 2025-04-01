@@ -32,6 +32,15 @@ export default defineNuxtConfig({
     layoutTransition: { name: 'layout', mode: 'out-in' },
   },
 
+  runtimeConfig: {
+    public: {
+      googleAnalytics: {
+        id: 'G-DBYSBNB70R', // Replace with your GA Measurement ID
+        debug: process.env.NODE_ENV !== 'production', // Debug in non-production environments
+      },
+    },
+  },
+
   sitemap: {
     sources: [seoData.mySite],
   },
