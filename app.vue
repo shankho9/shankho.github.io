@@ -2,8 +2,25 @@
 import { siteMetaData } from './data'
 import { Analytics } from '@vercel/analytics/nuxt'
 import { SpeedInsights } from '@vercel/speed-insights/vue'
+import { useHead, useRuntimeConfig } from '#imports'
+
+const config = useRuntimeConfig()
 
 useHead({
+  script: [
+    {
+      src: `https://www.googletagmanager.com/gtag/js?id=${config.public.googleAnalyticsId}`,
+      async: true,
+    },
+    {
+      children: `
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '${config.public.googleAnalyticsId}');
+      `,
+    },
+  ],
   htmlAttrs: {
     lang: 'en',
   },
@@ -14,6 +31,7 @@ useHead({
 <template>
   <Analytics />
   <NuxtPath />
+  <NuxtPage />
   <SpeedInsights />
   <div class="bg-[#F1F2F4] dark:text-zinc-300 dark:bg-slate-950">
     <NuxtLoadingIndicator />

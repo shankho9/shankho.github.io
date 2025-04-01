@@ -19,7 +19,6 @@ export default defineNuxtConfig({
     '@formkit/auto-animate',
     '@stefanobartoletti/nuxt-social-share',
     '@nuxtjs/sitemap',
-    '@nuxtjs/google-gtag',
   ],
 
   app: {
