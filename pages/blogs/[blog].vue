@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { BlogPost } from '@/types/blog'
 import { navbarData, seoData } from '~/data'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, navigateTo } from 'nuxt/app'
 
 const { path } = useRoute()
 
@@ -24,69 +26,36 @@ const data = computed<BlogPost>(() => {
   }
 })
 
+// Like button functionality
+const liked = ref(false)
+const likeCount = ref(0)
+
+onMounted(() => {
+  const storedLikes = localStorage.getItem(`likes-${path}`)
+  if (storedLikes) {
+    likeCount.value = parseInt(storedLikes)
+    liked.value = likeCount.value > 0
+  }
+})
+
+const toggleLike = () => {
+  liked.value = !liked.value
+  likeCount.value += liked.value ? 1 : -1
+  localStorage.setItem(`likes-${path}`, likeCount.value.toString())
+}
+
 useHead({
   title: data.value.title || '',
   meta: [
     { name: 'description', content: data.value.description },
-    {
-      name: 'description',
-      content: data.value.description,
-    },
-    // Test on: https://developers.facebook.com/tools/debug/ or https://socialsharepreview.com/
     { property: 'og:site_name', content: navbarData.homeTitle },
     { property: 'og:type', content: 'website' },
-    {
-      property: 'og:url',
-      content: `${seoData.mySite}/${path}`,
-    },
-    {
-      property: 'og:title',
-      content: data.value.title,
-    },
-    {
-      property: 'og:description',
-      content: data.value.description,
-    },
-    {
-      property: 'og:image',
-      content: data.value.ogImage || data.value.image,
-    },
-    // Test on: https://cards-dev.twitter.com/validator or https://socialsharepreview.com/
-    { name: 'twitter:site', content: '@qdnvubp' },
-    { name: 'twitter:card', content: 'summary_large_image' },
-    {
-      name: 'twitter:url',
-      content: `${seoData.mySite}/${path}`,
-    },
-    {
-      name: 'twitter:title',
-      content: data.value.title,
-    },
-    {
-      name: 'twitter:description',
-      content: data.value.description,
-    },
-    {
-      name: 'twitter:image',
-      content: data.value.ogImage || data.value.image,
-    },
+    { property: 'og:url', content: `${seoData.mySite}/${path}` },
+    { property: 'og:title', content: data.value.title },
+    { property: 'og:description', content: data.value.description },
+    { property: 'og:image', content: data.value.ogImage || data.value.image },
   ],
-  link: [
-    {
-      rel: 'canonical',
-      href: `${seoData.mySite}/${path}`,
-    },
-  ],
-})
-
-console.log(articles.value)
-
-// Generate OG Image
-defineOgImageComponent('Test', {
-  headline: 'Shankhos Blog 👋',
-  title: articles.value?.seo.title || '',
-  description: articles.value?.seo.description || '',
-  link: data.value.ogImage,
+  link: [{ rel: 'canonical', href: `${seoData.mySite}/${path}` }],
 })
 </script>
 
@@ -101,6 +70,12 @@ defineOgImageComponent('Test', {
         :description="data.description"
         :tags="data.tags"
       />
+      <!-- Like Button (Top) -->
+      <div class="mt-4 flex items-center gap-2">
+        <button @click="toggleLike" class="like-btn" :class="{ liked: liked }">
+          <span class="heart-icon">❤</span> <span class="like-count">{{ likeCount }}</span>
+        </button>
+      </div>
       <div
         class="prose prose-pre:max-w-xs sm:prose-pre:max-w-full prose-sm sm:prose-base md:prose-lg prose-h1:no-underline max-w-5xl mx-auto prose-zinc dark:prose-invert prose-img:rounded-lg"
       >
@@ -109,6 +84,13 @@ defineOgImageComponent('Test', {
             <p>No content found.</p>
           </template>
         </ContentRenderer>
+      </div>
+
+      <!-- Like Button (Bottom) -->
+      <div class="mt-4 flex items-center gap-2">
+        <button @click="toggleLike" class="like-btn" :class="{ liked: liked }">
+          <span class="heart-icon">❤</span> <span class="like-count">{{ likeCount }}</span>
+        </button>
       </div>
     </div>
     <BlogToc />
@@ -126,3 +108,42 @@ defineOgImageComponent('Test', {
     </div>
   </div>
 </template>
+
+<style>
+.like-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: transform 0.2s ease-in-out;
+}
+.like-btn:hover {
+  transform: scale(1.1);
+}
+.heart-icon {
+  font-size: 22px;
+  transition: color 0.3s ease-in-out;
+}
+.liked .heart-icon {
+  color: #e63946;
+  animation: pulse 0.4s ease-in-out;
+}
+.like-count {
+  color: #b22222; /* Less bright red */
+  font-weight: bold;
+}
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+</style>
