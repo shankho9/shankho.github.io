@@ -38,7 +38,9 @@ export default defineNuxtConfig({
         id: 'G-DBYSBNB70R', // Replace with your GA Measurement ID
         debug: process.env.NODE_ENV !== 'production', // Debug in non-production environments
       },
+      apiBase: '/api',
     },
+    databaseUrl: process.env.DATABASE_URL,
   },
 
   sitemap: {

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { BlogPost } from '@/types/blog'
 import { navbarData, seoData } from '~/data'
-import { ref, computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useRoute, navigateTo } from 'nuxt/app'
+import LikeButton from '@/components/blog/LikeButton.vue'
 
 const { path } = useRoute()
 
@@ -25,24 +26,6 @@ const data = computed<BlogPost>(() => {
     published: meta?.published || false,
   }
 })
-
-// Like button functionality
-const liked = ref(false)
-const likeCount = ref(0)
-
-onMounted(() => {
-  const storedLikes = localStorage.getItem(`likes-${path}`)
-  if (storedLikes) {
-    likeCount.value = parseInt(storedLikes)
-    liked.value = likeCount.value > 0
-  }
-})
-
-const toggleLike = () => {
-  liked.value = !liked.value
-  likeCount.value += liked.value ? 1 : -1
-  localStorage.setItem(`likes-${path}`, likeCount.value.toString())
-}
 
 useHead({
   title: data.value.title || '',
@@ -70,12 +53,12 @@ useHead({
         :description="data.description"
         :tags="data.tags"
       />
+
       <!-- Like Button (Top) -->
       <div class="mt-4 flex items-center gap-2">
-        <button @click="toggleLike" class="like-btn" :class="{ liked: liked }">
-          <span class="heart-icon">❤</span> <span class="like-count">{{ likeCount }}</span>
-        </button>
+        <LikeButton :post-id="path" />
       </div>
+
       <div
         class="prose prose-pre:max-w-xs sm:prose-pre:max-w-full prose-sm sm:prose-base md:prose-lg prose-h1:no-underline max-w-5xl mx-auto prose-zinc dark:prose-invert prose-img:rounded-lg"
       >
@@ -88,11 +71,10 @@ useHead({
 
       <!-- Like Button (Bottom) -->
       <div class="mt-4 flex items-center gap-2">
-        <button @click="toggleLike" class="like-btn" :class="{ liked: liked }">
-          <span class="heart-icon">❤</span> <span class="like-count">{{ likeCount }}</span>
-        </button>
+        <LikeButton :post-id="path" />
       </div>
     </div>
+
     <BlogToc />
 
     <div class="flex flex-row flex-wrap md:flex-nowrap mt-10 gap-2">
@@ -108,42 +90,3 @@ useHead({
     </div>
   </div>
 </template>
-
-<style>
-.like-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  transition: transform 0.2s ease-in-out;
-}
-.like-btn:hover {
-  transform: scale(1.1);
-}
-.heart-icon {
-  font-size: 22px;
-  transition: color 0.3s ease-in-out;
-}
-.liked .heart-icon {
-  color: #e63946;
-  animation: pulse 0.4s ease-in-out;
-}
-.like-count {
-  color: #b22222; /* Less bright red */
-  font-weight: bold;
-}
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.2);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-</style>
