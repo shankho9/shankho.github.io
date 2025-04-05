@@ -7,3 +7,4 @@ node_modules
 # System files
 *.log
 .firebase
+.git
