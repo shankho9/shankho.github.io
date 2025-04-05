@@ -75,6 +75,12 @@ const socialIcons = {
       </div>
     </div>
 
+    <div class="flex items-center my-6 text-gray-400">
+      <div class="flex-grow border-t"></div>
+      <Icon icon="mdi:star" class="mx-4 text-xl" />
+      <div class="flex-grow border-t"></div>
+    </div>
+
     <div class="flex flex-col sm:flex-row justify-between items-center gap-5 mt-10">
       <div class="w-full sm:w-1/3 h-[550px] flex">
         <NuxtImg
@@ -112,37 +118,10 @@ const socialIcons = {
       </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-10">
-      <NuxtImg
-        v-for="(img, index) in [
-          '/blogs-img/personal/Riya_Solo.jpg',
-          '/blogs-img/personal/Riya_Solo2.jpg',
-          '/blogs-img/personal/Tiya_Solo2.jpg',
-          '/blogs-img/personal/Tiya_Solo.jpg',
-        ]"
-        :key="index"
-        class="rounded-md w-full h-[500px] object-cover shadow-lg"
-        width="450"
-        height="500"
-        quality="85"
-        :src="img"
-      />
-    </div>
-
-    <!-- Second Row: 2 Images -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5">
-      <NuxtImg
-        v-for="(img, index) in [
-          '/blogs-img/personal/TheTwo.jpg',
-          '/blogs-img/personal/TheTwo_2.jpg',
-        ]"
-        :key="index"
-        class="rounded-md w-full h-[500px] object-cover shadow-lg"
-        width="600"
-        height="500"
-        quality="85"
-        :src="img"
-      />
+    <div class="flex items-center my-6 text-gray-400">
+      <div class="flex-grow border-t"></div>
+      <Icon icon="mdi:star" class="mx-4 text-xl" />
+      <div class="flex-grow border-t"></div>
     </div>
 
     <div class="mt-10 text-center">
@@ -212,6 +191,12 @@ const socialIcons = {
       />
     </div>
 
+    <div class="flex items-center my-6 text-gray-400">
+      <div class="flex-grow border-t"></div>
+      <Icon icon="mdi:star" class="mx-4 text-xl" />
+      <div class="flex-grow border-t"></div>
+    </div>
+
     <div class="mt-10 text-center max-w-4xl mx-auto">
       <h2 class="text-3xl font-extrabold mb-6">The Real Bosses of My Life</h2>
 
@@ -244,6 +229,39 @@ const socialIcons = {
           <span class="italic">"Yes, dear."</span> 😂❤️
         </p>
       </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-10">
+      <NuxtImg
+        v-for="(img, index) in [
+          '/blogs-img/personal/Riya_Solo.jpg',
+          '/blogs-img/personal/Riya_Solo2.jpg',
+          '/blogs-img/personal/Tiya_Solo2.jpg',
+          '/blogs-img/personal/Tiya_Solo.jpg',
+        ]"
+        :key="index"
+        class="rounded-md w-full h-[500px] object-cover shadow-lg"
+        width="450"
+        height="500"
+        quality="85"
+        :src="img"
+      />
+    </div>
+
+    <!-- Second Row: 2 Images -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5">
+      <NuxtImg
+        v-for="(img, index) in [
+          '/blogs-img/personal/TheTwo.jpg',
+          '/blogs-img/personal/TheTwo_2.jpg',
+        ]"
+        :key="index"
+        class="rounded-md w-full h-[500px] object-cover shadow-lg"
+        width="600"
+        height="500"
+        quality="85"
+        :src="img"
+      />
     </div>
 
     <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-5">

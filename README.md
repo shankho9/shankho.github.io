@@ -1,16 +1,12 @@
 <p align="center">
   <a href="https://shankho-blogsite.vercel.app/" target="_blank">
-    <img  src="./assets/images/dark.png">
   </a>
 </p>
 
-<h1 align="center">Nuxt Blog A Personal Blog Site</h1>
+<h1 align="center">Sid's Personal Blog Site.</h1>
 
 ### Built with
 
-<p align="center">
-    <img width="200" src="./assets/images/logo.png">
-</p>
 
 Nuxt Blog built with [Nuxt3](https://nuxt.com), [Nuxt-Content2](https://content.nuxtjs.org/blog/announcing-v2/), [Vue3](https://vuejs.org) & [TailwindCss](https://tailwindcss.com/)
 
@@ -26,26 +22,6 @@ Nuxt Blog built with [Nuxt3](https://nuxt.com), [Nuxt-Content2](https://content.
 - Dark and light mode
 - Server Side Rendered(SSR) with Nuxt3
 - RSS feed
-
-## How to Make This Blog Template Yours in 5 Minutes
-
-- Clone this repo or use it as a template
-- Go to ./data/index.ts file & add your personal info
-- Then head over to the ./content/blogs folder to add new blogs
-- Voilà! You've got a personalized blog site!
-
-## Preview
-
-<p align="center">
-  <a href="https://blog.nurriyad.com" target="_blank">
-    <img width="1090" src="./assets/images/preview1.png">
-    <img width="1090" src="./assets/images/preview2.png">
-    <img width="1090" src="./assets/images/preview3.png">
-    <img width="1090" src="./assets/images/preview4.png">
-    <br>
-    Live Demo
-  </a>
-</p>
 
 ## Demo
 
