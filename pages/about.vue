@@ -19,6 +19,14 @@ defineOgImageComponent('About', {
   link: '/blogs-img/personal/Sid_BetDwarka_Solo_w_Terrano.jpg',
 })
 
+onMounted(async () => {
+  await fetch('/api/track-visit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ page: 'about' }),
+  })
+})
+
 const socialIcons = {
   github: 'mdi:github',
   linkedin: 'mdi:linkedin',
