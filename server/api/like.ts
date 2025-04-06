@@ -30,13 +30,13 @@ export default defineEventHandler(async (event) => {
         ON CONFLICT (post_id, user_ip) DO UPDATE
         SET deleted_at = NULL, user_agent = $3, country = $4, browser = $5, os = $6, device = $7
         `,
-        [postId, userIp, userAgent, country, browser, os, device]
+        [postId, userIp, userAgent, country, browser, os, device],
       )
     } else if (action === 'unlike') {
-      await query(
-        `UPDATE likes SET deleted_at = NOW() WHERE post_id = $1 AND user_ip = $2`,
-        [postId, userIp]
-      )
+      await query(`UPDATE likes SET deleted_at = NOW() WHERE post_id = $1 AND user_ip = $2`, [
+        postId,
+        userIp,
+      ])
     }
 
     return { success: true }
