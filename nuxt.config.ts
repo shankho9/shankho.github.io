@@ -1,9 +1,11 @@
+/// <reference types="nuxt" />
+
 import { seoData } from './data'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2024-09-30',
-
+  components: true,
   modules: [
     'nuxt-icon',
     '@nuxt/image',
@@ -11,22 +13,48 @@ export default defineNuxtConfig({
     '@nuxt/eslint',
     '@vueuse/nuxt',
     '@nuxtjs/robots',
-    '@nuxtjs/sitemap',
+    [
+      '@nuxtjs/sitemap',
+      {
+        hostname: seoData.mySite,
+        routes: ['/', '/rss.xml'],
+        siteUrl: 'https://shankho-blogsite.vercel.app',
+      },
+    ],
     'nuxt-og-image',
-    '@nuxt/content',
-    '@nuxtjs/color-mode',
+    [
+      '@nuxt/content',
+      {
+        documentDriven: true,
+        highlight: {
+          theme: 'dracula',
+        },
+      },
+    ],
+    [
+      '@nuxtjs/color-mode',
+      {
+        classSuffix: '',
+        preference: 'dark',
+        fallback: 'light',
+      },
+    ],
     '@nuxtjs/tailwindcss',
     '@formkit/auto-animate',
     '@stefanobartoletti/nuxt-social-share',
-    '@nuxtjs/sitemap',
   ],
-
   app: {
     head: {
       charset: 'utf-16',
       viewport: 'width=device-width,initial-scale=1',
       title: seoData.title,
       titleTemplate: `%s - ${seoData.title}`,
+      script: [
+        {
+          src: `https://maps.googleapis.com/maps/api/js?key=AIzaSyDUM6RMSGssBJBuFdjkloMQkj6OC-FWz5s&libraries=places`,
+          async: true,
+        },
+      ],
     },
     pageTransition: { name: 'page', mode: 'out-in' },
     layoutTransition: { name: 'layout', mode: 'out-in' },
@@ -43,15 +71,6 @@ export default defineNuxtConfig({
     databaseUrl: process.env.DATABASE_URL,
   },
 
-  sitemap: {
-    sources: [seoData.mySite],
-  },
-
-  site: {
-    url: seoData.mySite,
-    name: 'Siddhartha Shankho Basu',
-  },
-
   typescript: {
     strict: true,
   },
@@ -60,22 +79,6 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: true,
       routes: ['/', '/rss.xml'],
-    },
-  },
-
-  colorMode: {
-    classSuffix: '',
-    preference: 'dark',
-    fallback: 'light',
-  },
-
-  content: {
-    build: {
-      markdown: {
-        highlight: {
-          theme: 'dracula',
-        },
-      },
     },
   },
 })
