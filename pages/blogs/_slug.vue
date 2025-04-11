@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, defineAsyncComponent } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import DOMPurify from 'dompurify' // Import DOMPurify for sanitizing HTML content
 import { useRoute } from 'vue-router'
 
