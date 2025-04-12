@@ -12,7 +12,6 @@ export default defineNuxtConfig({
     '@nuxt/fonts',
     '@nuxt/eslint',
     '@vueuse/nuxt',
-    '@nuxtjs/google-analytics',
     '@nuxtjs/robots',
     [
       '@nuxtjs/sitemap',
@@ -55,26 +54,28 @@ export default defineNuxtConfig({
           src: `https://maps.googleapis.com/maps/api/js?key=AIzaSyDUM6RMSGssBJBuFdjkloMQkj6OC-FWz5s&libraries=places`,
           async: true,
         },
+        ...(import.meta.client
+          ? [
+              {
+                src: `https://www.googletagmanager.com/gtag/js?id=${process.env.VUE_APP_GOOGLE_ANALYTICS_ID}`,
+                async: true,
+              },
+              {
+                // Inject inline Google Analytics script
+                innerHTML: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${process.env.VUE_APP_GOOGLE_ANALYTICS_ID}');
+                `,
+                type: 'text/javascript',
+                // Ensure it's injected as an inline script
+                // The charset and innerHTML may not be used directly in the configuration, so use it like this.
+                // Nuxt will handle it correctly.
+              },
+            ]
+          : []),
       ],
-      // Google Analytics script loaded here conditionally for client-side only
-      ...(process.client && {
-        script: [
-          {
-            src: `https://www.googletagmanager.com/gtag/js?id=${process.env.VUE_APP_GOOGLE_ANALYTICS_ID}`,
-            async: true,
-          },
-          {
-            innerHTML: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', '${process.env.VUE_APP_GOOGLE_ANALYTICS_ID}');
-            `,
-            type: 'text/javascript',
-            charset: 'utf-8',
-          },
-        ],
-      }),
     },
     pageTransition: { name: 'page', mode: 'out-in' },
     layoutTransition: { name: 'layout', mode: 'out-in' },
