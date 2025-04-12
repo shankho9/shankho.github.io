@@ -5,11 +5,19 @@
     <!-- Centered Legend Above Map -->
     <div class="legend-container">
       <div class="legend-item" title="Stayed more than 3 months">
-        <img src="http://maps.google.com/mapfiles/ms/icons/red-dot.png" alt="Home Pin" class="pin-icon" />
+        <img
+          src="http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+          alt="Home Pin"
+          class="pin-icon"
+        />
         <span>Home</span>
       </div>
       <div class="legend-item" title="Stayed more than 2 nights">
-        <img src="http://maps.google.com/mapfiles/ms/icons/blue-dot.png" alt="Trip Pin" class="pin-icon" />
+        <img
+          src="http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+          alt="Trip Pin"
+          class="pin-icon"
+        />
         <span>Trip</span>
       </div>
     </div>
