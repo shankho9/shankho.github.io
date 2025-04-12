@@ -54,6 +54,27 @@ export default defineNuxtConfig({
           src: `https://maps.googleapis.com/maps/api/js?key=AIzaSyDUM6RMSGssBJBuFdjkloMQkj6OC-FWz5s&libraries=places`,
           async: true,
         },
+        ...(import.meta.client
+          ? [
+              {
+                src: `https://www.googletagmanager.com/gtag/js?id=${process.env.VUE_APP_GOOGLE_ANALYTICS_ID}`,
+                async: true,
+              },
+              {
+                // Inject inline Google Analytics script
+                innerHTML: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${process.env.VUE_APP_GOOGLE_ANALYTICS_ID}');
+                `,
+                type: 'text/javascript',
+                // Ensure it's injected as an inline script
+                // The charset and innerHTML may not be used directly in the configuration, so use it like this.
+                // Nuxt will handle it correctly.
+              },
+            ]
+          : []),
       ],
     },
     pageTransition: { name: 'page', mode: 'out-in' },
@@ -63,8 +84,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       googleAnalytics: {
-        id: 'G-DBYSBNB70R', // Replace with your GA Measurement ID
-        debug: process.env.NODE_ENV !== 'production', // Debug in non-production environments
+        id: process.env.VUE_APP_GOOGLE_ANALYTICS_ID, // Dynamically load the ID based on environment
+        debug: process.env.NODE_ENV !== 'production', // Enable debug mode in non-production environments
       },
       apiBase: '/api',
     },
