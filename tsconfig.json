@@ -2,7 +2,8 @@
   "extends": "./.nuxt/tsconfig.json",
   "include": ["types", "."],
   "compilerOptions": {
-    "types": ["nuxt"],
+    "types": ["nuxt3", "google.maps"],
+    "lib": ["ESNext", "DOM"],
     "baseUrl": ".",
     "paths": {
       "#app": ["./node_modules/nuxt/dist/app"],
