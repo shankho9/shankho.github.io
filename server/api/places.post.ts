@@ -3,7 +3,15 @@ import { query } from '~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { name, lat, lng, description = '', blog_slug = null, year } = body
+  const {
+    name,
+    lat,
+    lng,
+    description = '',
+    blog_slug = null,
+    year,
+    type = null, // ✅ Accept "type" from the body
+  } = body
 
   if (!name || typeof lat !== 'number' || typeof lng !== 'number') {
     return { error: 'Missing required fields: name, lat, lng' }
@@ -11,6 +19,10 @@ export default defineEventHandler(async (event) => {
 
   if (year && typeof year !== 'number') {
     return { error: 'Year must be a number if provided' }
+  }
+
+  if (type && type !== 'home' && type !== 'trip') {
+    return { error: 'Invalid type. Only "home" or "trip" are allowed.' }
   }
 
   try {
@@ -28,10 +40,10 @@ export default defineEventHandler(async (event) => {
     }
 
     const rows = await query(
-      `INSERT INTO travel_places (name, lat, lng, description, blog_slug, year)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO travel_places (name, lat, lng, description, blog_slug, year, type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [name, lat, lng, description, blog_slug, year],
+      [name, lat, lng, description, blog_slug, year, type],
     )
 
     return {

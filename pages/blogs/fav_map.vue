@@ -32,6 +32,7 @@ interface Place {
   lng: number
   year: number
   description: string
+  type?: 'home' | 'trip'
 }
 
 // State to hold the places data, error message, and loading state

@@ -31,6 +31,15 @@
       </div>
 
       <div>
+        <label class="block font-medium">Type</label>
+        <select v-model="form.type" required class="input">
+          <option disabled value="">Select a type</option>
+          <option value="home">Home</option>
+          <option value="trip">Trip</option>
+        </select>
+      </div>
+
+      <div>
         <label class="block font-medium">Description</label>
         <textarea v-model="form.description" class="input" rows="2" />
       </div>
@@ -58,6 +67,7 @@ interface PlaceForm {
   year?: number | null
   description: string
   blog_slug?: string
+  type: 'home' | 'trip' | ''
 }
 
 interface ApiResponse {
@@ -75,6 +85,7 @@ const form = ref<PlaceForm>({
   year: null,
   description: '',
   blog_slug: '',
+  type: '', // Initially empty
 })
 
 const successMessage = ref('')
@@ -103,6 +114,7 @@ const submitPlace = async () => {
       year: null,
       description: '',
       blog_slug: '',
+      type: '',
     }
   } catch (err: unknown) {
     if (err instanceof Error) {
@@ -118,6 +130,7 @@ const submitPlace = async () => {
 .input {
   @apply w-full p-2 border rounded-md dark:bg-gray-800 dark:border-gray-600;
 }
+
 .btn {
   @apply px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700;
 }

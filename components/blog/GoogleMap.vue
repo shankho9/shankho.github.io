@@ -1,5 +1,17 @@
 <template>
-  <div ref="mapContainer" class="map-container"></div>
+  <div>
+    <div ref="mapContainer" class="map-container"></div>
+    <div class="legend">
+      <div class="legend-item">
+        <img src="http://maps.google.com/mapfiles/ms/icons/red-dot.png" class="icon" />
+        <span>Home</span>
+      </div>
+      <div class="legend-item">
+        <img src="http://maps.google.com/mapfiles/ms/icons/blue-dot.png" class="icon" />
+        <span>Trip</span>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -10,12 +22,18 @@ interface Place {
   lat: number
   lng: number
   description?: string
+  type?: 'home' | 'trip'
 }
 
 const props = defineProps<{ places: Place[] }>()
 const mapContainer = ref<HTMLDivElement | null>(null)
 let map: google.maps.Map | null = null
 let markers: google.maps.Marker[] = []
+
+const iconUrls: Record<string, string> = {
+  home: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+  trip: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+}
 
 function loadGoogleMaps(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -43,29 +61,22 @@ function loadGoogleMaps(): Promise<void> {
 
 function addMarkers(places: Place[]) {
   if (!map) return
-  console.log('[Map] Adding markers for places:', places)
 
-  // Remove old markers
   markers.forEach((m) => m.setMap(null))
   markers = []
 
-  if (!places || !places.length) {
-    console.warn('[Map] No places to render markers for.')
-    return
-  }
+  if (!places || !places.length) return
 
   const bounds = new google.maps.LatLngBounds()
 
   places.forEach((place) => {
-    if (!place.lat || !place.lng) {
-      console.warn('[Map] Skipping invalid place:', place)
-      return
-    }
+    if (!place.lat || !place.lng) return
 
     const marker = new google.maps.Marker({
       map,
       position: { lat: place.lat, lng: place.lng },
       title: place.name,
+      icon: iconUrls[place.type ?? 'home'],
     })
 
     const infoWindow = new google.maps.InfoWindow({
@@ -85,34 +96,24 @@ function addMarkers(places: Place[]) {
   }
 }
 
-// Wait for the places data to be available, then load the map
 onMounted(async () => {
   await loadGoogleMaps()
 
   if (!mapContainer.value) return
 
-  // Initialize the map after loading Google Maps
   map = new google.maps.Map(mapContainer.value, {
     center: { lat: 20, lng: 0 },
     zoom: 2,
   })
 
-  console.log('[Map] Map initialized:', map)
-
-  // Check if places are available and add markers
   if (props.places.length) {
-    console.log('[Map] Initial places available on mount:', props.places)
     addMarkers(props.places)
-  } else {
-    console.warn('[Map] No initial places found.')
   }
 })
 
-// Watch for changes in the places prop and update the markers accordingly
 watch(
   () => props.places,
   (newPlaces) => {
-    console.log('[Map] Places updated:', newPlaces)
     if (map && newPlaces.length) {
       addMarkers(newPlaces)
     }
@@ -127,5 +128,25 @@ watch(
   width: 100%;
   border-radius: 12px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.legend {
+  margin-top: 1rem;
+  display: flex;
+  gap: 1.5rem;
+  font-size: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
 }
 </style>
