@@ -2,7 +2,19 @@
   <div class="max-w-4xl mx-auto p-6">
     <h1 class="text-2xl font-bold mb-4">Places I've Visited</h1>
 
-    <!-- Map Component with a wrapper for styling -->
+    <!-- Centered Legend Above Map -->
+    <div class="legend-container">
+      <div class="legend-item" title="Stayed more than 3 months">
+        <img src="http://maps.google.com/mapfiles/ms/icons/red-dot.png" alt="Home Pin" class="pin-icon" />
+        <span>Home</span>
+      </div>
+      <div class="legend-item" title="Stayed more than 2 nights">
+        <img src="http://maps.google.com/mapfiles/ms/icons/blue-dot.png" alt="Trip Pin" class="pin-icon" />
+        <span>Trip</span>
+      </div>
+    </div>
+
+    <!-- Map Component -->
     <div class="map-container">
       <Map :places="places" />
     </div>
@@ -23,9 +35,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useFetch } from '#app'
-import Map from '~/components/blog/GoogleMap.vue' // Ensure Map component is imported correctly
+import Map from '~/components/blog/GoogleMap.vue'
 
-// Define TypeScript interfaces for the places data
 interface Place {
   name: string
   lat: number
@@ -35,27 +46,17 @@ interface Place {
   type?: 'home' | 'trip'
 }
 
-// State to hold the places data, error message, and loading state
 const places = ref<Place[]>([])
 const errorMessage = ref('')
-const isLoading = ref(true) // Add loading state
+const isLoading = ref(true)
 
-// Fetch places data on page mount
 onMounted(async () => {
   try {
     const { data, error } = await useFetch<Place[]>('/api/places')
-
-    if (error.value) {
-      throw new Error(error.value.message || 'Failed to fetch places')
-    }
-
-    places.value = data.value ?? [] // Ensure we assign an empty array if no data is found
+    if (error.value) throw new Error(error.value.message || 'Failed to fetch places')
+    places.value = data.value ?? []
   } catch (err: unknown) {
-    if (err instanceof Error) {
-      errorMessage.value = err.message || 'Unknown error occurred'
-    } else {
-      errorMessage.value = 'Unknown error occurred'
-    }
+    errorMessage.value = err instanceof Error ? err.message : 'Unknown error occurred'
   } finally {
     isLoading.value = false
   }
@@ -63,7 +64,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* General layout and spacing */
 .max-w-4xl {
   max-width: 80rem;
 }
@@ -84,22 +84,51 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
-/* Map Container */
 .map-container {
-  height: 600px; /* Taller height for the map */
+  height: 600px;
   width: 100%;
-  margin-top: 20px; /* Spacing above the map */
+  margin-top: 20px;
 }
 
-/* Error Message Styling */
+/* Centered Legend */
+.legend-container {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-top: 1rem;
+  align-items: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: help;
+}
+
+.pin-icon {
+  width: 24px;
+  height: 24px;
+}
+
+@media (max-width: 640px) {
+  .text-2xl {
+    font-size: 1.25rem;
+  }
+  .map-container {
+    height: 400px;
+  }
+}
+
 .text-red-600 {
   color: #e11d48;
 }
 .mt-4 {
   margin-top: 1rem;
 }
-
-/* Loading and No Data Styling */
 .text-gray-500 {
   color: #6b7280;
 }
