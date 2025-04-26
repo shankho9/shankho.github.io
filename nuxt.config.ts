@@ -51,13 +51,13 @@ export default defineNuxtConfig({
       titleTemplate: `%s - ${seoData.title}`,
       script: [
         {
-          src: `https://maps.googleapis.com/maps/api/js?key=AIzaSyDUM6RMSGssBJBuFdjkloMQkj6OC-FWz5s&libraries=places`,
+          src: `https://maps.googleapis.com/maps/api/js?key=${process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`,
           async: true,
         },
         ...(import.meta.client
           ? [
               {
-                src: `https://www.googletagmanager.com/gtag/js?id=${process.env.VUE_APP_GOOGLE_ANALYTICS_ID}`,
+                src: `https://www.googletagmanager.com/gtag/js?id=${process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID}`,
                 async: true,
               },
               {
@@ -66,12 +66,9 @@ export default defineNuxtConfig({
                   window.dataLayer = window.dataLayer || [];
                   function gtag(){dataLayer.push(arguments);}
                   gtag('js', new Date());
-                  gtag('config', '${process.env.VUE_APP_GOOGLE_ANALYTICS_ID}');
+                  gtag('config', '${process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID}');
                 `,
                 type: 'text/javascript',
-                // Ensure it's injected as an inline script
-                // The charset and innerHTML may not be used directly in the configuration, so use it like this.
-                // Nuxt will handle it correctly.
               },
             ]
           : []),
@@ -84,7 +81,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       googleAnalytics: {
-        id: process.env.VUE_APP_GOOGLE_ANALYTICS_ID, // Dynamically load the ID based on environment
+        id: process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID, // Dynamically load the ID based on environment
         debug: process.env.NODE_ENV !== 'production', // Enable debug mode in non-production environments
       },
       apiBase: '/api',
