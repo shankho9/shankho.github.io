@@ -43,9 +43,10 @@ export default defineNuxtConfig({
     '@formkit/auto-animate',
     '@stefanobartoletti/nuxt-social-share',
   ],
+
   app: {
     head: {
-      charset: 'utf-16',
+      charset: 'utf-8',
       viewport: 'width=device-width,initial-scale=1',
       title: seoData.title,
       titleTemplate: `%s - ${seoData.title}`,
@@ -54,24 +55,10 @@ export default defineNuxtConfig({
           src: `https://maps.googleapis.com/maps/api/js?key=${process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`,
           async: true,
         },
-        ...(import.meta.client
-          ? [
-              {
-                src: `https://www.googletagmanager.com/gtag/js?id=${process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID}`,
-                async: true,
-              },
-              {
-                // Inject inline Google Analytics script
-                innerHTML: `
-                  window.dataLayer = window.dataLayer || [];
-                  function gtag(){dataLayer.push(arguments);}
-                  gtag('js', new Date());
-                  gtag('config', '${process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID}');
-                `,
-                type: 'text/javascript',
-              },
-            ]
-          : []),
+        {
+          src: `https://www.googletagmanager.com/gtag/js?id=${process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID}`,
+          async: true,
+        },
       ],
     },
     pageTransition: { name: 'page', mode: 'out-in' },
@@ -81,8 +68,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       googleAnalytics: {
-        id: process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID, // Dynamically load the ID based on environment
-        debug: process.env.NODE_ENV !== 'production', // Enable debug mode in non-production environments
+        id: process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID,
+        debug: process.env.NODE_ENV !== 'production',
       },
       apiBase: '/api',
     },

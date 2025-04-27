@@ -1,6 +1,6 @@
 {
   "extends": "./.nuxt/tsconfig.json",
-  "include": ["types", "."],
+  "include": ["types", "nuxt.config.ts", "**/*.ts", "**/*.vue"],
   "compilerOptions": {
     "lib": ["ESNext", "DOM"],
     "baseUrl": ".",
