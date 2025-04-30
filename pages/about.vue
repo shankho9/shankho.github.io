@@ -43,7 +43,7 @@ const socialIcons = {
     <div class="flex flex-col sm:flex-row justify-between items-center gap-5">
       <div class="w-full sm:w-1/3 h-[650px] flex">
         <NuxtImg
-          src="/blogs-img/personal/Sid_BetDwarka_Solo_w_Terrano.jpg"
+          src="https://ik.imagekit.io/u6cq4dqll/Personal/about/Sid_Ford.jpg?updatedAt=1745979649461"
           class="rounded-md w-full h-full object-cover shadow-lg"
           width="600"
           height="650"
@@ -74,7 +74,7 @@ const socialIcons = {
 
       <div class="w-full sm:w-1/3 h-[650px] flex">
         <NuxtImg
-          src="/blogs-img/personal/Sid_Specs.jpg"
+          src="https://ik.imagekit.io/u6cq4dqll/Personal/about/Sid_Specs.jpg?updatedAt=1745977729454"
           class="rounded-md w-full h-full object-cover shadow-lg"
           width="600"
           height="650"
@@ -92,7 +92,7 @@ const socialIcons = {
     <div class="flex flex-col sm:flex-row justify-between items-center gap-5 mt-10">
       <div class="w-full sm:w-1/3 h-[550px] flex">
         <NuxtImg
-          src="/blogs-img/personal/Sid_Papiya_DecadeBack.jpg"
+          src="https://ik.imagekit.io/u6cq4dqll/Personal/about/Sid_Papiya_DecadeBack.jpg?updatedAt=1745977729685"
           class="rounded-md w-full h-full object-cover shadow-lg"
           width="500"
           height="550"
@@ -117,7 +117,7 @@ const socialIcons = {
 
       <div class="w-full sm:w-1/3 h-[550px] flex">
         <NuxtImg
-          src="/blogs-img/personal/Sid_Papiya.jpg"
+          src="https://ik.imagekit.io/u6cq4dqll/Personal/about/Sid_Papiya.jpg?updatedAt=1745977729908"
           class="rounded-md w-full h-full object-cover shadow-lg"
           width="500"
           height="550"
@@ -190,7 +190,7 @@ const socialIcons = {
 
     <div class="mt-12 flex justify-center">
       <NuxtImg
-        src="/blogs-img/personal/MacquarieDays.jpg"
+        src="https://ik.imagekit.io/u6cq4dqll/Personal/about/MacquarieDays.jpg?updatedAt=1745977729581"
         class="rounded-lg w-full max-w-4xl h-auto shadow-xl"
         width="1600"
         height="600"
@@ -242,10 +242,10 @@ const socialIcons = {
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-10">
       <NuxtImg
         v-for="(img, index) in [
-          '/blogs-img/personal/Riya_Solo.jpg',
-          '/blogs-img/personal/Riya_Solo2.jpg',
-          '/blogs-img/personal/Tiya_Solo2.jpg',
-          '/blogs-img/personal/Tiya_Solo.jpg',
+          'https://ik.imagekit.io/u6cq4dqll/Personal/about/Riya_Solo.jpg?updatedAt=1745977729079',
+          'https://ik.imagekit.io/u6cq4dqll/Personal/about/Riya_Solo2.jpg?updatedAt=1745977729562',
+          'https://ik.imagekit.io/u6cq4dqll/Personal/about/Tiya_Solo2.jpg?updatedAt=1745977733691',
+          'https://ik.imagekit.io/u6cq4dqll/Personal/about/Tiya_Solo.jpg?updatedAt=1745977733145',
         ]"
         :key="index"
         class="rounded-md w-full h-[500px] object-cover shadow-lg"
@@ -260,8 +260,8 @@ const socialIcons = {
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5">
       <NuxtImg
         v-for="(img, index) in [
-          '/blogs-img/personal/TheTwo.jpg',
-          '/blogs-img/personal/TheTwo_2.jpg',
+          'https://ik.imagekit.io/u6cq4dqll/Personal/about/TheTwo.jpg?updatedAt=1745977729862',
+          'https://ik.imagekit.io/u6cq4dqll/Personal/about/TheTwo_2.jpg?updatedAt=1745977733068',
         ]"
         :key="index"
         class="rounded-md w-full h-[500px] object-cover shadow-lg"
@@ -275,8 +275,8 @@ const socialIcons = {
     <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-5">
       <NuxtImg
         v-for="(img, index) in [
-          '/blogs-img/personal/All_four.jpg',
-          '/blogs-img/personal/TheThree.jpg',
+          'https://ik.imagekit.io/u6cq4dqll/Personal/about/All_four.jpg?updatedAt=1745977729755',
+          'https://ik.imagekit.io/u6cq4dqll/Personal/about/TheThree.jpg?updatedAt=1745977729955',
         ]"
         :key="index"
         class="rounded-md w-full h-[650px] object-cover shadow-lg"
