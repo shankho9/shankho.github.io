@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useAsyncData } from 'nuxt/app'
 import type { BlogPost } from '~/types/blog'
 
 // Function to parse dates in the format "1st Mar 2023"

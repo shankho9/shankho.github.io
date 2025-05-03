@@ -1,11 +1,8 @@
-<p align="center">
-  <a href="https://shankho-blogsite.vercel.app/" target="_blank">
-  </a>
-</p>
+# Sid's Personal Blog Site
 
-<h1 align="center">Sid's Personal Blog Site.</h1>
+[Visit Sid's Blog Site](https://shankho-blogsite.vercel.app/)
 
-### Built with
+## Built with
 
 Nuxt Blog built with [Nuxt3](https://nuxt.com), [Nuxt-Content2](https://content.nuxtjs.org/blog/announcing-v2/), [Vue3](https://vuejs.org) & [TailwindCss](https://tailwindcss.com/)
 
@@ -21,18 +18,24 @@ Nuxt Blog built with [Nuxt3](https://nuxt.com), [Nuxt-Content2](https://content.
 - Dark and light mode
 - Server Side Rendered(SSR) with Nuxt3
 - RSS feed
+- Images are rendered from <https://imagekit.io/dashboard>
 
 ## Demo
 
-https://shankho-blogsite.vercel.app/
+<https://shankho-blogsite.vercel.app>
 
 > Hosted on [Vercel](https://vercel.com/): `npm run build`
 
 ## Build Setup
 
-**Requires Node.js 16+**
+### Requires Node.js 16+
 
 ```bash
+
+# remove all node modules
+
+Remove-Item -Recurse -Force .nuxt, node_modules, package-lock.json
+
 # install dependencies
 npm install
 
