@@ -31,6 +31,11 @@ Nuxt Blog built with [Nuxt3](https://nuxt.com), [Nuxt-Content2](https://content.
 ### Requires Node.js 16+
 
 ```bash
+
+# remove all node modules
+
+Remove-Item -Recurse -Force .nuxt, node_modules, package-lock.json
+
 # install dependencies
 npm install
 

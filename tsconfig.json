@@ -1,12 +1,13 @@
 {
   "extends": "./.nuxt/tsconfig.json",
-  "include": ["types", "nuxt.config.ts", "**/*.ts", "**/*.vue"],
   "compilerOptions": {
     "lib": ["ESNext", "DOM"],
     "baseUrl": ".",
     "paths": {
       "#app": ["./node_modules/nuxt/dist/app"],
-      "~/*": ["*"]
+      "#content": ["./.nuxt/content/index"],
+      "~/*": ["./*"],
+      "@/*": ["./*"]
     },
     "module": "ESNext",
     "target": "ESNext",
@@ -14,5 +15,6 @@
     "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true
-  }
+  },
+  "include": ["types", "nuxt.config.ts", "**/*.ts", "**/*.vue", ".nuxt/**/*.ts"]
 }

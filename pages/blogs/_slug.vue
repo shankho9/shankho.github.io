@@ -3,7 +3,7 @@
     <h1 class="text-2xl font-bold mb-4">{{ post?.title }}</h1>
 
     <!-- Render content dynamically from sanitized markdown -->
-    <div v-if="post" class="content" v-html="sanitizedContent"></div>
+    <div v-if="post" class="content" :innerHTML="sanitizedContent"></div>
 
     <!-- Display Map if places are available -->
     <GoogleMap v-if="post?.places?.length" :places="post.places" />
