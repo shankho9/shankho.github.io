@@ -12,7 +12,6 @@ export default defineNuxtConfig({
     '@nuxt/fonts',
     '@nuxt/eslint',
     '@vueuse/nuxt',
-    '@nuxtjs/google-analytics',
     '@nuxtjs/robots',
     [
       '@nuxtjs/sitemap',
@@ -61,25 +60,6 @@ export default defineNuxtConfig({
           async: true,
         },
       ],
-      // Google Analytics script loaded here conditionally for client-side only
-      ...(process.client && {
-        script: [
-          {
-            src: `https://www.googletagmanager.com/gtag/js?id=${process.env.VUE_APP_GOOGLE_ANALYTICS_ID}`,
-            async: true,
-          },
-          {
-            innerHTML: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', '${process.env.VUE_APP_GOOGLE_ANALYTICS_ID}');
-            `,
-            type: 'text/javascript',
-            charset: 'utf-8',
-          },
-        ],
-      }),
     },
     pageTransition: { name: 'page', mode: 'out-in' },
     layoutTransition: { name: 'layout', mode: 'out-in' },
