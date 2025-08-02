@@ -8,5 +8,4 @@ node_modules
 *.log
 .firebase
 .git
-.env
-.env.*
+.env*
