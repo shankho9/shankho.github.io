@@ -61,10 +61,10 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
   } catch (err: unknown) {
     console.error('[Comments] Failed to load comments:', err)
 
-    // Retry logic for network errors (max 2 retries)
-    if (retryCount < 2 && err && typeof err === 'object' && 'status' in err) {
-      const status = (err as { status?: number }).status
-      // Retry on network errors (no status) or 5xx errors
+    // Retry logic for network errors and server errors (max 2 retries)
+    if (retryCount < 2 && err && typeof err === 'object') {
+      const status = 'status' in err ? (err as { status?: number }).status : undefined
+      // Retry on network errors (no status) or 5xx server errors
       if (!status || (status >= 500 && status < 600)) {
         await new Promise((resolve) => setTimeout(resolve, 1000 * (retryCount + 1)))
         return loadComments(page, retryCount + 1)
