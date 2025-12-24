@@ -6,6 +6,7 @@ export default defineEventHandler(async (event) => {
 
   // If no slug is provided, return a 400 error
   if (!slug) {
+    setResponseStatus(event, 400)
     return { statusCode: 400, message: 'Slug parameter is missing' }
   }
 
@@ -17,6 +18,7 @@ export default defineEventHandler(async (event) => {
 
     // If no post is found for the given slug, return a 404 error
     if (result.length === 0) {
+      setResponseStatus(event, 404)
       return { statusCode: 404, message: 'Post not found' }
     }
 

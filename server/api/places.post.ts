@@ -14,14 +14,17 @@ export default defineEventHandler(async (event) => {
   } = body
 
   if (!name || typeof lat !== 'number' || typeof lng !== 'number') {
+    setResponseStatus(event, 400)
     return { error: 'Missing required fields: name, lat, lng' }
   }
 
   if (year && typeof year !== 'number') {
+    setResponseStatus(event, 400)
     return { error: 'Year must be a number if provided' }
   }
 
   if (type && type !== 'home' && type !== 'trip') {
+    setResponseStatus(event, 400)
     return { error: 'Invalid type. Only "home" or "trip" are allowed.' }
   }
 
@@ -32,10 +35,12 @@ export default defineEventHandler(async (event) => {
     )
 
     if (existing.length > 0) {
+      setResponseStatus(event, 409)
       return {
         success: false,
         message: 'Place already exists',
         place: existing[0],
+        statusCode: 409,
       }
     }
 

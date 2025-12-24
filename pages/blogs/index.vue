@@ -3,6 +3,7 @@ import Fuse from 'fuse.js'
 import type { BlogPost } from '~/types/blog'
 import { extractBlogPostFromMeta } from '~/utils/blogMeta'
 import { parseCustomDate, getDateTimestamp } from '~/utils/dateParser'
+import { getTagColorClasses, getTagSelectedColorClasses } from '~/utils/tagColors'
 import { blogsPage } from '~/data'
 
 // Load all blog posts
@@ -309,7 +310,7 @@ defineOgImage({
           <select
             id="sort"
             v-model="sortBy"
-            class="bg-[#F1F2F4] dark:bg-slate-900 text-zinc-700 dark:text-zinc-300 rounded-md border-gray-300 dark:border-gray-800 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 px-3 py-2 text-sm"
+            class="bg-[#F1F2F4] dark:bg-slate-900 text-zinc-700 dark:text-zinc-300 rounded-md border-gray-300 dark:border-gray-800 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 px-3 py-2 pr-8 text-sm min-w-[160px]"
           >
             <option value="date-desc">Newest First</option>
             <option value="date-asc">Oldest First</option>
@@ -340,10 +341,10 @@ defineOgImage({
           :key="tag"
           @click="toggleTag(tag)"
           :class="[
-            'px-3 py-1 rounded-md text-sm font-semibold transition-colors',
+            'px-2 py-0.5 rounded text-xs font-medium transition-colors',
             selectedTags.includes(tag)
-              ? 'bg-sky-700 dark:bg-sky-600 text-white'
-              : 'bg-gray-200 dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 hover:bg-gray-300 dark:hover:bg-slate-700',
+              ? getTagSelectedColorClasses(tag)
+              : getTagColorClasses(tag) + ' hover:opacity-80',
           ]"
         >
           {{ tag }}
@@ -416,6 +417,7 @@ defineOgImage({
             :og-image="post.ogImage"
             :tags="post.tags"
             :published="post.published"
+            type="blog"
           />
         </template>
         <div v-if="paginatedData.length === 0" class="text-center py-12">
