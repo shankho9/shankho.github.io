@@ -9,3 +9,10 @@ node_modules
 .firebase
 .git
 .env*
+.vscode/*
+
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
+.vscode/terminal-init.sh
+.vscode/bashrc-wrapper.sh

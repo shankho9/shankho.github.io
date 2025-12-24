@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { BlogPost } from '@/types/blog'
 import { navbarData, seoData } from '~/data'
+import Comments from '@/components/blog/Comments.vue'
 
 const { path } = useRoute()
 
@@ -113,16 +114,24 @@ defineOgImageComponent('Test', {
     </div>
     <BlogToc />
 
-    <div class="flex flex-row flex-wrap md:flex-nowrap mt-10 gap-2">
-      <SocialShare
-        v-for="network in ['facebook', 'twitter', 'linkedin', 'email']"
-        :key="network"
-        :network="network"
-        :styled="true"
-        :label="true"
-        class="p-1"
-        aria-label="Share with {network}"
-      />
+    <!-- Share Icons -->
+    <div class="col-span-12 lg:col-span-9 mt-10 mb-8">
+      <div class="flex flex-row flex-wrap md:flex-nowrap gap-2">
+        <SocialShare
+          v-for="network in ['facebook', 'twitter', 'linkedin', 'email']"
+          :key="network"
+          :network="network"
+          :styled="true"
+          :label="true"
+          class="p-1"
+          aria-label="Share with {network}"
+        />
+      </div>
+    </div>
+
+    <!-- Comments Section -->
+    <div class="col-span-12 lg:col-span-9 mt-8">
+      <Comments :post-id="path" />
     </div>
   </div>
 </template>

@@ -10,6 +10,11 @@
 
     <!-- Error Message -->
     <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+
+    <!-- Comments Section -->
+    <div class="mt-8">
+      <Comments :post-id="route.path" />
+    </div>
   </div>
 </template>
 
@@ -17,6 +22,7 @@
 import { ref, onMounted, computed } from 'vue'
 import DOMPurify from 'dompurify' // Import DOMPurify for sanitizing HTML content
 import { useRoute } from 'vue-router'
+import Comments from '@/components/blog/Comments.vue'
 
 interface Place {
   name: string

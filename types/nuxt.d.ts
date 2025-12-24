@@ -7,6 +7,7 @@ declare module 'nuxt/schema' {
       id: string
       debug: boolean
     }
+    googleClientId: string
     apiBase: string
   }
 
