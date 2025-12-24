@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import type { BlogPost } from '@/types/blog'
 import { navbarData, seoData } from '~/data'
-import { computed, onMounted, nextTick, ref } from 'vue'
+import { computed, onMounted, nextTick, ref, watch } from 'vue'
 import Comments from '@/components/blog/Comments.vue'
 import ReadingProgress from '@/components/blog/ReadingProgress.vue'
 import { calculateReadingTime } from '~/utils/readingTime'
+import { useGoogleAuth } from '~/composables/useGoogleAuth'
 
 const { path } = useRoute()
+
+// Authentication
+const { user, isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
 
 const { data: articles, error } = await useAsyncData(`blog-post-${path}`, () =>
   queryCollection('content').path(path).first(),
@@ -30,8 +34,12 @@ const data = computed<BlogPost>(() => {
   }
 })
 
-// Calculate reading time from article content
+// Initialize auth on mount
 onMounted(() => {
+  initializeGoogleSignIn()
+  loadStoredUser()
+
+  // Calculate reading time from article content
   // Use nextTick and a small delay to ensure content is fully rendered
   nextTick(() => {
     // Try multiple times in case content loads asynchronously
@@ -55,6 +63,60 @@ onMounted(() => {
       }, 500)
     }
   })
+})
+
+// Render Google Sign-In button
+const renderGoogleSignInButton = () => {
+  nextTick(() => {
+    const buttonElement = document.getElementById('lifelines-detail-google-signin-button')
+    if (!buttonElement || !window.google) return
+
+    const clientId = useRuntimeConfig().public.googleClientId
+    if (!clientId) {
+      console.error('[LifeLines Detail] Google Client ID not configured')
+      return
+    }
+
+    buttonElement.innerHTML = ''
+
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: async (response: { credential: string }) => {
+        try {
+          const result = await $fetch<{ user: typeof user.value }>('/api/auth/google', {
+            method: 'POST',
+            body: { token: response.credential },
+          })
+          user.value = result.user
+          localStorage.setItem('google_user', JSON.stringify(result.user))
+
+          if (typeof window !== 'undefined') {
+            const { trackLogin } = await import('~/utils/trackLogin')
+            await trackLogin(result.user.email, result.user.name, window.location.pathname)
+            window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+          }
+        } catch (error) {
+          console.error('[LifeLines Detail] Authentication failed:', error)
+        }
+      },
+    })
+
+    window.google.accounts.id.renderButton(buttonElement, {
+      theme: 'outline',
+      size: 'large',
+      text: 'signin_with',
+      width: 250,
+    })
+  })
+}
+
+// Watch for authentication changes - render button when not authenticated
+watch(isAuthenticated, (newValue) => {
+  if (!newValue) {
+    nextTick(() => {
+      renderGoogleSignInButton()
+    })
+  }
 })
 
 useHead({
@@ -123,7 +185,25 @@ defineOgImageComponent('Test', {
 
 <template>
   <ReadingProgress />
-  <div class="px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12">
+
+  <!-- Authentication Required Message -->
+  <div v-if="!isAuthenticated" class="max-w-2xl mx-auto mt-12 px-6">
+    <div
+      class="bg-white dark:bg-slate-800 rounded-xl p-8 text-center border border-gray-200 dark:border-slate-700 shadow-lg"
+    >
+      <Icon name="mdi:lock" class="text-6xl text-sky-700 dark:text-sky-400 mb-4 mx-auto" />
+      <h2 class="text-2xl font-bold mb-4 text-zinc-800 dark:text-zinc-200">
+        Authentication Required
+      </h2>
+      <p class="text-zinc-600 dark:text-zinc-400 mb-6">
+        Please sign in with Google to access this LifeLine.
+      </p>
+      <div id="lifelines-detail-google-signin-button" class="flex justify-center"></div>
+    </div>
+  </div>
+
+  <!-- LifeLine Content (Authenticated Users Only) -->
+  <div v-else class="px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12">
     <div class="col-span-12 lg:col-span-9">
       <BlogHeader
         :title="data.title"

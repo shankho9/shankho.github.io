@@ -7,9 +7,13 @@ interface GoogleUser {
   sub: string
 }
 
+// Shared state - all instances of useGoogleAuth will use the same state
+const sharedUser = ref<GoogleUser | null>(null)
+const sharedIsLoading = ref(false)
+
 export const useGoogleAuth = () => {
-  const user = ref<GoogleUser | null>(null)
-  const isLoading = ref(false)
+  const user = sharedUser
+  const isLoading = sharedIsLoading
   const isAuthenticated = computed(() => !!user.value)
 
   const initializeGoogleSignIn = () => {
@@ -38,6 +42,17 @@ export const useGoogleAuth = () => {
 
       // Store in localStorage
       localStorage.setItem('google_user', JSON.stringify(result.user))
+
+      // Track login event for analytics
+      if (typeof window !== 'undefined') {
+        const { trackLogin } = await import('~/utils/trackLogin')
+        await trackLogin(result.user.email, result.user.name, window.location.pathname)
+      }
+
+      // Dispatch custom event to notify all components
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+      }
     } catch (error) {
       console.error('Authentication failed:', error)
       throw error
@@ -86,6 +101,12 @@ export const useGoogleAuth = () => {
     if (typeof window !== 'undefined' && window.google) {
       window.google.accounts.id.disableAutoSelect()
     }
+
+    // Clear any rendered sign-in buttons and trigger re-render
+    if (typeof window !== 'undefined') {
+      // Dispatch a custom event to notify all components
+      window.dispatchEvent(new CustomEvent('auth:signout'))
+    }
   }
 
   const loadStoredUser = () => {
@@ -99,6 +120,38 @@ export const useGoogleAuth = () => {
         console.error('Failed to parse stored user', e)
       }
     }
+  }
+
+  // Listen for storage events (cross-tab sync) and custom sign-out events
+  if (typeof window !== 'undefined') {
+    // Listen for localStorage changes (cross-tab synchronization)
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'google_user') {
+        if (e.newValue) {
+          try {
+            user.value = JSON.parse(e.newValue)
+          } catch (err) {
+            console.error('[Auth] Failed to parse user from storage event:', err)
+            user.value = null
+          }
+        } else {
+          user.value = null
+        }
+      }
+    })
+
+    // Listen for custom sign-out events (same-tab synchronization)
+    window.addEventListener('auth:signout', () => {
+      user.value = null
+    })
+
+    // Listen for custom sign-in events (same-tab synchronization)
+    window.addEventListener('auth:signin', (e) => {
+      const customEvent = e as CustomEvent<GoogleUser>
+      if (customEvent.detail) {
+        user.value = customEvent.detail
+      }
+    })
   }
 
   return {

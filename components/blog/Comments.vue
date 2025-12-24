@@ -58,6 +58,7 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
     currentPage.value = response.pagination.page
     totalComments.value = response.pagination.total
     totalPages.value = response.pagination.totalPages
+    isLoading.value = false
   } catch (err: unknown) {
     console.error('[Comments] Failed to load comments:', err)
 
@@ -67,11 +68,12 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
       // Retry on network errors (no status) or 5xx server errors
       if (!status || (status >= 500 && status < 600)) {
         await new Promise((resolve) => setTimeout(resolve, 1000 * (retryCount + 1)))
+        // Recursive call - isLoading remains true, don't set to false here
         return loadComments(page, retryCount + 1)
       }
     }
 
-    // User-friendly error messages
+    // User-friendly error messages (only set if not retrying)
     if (err && typeof err === 'object' && 'status' in err) {
       const status = (err as { status?: number }).status
       if (status === 404) {
@@ -84,7 +86,6 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
     } else {
       error.value = 'Network error. Please check your connection and try again.'
     }
-  } finally {
     isLoading.value = false
   }
 }

@@ -26,8 +26,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', updateProgress)
-  window.removeEventListener('resize', updateProgress)
+  window.removeEventListener('scroll', updateProgress, { passive: true })
+  window.removeEventListener('resize', updateProgress, { passive: true })
 })
 </script>
 

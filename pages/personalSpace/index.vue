@@ -4,6 +4,11 @@ import type { BlogPost } from '~/types/blog'
 import { extractBlogPostFromMeta } from '~/utils/blogMeta'
 import { pesonalSpace } from '~/data'
 import { parseCustomDate, getDateTimestamp } from '~/utils/dateParser'
+import { useGoogleAuth } from '~/composables/useGoogleAuth'
+import { ref, onMounted, watch, nextTick } from 'vue'
+
+// Authentication
+const { user, isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
 
 // Load all blog posts
 const { data } = await useAsyncData('personal-space-posts', () => queryCollection('content').all())
@@ -188,6 +193,75 @@ watch([selectedTags, searchTest, sortBy], () => {
   pageNumber.value = 1
 })
 
+// Initialize auth on mount
+onMounted(() => {
+  initializeGoogleSignIn()
+  loadStoredUser()
+
+  // Track page visit
+  fetch('/api/track-visit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ page: 'lifelines' }),
+  }).catch(() => {
+    // Silent fail
+  })
+})
+
+// Render Google Sign-In button
+const renderGoogleSignInButton = () => {
+  nextTick(() => {
+    const buttonElement = document.getElementById('lifelines-google-signin-button')
+    if (!buttonElement || !window.google) return
+
+    const clientId = useRuntimeConfig().public.googleClientId
+    if (!clientId) {
+      console.error('[LifeLines] Google Client ID not configured')
+      return
+    }
+
+    buttonElement.innerHTML = ''
+
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: async (response: { credential: string }) => {
+        try {
+          const result = await $fetch<{ user: typeof user.value }>('/api/auth/google', {
+            method: 'POST',
+            body: { token: response.credential },
+          })
+          user.value = result.user
+          localStorage.setItem('google_user', JSON.stringify(result.user))
+
+          if (typeof window !== 'undefined') {
+            const { trackLogin } = await import('~/utils/trackLogin')
+            await trackLogin(result.user.email, result.user.name, window.location.pathname)
+            window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+          }
+        } catch (error) {
+          console.error('[LifeLines] Authentication failed:', error)
+        }
+      },
+    })
+
+    window.google.accounts.id.renderButton(buttonElement, {
+      theme: 'outline',
+      size: 'large',
+      text: 'signin_with',
+      width: 250,
+    })
+  })
+}
+
+// Watch for authentication changes - render button when not authenticated
+watch(isAuthenticated, (newValue) => {
+  if (!newValue) {
+    nextTick(() => {
+      renderGoogleSignInButton()
+    })
+  }
+})
+
 useHead({
   title: pesonalSpace.title,
   meta: [
@@ -212,215 +286,239 @@ defineOgImage({
   <main class="container max-w-5xl mx-auto text-zinc-600">
     <PersonalSpaceHero />
 
-    <!-- Stats Section -->
-    <div class="px-6 mb-6">
+    <!-- Authentication Required Message -->
+    <div v-if="!isAuthenticated" class="max-w-2xl mx-auto mt-12 px-6">
       <div
-        class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-[#F1F2F4] dark:bg-slate-900 rounded-2xl"
+        class="bg-white dark:bg-slate-800 rounded-xl p-8 text-center border border-gray-200 dark:border-slate-700 shadow-lg"
       >
-        <div class="text-center">
-          <div class="text-3xl font-bold text-sky-700 dark:text-sky-400">
-            {{ stats.totalPosts }}
+        <Icon name="mdi:lock" class="text-6xl text-sky-700 dark:text-sky-400 mb-4 mx-auto" />
+        <h2 class="text-2xl font-bold mb-4 text-zinc-800 dark:text-zinc-200">
+          Authentication Required
+        </h2>
+        <p class="text-zinc-600 dark:text-zinc-400 mb-6">
+          Please sign in with Google to access LifeLines.
+        </p>
+        <div id="lifelines-google-signin-button" class="flex justify-center"></div>
+      </div>
+    </div>
+
+    <!-- LifeLines Content (Authenticated Users Only) -->
+    <div v-else>
+      <!-- Stats Section -->
+      <div class="px-6 mb-6">
+        <div
+          class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-[#F1F2F4] dark:bg-slate-900 rounded-2xl"
+        >
+          <div class="text-center">
+            <div class="text-3xl font-bold text-sky-700 dark:text-sky-400">
+              {{ stats.totalPosts }}
+            </div>
+            <div class="text-sm text-zinc-600 dark:text-zinc-400 mt-1">Total Lifelines</div>
           </div>
-          <div class="text-sm text-zinc-600 dark:text-zinc-400 mt-1">Total Lifelines</div>
-        </div>
-        <div class="text-center">
-          <div class="text-3xl font-bold text-sky-700 dark:text-sky-400">{{ stats.totalTags }}</div>
-          <div class="text-sm text-zinc-600 dark:text-zinc-400 mt-1">Tags</div>
+          <div class="text-center">
+            <div class="text-3xl font-bold text-sky-700 dark:text-sky-400">
+              {{ stats.totalTags }}
+            </div>
+            <div class="text-sm text-zinc-600 dark:text-zinc-400 mt-1">Tags</div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Controls Section -->
-    <div class="px-6 mb-6 space-y-4">
-      <!-- Search and View Toggle -->
-      <div class="flex flex-col sm:flex-row gap-4 items-center">
-        <div class="flex-1 w-full">
-          <input
-            v-model="searchTest"
-            placeholder="Search lifelines by title, description, or tags..."
-            type="text"
-            class="block w-full bg-[#F1F2F4] dark:bg-slate-900 dark:placeholder-zinc-500 text-zinc-300 rounded-md border-gray-300 dark:border-gray-800 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 px-4 py-2"
-          />
+      <!-- Controls Section -->
+      <div class="px-6 mb-6 space-y-4">
+        <!-- Search and View Toggle -->
+        <div class="flex flex-col sm:flex-row gap-4 items-center">
+          <div class="flex-1 w-full">
+            <input
+              v-model="searchTest"
+              placeholder="Search lifelines by title, description, or tags..."
+              type="text"
+              class="block w-full bg-[#F1F2F4] dark:bg-slate-900 dark:placeholder-zinc-500 text-zinc-300 rounded-md border-gray-300 dark:border-gray-800 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 px-4 py-2"
+            />
+          </div>
+          <div class="flex gap-2 items-center">
+            <button
+              :class="[
+                'px-4 py-2 rounded-md transition-colors',
+                viewMode === 'grid'
+                  ? 'bg-sky-700 dark:bg-sky-600 text-white'
+                  : 'bg-[#F1F2F4] dark:bg-slate-800 text-zinc-600 dark:text-zinc-300',
+              ]"
+              @click="viewMode = 'grid'"
+            >
+              <Icon name="mdi:view-grid" size="20" />
+            </button>
+            <button
+              :class="[
+                'px-4 py-2 rounded-md transition-colors',
+                viewMode === 'list'
+                  ? 'bg-sky-700 dark:bg-sky-600 text-white'
+                  : 'bg-[#F1F2F4] dark:bg-slate-800 text-zinc-600 dark:text-zinc-300',
+              ]"
+              @click="viewMode = 'list'"
+            >
+              <Icon name="mdi:view-list" size="20" />
+            </button>
+          </div>
         </div>
-        <div class="flex gap-2 items-center">
+
+        <!-- Sort and Filters -->
+        <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div class="flex items-center gap-2">
+            <label for="sort" class="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+              Sort by:
+            </label>
+            <select
+              id="sort"
+              v-model="sortBy"
+              class="bg-[#F1F2F4] dark:bg-slate-900 text-zinc-700 dark:text-zinc-300 rounded-md border-gray-300 dark:border-gray-800 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 px-3 py-2 text-sm"
+            >
+              <option value="date-desc">Newest First</option>
+              <option value="date-asc">Oldest First</option>
+              <option value="title-asc">Title (A-Z)</option>
+              <option value="title-desc">Title (Z-A)</option>
+            </select>
+          </div>
+
+          <div class="flex-1"></div>
+
           <button
-            :class="[
-              'px-4 py-2 rounded-md transition-colors',
-              viewMode === 'grid'
-                ? 'bg-sky-700 dark:bg-sky-600 text-white'
-                : 'bg-[#F1F2F4] dark:bg-slate-800 text-zinc-600 dark:text-zinc-300',
-            ]"
-            @click="viewMode = 'grid'"
+            v-if="selectedTags.length > 0 || searchTest.trim()"
+            @click="clearFilters"
+            class="px-4 py-2 text-sm bg-gray-200 dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 rounded-md hover:bg-gray-300 dark:hover:bg-slate-700 transition-colors"
           >
-            <Icon name="mdi:view-grid" size="20" />
+            Clear Filters
           </button>
+        </div>
+
+        <!-- Tag Filters -->
+        <div v-if="allTags.length > 0" class="flex flex-wrap gap-2">
+          <span class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 self-center">
+            Tags:
+          </span>
           <button
-            :class="[
-              'px-4 py-2 rounded-md transition-colors',
-              viewMode === 'list'
-                ? 'bg-sky-700 dark:bg-sky-600 text-white'
-                : 'bg-[#F1F2F4] dark:bg-slate-800 text-zinc-600 dark:text-zinc-300',
-            ]"
-            @click="viewMode = 'list'"
-          >
-            <Icon name="mdi:view-list" size="20" />
-          </button>
-        </div>
-      </div>
-
-      <!-- Sort and Filters -->
-      <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-        <div class="flex items-center gap-2">
-          <label for="sort" class="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-            Sort by:
-          </label>
-          <select
-            id="sort"
-            v-model="sortBy"
-            class="bg-[#F1F2F4] dark:bg-slate-900 text-zinc-700 dark:text-zinc-300 rounded-md border-gray-300 dark:border-gray-800 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 px-3 py-2 text-sm"
-          >
-            <option value="date-desc">Newest First</option>
-            <option value="date-asc">Oldest First</option>
-            <option value="title-asc">Title (A-Z)</option>
-            <option value="title-desc">Title (Z-A)</option>
-          </select>
-        </div>
-
-        <div class="flex-1"></div>
-
-        <button
-          v-if="selectedTags.length > 0 || searchTest.trim()"
-          @click="clearFilters"
-          class="px-4 py-2 text-sm bg-gray-200 dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 rounded-md hover:bg-gray-300 dark:hover:bg-slate-700 transition-colors"
-        >
-          Clear Filters
-        </button>
-      </div>
-
-      <!-- Tag Filters -->
-      <div v-if="allTags.length > 0" class="flex flex-wrap gap-2">
-        <span class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 self-center">
-          Tags:
-        </span>
-        <button
-          v-for="tag in allTags"
-          :key="tag"
-          @click="toggleTag(tag)"
-          :class="[
-            'px-3 py-1 rounded-md text-sm font-semibold transition-colors',
-            selectedTags.includes(tag)
-              ? 'bg-sky-700 dark:bg-sky-600 text-white'
-              : 'bg-gray-200 dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 hover:bg-gray-300 dark:hover:bg-slate-700',
-          ]"
-        >
-          {{ tag }}
-        </button>
-      </div>
-    </div>
-
-    <!-- Results Count -->
-    <div class="px-6 mb-4">
-      <p class="text-sm text-zinc-600 dark:text-zinc-400">
-        Showing {{ paginatedData.length }} of {{ sortedData.length }} lifelines
-        <span v-if="selectedTags.length > 0 || searchTest.trim()"> (filtered) </span>
-      </p>
-    </div>
-
-    <!-- Lifelines Posts -->
-    <div v-auto-animate class="px-4 mb-6">
-      <!-- Grid View -->
-      <div v-if="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        <template v-for="post in paginatedData" :key="post.path">
-          <PersonalSpaceCard
-            :path="post.path"
-            :title="post.title"
-            :date="post.date"
-            :description="post.description"
-            :image="post.image"
-            :alt="post.alt"
-            :og-image="post.ogImage"
-            :tags="post.tags"
-            :published="post.published"
-          />
-        </template>
-        <div v-if="paginatedData.length === 0" class="col-span-full text-center py-12">
-          <p class="text-lg text-zinc-600 dark:text-zinc-400">No lifelines found</p>
-        </div>
-      </div>
-
-      <!-- List View -->
-      <div v-else class="space-y-5">
-        <template v-for="post in paginatedData" :key="post.path">
-          <ArchiveCard
-            :path="post.path"
-            :title="post.title"
-            :date="post.date"
-            :description="post.description"
-            :image="post.image"
-            :alt="post.alt"
-            :og-image="post.ogImage"
-            :tags="post.tags"
-            :published="post.published"
-          />
-        </template>
-        <div v-if="paginatedData.length === 0" class="text-center py-12">
-          <p class="text-lg text-zinc-600 dark:text-zinc-400">No lifelines found</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Pagination -->
-    <div v-if="totalPage > 1" class="px-6 mb-6">
-      <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
-        <!-- Previous Button -->
-        <button
-          :disabled="pageNumber <= 1"
-          :class="[
-            'px-4 py-2 rounded-md transition-colors',
-            pageNumber > 1
-              ? 'bg-sky-700 dark:bg-sky-600 text-white hover:bg-sky-800 dark:hover:bg-sky-700'
-              : 'bg-gray-200 dark:bg-slate-800 text-zinc-400 cursor-not-allowed',
-          ]"
-          @click="onPreviousPageClick"
-        >
-          <Icon name="mdi:code-less-than" size="24" />
-        </button>
-
-        <!-- Page Numbers -->
-        <div class="flex flex-wrap justify-center gap-2">
-          <button
-            v-for="page in totalPage"
-            :key="page"
+            v-for="tag in allTags"
+            :key="tag"
+            @click="toggleTag(tag)"
             :class="[
               'px-3 py-1 rounded-md text-sm font-semibold transition-colors',
-              page === pageNumber
+              selectedTags.includes(tag)
                 ? 'bg-sky-700 dark:bg-sky-600 text-white'
                 : 'bg-gray-200 dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 hover:bg-gray-300 dark:hover:bg-slate-700',
             ]"
-            @click="goToPage(page)"
           >
-            {{ page }}
+            {{ tag }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Results Count -->
+      <div class="px-6 mb-4">
+        <p class="text-sm text-zinc-600 dark:text-zinc-400">
+          Showing {{ paginatedData.length }} of {{ sortedData.length }} lifelines
+          <span v-if="selectedTags.length > 0 || searchTest.trim()"> (filtered) </span>
+        </p>
+      </div>
+
+      <!-- Lifelines Posts -->
+      <div v-auto-animate class="px-4 mb-6">
+        <!-- Grid View -->
+        <div
+          v-if="viewMode === 'grid'"
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+        >
+          <template v-for="post in paginatedData" :key="post.path">
+            <PersonalSpaceCard
+              :path="post.path"
+              :title="post.title"
+              :date="post.date"
+              :description="post.description"
+              :image="post.image"
+              :alt="post.alt"
+              :og-image="post.ogImage"
+              :tags="post.tags"
+              :published="post.published"
+            />
+          </template>
+          <div v-if="paginatedData.length === 0" class="col-span-full text-center py-12">
+            <p class="text-lg text-zinc-600 dark:text-zinc-400">No lifelines found</p>
+          </div>
+        </div>
+
+        <!-- List View -->
+        <div v-else class="space-y-5">
+          <template v-for="post in paginatedData" :key="post.path">
+            <ArchiveCard
+              :path="post.path"
+              :title="post.title"
+              :date="post.date"
+              :description="post.description"
+              :image="post.image"
+              :alt="post.alt"
+              :og-image="post.ogImage"
+              :tags="post.tags"
+              :published="post.published"
+            />
+          </template>
+          <div v-if="paginatedData.length === 0" class="text-center py-12">
+            <p class="text-lg text-zinc-600 dark:text-zinc-400">No lifelines found</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="totalPage > 1" class="px-6 mb-6">
+        <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+          <!-- Previous Button -->
+          <button
+            :disabled="pageNumber <= 1"
+            :class="[
+              'px-4 py-2 rounded-md transition-colors',
+              pageNumber > 1
+                ? 'bg-sky-700 dark:bg-sky-600 text-white hover:bg-sky-800 dark:hover:bg-sky-700'
+                : 'bg-gray-200 dark:bg-slate-800 text-zinc-400 cursor-not-allowed',
+            ]"
+            @click="onPreviousPageClick"
+          >
+            <Icon name="mdi:code-less-than" size="24" />
+          </button>
+
+          <!-- Page Numbers -->
+          <div class="flex flex-wrap justify-center gap-2">
+            <button
+              v-for="page in totalPage"
+              :key="page"
+              :class="[
+                'px-3 py-1 rounded-md text-sm font-semibold transition-colors',
+                page === pageNumber
+                  ? 'bg-sky-700 dark:bg-sky-600 text-white'
+                  : 'bg-gray-200 dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 hover:bg-gray-300 dark:hover:bg-slate-700',
+              ]"
+              @click="goToPage(page)"
+            >
+              {{ page }}
+            </button>
+          </div>
+
+          <!-- Next Button -->
+          <button
+            :disabled="pageNumber >= totalPage"
+            :class="[
+              'px-4 py-2 rounded-md transition-colors',
+              pageNumber < totalPage
+                ? 'bg-sky-700 dark:bg-sky-600 text-white hover:bg-sky-800 dark:hover:bg-sky-700'
+                : 'bg-gray-200 dark:bg-slate-800 text-zinc-400 cursor-not-allowed',
+            ]"
+            @click="onNextPageClick"
+          >
+            <Icon name="mdi:code-greater-than" size="24" />
           </button>
         </div>
 
-        <!-- Next Button -->
-        <button
-          :disabled="pageNumber >= totalPage"
-          :class="[
-            'px-4 py-2 rounded-md transition-colors',
-            pageNumber < totalPage
-              ? 'bg-sky-700 dark:bg-sky-600 text-white hover:bg-sky-800 dark:hover:bg-sky-700'
-              : 'bg-gray-200 dark:bg-slate-800 text-zinc-400 cursor-not-allowed',
-          ]"
-          @click="onNextPageClick"
-        >
-          <Icon name="mdi:code-greater-than" size="24" />
-        </button>
-      </div>
-
-      <!-- Page Info -->
-      <div class="text-center mt-4 text-sm text-zinc-600 dark:text-zinc-400">
-        Page {{ pageNumber }} of {{ totalPage }}
+        <!-- Page Info -->
+        <div class="text-center mt-4 text-sm text-zinc-600 dark:text-zinc-400">
+          Page {{ pageNumber }} of {{ totalPage }}
+        </div>
       </div>
     </div>
   </main>
