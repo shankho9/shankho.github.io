@@ -11,6 +11,51 @@ interface GoogleUser {
 const sharedUser = ref<GoogleUser | null>(null)
 const sharedIsLoading = ref(false)
 
+// Track if event listeners have been registered to prevent duplicates
+let listenersRegistered = false
+
+// Event handler functions stored for potential cleanup
+let storageHandler: ((e: StorageEvent) => void) | null = null
+let signOutHandler: (() => void) | null = null
+let signInHandler: ((e: Event) => void) | null = null
+
+// Register event listeners once at module level to avoid duplicates and closure issues
+if (typeof window !== 'undefined') {
+  // Listen for localStorage changes (cross-tab synchronization)
+  storageHandler = (e: StorageEvent) => {
+    if (e.key === 'google_user') {
+      if (e.newValue) {
+        try {
+          sharedUser.value = JSON.parse(e.newValue)
+        } catch (err) {
+          console.error('[Auth] Failed to parse user from storage event:', err)
+          sharedUser.value = null
+        }
+      } else {
+        sharedUser.value = null
+      }
+    }
+  }
+  window.addEventListener('storage', storageHandler)
+
+  // Listen for custom sign-out events (same-tab synchronization)
+  signOutHandler = () => {
+    sharedUser.value = null
+  }
+  window.addEventListener('auth:signout', signOutHandler)
+
+  // Listen for custom sign-in events (same-tab synchronization)
+  signInHandler = (e: Event) => {
+    const customEvent = e as CustomEvent<GoogleUser>
+    if (customEvent.detail) {
+      sharedUser.value = customEvent.detail
+    }
+  }
+  window.addEventListener('auth:signin', signInHandler)
+
+  listenersRegistered = true
+}
+
 export const useGoogleAuth = () => {
   const user = sharedUser
   const isLoading = sharedIsLoading
@@ -120,38 +165,6 @@ export const useGoogleAuth = () => {
         console.error('Failed to parse stored user', e)
       }
     }
-  }
-
-  // Listen for storage events (cross-tab sync) and custom sign-out events
-  if (typeof window !== 'undefined') {
-    // Listen for localStorage changes (cross-tab synchronization)
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'google_user') {
-        if (e.newValue) {
-          try {
-            user.value = JSON.parse(e.newValue)
-          } catch (err) {
-            console.error('[Auth] Failed to parse user from storage event:', err)
-            user.value = null
-          }
-        } else {
-          user.value = null
-        }
-      }
-    })
-
-    // Listen for custom sign-out events (same-tab synchronization)
-    window.addEventListener('auth:signout', () => {
-      user.value = null
-    })
-
-    // Listen for custom sign-in events (same-tab synchronization)
-    window.addEventListener('auth:signin', (e) => {
-      const customEvent = e as CustomEvent<GoogleUser>
-      if (customEvent.detail) {
-        user.value = customEvent.detail
-      }
-    })
   }
 
   return {

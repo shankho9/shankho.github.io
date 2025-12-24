@@ -57,7 +57,85 @@ function loadGoogleMaps(): Promise<void> {
 
     const existing = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]')
     if (existing) {
-      existing.addEventListener('load', () => resolve())
+      const script = existing as HTMLScriptElement
+
+      // Check if script is already loaded (readyState check)
+      const isLoaded = script.readyState === 'complete' || script.readyState === 'loaded'
+
+      // Check if Google Maps API is already available
+      if (window.google && window.google.maps) {
+        resolve()
+        return
+      }
+
+      // If script is loaded but API not available yet, poll for it
+      if (isLoaded) {
+        const checkInterval = setInterval(() => {
+          if (window.google && window.google.maps) {
+            clearInterval(checkInterval)
+            resolve()
+          }
+        }, 50)
+
+        // Timeout after 5 seconds
+        setTimeout(() => {
+          clearInterval(checkInterval)
+          reject(new Error('Google Maps failed to load'))
+        }, 5000)
+        return
+      }
+
+      // Script exists but not loaded yet - use a combination of event listeners and polling
+      // to handle race conditions where the script loads between checks
+      let resolved = false
+      const resolveOnce = () => {
+        if (!resolved) {
+          resolved = true
+          resolve()
+        }
+      }
+      const rejectOnce = (error: Error) => {
+        if (!resolved) {
+          resolved = true
+          reject(error)
+        }
+      }
+
+      // Add event listeners
+      existing.addEventListener('load', resolveOnce)
+      existing.addEventListener('error', () =>
+        rejectOnce(new Error('Failed to load Google Maps script')),
+      )
+
+      // Also poll as a fallback in case the event already fired
+      const checkInterval = setInterval(() => {
+        if (window.google && window.google.maps) {
+          clearInterval(checkInterval)
+          resolveOnce()
+        }
+        // Check if script finished loading
+        const currentState = (existing as HTMLScriptElement).readyState
+        if (currentState === 'complete' || currentState === 'loaded') {
+          clearInterval(checkInterval)
+          // Give it a moment for the API to initialize
+          setTimeout(() => {
+            if (window.google && window.google.maps) {
+              resolveOnce()
+            } else {
+              rejectOnce(new Error('Google Maps script loaded but API not available'))
+            }
+          }, 100)
+        }
+      }, 50)
+
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        clearInterval(checkInterval)
+        if (!resolved) {
+          rejectOnce(new Error('Google Maps failed to load within timeout'))
+        }
+      }, 5000)
+
       return
     }
 
