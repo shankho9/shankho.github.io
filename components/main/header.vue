@@ -36,6 +36,11 @@ function isActive(path: string) {
             Categories
           </NuxtLink>
         </li>
+        <li>
+          <NuxtLink to="/resources" :class="{ underline: isActive('/resources') }">
+            Resources
+          </NuxtLink>
+        </li>
         <li title="About Me">
           <NuxtLink
             to="/about"
