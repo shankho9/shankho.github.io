@@ -6,6 +6,7 @@ interface Props {
   description?: string
   date?: string
   tags?: Array<string>
+  readingTime?: number
 }
 
 withDefaults(defineProps<Props>(), {
@@ -15,6 +16,7 @@ withDefaults(defineProps<Props>(), {
   description: 'no description',
   date: 'no-date',
   tags: () => [],
+  readingTime: undefined,
 })
 </script>
 
@@ -39,6 +41,10 @@ withDefaults(defineProps<Props>(), {
         <div class="flex items-center font-semibold">
           <LogoDate />
           <p>{{ date || '' }}</p>
+        </div>
+        <div v-if="readingTime" class="flex items-center font-semibold">
+          <Icon name="mdi:clock-outline" size="16" class="mr-1" />
+          <p>{{ readingTime }} min read</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap my-5">
           <LogoTag />

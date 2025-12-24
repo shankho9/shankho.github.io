@@ -2,14 +2,7 @@
 import { useAsyncData } from 'nuxt/app'
 import type { BlogPost } from '~/types/blog'
 import { extractBlogPostFromMeta } from '~/utils/blogMeta'
-
-// Function to parse dates in the format "1st Mar 2023"
-function parseCustomDate(dateStr: string): Date {
-  // Remove ordinal indicators (st, nd, rd, th)
-  const cleanDateStr = dateStr.replace(/(\d+)(st|nd|rd|th)/, '$1')
-  // Parse the date
-  return new Date(cleanDateStr)
-}
+import { parseCustomDate, getDateTimestamp } from '~/utils/dateParser'
 
 // Get Last 6 Publish Post from the content/blog directory
 const { data } = await useAsyncData('recent-post', () =>
@@ -20,7 +13,7 @@ const { data } = await useAsyncData('recent-post', () =>
         .sort((a, b) => {
           const aDate = parseCustomDate(a.meta.date as string)
           const bDate = parseCustomDate(b.meta.date as string)
-          return bDate.getTime() - aDate.getTime()
+          return getDateTimestamp(bDate) - getDateTimestamp(aDate)
         })
         .slice(0, 3)
     }),

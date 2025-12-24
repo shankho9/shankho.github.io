@@ -3,12 +3,7 @@ import Fuse from 'fuse.js'
 import type { BlogPost } from '~/types/blog'
 import { extractBlogPostFromMeta } from '~/utils/blogMeta'
 import { pesonalSpace } from '~/data'
-
-// Function to parse dates in the format "1st Mar 2023"
-function parseCustomDate(dateStr: string): Date {
-  const cleanDateStr = dateStr.replace(/(\d+)(st|nd|rd|th)/, '$1')
-  return new Date(cleanDateStr)
-}
+import { parseCustomDate, getDateTimestamp } from '~/utils/dateParser'
 
 // Load all blog posts
 const { data } = await useAsyncData('personal-space-posts', () => queryCollection('content').all())
@@ -123,13 +118,13 @@ const sortedData = computed(() => {
       return sorted.sort((a, b) => {
         const aDate = parseCustomDate(a.date)
         const bDate = parseCustomDate(b.date)
-        return bDate.getTime() - aDate.getTime()
+        return getDateTimestamp(bDate) - getDateTimestamp(aDate)
       })
     case 'date-asc':
       return sorted.sort((a, b) => {
         const aDate = parseCustomDate(a.date)
         const bDate = parseCustomDate(b.date)
-        return aDate.getTime() - bDate.getTime()
+        return getDateTimestamp(aDate) - getDateTimestamp(bDate)
       })
     case 'title-asc':
       return sorted.sort((a, b) => a.title.localeCompare(b.title))

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { BlogPost } from '@/types/blog'
 import { navbarData, seoData } from '~/data'
+import { computed, onMounted, nextTick, ref } from 'vue'
 import Comments from '@/components/blog/Comments.vue'
+import ReadingProgress from '@/components/blog/ReadingProgress.vue'
+import { calculateReadingTime } from '~/utils/readingTime'
 
 const { path } = useRoute()
 
@@ -10,6 +13,8 @@ const { data: articles, error } = await useAsyncData(`blog-post-${path}`, () =>
 )
 
 if (error.value) navigateTo('/404')
+
+const readingTime = ref<number | undefined>(undefined)
 
 const data = computed<BlogPost>(() => {
   const meta = articles?.value?.meta as unknown as BlogPost
@@ -23,6 +28,33 @@ const data = computed<BlogPost>(() => {
     tags: meta?.tags || [],
     published: meta?.published || false,
   }
+})
+
+// Calculate reading time from article content
+onMounted(() => {
+  // Use nextTick and a small delay to ensure content is fully rendered
+  nextTick(() => {
+    // Try multiple times in case content loads asynchronously
+    const calculateTime = () => {
+      const proseElement = document.querySelector('.prose')
+      if (proseElement) {
+        const textContent = proseElement.textContent || ''
+        if (textContent.trim().length > 0) {
+          readingTime.value = calculateReadingTime(textContent)
+          return true
+        }
+      }
+      return false
+    }
+
+    // Try immediately
+    if (!calculateTime()) {
+      // If not found, try again after a short delay
+      setTimeout(() => {
+        calculateTime()
+      }, 500)
+    }
+  })
 })
 
 useHead({
@@ -90,6 +122,7 @@ defineOgImageComponent('Test', {
 </script>
 
 <template>
+  <ReadingProgress />
   <div class="px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12">
     <div class="col-span-12 lg:col-span-9">
       <BlogHeader
@@ -99,6 +132,7 @@ defineOgImageComponent('Test', {
         :date="data.date"
         :description="data.description"
         :tags="data.tags"
+        :reading-time="readingTime"
       />
       <div
         class="prose prose-pre:max-w-xs sm:prose-pre:max-w-full prose-sm sm:prose-base md:prose-lg prose-h1:no-underline max-w-5xl mx-auto prose-zinc dark:prose-invert prose-img:rounded-lg"
