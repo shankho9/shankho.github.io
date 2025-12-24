@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import Fuse from 'fuse.js'
-import type { BlogPost } from '~/types/blog'
 import { extractBlogPostFromMeta } from '~/utils/blogMeta'
 import { pesonalSpace } from '~/data'
 import { parseCustomDate, getDateTimestamp } from '~/utils/dateParser'
@@ -385,8 +384,8 @@ defineOgImage({
 
           <button
             v-if="selectedTags.length > 0 || searchTest.trim()"
-            @click="clearFilters"
             class="px-4 py-2 text-sm bg-gray-200 dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 rounded-md hover:bg-gray-300 dark:hover:bg-slate-700 transition-colors"
+            @click="clearFilters"
           >
             Clear Filters
           </button>
@@ -400,13 +399,13 @@ defineOgImage({
           <button
             v-for="tag in allTags"
             :key="tag"
-            @click="toggleTag(tag)"
             :class="[
               'px-2 py-0.5 rounded text-xs font-medium transition-colors',
               selectedTags.includes(tag)
                 ? getTagSelectedColorClasses(tag)
                 : getTagColorClasses(tag) + ' hover:opacity-80',
             ]"
+            @click="toggleTag(tag)"
           >
             {{ tag }}
           </button>

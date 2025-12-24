@@ -9,8 +9,7 @@ import GoogleMap from '~/components/blog/GoogleMap.vue'
 type TabType = 'photos' | 'videos' | 'musical-notes' | 'travel-map' | 'resources'
 
 // Authentication
-const { user, isAuthenticated, signIn, signOut, loadStoredUser, initializeGoogleSignIn } =
-  useGoogleAuth()
+const { user, isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
 
 // Active tab state - default to resources (public) to ensure page is always accessible
 const activeTab = ref<TabType>('resources')
@@ -346,13 +345,13 @@ defineOgImageComponent('About', {
           <button
             v-for="tab in tabs"
             :key="tab.id"
-            @click="activeTab = tab.id"
             :class="[
               'relative flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300 ease-out',
               activeTab === tab.id
                 ? 'bg-gradient-to-r from-sky-700 to-blue-600 dark:from-sky-600 dark:to-blue-500 text-white shadow-md scale-105'
                 : 'text-zinc-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:scale-102',
             ]"
+            @click="activeTab = tab.id"
           >
             <Icon :name="tab.icon" size="20" />
             <span>{{ tab.label }}</span>
@@ -459,13 +458,13 @@ defineOgImageComponent('About', {
             <button
               v-for="category in categories"
               :key="category"
-              @click="selectedCategory = category"
               :class="[
                 'px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 capitalize',
                 selectedCategory === category
                   ? 'bg-gradient-to-r from-sky-700 to-blue-600 dark:from-sky-600 dark:to-blue-500 text-white shadow-md'
                   : 'bg-white dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-slate-700 shadow-sm',
               ]"
+              @click="selectedCategory = category"
             >
               {{ category }}
             </button>

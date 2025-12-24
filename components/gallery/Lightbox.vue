@@ -167,9 +167,9 @@ onUnmounted(() => {
       >
         <!-- Close Button -->
         <button
-          @click="closeLightbox"
           class="absolute top-4 right-4 z-10 p-2 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full text-white transition-colors"
           aria-label="Close lightbox"
+          @click="closeLightbox"
         >
           <Icon name="mdi:close" size="24" />
         </button>
@@ -177,18 +177,18 @@ onUnmounted(() => {
         <!-- Navigation Buttons -->
         <button
           v-if="hasPrevious"
-          @click="previousImage"
           class="absolute left-4 z-10 p-3 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full text-white transition-colors"
           aria-label="Previous image"
+          @click="previousImage"
         >
           <Icon name="mdi:chevron-left" size="32" />
         </button>
 
         <button
           v-if="hasNext"
-          @click="nextImage"
           class="absolute right-4 z-10 p-3 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full text-white transition-colors"
           aria-label="Next image"
+          @click="nextImage"
         >
           <Icon name="mdi:chevron-right" size="32" />
         </button>
@@ -198,26 +198,26 @@ onUnmounted(() => {
           class="absolute top-4 left-4 z-10 flex flex-col gap-2 bg-black bg-opacity-50 rounded-lg p-2"
         >
           <button
-            @click="zoomIn"
             class="p-2 hover:bg-opacity-70 rounded text-white transition-colors"
             aria-label="Zoom in"
             :disabled="zoomLevel >= 3"
+            @click="zoomIn"
           >
             <Icon name="mdi:plus" size="20" />
           </button>
           <button
-            @click="zoomOut"
             class="p-2 hover:bg-opacity-70 rounded text-white transition-colors"
             aria-label="Zoom out"
             :disabled="zoomLevel <= 1"
+            @click="zoomOut"
           >
             <Icon name="mdi:minus" size="20" />
           </button>
           <button
             v-if="isZoomed"
-            @click="resetZoom"
             class="p-2 hover:bg-opacity-70 rounded text-white transition-colors text-xs"
             aria-label="Reset zoom"
+            @click="resetZoom"
           >
             Reset
           </button>
@@ -227,6 +227,7 @@ onUnmounted(() => {
         <div class="relative w-full h-full flex items-center justify-center p-4">
           <div
             class="max-w-full max-h-full overflow-hidden"
+            :class="{ 'cursor-grab': isZoomed && !isDragging, 'cursor-grabbing': isDragging }"
             @mousedown="startDrag"
             @touchstart="startDrag"
             @mousemove="onDrag"
@@ -234,7 +235,6 @@ onUnmounted(() => {
             @mouseup="endDrag"
             @mouseleave="endDrag"
             @touchend="endDrag"
-            :class="{ 'cursor-grab': isZoomed && !isDragging, 'cursor-grabbing': isDragging }"
           >
             <NuxtImg
               v-if="currentItem"

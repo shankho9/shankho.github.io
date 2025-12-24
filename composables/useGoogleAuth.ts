@@ -11,9 +11,6 @@ interface GoogleUser {
 const sharedUser = ref<GoogleUser | null>(null)
 const sharedIsLoading = ref(false)
 
-// Track if event listeners have been registered to prevent duplicates
-let listenersRegistered = false
-
 // Event handler functions stored for potential cleanup
 let storageHandler: ((e: StorageEvent) => void) | null = null
 let signOutHandler: (() => void) | null = null
@@ -52,8 +49,6 @@ if (typeof window !== 'undefined') {
     }
   }
   window.addEventListener('auth:signin', signInHandler)
-
-  listenersRegistered = true
 }
 
 export const useGoogleAuth = () => {

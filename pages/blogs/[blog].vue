@@ -75,60 +75,62 @@ useHead({
 </script>
 
 <template>
-  <ReadingProgress />
-  <div class="px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12">
-    <div class="col-span-12 lg:col-span-9">
-      <BlogHeader
-        :title="data.title"
-        :image="data.image"
-        :alt="data.alt"
-        :date="data.date"
-        :description="data.description"
-        :tags="data.tags"
-        :reading-time="readingTime"
-      />
-
-      <!-- Like Button (Top) -->
-      <div class="mt-4 flex items-center gap-2">
-        <LikeButton :post-id="path" />
-      </div>
-
-      <div
-        class="prose prose-pre:max-w-xs sm:prose-pre:max-w-full prose-sm sm:prose-base md:prose-lg prose-h1:no-underline max-w-5xl mx-auto prose-zinc dark:prose-invert prose-img:rounded-lg"
-      >
-        <ContentRenderer v-if="articles" :value="articles">
-          <template #empty>
-            <p>No content found.</p>
-          </template>
-        </ContentRenderer>
-      </div>
-
-      <!-- Like Button (Bottom) -->
-      <div class="mt-4 flex items-center gap-2">
-        <LikeButton :post-id="path" />
-      </div>
-    </div>
-
-    <BlogToc />
-
-    <!-- Share Icons -->
-    <div class="col-span-12 lg:col-span-9 mt-10 mb-8">
-      <div class="flex flex-row flex-wrap md:flex-nowrap gap-2">
-        <SocialShare
-          v-for="network in ['facebook', 'twitter', 'linkedin', 'email']"
-          :key="network"
-          :network="network"
-          :styled="true"
-          :label="true"
-          class="p-1"
-          aria-label="Share with {network}"
+  <div>
+    <ReadingProgress />
+    <div class="px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12">
+      <div class="col-span-12 lg:col-span-9">
+        <BlogHeader
+          :title="data.title"
+          :image="data.image"
+          :alt="data.alt"
+          :date="data.date"
+          :description="data.description"
+          :tags="data.tags"
+          :reading-time="readingTime"
         />
-      </div>
-    </div>
 
-    <!-- Comments Section -->
-    <div class="col-span-12 lg:col-span-9 mt-8">
-      <Comments :post-id="path" />
+        <!-- Like Button (Top) -->
+        <div class="mt-4 flex items-center gap-2">
+          <LikeButton :post-id="path" />
+        </div>
+
+        <div
+          class="prose prose-pre:max-w-xs sm:prose-pre:max-w-full prose-sm sm:prose-base md:prose-lg prose-h1:no-underline max-w-5xl mx-auto prose-zinc dark:prose-invert prose-img:rounded-lg"
+        >
+          <ContentRenderer v-if="articles" :value="articles">
+            <template #empty>
+              <p>No content found.</p>
+            </template>
+          </ContentRenderer>
+        </div>
+
+        <!-- Like Button (Bottom) -->
+        <div class="mt-4 flex items-center gap-2">
+          <LikeButton :post-id="path" />
+        </div>
+      </div>
+
+      <BlogToc />
+
+      <!-- Share Icons -->
+      <div class="col-span-12 lg:col-span-9 mt-10 mb-8">
+        <div class="flex flex-row flex-wrap md:flex-nowrap gap-2">
+          <SocialShare
+            v-for="network in ['facebook', 'twitter', 'linkedin', 'email']"
+            :key="network"
+            :network="network"
+            :styled="true"
+            :label="true"
+            class="p-1"
+            aria-label="Share with {network}"
+          />
+        </div>
+      </div>
+
+      <!-- Comments Section -->
+      <div class="col-span-12 lg:col-span-9 mt-8">
+        <Comments :post-id="path" />
+      </div>
     </div>
   </div>
 </template>

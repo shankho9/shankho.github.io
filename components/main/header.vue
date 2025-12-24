@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { navbarData } from '../../data'
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useGoogleAuth } from '~/composables/useGoogleAuth'
 import { trackLogin } from '~/utils/trackLogin'
 
@@ -120,9 +120,11 @@ const handleGoogleSignIn = async () => {
     const googleButton = buttonElement?.querySelector('div[role="button"]') as HTMLElement
     if (googleButton) {
       googleButton.click()
-    } else {
+    } else if (window.google?.accounts?.id) {
       // Fallback: try prompt if button click doesn't work
-      window.google.accounts.id.prompt()
+      window.google.accounts.id.prompt(() => {
+        // Callback for prompt notification
+      })
     }
   })
 }
@@ -190,9 +192,9 @@ onMounted(() => {
             <!-- User Profile / Sign In -->
             <div v-if="isAuthenticated && user" class="user-dropdown-container relative">
               <button
-                @click="toggleUserDropdown"
                 class="flex items-center gap-2 hover:opacity-80 transition-opacity"
                 aria-label="User menu"
+                @click="toggleUserDropdown"
               >
                 <img
                   v-if="user.picture"
@@ -237,9 +239,9 @@ onMounted(() => {
                       </p>
                     </div>
                     <button
-                      @click="handleSignOut"
                       class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors"
                       role="menuitem"
+                      @click="handleSignOut"
                     >
                       <Icon name="mdi:logout" size="18" />
                       Sign Out
@@ -250,10 +252,10 @@ onMounted(() => {
             </div>
             <div v-else class="flex items-center">
               <button
-                @click="handleGoogleSignIn"
                 class="px-3 py-1.5 rounded-md bg-sky-700 dark:bg-sky-600 hover:bg-sky-800 dark:hover:bg-sky-700 text-white text-sm font-semibold transition-colors flex items-center gap-2"
                 title="Sign in with Google"
                 aria-label="Sign in with Google"
+                @click="handleGoogleSignIn"
               >
                 <Icon name="mdi:google" size="18" />
                 <span>Sign in</span>

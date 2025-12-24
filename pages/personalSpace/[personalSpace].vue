@@ -184,66 +184,68 @@ defineOgImageComponent('Test', {
 </script>
 
 <template>
-  <ReadingProgress />
+  <div>
+    <ReadingProgress />
 
-  <!-- Authentication Required Message -->
-  <div v-if="!isAuthenticated" class="max-w-2xl mx-auto mt-12 px-6">
-    <div
-      class="bg-white dark:bg-slate-800 rounded-xl p-8 text-center border border-gray-200 dark:border-slate-700 shadow-lg"
-    >
-      <Icon name="mdi:lock" class="text-6xl text-sky-700 dark:text-sky-400 mb-4 mx-auto" />
-      <h2 class="text-2xl font-bold mb-4 text-zinc-800 dark:text-zinc-200">
-        Authentication Required
-      </h2>
-      <p class="text-zinc-600 dark:text-zinc-400 mb-6">
-        Please sign in with Google to access this LifeLine.
-      </p>
-      <div id="lifelines-detail-google-signin-button" class="flex justify-center"></div>
-    </div>
-  </div>
-
-  <!-- LifeLine Content (Authenticated Users Only) -->
-  <div v-else class="px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12">
-    <div class="col-span-12 lg:col-span-9">
-      <BlogHeader
-        :title="data.title"
-        :image="data.image"
-        :alt="data.alt"
-        :date="data.date"
-        :description="data.description"
-        :tags="data.tags"
-        :reading-time="readingTime"
-      />
+    <!-- Authentication Required Message -->
+    <div v-if="!isAuthenticated" class="max-w-2xl mx-auto mt-12 px-6">
       <div
-        class="prose prose-pre:max-w-xs sm:prose-pre:max-w-full prose-sm sm:prose-base md:prose-lg prose-h1:no-underline max-w-5xl mx-auto prose-zinc dark:prose-invert prose-img:rounded-lg"
+        class="bg-white dark:bg-slate-800 rounded-xl p-8 text-center border border-gray-200 dark:border-slate-700 shadow-lg"
       >
-        <ContentRenderer v-if="articles" :value="articles">
-          <template #empty>
-            <p>No content found.</p>
-          </template>
-        </ContentRenderer>
+        <Icon name="mdi:lock" class="text-6xl text-sky-700 dark:text-sky-400 mb-4 mx-auto" />
+        <h2 class="text-2xl font-bold mb-4 text-zinc-800 dark:text-zinc-200">
+          Authentication Required
+        </h2>
+        <p class="text-zinc-600 dark:text-zinc-400 mb-6">
+          Please sign in with Google to access this LifeLine.
+        </p>
+        <div id="lifelines-detail-google-signin-button" class="flex justify-center"></div>
       </div>
     </div>
-    <BlogToc />
 
-    <!-- Share Icons -->
-    <div class="col-span-12 lg:col-span-9 mt-10 mb-8">
-      <div class="flex flex-row flex-wrap md:flex-nowrap gap-2">
-        <SocialShare
-          v-for="network in ['facebook', 'twitter', 'linkedin', 'email']"
-          :key="network"
-          :network="network"
-          :styled="true"
-          :label="true"
-          class="p-1"
-          aria-label="Share with {network}"
+    <!-- LifeLine Content (Authenticated Users Only) -->
+    <div v-else class="px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12">
+      <div class="col-span-12 lg:col-span-9">
+        <BlogHeader
+          :title="data.title"
+          :image="data.image"
+          :alt="data.alt"
+          :date="data.date"
+          :description="data.description"
+          :tags="data.tags"
+          :reading-time="readingTime"
         />
+        <div
+          class="prose prose-pre:max-w-xs sm:prose-pre:max-w-full prose-sm sm:prose-base md:prose-lg prose-h1:no-underline max-w-5xl mx-auto prose-zinc dark:prose-invert prose-img:rounded-lg"
+        >
+          <ContentRenderer v-if="articles" :value="articles">
+            <template #empty>
+              <p>No content found.</p>
+            </template>
+          </ContentRenderer>
+        </div>
       </div>
-    </div>
+      <BlogToc />
 
-    <!-- Comments Section -->
-    <div class="col-span-12 lg:col-span-9 mt-8">
-      <Comments :post-id="path" />
+      <!-- Share Icons -->
+      <div class="col-span-12 lg:col-span-9 mt-10 mb-8">
+        <div class="flex flex-row flex-wrap md:flex-nowrap gap-2">
+          <SocialShare
+            v-for="network in ['facebook', 'twitter', 'linkedin', 'email']"
+            :key="network"
+            :network="network"
+            :styled="true"
+            :label="true"
+            class="p-1"
+            aria-label="Share with {network}"
+          />
+        </div>
+      </div>
+
+      <!-- Comments Section -->
+      <div class="col-span-12 lg:col-span-9 mt-8">
+        <Comments :post-id="path" />
+      </div>
     </div>
   </div>
 </template>

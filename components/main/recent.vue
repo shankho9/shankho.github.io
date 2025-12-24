@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { useAsyncData } from 'nuxt/app'
-import type { BlogPost } from '~/types/blog'
 import { extractBlogPostFromMeta } from '~/utils/blogMeta'
 import { parseCustomDate, getDateTimestamp } from '~/utils/dateParser'
 

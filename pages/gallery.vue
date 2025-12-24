@@ -4,13 +4,11 @@ import { useGoogleAuth } from '~/composables/useGoogleAuth'
 import { seoData } from '~/data'
 
 // Authentication
-const { user, isAuthenticated, signIn, signOut, loadStoredUser, initializeGoogleSignIn } =
-  useGoogleAuth()
+const { user, isAuthenticated, signOut, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
 
 // Gallery state
 const viewMode = ref<'grid' | 'masonry'>('grid')
 const selectedCategory = ref<string>('all')
-const isLoading = ref(false)
 
 // Lightbox state
 const lightboxOpen = ref(false)
@@ -271,8 +269,8 @@ defineOgImageComponent('About', {
 
           <!-- Sign Out Button -->
           <button
-            @click="signOut"
             class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors text-sm font-semibold flex items-center gap-2"
+            @click="signOut"
           >
             <Icon name="mdi:logout" size="18" />
             Sign Out
@@ -285,13 +283,13 @@ defineOgImageComponent('About', {
         <button
           v-for="category in categories"
           :key="category"
-          @click="selectedCategory = category"
           :class="[
             'px-4 py-2 rounded-md text-sm font-semibold transition-colors capitalize',
             selectedCategory === category
               ? 'bg-sky-700 dark:bg-sky-600 text-white'
               : 'bg-[#F1F2F4] dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 hover:bg-gray-300 dark:hover:bg-slate-700',
           ]"
+          @click="selectedCategory = category"
         >
           {{ category }}
         </button>
