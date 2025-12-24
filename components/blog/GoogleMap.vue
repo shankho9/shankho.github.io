@@ -1,7 +1,17 @@
 <template>
   <div>
-    <div ref="mapContainer" class="map-container"></div>
-    <div class="legend">
+    <div ref="mapContainer" class="map-container">
+      <div
+        v-if="mapError"
+        class="map-error flex items-center justify-center h-full bg-gray-100 dark:bg-slate-800 rounded-lg"
+      >
+        <div class="text-center px-4">
+          <p class="text-red-600 dark:text-red-400 font-semibold mb-2">Map Unavailable</p>
+          <p class="text-sm text-zinc-600 dark:text-zinc-400">{{ mapError }}</p>
+        </div>
+      </div>
+    </div>
+    <div v-if="!mapError" class="legend">
       <div class="legend-item">
         <img src="http://maps.google.com/mapfiles/ms/icons/red-dot.png" class="icon" />
         <span>Home</span>
@@ -27,6 +37,7 @@ interface Place {
 
 const props = defineProps<{ places: Place[] }>()
 const mapContainer = ref<HTMLDivElement | null>(null)
+const mapError = ref<string | null>(null)
 let map: google.maps.Map | null = null
 let markers: google.maps.Marker[] = []
 
@@ -108,17 +119,25 @@ function addMarkers(places: Place[]) {
 }
 
 onMounted(async () => {
-  await loadGoogleMaps()
+  try {
+    await loadGoogleMaps()
 
-  if (!mapContainer.value) return
+    if (!mapContainer.value) return
 
-  map = new google.maps.Map(mapContainer.value, {
-    center: { lat: 20, lng: 0 },
-    zoom: 2,
-  })
+    map = new google.maps.Map(mapContainer.value, {
+      center: { lat: 20, lng: 0 },
+      zoom: 2,
+    })
 
-  if (props.places.length) {
-    addMarkers(props.places)
+    if (props.places.length) {
+      addMarkers(props.places)
+    }
+  } catch (error) {
+    console.error('[GoogleMap] Failed to load Google Maps:', error)
+    mapError.value =
+      error instanceof Error
+        ? error.message
+        : 'Failed to load Google Maps. Please check your configuration.'
   }
 })
 
@@ -159,5 +178,9 @@ watch(
 .icon {
   width: 18px;
   height: 18px;
+}
+
+.map-error {
+  min-height: 200px;
 }
 </style>
