@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
         sub: response.sub,
       },
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Google token verification failed:', error)
     throw createError({
       statusCode: 401,

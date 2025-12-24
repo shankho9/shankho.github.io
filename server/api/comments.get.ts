@@ -62,7 +62,7 @@ export default defineEventHandler(async (event) => {
         totalPages: Math.ceil(total / limitNum),
       },
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to fetch comments:', error)
     throw createError({
       statusCode: 500,

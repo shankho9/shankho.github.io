@@ -1,4 +1,4 @@
-import { defineEventHandler, readBody, getCookie } from 'h3'
+import { defineEventHandler, readBody } from 'h3'
 import { query } from '~/server/utils/db'
 
 interface CommentBody {
@@ -54,7 +54,7 @@ export default defineEventHandler(async (event) => {
         created_at: new Date(),
       },
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to create comment:', error)
     throw createError({
       statusCode: 500,
