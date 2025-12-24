@@ -14,7 +14,9 @@
     "format": "prettier --check ./",
     "format:fix": "prettier --write ./",
     "migrate": "node scripts/run-migration.js",
-    "migrate:prod": "NODE_ENV=production node scripts/run-migration.js"
+    "migrate:prod": "NODE_ENV=production node scripts/run-migration.js",
+    "migrate:logins": "node scripts/run-login-migration.js",
+    "migrate:logins:prod": "NODE_ENV=production node scripts/run-login-migration.js"
   },
   "devDependencies": {
     "@formkit/auto-animate": "^0.8.2",

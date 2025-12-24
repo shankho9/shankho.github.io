@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { getTagColorClasses } from '~/utils/tagColors'
+
 interface Props {
   path?: string
   title?: string
@@ -9,6 +11,7 @@ interface Props {
   ogImage?: string
   tags?: Array<string>
   published?: boolean
+  type?: 'blog' | 'lifeline'
 }
 
 withDefaults(defineProps<Props>(), {
@@ -21,6 +24,7 @@ withDefaults(defineProps<Props>(), {
   ogImage: '/blogs-img/blog.jpg',
   tags: () => [],
   published: false,
+  type: 'blog',
 })
 </script>
 
@@ -56,7 +60,7 @@ withDefaults(defineProps<Props>(), {
             <p
               v-for="tag in tags"
               :key="tag"
-              class="bg-gray-200 dark:bg-slate-900 rounded-md px-2 py-1 font-semibold"
+              :class="['rounded px-1.5 py-0.5 text-xs font-medium', getTagColorClasses(tag)]"
             >
               {{ tag }}
             </p>

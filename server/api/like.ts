@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
 
     return { success: true }
   } catch (error: unknown) {
-    console.error('Like error:', error)
+    console.error('[API] Failed to process like/unlike:', error)
 
     return {
       success: false,

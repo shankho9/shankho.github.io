@@ -44,7 +44,7 @@ const formatDate = (date: string | Date) => {
   })
 }
 
-const loadComments = async (page: number = currentPage.value) => {
+const loadComments = async (page: number = currentPage.value, retryCount = 0) => {
   isLoading.value = true
   error.value = null
   try {
@@ -58,10 +58,34 @@ const loadComments = async (page: number = currentPage.value) => {
     currentPage.value = response.pagination.page
     totalComments.value = response.pagination.total
     totalPages.value = response.pagination.totalPages
+    isLoading.value = false
   } catch (err: unknown) {
-    console.error('Failed to load comments:', err)
-    error.value = 'Failed to load comments'
-  } finally {
+    console.error('[Comments] Failed to load comments:', err)
+
+    // Retry logic for network errors and server errors (max 2 retries)
+    if (retryCount < 2 && err && typeof err === 'object') {
+      const status = 'status' in err ? (err as { status?: number }).status : undefined
+      // Retry on network errors (no status) or 5xx server errors
+      if (!status || (status >= 500 && status < 600)) {
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (retryCount + 1)))
+        // Recursive call - isLoading remains true, don't set to false here
+        return loadComments(page, retryCount + 1)
+      }
+    }
+
+    // User-friendly error messages (only set if not retrying)
+    if (err && typeof err === 'object' && 'status' in err) {
+      const status = (err as { status?: number }).status
+      if (status === 404) {
+        error.value = 'Comments not found for this post.'
+      } else if (status && status >= 500) {
+        error.value = 'Server error. Please try again later.'
+      } else {
+        error.value = 'Failed to load comments. Please refresh the page.'
+      }
+    } else {
+      error.value = 'Network error. Please check your connection and try again.'
+    }
     isLoading.value = false
   }
 }
@@ -115,18 +139,45 @@ const submitComment = async () => {
       imageErrors.value.delete(response.comment.id)
     }
   } catch (err: unknown) {
-    console.error('Failed to submit comment:', err)
-    const errorMessage =
-      err &&
-      typeof err === 'object' &&
-      'data' in err &&
-      err.data &&
-      typeof err.data === 'object' &&
-      'message' in err.data &&
-      typeof err.data.message === 'string'
-        ? err.data.message
-        : 'Failed to submit comment'
-    error.value = errorMessage
+    console.error('[Comments] Failed to submit comment:', err)
+
+    // User-friendly error messages
+    if (err && typeof err === 'object') {
+      if ('status' in err) {
+        const status = (err as { status?: number }).status
+        if (status === 401 || status === 403) {
+          error.value = 'Please sign in to post a comment.'
+        } else if (status && status >= 500) {
+          error.value = 'Server error. Please try again later.'
+        } else if (
+          'data' in err &&
+          err.data &&
+          typeof err.data === 'object' &&
+          'message' in err.data
+        ) {
+          error.value =
+            typeof err.data.message === 'string'
+              ? err.data.message
+              : 'Failed to submit comment. Please try again.'
+        } else {
+          error.value = 'Failed to submit comment. Please try again.'
+        }
+      } else if (
+        'data' in err &&
+        err.data &&
+        typeof err.data === 'object' &&
+        'message' in err.data
+      ) {
+        error.value =
+          typeof err.data.message === 'string'
+            ? err.data.message
+            : 'Failed to submit comment. Please try again.'
+      } else {
+        error.value = 'Network error. Please check your connection and try again.'
+      }
+    } else {
+      error.value = 'Failed to submit comment. Please try again.'
+    }
   } finally {
     isSubmitting.value = false
   }
@@ -139,7 +190,7 @@ const renderGoogleSignInButton = () => {
 
   const clientId = useRuntimeConfig().public.googleClientId
   if (!clientId) {
-    console.error('Google Client ID not configured')
+    console.error('[Comments] Google Client ID not configured')
     return
   }
 
@@ -255,7 +306,7 @@ watch(isAuthenticated, async (newValue) => {
               @error="
                 () => {
                   userImageError = true
-                  console.warn('Failed to load user image', user?.picture)
+                  console.warn('[Comments] Failed to load user image:', user?.picture)
                 }
               "
               @load="
@@ -344,7 +395,11 @@ watch(isAuthenticated, async (newValue) => {
               @error="
                 () => {
                   imageErrors.add(comment.id)
-                  console.warn('Failed to load image for comment', comment.id, comment.user_picture)
+                  console.warn(
+                    '[Comments] Failed to load image for comment:',
+                    comment.id,
+                    comment.user_picture,
+                  )
                 }
               "
               @load="() => imageErrors.delete(comment.id)"

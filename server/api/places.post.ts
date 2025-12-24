@@ -1,4 +1,4 @@
-import { defineEventHandler, readBody } from 'h3'
+import { defineEventHandler, readBody, setResponseStatus } from 'h3'
 import { query } from '~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
@@ -14,14 +14,17 @@ export default defineEventHandler(async (event) => {
   } = body
 
   if (!name || typeof lat !== 'number' || typeof lng !== 'number') {
+    setResponseStatus(event, 400)
     return { error: 'Missing required fields: name, lat, lng' }
   }
 
   if (year && typeof year !== 'number') {
+    setResponseStatus(event, 400)
     return { error: 'Year must be a number if provided' }
   }
 
   if (type && type !== 'home' && type !== 'trip') {
+    setResponseStatus(event, 400)
     return { error: 'Invalid type. Only "home" or "trip" are allowed.' }
   }
 
@@ -32,10 +35,12 @@ export default defineEventHandler(async (event) => {
     )
 
     if (existing.length > 0) {
+      setResponseStatus(event, 409)
       return {
         success: false,
         message: 'Place already exists',
         place: existing[0],
+        statusCode: 409,
       }
     }
 
@@ -51,9 +56,11 @@ export default defineEventHandler(async (event) => {
       place: rows[0],
     }
   } catch (err: unknown) {
-    console.error(err)
+    console.error('Failed to insert place:', err)
+    setResponseStatus(event, 500)
     return {
       error: err instanceof Error ? err.message : 'Unknown error while inserting place',
+      statusCode: 500,
     }
   }
 })

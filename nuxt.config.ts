@@ -16,9 +16,12 @@ export default defineNuxtConfig({
     [
       '@nuxtjs/sitemap',
       {
-        hostname: seoData.mySite,
+        site: {
+          // Reads from .env (localhost) or .env.production (production)
+          // Nuxt automatically loads NUXT_PUBLIC_* vars from the appropriate .env file
+          url: process.env.NUXT_PUBLIC_SITE_URL || seoData.mySite.replace(/\/$/, ''),
+        },
         routes: ['/', '/rss.xml'],
-        siteUrl: 'https://shankho-blogsite.vercel.app',
       },
     ],
     'nuxt-og-image',
@@ -77,6 +80,7 @@ export default defineNuxtConfig({
         debug: process.env.NODE_ENV !== 'production',
       },
       googleClientId: process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID,
+      googleMapsApiKey: process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY,
       apiBase: '/api',
     },
     databaseUrl: process.env.DATABASE_URL,

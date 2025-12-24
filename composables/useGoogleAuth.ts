@@ -7,9 +7,53 @@ interface GoogleUser {
   sub: string
 }
 
+// Shared state - all instances of useGoogleAuth will use the same state
+const sharedUser = ref<GoogleUser | null>(null)
+const sharedIsLoading = ref(false)
+
+// Event handler functions stored for potential cleanup
+let storageHandler: ((e: StorageEvent) => void) | null = null
+let signOutHandler: (() => void) | null = null
+let signInHandler: ((e: Event) => void) | null = null
+
+// Register event listeners once at module level to avoid duplicates and closure issues
+if (typeof window !== 'undefined') {
+  // Listen for localStorage changes (cross-tab synchronization)
+  storageHandler = (e: StorageEvent) => {
+    if (e.key === 'google_user') {
+      if (e.newValue) {
+        try {
+          sharedUser.value = JSON.parse(e.newValue)
+        } catch (err) {
+          console.error('[Auth] Failed to parse user from storage event:', err)
+          sharedUser.value = null
+        }
+      } else {
+        sharedUser.value = null
+      }
+    }
+  }
+  window.addEventListener('storage', storageHandler)
+
+  // Listen for custom sign-out events (same-tab synchronization)
+  signOutHandler = () => {
+    sharedUser.value = null
+  }
+  window.addEventListener('auth:signout', signOutHandler)
+
+  // Listen for custom sign-in events (same-tab synchronization)
+  signInHandler = (e: Event) => {
+    const customEvent = e as CustomEvent<GoogleUser>
+    if (customEvent.detail) {
+      sharedUser.value = customEvent.detail
+    }
+  }
+  window.addEventListener('auth:signin', signInHandler)
+}
+
 export const useGoogleAuth = () => {
-  const user = ref<GoogleUser | null>(null)
-  const isLoading = ref(false)
+  const user = sharedUser
+  const isLoading = sharedIsLoading
   const isAuthenticated = computed(() => !!user.value)
 
   const initializeGoogleSignIn = () => {
@@ -38,6 +82,17 @@ export const useGoogleAuth = () => {
 
       // Store in localStorage
       localStorage.setItem('google_user', JSON.stringify(result.user))
+
+      // Track login event for analytics
+      if (typeof window !== 'undefined') {
+        const { trackLogin } = await import('~/utils/trackLogin')
+        await trackLogin(result.user.email, result.user.name, window.location.pathname)
+      }
+
+      // Dispatch custom event to notify all components
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+      }
     } catch (error) {
       console.error('Authentication failed:', error)
       throw error
@@ -85,6 +140,12 @@ export const useGoogleAuth = () => {
 
     if (typeof window !== 'undefined' && window.google) {
       window.google.accounts.id.disableAutoSelect()
+    }
+
+    // Clear any rendered sign-in buttons and trigger re-render
+    if (typeof window !== 'undefined') {
+      // Dispatch a custom event to notify all components
+      window.dispatchEvent(new CustomEvent('auth:signout'))
     }
   }
 

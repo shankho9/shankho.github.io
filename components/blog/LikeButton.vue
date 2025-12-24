@@ -24,7 +24,7 @@ onMounted(async () => {
     const count = typeof response.count === 'number' ? response.count : 0
     set(parsedLiked, count)
   } catch (err) {
-    console.warn('Failed to load like count', err)
+    console.warn('[LikeButton] Failed to load like count:', err)
     set(parsedLiked, 0)
   }
 })
@@ -57,7 +57,7 @@ const toggleLike = async () => {
       },
     })
   } catch (err) {
-    console.warn('API failed:', err)
+    console.warn('[LikeButton] Failed to update like:', err)
     set(prevLiked, prevCount)
     localStorage.setItem(`likes-${props.postId}`, prevLiked.toString())
   }

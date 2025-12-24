@@ -4,7 +4,16 @@ import { query } from '~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const page = body?.page || 'unknown'
+  const { userEmail, userName, loginLocation } = body
+
+  // Validate required fields
+  if (!userEmail || !userName || !loginLocation) {
+    setResponseStatus(event, 400)
+    return {
+      success: false,
+      error: 'Missing required fields: userEmail, userName, loginLocation',
+    }
+  }
 
   const ip = getRequestIP(event)
   const isLocal = isLocalhost(ip)
@@ -22,21 +31,23 @@ export default defineEventHandler(async (event) => {
       const geoRes = await $fetch<{ country_name?: string }>(`https://ipapi.co/${ip}/json/`)
       country = geoRes.country_name || ''
     } catch (e) {
-      console.warn('[API] GeoIP lookup failed:', e)
+      console.warn('[API] GeoIP lookup failed for login tracking:', e)
     }
   }
 
   try {
     await query(
-      `INSERT INTO page_visits (page, user_agent, browser, referer, ip_address, country)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [page, userAgent, browser, referer, ip, country],
+      `INSERT INTO user_logins (user_email, user_name, login_location, user_agent, browser, ip_address, country, referer)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [userEmail, userName, loginLocation, userAgent, browser, ip, country, referer],
     )
-  } catch (err) {
-    console.error('[API] Failed to track page visit:', err)
-  }
 
-  return { success: true }
+    return { success: true }
+  } catch (err) {
+    console.error('[API] Failed to track login:', err)
+    // Don't fail the login if tracking fails
+    return { success: false, error: 'Failed to track login event' }
+  }
 })
 
 function getRequestIP(event: H3Event): string | undefined {

@@ -1,4 +1,4 @@
-import { defineEventHandler } from 'h3'
+import { defineEventHandler, setResponseStatus } from 'h3'
 import { query } from '~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
@@ -6,6 +6,7 @@ export default defineEventHandler(async (event) => {
 
   // If no slug is provided, return a 400 error
   if (!slug) {
+    setResponseStatus(event, 400)
     return { statusCode: 400, message: 'Slug parameter is missing' }
   }
 
@@ -17,6 +18,7 @@ export default defineEventHandler(async (event) => {
 
     // If no post is found for the given slug, return a 404 error
     if (result.length === 0) {
+      setResponseStatus(event, 404)
       return { statusCode: 404, message: 'Post not found' }
     }
 
@@ -32,8 +34,12 @@ export default defineEventHandler(async (event) => {
       places: places,
       year: post.year, // Include the year in the response
     }
-  } catch (err) {
-    console.error(err)
-    return { statusCode: 500, message: 'Failed to fetch post data' }
+  } catch (err: unknown) {
+    console.error('Failed to fetch post data:', err)
+    setResponseStatus(event, 500)
+    return {
+      statusCode: 500,
+      message: err instanceof Error ? err.message : 'Failed to fetch post data',
+    }
   }
 })

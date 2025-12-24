@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
       count,
     }
   } catch (error: unknown) {
-    console.error('Count error:', error)
+    console.error('[API] Failed to get like count:', error)
 
     return {
       success: false,

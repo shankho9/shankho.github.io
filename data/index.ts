@@ -44,7 +44,157 @@ export const pesonalSpace = {
   title: 'My LifeLines',
   description:
     'This is my space. Welcome to my organized chaos — family, adventures, and thoughts that sounded better in my head.',
-  aboutMe: 'Google Auth ToDo',
+}
+
+export const resourcesPage = {
+  title: 'Resources Library',
+  description:
+    'A curated collection of books, tools, learning resources, and templates that have helped me grow as a developer and leader.',
+  books: [
+    {
+      title: 'The Pragmatic Programmer',
+      author: 'Andrew Hunt & David Thomas',
+      description: 'A timeless guide to becoming a better programmer.',
+      link: 'https://www.amazon.com/Pragmatic-Programmer-journey-mastery-Anniversary/dp/0135957052',
+      category: 'Programming',
+    },
+    {
+      title: 'Clean Code',
+      author: 'Robert C. Martin',
+      description: 'A handbook of agile software craftsmanship.',
+      link: 'https://www.amazon.com/Clean-Code-Handbook-Software-Craftsmanship/dp/0132350882',
+      category: 'Programming',
+    },
+    {
+      title: 'The Lean Startup',
+      author: 'Eric Ries',
+      description:
+        "How today's entrepreneurs use continuous innovation to create radically successful businesses.",
+      link: 'https://www.amazon.com/Lean-Startup-Entrepreneurs-Continuous-Innovation/dp/0307887898',
+      category: 'Business',
+    },
+    {
+      title: 'Atomic Habits',
+      author: 'James Clear',
+      description: 'An easy & proven way to build good habits & break bad ones.',
+      link: 'https://www.amazon.com/Atomic-Habits-Proven-Build-Break/dp/0735211299',
+      category: 'Productivity',
+    },
+  ],
+  tools: [
+    {
+      name: 'VS Code',
+      description: 'My primary code editor with amazing extensions.',
+      link: 'https://code.visualstudio.com/',
+      category: 'Development',
+      icon: 'mdi:code-tags',
+    },
+    {
+      name: 'Git',
+      description: 'Version control system - essential for every developer.',
+      link: 'https://git-scm.com/',
+      category: 'Development',
+      icon: 'mdi:git',
+    },
+    {
+      name: 'Postman',
+      description: 'API testing and development made easy.',
+      link: 'https://www.postman.com/',
+      category: 'Development',
+      icon: 'mdi:api',
+    },
+    {
+      name: 'Docker',
+      description: 'Containerization platform for consistent deployments.',
+      link: 'https://www.docker.com/',
+      category: 'DevOps',
+      icon: 'mdi:docker',
+    },
+    {
+      name: 'Notion',
+      description: 'All-in-one workspace for notes, docs, and project management.',
+      link: 'https://www.notion.so/',
+      category: 'Productivity',
+      icon: 'mdi:notebook',
+    },
+    {
+      name: 'Figma',
+      description: 'Design and prototyping tool for UI/UX work.',
+      link: 'https://www.figma.com/',
+      category: 'Design',
+      icon: 'mdi:palette',
+    },
+  ],
+  learningResources: [
+    {
+      title: 'MDN Web Docs',
+      description: 'The best resource for web development documentation.',
+      link: 'https://developer.mozilla.org/',
+      category: 'Web Development',
+      icon: 'mdi:web',
+    },
+    {
+      title: 'freeCodeCamp',
+      description: 'Free coding bootcamp with comprehensive courses.',
+      link: 'https://www.freecodecamp.org/',
+      category: 'Learning Platform',
+      icon: 'mdi:school',
+    },
+    {
+      title: 'Stack Overflow',
+      description: 'Q&A platform for developers - where I find solutions daily.',
+      link: 'https://stackoverflow.com/',
+      category: 'Community',
+      icon: 'mdi:stack-overflow',
+    },
+    {
+      title: 'YouTube - Traversy Media',
+      description: 'Excellent web development tutorials and courses.',
+      link: 'https://www.youtube.com/c/TraversyMedia',
+      category: 'Video Tutorials',
+      icon: 'mdi:youtube',
+    },
+    {
+      title: 'Dev.to',
+      description: 'Community of developers sharing knowledge and experiences.',
+      link: 'https://dev.to/',
+      category: 'Community',
+      icon: 'mdi:dev-to',
+    },
+    {
+      title: 'Nuxt.js Documentation',
+      description: 'Official documentation for the Nuxt framework.',
+      link: 'https://nuxt.com/',
+      category: 'Framework',
+      icon: 'mdi:nuxt',
+    },
+  ],
+  templates: [
+    {
+      title: 'Project README Template',
+      description: 'A comprehensive README template for GitHub projects.',
+      link: '#',
+      category: 'Documentation',
+      icon: 'mdi:file-document',
+      download: false,
+    },
+    {
+      title: 'API Testing Checklist',
+      description: 'A checklist for thorough API testing.',
+      link: '#',
+      category: 'Testing',
+      icon: 'mdi:check-circle',
+      download: false,
+    },
+    {
+      title: 'Code Review Guidelines',
+      description: 'Best practices for conducting code reviews.',
+      link: '#',
+      category: 'Development',
+      icon: 'mdi:code-review',
+      download: false,
+    },
+  ],
 }
 
 export const aboutPage = {
