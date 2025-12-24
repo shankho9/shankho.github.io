@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import { useGoogleAuth } from '~/composables/useGoogleAuth'
 
 interface Comment {
@@ -58,7 +58,7 @@ const loadComments = async (page: number = currentPage.value) => {
     currentPage.value = response.pagination.page
     totalComments.value = response.pagination.total
     totalPages.value = response.pagination.totalPages
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Failed to load comments:', err)
     error.value = 'Failed to load comments'
   } finally {
@@ -114,9 +114,12 @@ const submitComment = async () => {
     if (response.comment.id) {
       imageErrors.value.delete(response.comment.id)
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Failed to submit comment:', err)
-    error.value = err.data?.message || 'Failed to submit comment'
+    const errorMessage = err && typeof err === 'object' && 'data' in err && err.data && typeof err.data === 'object' && 'message' in err.data && typeof err.data.message === 'string'
+      ? err.data.message
+      : 'Failed to submit comment'
+    error.value = errorMessage
   } finally {
     isSubmitting.value = false
   }
@@ -143,7 +146,7 @@ const renderGoogleSignInButton = () => {
     client_id: clientId,
     callback: async (response: { credential: string }) => {
       try {
-        const result = await $fetch<{ user: any }>('/api/auth/google', {
+        const result = await $fetch<{ user: { email: string; name: string; picture: string; sub: string } }>('/api/auth/google', {
           method: 'POST',
           body: { token: response.credential },
         })
@@ -263,9 +266,9 @@ watch(isAuthenticated, async (newValue) => {
               {{ commentText.length }}/5000 characters
             </p>
             <button
-              @click="submitComment"
               :disabled="!commentText.trim() || isSubmitting"
               class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              @click="submitComment"
             >
               {{ isSubmitting ? 'Posting...' : 'Post Comment' }}
             </button>
@@ -273,8 +276,8 @@ watch(isAuthenticated, async (newValue) => {
         </div>
       </div>
       <button
-        @click="signOut"
         class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+        @click="signOut"
       >
         Sign out
       </button>
@@ -334,9 +337,9 @@ watch(isAuthenticated, async (newValue) => {
     <!-- Pagination Controls -->
     <div v-if="totalPages > 1" class="mt-8 flex items-center justify-center gap-2 flex-wrap">
       <button
-        @click="goToPage(currentPage - 1)"
         :disabled="currentPage === 1 || isLoading"
         class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        @click="goToPage(currentPage - 1)"
       >
         Previous
       </button>
@@ -345,7 +348,6 @@ watch(isAuthenticated, async (newValue) => {
         <button
           v-for="page in totalPages"
           :key="page"
-          @click="goToPage(page)"
           :disabled="isLoading"
           :class="[
             'px-3 py-2 text-sm font-medium rounded-lg transition-colors',
@@ -354,15 +356,16 @@ watch(isAuthenticated, async (newValue) => {
               : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700',
             isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
           ]"
+          @click="goToPage(page)"
         >
           {{ page }}
         </button>
       </div>
 
       <button
-        @click="goToPage(currentPage + 1)"
         :disabled="currentPage === totalPages || isLoading"
         class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        @click="goToPage(currentPage + 1)"
       >
         Next
       </button>
