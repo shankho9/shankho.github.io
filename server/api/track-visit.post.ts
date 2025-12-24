@@ -1,17 +1,8 @@
 import type { H3Event } from 'h3'
 import { UAParser } from 'ua-parser-js'
-import type { Pool } from 'pg'
-
-let pool: Pool | null = null
+import { query } from '~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
-  if (!pool) {
-    const pg = await import('pg')
-    pool = new pg.default.Pool({
-      connectionString: process.env.DATABASE_URL,
-    })
-  }
-
   const body = await readBody(event)
   const page = body?.page || 'unknown'
 
@@ -31,18 +22,18 @@ export default defineEventHandler(async (event) => {
       const geoRes = await $fetch<{ country_name?: string }>(`https://ipapi.co/${ip}/json/`)
       country = geoRes.country_name || ''
     } catch (e) {
-      console.warn('GeoIP failed', e)
+      console.warn('[API] GeoIP lookup failed:', e)
     }
   }
 
   try {
-    await pool.query(
+    await query(
       `INSERT INTO page_visits (page, user_agent, browser, referer, ip_address, country)
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [page, userAgent, browser, referer, ip, country],
     )
   } catch (err) {
-    console.error('DB insert error:', err)
+    console.error('[API] Failed to track page visit:', err)
   }
 
   return { success: true }

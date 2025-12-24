@@ -80,8 +80,6 @@ useHead({
   ],
 })
 
-console.log(articles.value)
-
 // Generate OG Image
 defineOgImageComponent('Test', {
   headline: 'Shankhos Blog 👋',

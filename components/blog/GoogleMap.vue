@@ -30,6 +30,8 @@ const mapContainer = ref<HTMLDivElement | null>(null)
 let map: google.maps.Map | null = null
 let markers: google.maps.Marker[] = []
 
+const config = useRuntimeConfig()
+
 const iconUrls: Record<string, string> = {
   home: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
   trip: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
@@ -48,9 +50,18 @@ function loadGoogleMaps(): Promise<void> {
       return
     }
 
+    const apiKey = config.public.googleMapsApiKey
+    if (!apiKey) {
+      reject(
+        new Error(
+          'Google Maps API key is not configured. Please set NUXT_PUBLIC_GOOGLE_MAPS_API_KEY environment variable.',
+        ),
+      )
+      return
+    }
+
     const script = document.createElement('script')
-    script.src =
-      'https://maps.googleapis.com/maps/api/js?key=AIzaSyDUM6RMSGssBJBuFdjkloMQkj6OC-FWz5s'
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
     script.async = true
     script.defer = true
     script.onload = () => resolve()

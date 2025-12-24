@@ -44,7 +44,6 @@ export const pesonalSpace = {
   title: 'My LifeLines',
   description:
     'This is my space. Welcome to my organized chaos — family, adventures, and thoughts that sounded better in my head.',
-  aboutMe: 'Google Auth ToDo',
 }
 
 export const aboutPage = {

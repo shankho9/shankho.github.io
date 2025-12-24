@@ -22,7 +22,6 @@ export default defineEventHandler(async (event) => {
 
   // Add the feed items
   docs.forEach((doc) => {
-    // console.log(doc)
     feed.addItem({
       title: doc.title || '',
       id: basePath + doc.path,

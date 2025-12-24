@@ -13,7 +13,7 @@ export default defineEventHandler(async () => {
       db: process.env.NODE_ENV === 'production' ? 'Production DB' : 'Development DB',
     }
   } catch (err: unknown) {
-    console.error('DB connection error:', err)
+    console.error('[API] Database connection test failed:', err)
 
     return {
       status: 'error',

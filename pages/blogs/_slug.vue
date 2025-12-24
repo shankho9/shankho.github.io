@@ -55,7 +55,7 @@ onMounted(async () => {
 
     post.value = data
   } catch (error) {
-    console.error(error)
+    console.error('[Blog] Failed to fetch post data:', error)
     errorMessage.value = 'Failed to fetch post data.'
   }
 })

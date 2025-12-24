@@ -1,4 +1,4 @@
-import { defineEventHandler, readBody } from 'h3'
+import { defineEventHandler, readBody, setResponseStatus } from 'h3'
 import { query } from '~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
@@ -51,9 +51,11 @@ export default defineEventHandler(async (event) => {
       place: rows[0],
     }
   } catch (err: unknown) {
-    console.error(err)
+    console.error('Failed to insert place:', err)
+    setResponseStatus(event, 500)
     return {
       error: err instanceof Error ? err.message : 'Unknown error while inserting place',
+      statusCode: 500,
     }
   }
 })

@@ -27,6 +27,9 @@ export async function query<T extends Record<string, unknown> = Record<string, u
   try {
     const res = await client.query<T>(text, params)
     return res.rows
+  } catch (error) {
+    console.error('[DB] Database query error:', error)
+    throw error
   } finally {
     client.release()
   }
