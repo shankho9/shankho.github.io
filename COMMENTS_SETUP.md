@@ -34,11 +34,13 @@ Run the SQL migration to create the comments table:
 ### Option A: Using npm script (Recommended)
 
 **For Development (uses `.env`):**
+
 ```bash
 npm run migrate
 ```
 
 **For Production (uses `.env.production`):**
+
 ```bash
 npm run migrate:prod
 ```
@@ -46,6 +48,7 @@ npm run migrate:prod
 ### Option B: Using psql directly
 
 **Development:**
+
 ```bash
 # Load .env and run migration
 source .env
@@ -53,6 +56,7 @@ psql $DATABASE_URL -f server/db/migrations/create_comments_table.sql
 ```
 
 **Production:**
+
 ```bash
 # Load .env.production and run migration
 source .env.production
@@ -84,21 +88,19 @@ Manually execute the SQL from `server/db/migrations/create_comments_table.sql` i
 ## Troubleshooting
 
 ### Google Sign-In button not appearing
+
 - Check that `NUXT_PUBLIC_GOOGLE_CLIENT_ID` is set correctly
 - Verify the Google script is loading (check browser console)
 - Ensure your domain is added to authorized origins in Google Cloud Console
 
 ### Comments not saving
+
 - Check database connection (`DATABASE_URL` environment variable)
 - Verify the comments table exists
 - Check server logs for errors
 
 ### Authentication fails
+
 - Verify the Google Client ID is correct
 - Check that Google+ API is enabled in Google Cloud Console
 - Ensure your domain matches the authorized origins
-
-
-
-
-

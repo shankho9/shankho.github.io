@@ -1,7 +1,7 @@
 <script setup lang="ts">
 interface Props {
-  title: string
-  count: number
+  title?: string
+  count?: number
 }
 
 withDefaults(defineProps<Props>(), {
@@ -37,7 +37,10 @@ const picAColor = ref(`${color.at(getRandomInt(0, 8))}`)
   <div
     class="text-[#F1F2F4] px-5 py-3 rounded hover:underline rand-bg-color hover:scale-[1.05] transition-all duration-500"
   >
-    <NuxtLink :to="`/categories/${title.toLocaleLowerCase()}`" class="text-lg font-extrabold">
+    <NuxtLink
+      :to="`/categories/${(title || 'No title available').toLocaleLowerCase()}`"
+      class="text-lg font-extrabold"
+    >
       <h1>#{{ title }}({{ count }})</h1>
     </NuxtLink>
   </div>

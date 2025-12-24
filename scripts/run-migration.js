@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Run database migrations
- * Usage: 
+ * Usage:
  *   Development: node scripts/run-migration.js (or npm run migrate)
  *   Production: NODE_ENV=production node scripts/run-migration.js (or npm run migrate:prod)
  */
@@ -42,7 +42,7 @@ async function runMigration() {
 
   try {
     console.log('📦 Connecting to database...')
-    
+
     // Read the migration file
     const migrationPath = join(process.cwd(), 'server/db/migrations/create_comments_table.sql')
     const migrationSQL = readFileSync(migrationPath, 'utf-8')
@@ -69,10 +69,10 @@ async function runMigration() {
         WHERE table_schema = 'public' 
         AND table_name = 'comments'
       `)
-      
+
       if (result.rows.length > 0) {
         console.log('✅ Verification: comments table exists')
-        
+
         // Check indexes
         const indexResult = await verifyClient.query(`
           SELECT indexname 
@@ -89,7 +89,9 @@ async function runMigration() {
   } catch (error) {
     console.error('❌ Migration failed:', error.message)
     if (error.code === '42P07') {
-      console.error('   Note: Table might already exist. This is okay if you\'re re-running the migration.')
+      console.error(
+        "   Note: Table might already exist. This is okay if you're re-running the migration.",
+      )
     }
     process.exit(1)
   } finally {
@@ -98,4 +100,3 @@ async function runMigration() {
 }
 
 runMigration()
-
