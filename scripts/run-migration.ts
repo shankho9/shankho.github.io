@@ -25,7 +25,7 @@ async function runMigration() {
 
   try {
     console.log('📦 Connecting to database...')
-    
+
     // Read the migration file
     const migrationPath = join(process.cwd(), 'server/db/migrations/create_comments_table.sql')
     const migrationSQL = readFileSync(migrationPath, 'utf-8')
@@ -52,7 +52,7 @@ async function runMigration() {
         WHERE table_schema = 'public' 
         AND table_name = 'comments'
       `)
-      
+
       if (result.rows.length > 0) {
         console.log('✅ Verification: comments table exists')
       } else {
@@ -70,4 +70,3 @@ async function runMigration() {
 }
 
 runMigration()
-

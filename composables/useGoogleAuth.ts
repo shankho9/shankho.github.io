@@ -35,7 +35,7 @@ export const useGoogleAuth = () => {
       })
 
       user.value = result.user
-      
+
       // Store in localStorage
       localStorage.setItem('google_user', JSON.stringify(result.user))
     } catch (error) {
@@ -82,7 +82,7 @@ export const useGoogleAuth = () => {
   const signOut = () => {
     user.value = null
     localStorage.removeItem('google_user')
-    
+
     if (typeof window !== 'undefined' && window.google) {
       window.google.accounts.id.disableAutoSelect()
     }
@@ -90,7 +90,7 @@ export const useGoogleAuth = () => {
 
   const loadStoredUser = () => {
     if (typeof window === 'undefined') return
-    
+
     const stored = localStorage.getItem('google_user')
     if (stored) {
       try {
@@ -111,4 +111,3 @@ export const useGoogleAuth = () => {
     loadStoredUser,
   }
 }
-
