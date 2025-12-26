@@ -21,12 +21,12 @@ function stripHtml(html: string): string {
   // Decode common HTML entities
   text = text
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&')
 
   // Remove any remaining HTML entities (numeric and named)
   text = text.replace(/&#?\w+;/g, ' ')
