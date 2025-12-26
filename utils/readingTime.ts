@@ -31,6 +31,9 @@ function stripHtml(html: string): string {
   // Remove any remaining HTML entities (numeric and named)
   text = text.replace(/&#?\w+;/g, ' ')
 
+  // As a safety net, remove any residual angle brackets that could start tags (e.g., "<script")
+  text = text.replace(/[<>]/g, '')
+
   return text
 }
 
