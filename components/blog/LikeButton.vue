@@ -20,7 +20,7 @@ onMounted(async () => {
   const parsedLiked = storedLiked === 'true'
 
   try {
-    const response = await $fetch(`/api/get-likes?postId=${props.postId}`)
+    const response = await $fetch(`/api/blog/likes?postId=${props.postId}`)
     const count = typeof response.count === 'number' ? response.count : 0
     set(parsedLiked, count)
   } catch (err) {
@@ -49,7 +49,7 @@ const toggleLike = async () => {
   }, 800)
 
   try {
-    await $fetch('/api/like', {
+    await $fetch('/api/blog/like', {
       method: 'POST',
       body: {
         postId: props.postId,

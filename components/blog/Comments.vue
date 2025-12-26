@@ -52,7 +52,7 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
       comments: Comment[]
       pagination: { page: number; limit: number; total: number; totalPages: number }
     }>(
-      `/api/comments?postId=${encodeURIComponent(props.postId)}&page=${page}&limit=${commentsPerPage.value}`,
+      `/api/blog/comments?postId=${encodeURIComponent(props.postId)}&page=${page}&limit=${commentsPerPage.value}`,
     )
     comments.value = response.comments
     currentPage.value = response.pagination.page
@@ -115,7 +115,7 @@ const submitComment = async () => {
   error.value = null
 
   try {
-    const response = await $fetch<{ success: boolean; comment: Comment }>('/api/comments', {
+    const response = await $fetch<{ success: boolean; comment: Comment }>('/api/blog/comments', {
       method: 'POST',
       body: {
         postId: props.postId,

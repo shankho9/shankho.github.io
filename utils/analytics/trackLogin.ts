@@ -13,7 +13,7 @@ export async function trackLogin(
   const location = loginLocation || (typeof window !== 'undefined' ? window.location.pathname : '/')
 
   try {
-    await $fetch('/api/track-login', {
+    await $fetch('/api/analytics/track-login', {
       method: 'POST',
       body: {
         userEmail,

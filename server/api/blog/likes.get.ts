@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const rows = await query<{ count: string }>(
-      'SELECT COUNT(*) FROM likes WHERE post_id = $1 AND deleted_at IS NULL',
+      'SELECT COUNT(*) as count FROM likes WHERE post_id = $1 AND deleted_at IS NULL',
       [postId],
     )
 

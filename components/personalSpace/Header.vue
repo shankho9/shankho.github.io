@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getTagColorClasses } from '~/utils/tagColors'
+import { getTagColorClasses } from '~/utils/blog/tagColors'
 
 interface Props {
   title?: string

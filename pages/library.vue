@@ -41,8 +41,20 @@ const openLightbox = (index: number) => {
   lightboxOpen.value = true
 }
 
-// Sample gallery items - replace with your actual media
-const galleryItems = ref([
+// Gallery items with like and comment counts
+const galleryItems = ref<
+  Array<{
+    id: number
+    title: string
+    description: string
+    image: string
+    category: string
+    date: string
+    type: string
+    likeCount?: number
+    commentCount?: number
+  }>
+>([
   {
     id: 1,
     title: 'Family Moments',
@@ -51,6 +63,8 @@ const galleryItems = ref([
     category: 'family',
     date: '2024-01-15',
     type: 'image',
+    likeCount: 0,
+    commentCount: 0,
   },
   {
     id: 2,
@@ -61,6 +75,8 @@ const galleryItems = ref([
     category: 'travel',
     date: '2024-02-20',
     type: 'image',
+    likeCount: 0,
+    commentCount: 0,
   },
   {
     id: 3,
@@ -71,6 +87,8 @@ const galleryItems = ref([
     category: 'work',
     date: '2024-03-10',
     type: 'image',
+    likeCount: 0,
+    commentCount: 0,
   },
   {
     id: 4,
@@ -80,6 +98,8 @@ const galleryItems = ref([
     category: 'nature',
     date: '2024-04-05',
     type: 'image',
+    likeCount: 0,
+    commentCount: 0,
   },
   {
     id: 5,
@@ -90,6 +110,8 @@ const galleryItems = ref([
     category: 'events',
     date: '2024-05-12',
     type: 'image',
+    likeCount: 0,
+    commentCount: 0,
   },
   {
     id: 6,
@@ -99,11 +121,52 @@ const galleryItems = ref([
     category: 'daily',
     date: '2024-06-18',
     type: 'image',
+    likeCount: 0,
+    commentCount: 0,
   },
 ])
 
-// Sample video items - replace with your actual videos
-const videoItems = ref([
+// Load like and comment counts for gallery items
+const loadGalleryStats = async () => {
+  for (const item of galleryItems.value) {
+    try {
+      // Load likes
+      const likesResponse = await $fetch<{ success: boolean; count: number }>(
+        `/api/gallery/likes?itemId=${item.id}`,
+      )
+      if (likesResponse.success) {
+        item.likeCount = likesResponse.count
+      }
+
+      // Load comment count
+      const commentsResponse = await $fetch<{
+        comments: unknown[]
+        pagination: { total: number }
+      }>(`/api/gallery/comments?itemId=${item.id}&page=1&limit=1`)
+      if (commentsResponse.pagination) {
+        item.commentCount = commentsResponse.pagination.total
+      }
+    } catch (error) {
+      console.error(`[Library] Failed to load stats for gallery item ${item.id}:`, error)
+    }
+  }
+}
+
+// Video items with like and comment counts
+const videoItems = ref<
+  Array<{
+    id: number
+    title: string
+    description: string
+    thumbnail: string
+    videoUrl: string
+    category: string
+    date: string
+    duration: string
+    likeCount?: number
+    commentCount?: number
+  }>
+>([
   {
     id: 1,
     title: 'Travel Documentary',
@@ -114,6 +177,8 @@ const videoItems = ref([
     category: 'travel',
     date: '2024-01-20',
     duration: '5:32',
+    likeCount: 0,
+    commentCount: 0,
   },
   {
     id: 2,
@@ -125,8 +190,36 @@ const videoItems = ref([
     category: 'family',
     date: '2024-02-15',
     duration: '3:45',
+    likeCount: 0,
+    commentCount: 0,
   },
 ])
+
+// Load like and comment counts for video items
+const loadVideoStats = async () => {
+  for (const video of videoItems.value) {
+    try {
+      // Load likes
+      const likesResponse = await $fetch<{ success: boolean; count: number }>(
+        `/api/gallery/likes?itemId=${video.id}`,
+      )
+      if (likesResponse.success) {
+        video.likeCount = likesResponse.count
+      }
+
+      // Load comment count
+      const commentsResponse = await $fetch<{
+        comments: unknown[]
+        pagination: { total: number }
+      }>(`/api/gallery/comments?itemId=${video.id}&page=1&limit=1`)
+      if (commentsResponse.pagination) {
+        video.commentCount = commentsResponse.pagination.total
+      }
+    } catch (error) {
+      console.error(`[Library] Failed to load stats for video ${video.id}:`, error)
+    }
+  }
+}
 
 // Tab configuration
 const tabs = [
@@ -202,7 +295,7 @@ const loadTravelPlaces = async () => {
         type?: 'home' | 'trip'
         year?: number
       }>
-    >('/api/places')
+    >('/api/travel/places')
     travelPlaces.value = response || []
   } catch (err: unknown) {
     console.error('[Library] Failed to load travel places:', err)
@@ -226,13 +319,27 @@ onMounted(() => {
   initializeGoogleSignIn()
 
   // Track page visit
-  fetch('/api/track-visit', {
+  fetch('/api/analytics/track-visit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ page: 'library' }),
   }).catch(() => {
     // Silent fail
   })
+
+  // Load stats if authenticated
+  if (isAuthenticated.value) {
+    loadGalleryStats()
+    loadVideoStats()
+  }
+})
+
+// Watch for authentication to load stats
+watch(isAuthenticated, (newValue) => {
+  if (newValue) {
+    loadGalleryStats()
+    loadVideoStats()
+  }
 })
 
 // Render Google Sign-In button
@@ -257,13 +364,15 @@ const renderGoogleSignInButton = () => {
             method: 'POST',
             body: { token: response.credential },
           })
-          user.value = result.user
-          localStorage.setItem('google_user', JSON.stringify(result.user))
+          if (result.user) {
+            user.value = result.user
+            localStorage.setItem('google_user', JSON.stringify(result.user))
 
-          if (typeof window !== 'undefined') {
-            const { trackLogin } = await import('~/utils/trackLogin')
-            await trackLogin(result.user.email, result.user.name, window.location.pathname)
-            window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+            if (typeof window !== 'undefined') {
+              const { trackLogin } = await import('~/utils/analytics/trackLogin')
+              await trackLogin(result.user.email, result.user.name, window.location.pathname)
+              window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+            }
           }
         } catch (error) {
           console.error('[Library] Authentication failed:', error)
@@ -516,6 +625,34 @@ defineOgImageComponent('About', {
                     {{ new Date(item.date).toLocaleDateString() }}
                   </span>
                 </div>
+                <!-- Like and Comment Counts -->
+                <div
+                  class="flex items-center gap-4 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700"
+                >
+                  <span
+                    v-if="item.likeCount !== undefined && item.likeCount > 0"
+                    class="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+                  >
+                    <Icon name="mdi:heart" size="14" class="text-red-500" />
+                    {{ item.likeCount }}
+                  </span>
+                  <span
+                    v-if="item.commentCount !== undefined && item.commentCount > 0"
+                    class="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+                  >
+                    <Icon name="mdi:comment-outline" size="14" class="text-sky-500" />
+                    {{ item.commentCount }}
+                  </span>
+                  <span
+                    v-if="
+                      (item.likeCount === undefined || item.likeCount === 0) &&
+                      (item.commentCount === undefined || item.commentCount === 0)
+                    "
+                    class="text-xs text-zinc-400 dark:text-zinc-500 italic"
+                  >
+                    No interactions yet
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -561,6 +698,34 @@ defineOgImageComponent('About', {
                   </span>
                   <span class="text-xs text-zinc-500 dark:text-zinc-500">
                     {{ new Date(item.date).toLocaleDateString() }}
+                  </span>
+                </div>
+                <!-- Like and Comment Counts -->
+                <div
+                  class="flex items-center gap-4 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700"
+                >
+                  <span
+                    v-if="item.likeCount !== undefined && item.likeCount > 0"
+                    class="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+                  >
+                    <Icon name="mdi:heart" size="14" class="text-red-500" />
+                    {{ item.likeCount }}
+                  </span>
+                  <span
+                    v-if="item.commentCount !== undefined && item.commentCount > 0"
+                    class="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+                  >
+                    <Icon name="mdi:comment-outline" size="14" class="text-sky-500" />
+                    {{ item.commentCount }}
+                  </span>
+                  <span
+                    v-if="
+                      (item.likeCount === undefined || item.likeCount === 0) &&
+                      (item.commentCount === undefined || item.commentCount === 0)
+                    "
+                    class="text-xs text-zinc-400 dark:text-zinc-500 italic"
+                  >
+                    No interactions yet
                   </span>
                 </div>
               </div>
@@ -624,7 +789,7 @@ defineOgImageComponent('About', {
                   {{ video.title }}
                 </h3>
                 <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-3">{{ video.description }}</p>
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center mb-2">
                   <span
                     class="px-2 py-1 text-xs font-semibold rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 capitalize"
                   >
@@ -632,6 +797,34 @@ defineOgImageComponent('About', {
                   </span>
                   <span class="text-xs text-zinc-500 dark:text-zinc-500">
                     {{ new Date(video.date).toLocaleDateString() }}
+                  </span>
+                </div>
+                <!-- Like and Comment Counts -->
+                <div
+                  class="flex items-center gap-4 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700"
+                >
+                  <span
+                    v-if="video.likeCount !== undefined && video.likeCount > 0"
+                    class="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+                  >
+                    <Icon name="mdi:heart" size="14" class="text-red-500" />
+                    {{ video.likeCount }}
+                  </span>
+                  <span
+                    v-if="video.commentCount !== undefined && video.commentCount > 0"
+                    class="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+                  >
+                    <Icon name="mdi:comment-outline" size="14" class="text-sky-500" />
+                    {{ video.commentCount }}
+                  </span>
+                  <span
+                    v-if="
+                      (video.likeCount === undefined || video.likeCount === 0) &&
+                      (video.commentCount === undefined || video.commentCount === 0)
+                    "
+                    class="text-xs text-zinc-400 dark:text-zinc-500 italic"
+                  >
+                    No interactions yet
                   </span>
                 </div>
               </div>

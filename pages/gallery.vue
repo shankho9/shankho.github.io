@@ -19,8 +19,19 @@ const openLightbox = (index: number) => {
   lightboxOpen.value = true
 }
 
-// Sample gallery items - replace with your actual media
-const galleryItems = ref([
+// Gallery items with like counts
+const galleryItems = ref<
+  Array<{
+    id: number
+    title: string
+    description: string
+    image: string
+    category: string
+    date: string
+    type: string
+    likeCount?: number
+  }>
+>([
   {
     id: 1,
     title: 'Family Moments',
@@ -29,6 +40,7 @@ const galleryItems = ref([
     category: 'family',
     date: '2024-01-15',
     type: 'image',
+    likeCount: 0,
   },
   {
     id: 2,
@@ -39,6 +51,7 @@ const galleryItems = ref([
     category: 'travel',
     date: '2024-02-20',
     type: 'image',
+    likeCount: 0,
   },
   {
     id: 3,
@@ -49,6 +62,7 @@ const galleryItems = ref([
     category: 'work',
     date: '2024-03-10',
     type: 'image',
+    likeCount: 0,
   },
   {
     id: 4,
@@ -58,6 +72,7 @@ const galleryItems = ref([
     category: 'nature',
     date: '2024-04-05',
     type: 'image',
+    likeCount: 0,
   },
   {
     id: 5,
@@ -68,6 +83,7 @@ const galleryItems = ref([
     category: 'events',
     date: '2024-05-12',
     type: 'image',
+    likeCount: 0,
   },
   {
     id: 6,
@@ -77,8 +93,25 @@ const galleryItems = ref([
     category: 'daily',
     date: '2024-06-18',
     type: 'image',
+    likeCount: 0,
   },
 ])
+
+// Load like counts for all items
+const loadLikeCounts = async () => {
+  for (const item of galleryItems.value) {
+    try {
+      const response = await $fetch<{ success: boolean; count: number }>(
+        `/api/gallery/likes?itemId=${item.id}`,
+      )
+      if (response.success) {
+        item.likeCount = response.count
+      }
+    } catch (error) {
+      console.error(`[Gallery] Failed to load likes for item ${item.id}:`, error)
+    }
+  }
+}
 
 const categories = computed(() => {
   const cats = new Set(galleryItems.value.map((item) => item.category))
@@ -104,13 +137,25 @@ onMounted(() => {
   loadStoredUser()
 
   // Track page visit
-  fetch('/api/track-visit', {
+  fetch('/api/analytics/track-visit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ page: 'gallery' }),
   }).catch(() => {
     // Silent fail
   })
+
+  // Load like counts
+  if (isAuthenticated.value) {
+    loadLikeCounts()
+  }
+})
+
+// Watch for authentication to load likes
+watch(isAuthenticated, (newValue) => {
+  if (newValue) {
+    loadLikeCounts()
+  }
 })
 
 // Render Google Sign-In button
@@ -136,18 +181,20 @@ const renderGoogleSignInButton = () => {
             method: 'POST',
             body: { token: response.credential },
           })
-          user.value = result.user
-          localStorage.setItem('google_user', JSON.stringify(result.user))
+          if (result.user) {
+            user.value = result.user
+            localStorage.setItem('google_user', JSON.stringify(result.user))
 
-          // Track login event for analytics
-          if (typeof window !== 'undefined') {
-            const { trackLogin } = await import('~/utils/trackLogin')
-            await trackLogin(result.user.email, result.user.name, window.location.pathname)
-          }
+            // Track login event for analytics
+            if (typeof window !== 'undefined') {
+              const { trackLogin } = await import('~/utils/analytics/trackLogin')
+              await trackLogin(result.user.email, result.user.name, window.location.pathname)
+            }
 
-          // Dispatch custom event to notify all components
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+            // Dispatch custom event to notify all components
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+            }
           }
         } catch (error) {
           console.error('[Gallery] Authentication failed:', error)
@@ -334,9 +381,18 @@ defineOgImageComponent('About', {
               >
                 {{ item.category }}
               </span>
-              <span class="text-xs text-zinc-500 dark:text-zinc-500">
-                {{ new Date(item.date).toLocaleDateString() }}
-              </span>
+              <div class="flex items-center gap-3">
+                <span
+                  v-if="item.likeCount !== undefined && item.likeCount > 0"
+                  class="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400"
+                >
+                  <Icon name="mdi:heart" size="14" class="text-red-500" />
+                  {{ item.likeCount }}
+                </span>
+                <span class="text-xs text-zinc-500 dark:text-zinc-500">
+                  {{ new Date(item.date).toLocaleDateString() }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -381,9 +437,18 @@ defineOgImageComponent('About', {
               >
                 {{ item.category }}
               </span>
-              <span class="text-xs text-zinc-500 dark:text-zinc-500">
-                {{ new Date(item.date).toLocaleDateString() }}
-              </span>
+              <div class="flex items-center gap-3">
+                <span
+                  v-if="item.likeCount !== undefined && item.likeCount > 0"
+                  class="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400"
+                >
+                  <Icon name="mdi:heart" size="14" class="text-red-500" />
+                  {{ item.likeCount }}
+                </span>
+                <span class="text-xs text-zinc-500 dark:text-zinc-500">
+                  {{ new Date(item.date).toLocaleDateString() }}
+                </span>
+              </div>
             </div>
           </div>
         </div>

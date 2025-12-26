@@ -61,11 +61,12 @@ export default defineEventHandler(async (event) => {
       await client.query(`SELECT pg_advisory_xact_lock($1)`, [lockKey])
 
       // Check if user exists (now safely locked)
-      const existingCheck = await client.query<{ count: string }>(
-        `SELECT COUNT(*) as count FROM user_logins WHERE user_email = $1`,
+      // Cast COUNT(*) to integer to ensure pg library returns it as a number
+      const existingCheck = await client.query<{ count: number }>(
+        `SELECT COUNT(*)::int as count FROM user_logins WHERE user_email = $1`,
         [userEmail],
       )
-      const existingCount = parseInt(existingCheck.rows[0]?.count || '0', 10)
+      const existingCount = existingCheck.rows[0]?.count ?? 0
       const isNew = existingCount === 0
 
       // Insert the login record
