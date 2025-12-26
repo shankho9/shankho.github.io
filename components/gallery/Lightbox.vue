@@ -106,7 +106,8 @@ const toggleLike = async () => {
 watch(
   () => currentItem.value?.id,
   (newId) => {
-    if (newId) {
+    // Check for undefined/null, not truthiness, to handle id = 0 correctly
+    if (newId !== undefined && newId !== null) {
       loadLikes()
       showComments.value = false
     }
@@ -292,13 +293,9 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <!-- Image Container - Apply zoom to entire container -->
+        <!-- Image Container - Mouse events on outer container, transform on inner -->
         <div
-          class="relative w-full h-full flex items-center justify-center p-4 transition-transform duration-200"
-          :style="{
-            transform: `scale(${zoomLevel}) translate(${imagePosition.x / zoomLevel}px, ${imagePosition.y / zoomLevel}px)`,
-            transformOrigin: 'center center',
-          }"
+          class="relative w-full h-full flex items-center justify-center p-4"
           :class="{ 'cursor-grab': isZoomed && !isDragging, 'cursor-grabbing': isDragging }"
           @mousedown="startDrag"
           @touchstart="startDrag"
@@ -308,7 +305,14 @@ onUnmounted(() => {
           @mouseleave="endDrag"
           @touchend="endDrag"
         >
-          <div class="max-w-full max-h-full overflow-hidden">
+          <!-- Inner container with transform - mouse coordinates are not affected by CSS transforms -->
+          <div
+            class="max-w-full max-h-full overflow-hidden transition-transform duration-200"
+            :style="{
+              transform: `scale(${zoomLevel}) translate(${imagePosition.x / zoomLevel}px, ${imagePosition.y / zoomLevel}px)`,
+              transformOrigin: 'center center',
+            }"
+          >
             <NuxtImg
               v-if="currentItem"
               :src="currentItem.image"
