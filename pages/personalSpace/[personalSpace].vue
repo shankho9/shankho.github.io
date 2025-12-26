@@ -4,7 +4,7 @@ import { navbarData, seoData } from '~/data'
 import { computed, onMounted, nextTick, ref, watch } from 'vue'
 import Comments from '@/components/blog/Comments.vue'
 import ReadingProgress from '@/components/blog/ReadingProgress.vue'
-import { calculateReadingTime } from '~/utils/readingTime'
+import { calculateReadingTime } from '~/utils/blog/readingTime'
 import { useGoogleAuth } from '~/composables/useGoogleAuth'
 
 const { path } = useRoute()
@@ -83,17 +83,21 @@ const renderGoogleSignInButton = () => {
       client_id: clientId,
       callback: async (response: { credential: string }) => {
         try {
-          const result = await $fetch<{ user: typeof user.value }>('/api/auth/google', {
+          const result = await $fetch<{
+            user: { email: string; name: string; picture: string; sub: string }
+          }>('/api/auth/google', {
             method: 'POST',
             body: { token: response.credential },
           })
-          user.value = result.user
-          localStorage.setItem('google_user', JSON.stringify(result.user))
+          if (result && result.user) {
+            user.value = result.user
+            localStorage.setItem('google_user', JSON.stringify(result.user))
 
-          if (typeof window !== 'undefined') {
-            const { trackLogin } = await import('~/utils/trackLogin')
-            await trackLogin(result.user.email, result.user.name, window.location.pathname)
-            window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+            if (typeof window !== 'undefined') {
+              const { trackLogin } = await import('~/utils/analytics/trackLogin')
+              await trackLogin(result.user.email, result.user.name, window.location.pathname)
+              window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+            }
           }
         } catch (error) {
           console.error('[LifeLines Detail] Authentication failed:', error)

@@ -96,7 +96,7 @@ const submitPlace = async () => {
   errorMessage.value = ''
 
   try {
-    const { data, error } = await useFetch<ApiResponse>('/api/places', {
+    const { data, error } = await useFetch<ApiResponse>('/api/travel/places', {
       method: 'POST',
       body: form.value,
     })

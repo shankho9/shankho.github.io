@@ -6,7 +6,7 @@ import { useRoute, navigateTo } from 'nuxt/app'
 import LikeButton from '@/components/blog/LikeButton.vue'
 import Comments from '@/components/blog/Comments.vue'
 import ReadingProgress from '@/components/blog/ReadingProgress.vue'
-import { calculateReadingTime } from '~/utils/readingTime'
+import { calculateReadingTime } from '~/utils/blog/readingTime'
 
 const { path } = useRoute()
 

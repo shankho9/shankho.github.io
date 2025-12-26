@@ -47,12 +47,13 @@ const formatDate = (date: string | Date) => {
 const loadComments = async (page: number = currentPage.value, retryCount = 0) => {
   isLoading.value = true
   error.value = null
+  let willRetry = false
   try {
     const response = await $fetch<{
       comments: Comment[]
       pagination: { page: number; limit: number; total: number; totalPages: number }
     }>(
-      `/api/comments?postId=${encodeURIComponent(props.postId)}&page=${page}&limit=${commentsPerPage.value}`,
+      `/api/blog/comments?postId=${encodeURIComponent(props.postId)}&page=${page}&limit=${commentsPerPage.value}`,
     )
     comments.value = response.comments
     currentPage.value = response.pagination.page
@@ -67,6 +68,7 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
       const status = 'status' in err ? (err as { status?: number }).status : undefined
       // Retry on network errors (no status) or 5xx server errors
       if (!status || (status >= 500 && status < 600)) {
+        willRetry = true
         await new Promise((resolve) => setTimeout(resolve, 1000 * (retryCount + 1)))
         // Recursive call - isLoading remains true, don't set to false here
         return loadComments(page, retryCount + 1)
@@ -86,7 +88,14 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
     } else {
       error.value = 'Network error. Please check your connection and try again.'
     }
-    isLoading.value = false
+  } finally {
+    // Always reset loading state when not retrying
+    // This ensures the UI doesn't remain in a loading state indefinitely
+    // For retries, the recursive call will handle resetting the loading state
+    // Reset if we're not going to retry (either retries exhausted or non-retryable error)
+    if (!willRetry) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -115,7 +124,7 @@ const submitComment = async () => {
   error.value = null
 
   try {
-    const response = await $fetch<{ success: boolean; comment: Comment }>('/api/comments', {
+    const response = await $fetch<{ success: boolean; comment: Comment }>('/api/blog/comments', {
       method: 'POST',
       body: {
         postId: props.postId,

@@ -13,10 +13,10 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --check ./",
     "format:fix": "prettier --write ./",
-    "migrate": "node scripts/run-migration.js",
-    "migrate:prod": "NODE_ENV=production node scripts/run-migration.js",
-    "migrate:logins": "node scripts/run-login-migration.js",
-    "migrate:logins:prod": "NODE_ENV=production node scripts/run-login-migration.js"
+    "migrate": "node scripts/migrations/run-migration.js",
+    "migrate:prod": "NODE_ENV=production node scripts/migrations/run-migration.js",
+    "migrate:logins": "node scripts/migrations/run-login-migration.js",
+    "migrate:logins:prod": "NODE_ENV=production node scripts/migrations/run-login-migration.js"
   },
   "devDependencies": {
     "@formkit/auto-animate": "^0.8.2",
@@ -56,6 +56,7 @@
     "better-sqlite3": "^12.2.0",
     "dompurify": "^3.2.5",
     "pg": "^8.14.1",
+    "resend": "^6.6.0",
     "ua-parser-js": "^2.0.3"
   }
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { makeFirstCharUpper } from '@/utils/helper'
+import { makeFirstCharUpper } from '@/utils/common/helper'
 
 const route = useRoute()
 

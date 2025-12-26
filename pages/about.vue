@@ -20,7 +20,7 @@ defineOgImageComponent('About', {
 })
 
 onMounted(async () => {
-  await fetch('/api/track-visit', {
+  await fetch('/api/analytics/track-visit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ page: 'about' }),

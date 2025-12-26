@@ -49,7 +49,7 @@ export const pesonalSpace = {
 export const resourcesPage = {
   title: 'Resources Library',
   description:
-    'A curated collection of books, tools, learning resources, and templates that have helped me grow as a developer and leader.',
+    'A curated collection of books, tools, learning resources, images, videos, and content that have helped me grow as a developer and leader.',
   books: [
     {
       title: 'The Pragmatic Programmer',
@@ -194,6 +194,96 @@ export const resourcesPage = {
       icon: 'mdi:code-review',
       download: false,
     },
+  ],
+  // Image Gallery Section - Images from ImageKit
+  images: [
+    {
+      title: 'Family Moments',
+      description: 'Cherished memories with loved ones',
+      imageUrl:
+        'https://ik.imagekit.io/u6cq4dqll/Personal/about/All_four.jpg?updatedAt=1745977729755',
+      category: 'Family',
+      date: '2024-01-15',
+      link: 'https://ik.imagekit.io/u6cq4dqll/Personal/about/All_four.jpg?updatedAt=1745977729755',
+    },
+    {
+      title: 'Travel Adventures',
+      description: 'Exploring new places and cultures',
+      imageUrl:
+        'https://ik.imagekit.io/u6cq4dqll/Personal/about/Sid_BetDwarka_Solo_w_Terrano.jpg?updatedAt=1745979649461',
+      category: 'Travel',
+      date: '2024-02-20',
+      link: 'https://ik.imagekit.io/u6cq4dqll/Personal/about/Sid_BetDwarka_Solo_w_Terrano.jpg?updatedAt=1745979649461',
+    },
+    {
+      title: 'Work Memories',
+      description: 'Team moments and achievements',
+      imageUrl:
+        'https://ik.imagekit.io/u6cq4dqll/Personal/about/MacquarieDays.jpg?updatedAt=1745977729581',
+      category: 'Work',
+      date: '2024-03-10',
+      link: 'https://ik.imagekit.io/u6cq4dqll/Personal/about/MacquarieDays.jpg?updatedAt=1745977729581',
+    },
+    // Add more images here from your ImageKit dashboard
+    // Format: https://ik.imagekit.io/u6cq4dqll/YourFolder/YourImage.jpg?updatedAt=timestamp
+  ],
+  // Video Resources Section
+  videos: [
+    {
+      title: 'Travel Documentary',
+      description: 'A journey through beautiful landscapes',
+      thumbnail:
+        'https://ik.imagekit.io/u6cq4dqll/Personal/about/Sid_BetDwarka_Solo_w_Terrano.jpg?updatedAt=1745979649461',
+      videoUrl: 'https://www.youtube.com/watch?v=example', // YouTube, Vimeo, or direct video URL
+      category: 'Travel',
+      date: '2024-01-20',
+      duration: '5:32',
+      platform: 'youtube', // 'youtube', 'vimeo', 'direct', or 'imagekit'
+    },
+    {
+      title: 'Family Moments',
+      description: 'Captured memories with loved ones',
+      thumbnail:
+        'https://ik.imagekit.io/u6cq4dqll/Personal/about/All_four.jpg?updatedAt=1745977729755',
+      videoUrl: 'https://www.youtube.com/watch?v=example',
+      category: 'Family',
+      date: '2024-02-15',
+      duration: '3:45',
+      platform: 'youtube',
+    },
+    // Add more videos here
+    // For ImageKit videos, use: https://ik.imagekit.io/u6cq4dqll/YourFolder/YourVideo.mp4
+    // For YouTube, use: https://www.youtube.com/watch?v=VIDEO_ID
+    // For Vimeo, use: https://vimeo.com/VIDEO_ID
+  ],
+  // Content/Articles Section
+  content: [
+    {
+      title: 'Getting Started with Nuxt 3',
+      description: 'A comprehensive guide to building modern web applications with Nuxt 3.',
+      link: '/blogs',
+      category: 'Tutorial',
+      icon: 'mdi:book-open-page-variant',
+      date: '2024-01-10',
+    },
+    {
+      title: 'Best Practices for Test Automation',
+      description:
+        'Learn the essential practices for effective test automation in modern development.',
+      link: '/blogs',
+      category: 'Development',
+      icon: 'mdi:code-braces',
+      date: '2024-02-05',
+    },
+    {
+      title: 'Leadership in Tech',
+      description: 'Insights on leading technical teams and driving innovation.',
+      link: '/blogs',
+      category: 'Leadership',
+      icon: 'mdi:account-group',
+      date: '2024-03-15',
+    },
+    // Add more content items here
   ],
 }
 

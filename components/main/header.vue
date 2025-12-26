@@ -2,7 +2,7 @@
 import { navbarData } from '../../data'
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useGoogleAuth } from '~/composables/useGoogleAuth'
-import { trackLogin } from '~/utils/trackLogin'
+import { trackLogin } from '~/utils/analytics/trackLogin'
 
 const colorMode = useColorMode()
 function onClick(val: string) {

@@ -60,7 +60,7 @@ const isLoading = ref(true)
 
 onMounted(async () => {
   try {
-    const { data, error } = await useFetch<Place[]>('/api/places')
+    const { data, error } = await useFetch<Place[]>('/api/travel/places')
     if (error.value) throw new Error(error.value.message || 'Failed to fetch places')
     places.value = data.value ?? []
   } catch (err: unknown) {

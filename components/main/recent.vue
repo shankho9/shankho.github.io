@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useAsyncData } from 'nuxt/app'
-import { extractBlogPostFromMeta } from '~/utils/blogMeta'
-import { parseCustomDate, getDateTimestamp } from '~/utils/dateParser'
+import { extractBlogPostFromMeta } from '~/utils/blog/blogMeta'
+import { parseCustomDate, getDateTimestamp } from '~/utils/common/dateParser'
 
 // Get Last 6 Publish Post from the content/blog directory
 const { data } = await useAsyncData('recent-post', () =>

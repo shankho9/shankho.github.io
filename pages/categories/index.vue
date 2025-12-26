@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { makeFirstCharUpper } from '@/utils/helper'
+import { makeFirstCharUpper } from '@/utils/common/helper'
 
 const { data } = await useAsyncData('all-blog-post-by-category', () =>
   queryCollection('content').all(),

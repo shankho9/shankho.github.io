@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import Fuse from 'fuse.js'
-import { extractBlogPostFromMeta } from '~/utils/blogMeta'
+import { extractBlogPostFromMeta } from '~/utils/blog/blogMeta'
 import { pesonalSpace } from '~/data'
-import { parseCustomDate, getDateTimestamp } from '~/utils/dateParser'
-import { getTagColorClasses, getTagSelectedColorClasses } from '~/utils/tagColors'
+import { parseCustomDate, getDateTimestamp } from '~/utils/common/dateParser'
+import { getTagColorClasses, getTagSelectedColorClasses } from '~/utils/blog/tagColors'
 import { useGoogleAuth } from '~/composables/useGoogleAuth'
 import { ref, onMounted, watch, nextTick } from 'vue'
 
@@ -199,7 +199,7 @@ onMounted(() => {
   loadStoredUser()
 
   // Track page visit
-  fetch('/api/track-visit', {
+  fetch('/api/analytics/track-visit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ page: 'lifelines' }),
@@ -226,17 +226,21 @@ const renderGoogleSignInButton = () => {
       client_id: clientId,
       callback: async (response: { credential: string }) => {
         try {
-          const result = await $fetch<{ user: typeof user.value }>('/api/auth/google', {
+          const result = await $fetch<{
+            user: { email: string; name: string; picture: string; sub: string }
+          }>('/api/auth/google', {
             method: 'POST',
             body: { token: response.credential },
           })
-          user.value = result.user
-          localStorage.setItem('google_user', JSON.stringify(result.user))
+          if (result && result.user) {
+            user.value = result.user
+            localStorage.setItem('google_user', JSON.stringify(result.user))
 
-          if (typeof window !== 'undefined') {
-            const { trackLogin } = await import('~/utils/trackLogin')
-            await trackLogin(result.user.email, result.user.name, window.location.pathname)
-            window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+            if (typeof window !== 'undefined') {
+              const { trackLogin } = await import('~/utils/analytics/trackLogin')
+              await trackLogin(result.user.email, result.user.name, window.location.pathname)
+              window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+            }
           }
         } catch (error) {
           console.error('[LifeLines] Authentication failed:', error)

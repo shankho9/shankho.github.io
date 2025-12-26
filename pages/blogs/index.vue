@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import Fuse from 'fuse.js'
-import { extractBlogPostFromMeta } from '~/utils/blogMeta'
-import { parseCustomDate, getDateTimestamp } from '~/utils/dateParser'
-import { getTagColorClasses, getTagSelectedColorClasses } from '~/utils/tagColors'
+import { extractBlogPostFromMeta } from '~/utils/blog/blogMeta'
+import { parseCustomDate, getDateTimestamp } from '~/utils/common/dateParser'
+import { getTagColorClasses, getTagSelectedColorClasses } from '~/utils/blog/tagColors'
 import { blogsPage } from '~/data'
 
 // Load all blog posts

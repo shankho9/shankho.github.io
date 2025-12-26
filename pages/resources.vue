@@ -26,7 +26,7 @@ defineOgImageComponent('About', {
 })
 
 onMounted(async () => {
-  await fetch('/api/track-visit', {
+  await fetch('/api/analytics/track-visit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ page: 'resources' }),
@@ -193,6 +193,169 @@ onMounted(async () => {
         <p class="text-sm text-zinc-500 dark:text-zinc-500 italic">
           More templates and downloads coming soon!
         </p>
+      </div>
+    </section>
+
+    <!-- Images Gallery Section -->
+    <section v-if="resourcesPage.images && resourcesPage.images.length > 0" class="mb-16">
+      <div class="flex items-center mb-6">
+        <Icon icon="mdi:image-multiple" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
+        <h2 class="text-3xl font-bold text-zinc-800 dark:text-zinc-200">Image Gallery</h2>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <a
+          v-for="image in resourcesPage.images"
+          :key="image.title"
+          :href="image.link"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="group bg-[#F1F2F4] dark:bg-slate-900 rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-gray-200 dark:border-slate-800"
+        >
+          <div class="relative aspect-square overflow-hidden">
+            <NuxtImg
+              :src="image.imageUrl"
+              :alt="image.title"
+              class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              loading="lazy"
+              width="400"
+              height="400"
+              quality="85"
+            />
+            <div
+              class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-300 flex items-center justify-center"
+            >
+              <div
+                class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white text-center px-4"
+              >
+                <Icon icon="mdi:fullscreen" class="text-3xl mb-2" />
+                <p class="text-sm">Click to view full-size</p>
+              </div>
+            </div>
+          </div>
+          <div class="p-4">
+            <h3
+              class="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2 group-hover:text-sky-700 dark:group-hover:text-sky-400 transition-colors"
+            >
+              {{ image.title }}
+            </h3>
+            <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-3">{{ image.description }}</p>
+            <div class="flex justify-between items-center">
+              <span
+                class="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
+              >
+                {{ image.category }}
+              </span>
+              <span class="text-xs text-zinc-500 dark:text-zinc-500">
+                {{ new Date(image.date).toLocaleDateString() }}
+              </span>
+            </div>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Videos Section -->
+    <section v-if="resourcesPage.videos && resourcesPage.videos.length > 0" class="mb-16">
+      <div class="flex items-center mb-6">
+        <Icon icon="mdi:video" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
+        <h2 class="text-3xl font-bold text-zinc-800 dark:text-zinc-200">Video Resources</h2>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <a
+          v-for="video in resourcesPage.videos"
+          :key="video.title"
+          :href="video.videoUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="group bg-[#F1F2F4] dark:bg-slate-900 rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-gray-200 dark:border-slate-800"
+        >
+          <div class="relative aspect-video overflow-hidden">
+            <NuxtImg
+              :src="video.thumbnail"
+              :alt="video.title"
+              class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              loading="lazy"
+              width="600"
+              height="338"
+              quality="85"
+            />
+            <div
+              class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-300 flex items-center justify-center"
+            >
+              <div
+                class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white"
+              >
+                <Icon icon="mdi:play-circle" class="text-6xl" />
+              </div>
+            </div>
+            <div
+              class="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs font-semibold"
+            >
+              {{ video.duration }}
+            </div>
+          </div>
+          <div class="p-4">
+            <h3
+              class="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2 group-hover:text-sky-700 dark:group-hover:text-sky-400 transition-colors"
+            >
+              {{ video.title }}
+            </h3>
+            <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-3">{{ video.description }}</p>
+            <div class="flex justify-between items-center">
+              <span
+                class="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
+              >
+                {{ video.category }}
+              </span>
+              <span class="text-xs text-zinc-500 dark:text-zinc-500">
+                {{ new Date(video.date).toLocaleDateString() }}
+              </span>
+            </div>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Content/Articles Section -->
+    <section v-if="resourcesPage.content && resourcesPage.content.length > 0" class="mb-16">
+      <div class="flex items-center mb-6">
+        <Icon
+          icon="mdi:file-document-multiple"
+          class="text-3xl mr-3 text-sky-700 dark:text-sky-400"
+        />
+        <h2 class="text-3xl font-bold text-zinc-800 dark:text-zinc-200">Featured Content</h2>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <NuxtLink
+          v-for="item in resourcesPage.content"
+          :key="item.title"
+          :to="item.link"
+          class="group bg-[#F1F2F4] dark:bg-slate-900 rounded-lg p-6 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border border-gray-200 dark:border-slate-800"
+        >
+          <div class="flex items-center justify-between mb-4">
+            <Icon
+              :icon="item.icon"
+              class="text-4xl text-sky-700 dark:text-sky-400 group-hover:scale-110 transition-transform"
+            />
+            <Icon icon="mdi:arrow-right" class="text-zinc-400 group-hover:text-sky-600" />
+          </div>
+          <h3
+            class="text-xl font-semibold text-zinc-800 dark:text-zinc-200 mb-2 group-hover:text-sky-700 dark:group-hover:text-sky-400 transition-colors"
+          >
+            {{ item.title }}
+          </h3>
+          <p class="text-zinc-600 dark:text-zinc-400 mb-3 text-sm">{{ item.description }}</p>
+          <div class="flex justify-between items-center">
+            <span
+              class="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
+            >
+              {{ item.category }}
+            </span>
+            <span class="text-xs text-zinc-500 dark:text-zinc-500">
+              {{ new Date(item.date).toLocaleDateString() }}
+            </span>
+          </div>
+        </NuxtLink>
       </div>
     </section>
 
