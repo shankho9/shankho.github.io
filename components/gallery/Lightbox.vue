@@ -47,10 +47,10 @@ const showComments = ref(false)
 // Load like count and status
 const loadLikes = async () => {
   if (!currentItem.value) return
-  
+
   // Capture the itemId at the start to prevent race conditions
   const itemId = currentItem.value.id
-  
+
   try {
     const response = await $fetch<{ success: boolean; count: number; isLiked: boolean }>(
       `/api/gallery/likes?itemId=${itemId}`,
