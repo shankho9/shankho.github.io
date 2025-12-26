@@ -256,6 +256,9 @@ const clearFilters = () => {
   showAdvancedFilters.value = false
 }
 
+// Track if we've loaded likes for the current user to prevent duplicate calls
+const lastLoadedUserEmail = ref<string | null>(null)
+
 // Initialize auth on mount
 onMounted(async () => {
   initializeGoogleSignIn()
@@ -275,13 +278,19 @@ onMounted(async () => {
   // The watch on isAuthenticated provides fallback handling for async auth changes
   if (user.value) {
     loadLikeCounts()
+    lastLoadedUserEmail.value = user.value.email
   }
 })
 
 // Watch for authentication to load likes
+// Only load if this is a new user (different email) to prevent duplicate calls
 watch(isAuthenticated, (newValue) => {
-  if (newValue) {
+  if (newValue && user.value && user.value.email !== lastLoadedUserEmail.value) {
     loadLikeCounts()
+    lastLoadedUserEmail.value = user.value.email
+  } else if (!newValue) {
+    // Reset when user signs out
+    lastLoadedUserEmail.value = null
   }
 })
 

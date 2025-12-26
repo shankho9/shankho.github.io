@@ -85,7 +85,7 @@ export const useGoogleAuth = () => {
 
       // Track login event for analytics
       if (typeof window !== 'undefined') {
-        const { trackLogin } = await import('~/utils/trackLogin')
+        const { trackLogin } = await import('~/utils/analytics/trackLogin')
         await trackLogin(result.user.email, result.user.name, window.location.pathname)
       }
 

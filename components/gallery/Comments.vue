@@ -46,6 +46,7 @@ const formatDate = (date: string | Date) => {
 const loadComments = async (page: number = currentPage.value, retryCount = 0) => {
   isLoading.value = true
   error.value = null
+  let willRetry = false
   try {
     const response = await $fetch<{
       comments: Comment[]
@@ -64,6 +65,7 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
     if (retryCount < 2 && err && typeof err === 'object') {
       const status = 'status' in err ? (err as { status?: number }).status : undefined
       if (!status || (status >= 500 && status < 600)) {
+        willRetry = true
         await new Promise((resolve) => setTimeout(resolve, 1000 * (retryCount + 1)))
         // Recursive call - isLoading remains true, don't set to false here
         return loadComments(page, retryCount + 1)
@@ -87,8 +89,8 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
     // Always reset loading state when not retrying
     // This ensures the UI doesn't remain in a loading state indefinitely
     // For retries, the recursive call will handle resetting the loading state
-    // Only reset if we're not in a retry scenario (retryCount >= 2 means no more retries)
-    if (retryCount >= 2) {
+    // Reset if we're not going to retry (either retries exhausted or non-retryable error)
+    if (!willRetry) {
       isLoading.value = false
     }
   }

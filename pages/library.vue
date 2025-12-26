@@ -312,6 +312,9 @@ watch(activeTab, (newTab) => {
   }
 })
 
+// Track if we've loaded stats for the current user to prevent duplicate calls
+const lastLoadedUserEmail = ref<string | null>(null)
+
 // Initialize auth on mount - load user first to ensure authentication state is available
 onMounted(async () => {
   // Load stored user first to ensure authentication state is available
@@ -333,14 +336,20 @@ onMounted(async () => {
   if (user.value) {
     loadGalleryStats()
     loadVideoStats()
+    lastLoadedUserEmail.value = user.value.email
   }
 })
 
 // Watch for authentication to load stats
+// Only load if this is a new user (different email) to prevent duplicate calls
 watch(isAuthenticated, (newValue) => {
-  if (newValue) {
+  if (newValue && user.value && user.value.email !== lastLoadedUserEmail.value) {
     loadGalleryStats()
     loadVideoStats()
+    lastLoadedUserEmail.value = user.value.email
+  } else if (!newValue) {
+    // Reset when user signs out
+    lastLoadedUserEmail.value = null
   }
 })
 
