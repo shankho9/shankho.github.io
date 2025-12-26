@@ -108,8 +108,12 @@ watch(
   (newId) => {
     // Check for undefined/null, not truthiness, to handle id = 0 correctly
     if (newId !== undefined && newId !== null) {
-      loadLikes()
+      // Reset state immediately to prevent stale data from previous item
+      likeCount.value = 0
+      isLiked.value = false
       showComments.value = false
+      // Then load likes for the new item
+      loadLikes()
     }
   },
   { immediate: true },
