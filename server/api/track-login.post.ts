@@ -1,7 +1,7 @@
 import type { H3Event } from 'h3'
 import { UAParser } from 'ua-parser-js'
 import { useRuntimeConfig } from '#imports'
-import { query } from '~/server/utils/db'
+import { withTransaction } from '~/server/utils/db'
 import { sendNewUserAlert } from '~/server/utils/email'
 
 export default defineEventHandler(async (event) => {
@@ -45,22 +45,42 @@ export default defineEventHandler(async (event) => {
       return { success: false, error: 'Database not configured' }
     }
 
-    // Check if this is a new user (first login for this email)
-    const existingLogins = await query<{ id: number }>(
-      `SELECT id FROM user_logins WHERE user_email = $1 LIMIT 1`,
-      [userEmail],
-    )
+    // Atomically insert login and determine if this is a new user using a transaction
+    // This prevents race conditions when concurrent requests arrive for the same email
+    // by using PostgreSQL advisory locks to ensure only one request can check and insert at a time
+    const isNewUser = await withTransaction(async (client) => {
+      // Use advisory lock based on email hash to prevent concurrent access for the same email
+      // This ensures only one transaction can check and insert for a given email at a time
+      // pg_advisory_xact_lock automatically releases when the transaction ends
+      // Note: hashtext() returns integer, but pg_advisory_xact_lock() requires bigint, so we cast it
+      const lockResult = await client.query<{ lock_key: number }>(
+        `SELECT hashtext($1)::bigint as lock_key`,
+        [userEmail],
+      )
+      const lockKey = lockResult.rows[0]?.lock_key || 0
+      await client.query(`SELECT pg_advisory_xact_lock($1)`, [lockKey])
 
-    const isNewUser = existingLogins.length === 0
+      // Check if user exists (now safely locked)
+      const existingCheck = await client.query<{ count: string }>(
+        `SELECT COUNT(*) as count FROM user_logins WHERE user_email = $1`,
+        [userEmail],
+      )
+      const existingCount = parseInt(existingCheck.rows[0]?.count || '0', 10)
+      const isNew = existingCount === 0
 
-    // Insert the login record
-    await query(
-      `INSERT INTO user_logins (user_email, user_name, login_location, user_agent, browser, ip_address, country, referer)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [userEmail, userName, loginLocation, userAgent, browser, ip, country, referer],
-    )
+      // Insert the login record
+      await client.query(
+        `INSERT INTO user_logins (user_email, user_name, login_location, user_agent, browser, ip_address, country, referer)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [userEmail, userName, loginLocation, userAgent, browser, ip, country, referer],
+      )
+
+      return isNew
+    })
 
     // Send email alert for new users (fire and forget - don't block the response)
+    // Note: sendNewUserAlert currently handles all errors internally, but we add a catch handler
+    // as a safety measure to prevent unhandled promise rejections if the function is modified in the future
     if (isNewUser) {
       sendNewUserAlert({
         userEmail,
@@ -71,8 +91,8 @@ export default defineEventHandler(async (event) => {
         browser: browser || undefined,
         userAgent: userAgent || undefined,
       }).catch((error) => {
-        // Log error but don't fail the login
-        console.error('[API] Failed to send new user alert email:', error)
+        // Safety catch: log any unexpected errors (should not happen with current implementation)
+        console.error('[API] Unexpected error in sendNewUserAlert (this should not occur):', error)
       })
     }
 
@@ -85,7 +105,7 @@ export default defineEventHandler(async (event) => {
         stack: err.stack,
         name: err.name,
       })
-      
+
       // Provide helpful error message for missing DATABASE_URL
       if (err.message.includes('DATABASE_URL is not configured')) {
         console.error('[API] Please set DATABASE_URL environment variable')

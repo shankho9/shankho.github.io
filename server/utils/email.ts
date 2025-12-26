@@ -41,13 +41,26 @@ export async function sendNewUserAlert(params: NewUserAlertParams): Promise<void
       return
     }
 
+    // Check for RESEND_API_KEY early to provide clear configuration error
+    const apiKey = config.resendApiKey || process.env.RESEND_API_KEY
+    if (!apiKey) {
+      console.error(
+        '[Email] ⚠️ RESEND_API_KEY not configured! Email alerts will not be sent.',
+        'Please set RESEND_API_KEY environment variable to enable email notifications.',
+      )
+      return
+    }
+
     const resend = getResendClient()
     const fromEmail = config.fromEmail || process.env.FROM_EMAIL || 'onboarding@resend.dev'
+
+    // Sanitize userName for email header to prevent header injection attacks
+    const sanitizedUserName = sanitizeEmailHeader(params.userName)
 
     const emailContent = {
       from: fromEmail,
       to: [alertEmail],
-      subject: `🔔 New Google Authentication: ${params.userName}`,
+      subject: `🔔 New Google Authentication: ${sanitizedUserName}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -86,26 +99,38 @@ export async function sendNewUserAlert(params: NewUserAlertParams): Promise<void
                   <span class="value">${escapeHtml(params.loginLocation)}</span>
                 </div>
                 
-                ${params.country ? `
+                ${
+                  params.country
+                    ? `
                 <div class="info-row">
                   <span class="label">Country:</span>
                   <span class="value">${escapeHtml(params.country)}</span>
                 </div>
-                ` : ''}
+                `
+                    : ''
+                }
                 
-                ${params.ipAddress ? `
+                ${
+                  params.ipAddress
+                    ? `
                 <div class="info-row">
                   <span class="label">IP Address:</span>
                   <span class="value">${escapeHtml(params.ipAddress)}</span>
                 </div>
-                ` : ''}
+                `
+                    : ''
+                }
                 
-                ${params.browser ? `
+                ${
+                  params.browser
+                    ? `
                 <div class="info-row">
                   <span class="label">Browser:</span>
                   <span class="value">${escapeHtml(params.browser)}</span>
                 </div>
-                ` : ''}
+                `
+                    : ''
+                }
                 
                 <div class="info-row">
                   <span class="label">Timestamp:</span>
@@ -140,7 +165,21 @@ Timestamp: ${new Date().toLocaleString()}
 
     console.log('[Email] New user alert sent successfully:', result.data?.id)
   } catch (error) {
-    console.error('[Email] Error sending new user alert:', error)
+    // Distinguish between configuration errors and runtime errors
+    if (error instanceof Error && error.message.includes('RESEND_API_KEY')) {
+      console.error(
+        '[Email] ⚠️ Configuration Error: RESEND_API_KEY is missing!',
+        'Email alerts cannot be sent. Please configure RESEND_API_KEY environment variable.',
+      )
+    } else {
+      console.error('[Email] Error sending new user alert:', error)
+      if (error instanceof Error) {
+        console.error('[Email] Error details:', {
+          message: error.message,
+          stack: error.stack,
+        })
+      }
+    }
     // Don't throw - we don't want email failures to break the login flow
   }
 }
@@ -159,3 +198,17 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (m) => map[m])
 }
 
+/**
+ * Sanitize text for use in email headers to prevent header injection attacks
+ * Removes newlines, carriage returns, and other control characters
+ */
+function sanitizeEmailHeader(text: string): string {
+  return (
+    text
+      .replace(/[\r\n]/g, ' ') // Replace newlines and carriage returns with spaces
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1F\x7F]/g, '') // Remove other control characters (NUL, control chars, DEL)
+      .trim()
+      .slice(0, 200)
+  ) // Limit length to prevent overly long headers
+}

@@ -8,7 +8,7 @@ let pool: pg.Pool | null = null
 function getPool(): pg.Pool {
   if (!pool) {
     const config = useRuntimeConfig()
-    
+
     // Get DATABASE_URL from runtime config or fallback to process.env
     let databaseUrl = config.databaseUrl || process.env.DATABASE_URL
 
@@ -57,6 +57,57 @@ export async function query<T extends Record<string, unknown> = Record<string, u
       console.error('[DB] Error stack:', error.stack)
     }
     throw error
+  } finally {
+    if (client) {
+      client.release()
+    }
+  }
+}
+
+/**
+ * Execute a function within a database transaction
+ * The transaction is automatically committed on success or rolled back on error
+ */
+export async function withTransaction<T>(
+  callback: (client: pg.PoolClient) => Promise<T>,
+): Promise<T> {
+  const pool = getPool()
+  let client: pg.PoolClient | null = null
+  let originalError: unknown = null
+  let rollbackAttempted = false
+  try {
+    client = await pool.connect()
+    await client.query('BEGIN')
+    const result = await callback(client)
+    try {
+      await client.query('COMMIT')
+    } catch (commitError) {
+      // If COMMIT fails, try to rollback and log both errors
+      console.error('[DB] Transaction commit failed:', commitError)
+      rollbackAttempted = true
+      try {
+        await client.query('ROLLBACK')
+      } catch (rollbackError) {
+        console.error('[DB] Transaction rollback also failed after commit error:', rollbackError)
+      }
+      throw commitError
+    }
+    return result
+  } catch (error) {
+    // Store the original error before attempting rollback
+    originalError = error
+    // Only attempt rollback if we haven't already tried (e.g., after a failed COMMIT)
+    if (!rollbackAttempted && client) {
+      try {
+        await client.query('ROLLBACK')
+      } catch (rollbackError) {
+        // Log rollback failure but preserve the original error
+        console.error('[DB] Transaction rollback failed:', rollbackError)
+        console.error('[DB] Original error that triggered rollback:', originalError)
+        // Still throw the original error, not the rollback error
+      }
+    }
+    throw originalError
   } finally {
     if (client) {
       client.release()
