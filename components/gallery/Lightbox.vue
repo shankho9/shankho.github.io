@@ -47,11 +47,17 @@ const showComments = ref(false)
 // Load like count and status
 const loadLikes = async () => {
   if (!currentItem.value) return
+  
+  // Capture the itemId at the start to prevent race conditions
+  const itemId = currentItem.value.id
+  
   try {
     const response = await $fetch<{ success: boolean; count: number; isLiked: boolean }>(
-      `/api/gallery/likes?itemId=${currentItem.value.id}`,
+      `/api/gallery/likes?itemId=${itemId}`,
     )
-    if (response.success) {
+    // Verify the response is still for the current item before updating state
+    // This prevents race conditions when navigating quickly between items
+    if (response.success && currentItem.value?.id === itemId) {
       likeCount.value = response.count
       isLiked.value = response.isLiked
     }
@@ -372,8 +378,8 @@ onUnmounted(() => {
         <!-- Image Metadata -->
         <div
           v-if="currentItem"
-          class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 text-white"
-          :class="{ 'right-96': showComments }"
+          class="absolute bottom-0 left-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 text-white"
+          :class="showComments ? 'right-96' : 'right-0'"
         >
           <div class="container mx-auto max-w-4xl">
             <h3 class="text-2xl font-bold mb-2">{{ currentItem.title }}</h3>

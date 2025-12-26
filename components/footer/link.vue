@@ -4,6 +4,7 @@
     <NuxtLink to="/" class="hover:underline"> Home </NuxtLink>
     <NuxtLink to="/blogs" class="hover:underline"> Blogs </NuxtLink>
     <NuxtLink to="/personalSpace" class="hover:underline"> LifeLines </NuxtLink>
+    <NuxtLink to="/library" class="hover:underline"> Library </NuxtLink>
     <NuxtLink to="/categories" class="hover:underline"> Categories </NuxtLink>
     <NuxtLink to="/about" class="hover:underline"> About Me </NuxtLink>
   </div>
