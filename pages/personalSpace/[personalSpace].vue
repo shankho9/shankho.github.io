@@ -83,7 +83,9 @@ const renderGoogleSignInButton = () => {
       client_id: clientId,
       callback: async (response: { credential: string }) => {
         try {
-          const result = await $fetch<{ user: { email: string; name: string; picture: string; sub: string } }>('/api/auth/google', {
+          const result = await $fetch<{
+            user: { email: string; name: string; picture: string; sub: string }
+          }>('/api/auth/google', {
             method: 'POST',
             body: { token: response.credential },
           })
