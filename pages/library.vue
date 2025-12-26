@@ -313,7 +313,7 @@ watch(activeTab, (newTab) => {
 })
 
 // Initialize auth on mount - load user first to ensure authentication state is available
-onMounted(() => {
+onMounted(async () => {
   // Load stored user first to ensure authentication state is available
   loadStoredUser()
   initializeGoogleSignIn()
@@ -326,6 +326,10 @@ onMounted(() => {
   }).catch(() => {
     // Silent fail
   })
+
+  // Wait for Vue reactivity to update after loadStoredUser()
+  // This ensures isAuthenticated.value reflects the loaded user state
+  await nextTick()
 
   // Load stats if authenticated
   if (isAuthenticated.value) {
@@ -360,11 +364,11 @@ const renderGoogleSignInButton = () => {
       client_id: clientId,
       callback: async (response: { credential: string }) => {
         try {
-          const result = await $fetch<{ user: typeof user.value }>('/api/auth/google', {
+          const result = await $fetch<{ user: { email: string; name: string; picture: string; sub: string } }>('/api/auth/google', {
             method: 'POST',
             body: { token: response.credential },
           })
-          if (result.user) {
+          if (result && result.user) {
             user.value = result.user
             localStorage.setItem('google_user', JSON.stringify(result.user))
 
