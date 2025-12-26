@@ -327,13 +327,9 @@ onMounted(async () => {
     // Silent fail
   })
 
-  // Wait for Vue reactivity to update after loadStoredUser()
-  // This ensures isAuthenticated.value reflects the loaded user state
-  await nextTick()
-
-  // Load stats if authenticated
-  // Check user.value directly since loadStoredUser() sets it synchronously
-  // and isAuthenticated is computed from user.value
+  // loadStoredUser() is synchronous - it directly sets user.value from localStorage
+  // Check user.value immediately after calling it (no need to wait for nextTick)
+  // The watch on isAuthenticated provides fallback handling for async auth changes
   if (user.value) {
     loadGalleryStats()
     loadVideoStats()

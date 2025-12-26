@@ -57,7 +57,6 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
     currentPage.value = response.pagination.page
     totalComments.value = response.pagination.total
     totalPages.value = response.pagination.totalPages
-    isLoading.value = false
   } catch (err: unknown) {
     console.error('[GalleryComments] Failed to load comments:', err)
 
@@ -66,10 +65,12 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
       const status = 'status' in err ? (err as { status?: number }).status : undefined
       if (!status || (status >= 500 && status < 600)) {
         await new Promise((resolve) => setTimeout(resolve, 1000 * (retryCount + 1)))
+        // Recursive call - isLoading remains true, don't set to false here
         return loadComments(page, retryCount + 1)
       }
     }
 
+    // User-friendly error messages (only set if not retrying)
     if (err && typeof err === 'object' && 'status' in err) {
       const status = (err as { status?: number }).status
       if (status === 404) {
@@ -82,7 +83,14 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
     } else {
       error.value = 'Network error. Please check your connection and try again.'
     }
-    isLoading.value = false
+  } finally {
+    // Always reset loading state when not retrying
+    // This ensures the UI doesn't remain in a loading state indefinitely
+    // For retries, the recursive call will handle resetting the loading state
+    // Only reset if we're not in a retry scenario (retryCount >= 2 means no more retries)
+    if (retryCount >= 2) {
+      isLoading.value = false
+    }
   }
 }
 

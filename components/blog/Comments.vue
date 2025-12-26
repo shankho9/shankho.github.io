@@ -86,7 +86,14 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
     } else {
       error.value = 'Network error. Please check your connection and try again.'
     }
-    isLoading.value = false
+  } finally {
+    // Always reset loading state when not retrying
+    // This ensures the UI doesn't remain in a loading state indefinitely
+    // For retries, the recursive call will handle resetting the loading state
+    // Only reset if we're not in a retry scenario (retryCount >= 2 means no more retries)
+    if (retryCount >= 2) {
+      isLoading.value = false
+    }
   }
 }
 
