@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import GalleryComments from './Comments.vue'
 
 interface GalleryItem {
   id: number
@@ -9,6 +10,7 @@ interface GalleryItem {
   category: string
   date: string
   type: string
+  likeCount?: number
 }
 
 interface Props {
@@ -35,6 +37,87 @@ const isDragging = ref(false)
 const dragStart = ref({ x: 0, y: 0 })
 
 const currentItem = computed(() => props.items[currentIndex.value])
+
+// Like functionality
+const likeCount = ref(0)
+const isLiked = ref(false)
+const isLiking = ref(false)
+const showComments = ref(false)
+
+// Load like count and status
+const loadLikes = async () => {
+  if (!currentItem.value) return
+
+  // Capture the itemId at the start to prevent race conditions
+  const itemId = currentItem.value.id
+
+  try {
+    const response = await $fetch<{ success: boolean; count: number; isLiked: boolean }>(
+      `/api/gallery/likes?itemId=${itemId}`,
+    )
+    // Verify the response is still for the current item before updating state
+    // This prevents race conditions when navigating quickly between items
+    if (response.success && currentItem.value?.id === itemId) {
+      likeCount.value = response.count
+      isLiked.value = response.isLiked
+    }
+  } catch (error) {
+    console.error('[Lightbox] Failed to load likes:', error)
+  }
+}
+
+// Toggle like
+const toggleLike = async () => {
+  if (!currentItem.value || isLiking.value) return
+  isLiking.value = true
+  const previousLikeCount = likeCount.value
+  const previousIsLiked = isLiked.value
+
+  // Optimistic update
+  if (isLiked.value) {
+    likeCount.value = Math.max(0, likeCount.value - 1)
+    isLiked.value = false
+  } else {
+    likeCount.value += 1
+    isLiked.value = true
+  }
+
+  try {
+    await $fetch('/api/gallery/like', {
+      method: 'POST',
+      body: {
+        itemId: currentItem.value.id,
+        action: isLiked.value ? 'like' : 'unlike',
+      },
+    })
+    // Reload to get accurate count
+    await loadLikes()
+  } catch (error) {
+    console.error('[Lightbox] Failed to toggle like:', error)
+    // Revert optimistic update
+    likeCount.value = previousLikeCount
+    isLiked.value = previousIsLiked
+  } finally {
+    isLiking.value = false
+  }
+}
+
+// Watch for item changes to load likes
+watch(
+  () => currentItem.value?.id,
+  (newId) => {
+    // Check for undefined/null, not truthiness, to handle id = 0 correctly
+    if (newId !== undefined && newId !== null) {
+      // Reset state immediately to prevent stale data from previous item
+      likeCount.value = 0
+      isLiked.value = false
+      showComments.value = false
+      // Then load likes for the new item
+      loadLikes()
+    }
+  },
+  { immediate: true },
+)
 
 const hasNext = computed(() => currentIndex.value < props.items.length - 1)
 const hasPrevious = computed(() => currentIndex.value > 0)
@@ -165,15 +248,6 @@ onUnmounted(() => {
         class="lightbox-overlay fixed inset-0 z-[100] bg-black bg-opacity-95 flex items-center justify-center"
         @click.self="closeLightbox"
       >
-        <!-- Close Button -->
-        <button
-          class="absolute top-4 right-4 z-10 p-2 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full text-white transition-colors"
-          aria-label="Close lightbox"
-          @click="closeLightbox"
-        >
-          <Icon name="mdi:close" size="24" />
-        </button>
-
         <!-- Navigation Buttons -->
         <button
           v-if="hasPrevious"
@@ -195,7 +269,7 @@ onUnmounted(() => {
 
         <!-- Zoom Controls -->
         <div
-          class="absolute top-4 left-4 z-10 flex flex-col gap-2 bg-black bg-opacity-50 rounded-lg p-2"
+          class="absolute top-16 left-4 z-10 flex flex-col gap-2 bg-black bg-opacity-50 rounded-lg p-2"
         >
           <button
             class="p-2 hover:bg-opacity-70 rounded text-white transition-colors"
@@ -223,36 +297,97 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <!-- Image Container -->
-        <div class="relative w-full h-full flex items-center justify-center p-4">
+        <!-- Image Container - Mouse events on outer container, transform on inner -->
+        <div
+          class="relative w-full h-full flex items-center justify-center p-4"
+          :class="{ 'cursor-grab': isZoomed && !isDragging, 'cursor-grabbing': isDragging }"
+          @mousedown="startDrag"
+          @touchstart="startDrag"
+          @mousemove="onDrag"
+          @touchmove="onDrag"
+          @mouseup="endDrag"
+          @mouseleave="endDrag"
+          @touchend="endDrag"
+        >
+          <!-- Inner container with transform - mouse coordinates are not affected by CSS transforms -->
           <div
-            class="max-w-full max-h-full overflow-hidden"
-            :class="{ 'cursor-grab': isZoomed && !isDragging, 'cursor-grabbing': isDragging }"
-            @mousedown="startDrag"
-            @touchstart="startDrag"
-            @mousemove="onDrag"
-            @touchmove="onDrag"
-            @mouseup="endDrag"
-            @mouseleave="endDrag"
-            @touchend="endDrag"
+            class="max-w-full max-h-full overflow-hidden transition-transform duration-200"
+            :style="{
+              transform: `scale(${zoomLevel}) translate(${imagePosition.x / zoomLevel}px, ${imagePosition.y / zoomLevel}px)`,
+              transformOrigin: 'center center',
+            }"
           >
             <NuxtImg
               v-if="currentItem"
               :src="currentItem.image"
               :alt="currentItem.title"
-              class="max-w-full max-h-[90vh] object-contain transition-transform duration-200"
-              :style="{
-                transform: `scale(${zoomLevel}) translate(${imagePosition.x / zoomLevel}px, ${imagePosition.y / zoomLevel}px)`,
-              }"
+              class="max-w-full max-h-[90vh] object-contain"
               loading="eager"
             />
           </div>
         </div>
 
+        <!-- Social Actions (Like, Comment, Close) - Top Right -->
+        <div class="absolute top-4 right-4 z-10 flex items-center gap-2">
+          <!-- Like Button -->
+          <button
+            class="p-3 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full text-white transition-colors flex items-center gap-2"
+            :disabled="isLiking"
+            @click="toggleLike"
+          >
+            <Icon
+              :name="isLiked ? 'mdi:heart' : 'mdi:heart-outline'"
+              size="24"
+              class="text-red-500"
+            />
+            <span v-if="likeCount > 0" class="text-sm text-white">{{ likeCount }}</span>
+          </button>
+
+          <!-- Comments Toggle Button -->
+          <button
+            class="p-3 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full text-white transition-colors"
+            :class="{ 'bg-opacity-70': showComments }"
+            @click="showComments = !showComments"
+          >
+            <Icon name="mdi:comment-outline" size="24" />
+          </button>
+
+          <!-- Close Button -->
+          <button
+            class="p-2 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full text-white transition-colors"
+            aria-label="Close lightbox"
+            @click="closeLightbox"
+          >
+            <Icon name="mdi:close" size="24" />
+          </button>
+        </div>
+
+        <!-- Comments Panel -->
+        <Transition name="slide">
+          <div
+            v-if="showComments && currentItem"
+            class="absolute right-0 top-0 bottom-0 w-96 bg-black bg-opacity-95 z-20 overflow-y-auto"
+          >
+            <div class="p-4">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-white">Comments</h3>
+                <button
+                  class="p-2 hover:bg-opacity-70 rounded text-white transition-colors"
+                  @click="showComments = false"
+                >
+                  <Icon name="mdi:close" size="20" />
+                </button>
+              </div>
+              <GalleryComments :item-id="currentItem.id" />
+            </div>
+          </div>
+        </Transition>
+
         <!-- Image Metadata -->
         <div
           v-if="currentItem"
-          class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 text-white"
+          class="absolute bottom-0 left-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 text-white"
+          :class="showComments ? 'right-96' : 'right-0'"
         >
           <div class="container mx-auto max-w-4xl">
             <h3 class="text-2xl font-bold mb-2">{{ currentItem.title }}</h3>
@@ -306,5 +441,19 @@ onUnmounted(() => {
 .lightbox-leave-to .lightbox-overlay > * {
   opacity: 0;
   transform: scale(0.9);
+}
+
+/* Comments panel slide animation */
+.slide-enter-active,
+.slide-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.slide-enter-from {
+  transform: translateX(100%);
+}
+
+.slide-leave-to {
+  transform: translateX(100%);
 }
 </style>
