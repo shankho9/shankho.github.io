@@ -332,7 +332,9 @@ onMounted(async () => {
   await nextTick()
 
   // Load stats if authenticated
-  if (isAuthenticated.value) {
+  // Check user.value directly since loadStoredUser() sets it synchronously
+  // and isAuthenticated is computed from user.value
+  if (user.value) {
     loadGalleryStats()
     loadVideoStats()
   }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import Fuse from 'fuse.js'
 import { useGoogleAuth } from '~/composables/useGoogleAuth'
 import { seoData } from '~/data'
 
@@ -9,6 +10,15 @@ const { user, isAuthenticated, signOut, loadStoredUser, initializeGoogleSignIn }
 // Gallery state
 const viewMode = ref<'grid' | 'masonry'>('grid')
 const selectedCategory = ref<string>('all')
+
+// Search state
+const searchQuery = ref('')
+const showAdvancedFilters = ref(false)
+const dateRangeStart = ref<string>('')
+const dateRangeEnd = ref<string>('')
+const selectedLocation = ref<string>('')
+const selectedPeople = ref<string>('')
+const selectedEvent = ref<string>('')
 
 // Lightbox state
 const lightboxOpen = ref(false)
@@ -20,18 +30,22 @@ const openLightbox = (index: number) => {
 }
 
 // Gallery items with like counts
-const galleryItems = ref<
-  Array<{
-    id: number
-    title: string
-    description: string
-    image: string
-    category: string
-    date: string
-    type: string
-    likeCount?: number
-  }>
->([
+interface GalleryItem {
+  id: number
+  title: string
+  description: string
+  image: string
+  category: string
+  date: string
+  type: string
+  likeCount?: number
+  tags?: string[]
+  location?: string
+  people?: string[]
+  event?: string
+}
+
+const galleryItems = ref<GalleryItem[]>([
   {
     id: 1,
     title: 'Family Moments',
@@ -41,6 +55,10 @@ const galleryItems = ref<
     date: '2024-01-15',
     type: 'image',
     likeCount: 0,
+    tags: ['family', 'love', 'memories'],
+    location: 'Home',
+    people: ['Family'],
+    event: 'Family Gathering',
   },
   {
     id: 2,
@@ -52,6 +70,10 @@ const galleryItems = ref<
     date: '2024-02-20',
     type: 'image',
     likeCount: 0,
+    tags: ['travel', 'adventure', 'exploration'],
+    location: 'Bet Dwarka',
+    people: ['Sid'],
+    event: 'Solo Trip',
   },
   {
     id: 3,
@@ -63,6 +85,10 @@ const galleryItems = ref<
     date: '2024-03-10',
     type: 'image',
     likeCount: 0,
+    tags: ['work', 'team', 'office'],
+    location: 'Macquarie Office',
+    people: ['Team'],
+    event: 'Team Meeting',
   },
   {
     id: 4,
@@ -73,6 +99,10 @@ const galleryItems = ref<
     date: '2024-04-05',
     type: 'image',
     likeCount: 0,
+    tags: ['nature', 'photography', 'outdoor'],
+    location: 'Outdoor',
+    people: [],
+    event: 'Nature Walk',
   },
   {
     id: 5,
@@ -84,6 +114,10 @@ const galleryItems = ref<
     date: '2024-05-12',
     type: 'image',
     likeCount: 0,
+    tags: ['celebration', 'milestone', 'special'],
+    location: 'Home',
+    people: ['Family', 'Friends'],
+    event: 'Anniversary',
   },
   {
     id: 6,
@@ -94,6 +128,10 @@ const galleryItems = ref<
     date: '2024-06-18',
     type: 'image',
     likeCount: 0,
+    tags: ['daily', 'life', 'casual'],
+    location: 'City',
+    people: [],
+    event: 'Daily Commute',
   },
 ])
 
@@ -118,11 +156,87 @@ const categories = computed(() => {
   return ['all', ...Array.from(cats)].sort()
 })
 
-const filteredItems = computed(() => {
+// Get unique values for filters
+const locations = computed(() => {
+  const locs = new Set(
+    galleryItems.value.map((item) => item.location).filter((loc): loc is string => !!loc),
+  )
+  return Array.from(locs).sort()
+})
+
+const people = computed(() => {
+  const allPeople = new Set<string>()
+  galleryItems.value.forEach((item) => {
+    item.people?.forEach((person) => allPeople.add(person))
+  })
+  return Array.from(allPeople).sort()
+})
+
+const events = computed(() => {
+  const evts = new Set(
+    galleryItems.value.map((item) => item.event).filter((evt): evt is string => !!evt),
+  )
+  return Array.from(evts).sort()
+})
+
+// Category filter
+const categoryFilteredItems = computed(() => {
   if (selectedCategory.value === 'all') {
     return galleryItems.value
   }
   return galleryItems.value.filter((item) => item.category === selectedCategory.value)
+})
+
+// Text search using Fuse.js
+const fuse = computed(() => {
+  return new Fuse(categoryFilteredItems.value, {
+    keys: ['title', 'description', 'tags'],
+    threshold: 0.3,
+    includeScore: true,
+  })
+})
+
+const searchFilteredItems = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return categoryFilteredItems.value
+  }
+  return fuse.value.search(searchQuery.value).map((result) => result.item)
+})
+
+// Date range filter
+const dateFilteredItems = computed(() => {
+  let items = searchFilteredItems.value
+
+  if (dateRangeStart.value) {
+    const startDate = new Date(dateRangeStart.value).getTime()
+    items = items.filter((item) => new Date(item.date).getTime() >= startDate)
+  }
+
+  if (dateRangeEnd.value) {
+    const endDate = new Date(dateRangeEnd.value).getTime()
+    items = items.filter((item) => new Date(item.date).getTime() <= endDate)
+  }
+
+  return items
+})
+
+// Advanced filters (location, people, event)
+const filteredItems = computed(() => {
+  let items = dateFilteredItems.value
+
+  if (selectedLocation.value) {
+    items = items.filter((item) => item.location === selectedLocation.value)
+  }
+
+  if (selectedPeople.value) {
+    items = items.filter((item) => item.people && item.people.includes(selectedPeople.value))
+  }
+
+  if (selectedEvent.value) {
+    items = items.filter((item) => item.event === selectedEvent.value)
+  }
+
+  return items
 })
 
 const sortedItems = computed(() => {
@@ -130,6 +244,17 @@ const sortedItems = computed(() => {
     return new Date(b.date).getTime() - new Date(a.date).getTime()
   })
 })
+
+// Clear all filters
+const clearFilters = () => {
+  searchQuery.value = ''
+  dateRangeStart.value = ''
+  dateRangeEnd.value = ''
+  selectedLocation.value = ''
+  selectedPeople.value = ''
+  selectedEvent.value = ''
+  showAdvancedFilters.value = false
+}
 
 // Initialize auth on mount
 onMounted(async () => {
@@ -150,7 +275,9 @@ onMounted(async () => {
   await nextTick()
 
   // Load like counts if authenticated
-  if (isAuthenticated.value) {
+  // Check user.value directly since loadStoredUser() sets it synchronously
+  // and isAuthenticated is computed from user.value
+  if (user.value) {
     loadLikeCounts()
   }
 })
@@ -331,6 +458,137 @@ defineOgImageComponent('About', {
         </div>
       </div>
 
+      <!-- Search Bar -->
+      <div class="mb-6">
+        <div class="flex flex-col sm:flex-row gap-4">
+          <!-- Search Input -->
+          <div class="flex-1 relative">
+            <Icon
+              name="mdi:magnify"
+              class="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400"
+              size="20"
+            />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search by title, description, or tags..."
+              class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:focus:ring-sky-400"
+            />
+          </div>
+
+          <!-- Advanced Filters Toggle -->
+          <button
+            :class="[
+              'px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2',
+              showAdvancedFilters
+                ? 'bg-sky-700 dark:bg-sky-600 text-white'
+                : 'bg-[#F1F2F4] dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 hover:bg-gray-300 dark:hover:bg-slate-700',
+            ]"
+            @click="showAdvancedFilters = !showAdvancedFilters"
+          >
+            <Icon name="mdi:filter" size="18" />
+            Filters
+          </button>
+
+          <!-- Clear Filters -->
+          <button
+            v-if="
+              searchQuery ||
+              dateRangeStart ||
+              dateRangeEnd ||
+              selectedLocation ||
+              selectedPeople ||
+              selectedEvent
+            "
+            class="px-4 py-2 rounded-lg text-sm font-semibold bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-2"
+            @click="clearFilters"
+          >
+            <Icon name="mdi:close" size="18" />
+            Clear
+          </button>
+        </div>
+
+        <!-- Advanced Filters Panel -->
+        <div
+          v-if="showAdvancedFilters"
+          class="mt-4 p-4 bg-[#F1F2F4] dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-800"
+        >
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Date Range Start -->
+            <div>
+              <label class="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">
+                From Date
+              </label>
+              <input
+                v-model="dateRangeStart"
+                type="date"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:focus:ring-sky-400"
+              />
+            </div>
+
+            <!-- Date Range End -->
+            <div>
+              <label class="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">
+                To Date
+              </label>
+              <input
+                v-model="dateRangeEnd"
+                type="date"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:focus:ring-sky-400"
+              />
+            </div>
+
+            <!-- Location Filter -->
+            <div>
+              <label class="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">
+                Location
+              </label>
+              <select
+                v-model="selectedLocation"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:focus:ring-sky-400"
+              >
+                <option value="">All Locations</option>
+                <option v-for="location in locations" :key="location" :value="location">
+                  {{ location }}
+                </option>
+              </select>
+            </div>
+
+            <!-- People Filter -->
+            <div>
+              <label class="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">
+                People
+              </label>
+              <select
+                v-model="selectedPeople"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:focus:ring-sky-400"
+              >
+                <option value="">All People</option>
+                <option v-for="person in people" :key="person" :value="person">
+                  {{ person }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Event Filter -->
+            <div>
+              <label class="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">
+                Event
+              </label>
+              <select
+                v-model="selectedEvent"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:focus:ring-sky-400"
+              >
+                <option value="">All Events</option>
+                <option v-for="event in events" :key="event" :value="event">
+                  {{ event }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Category Filter -->
       <div class="mb-6 flex flex-wrap gap-2">
         <button
@@ -346,6 +604,21 @@ defineOgImageComponent('About', {
         >
           {{ category }}
         </button>
+      </div>
+
+      <!-- Results Count -->
+      <div
+        v-if="
+          searchQuery ||
+          dateRangeStart ||
+          dateRangeEnd ||
+          selectedLocation ||
+          selectedPeople ||
+          selectedEvent
+        "
+        class="mb-4 text-sm text-zinc-600 dark:text-zinc-400"
+      >
+        Found {{ sortedItems.length }} {{ sortedItems.length === 1 ? 'item' : 'items' }}
       </div>
 
       <!-- Gallery Grid -->
@@ -398,6 +671,40 @@ defineOgImageComponent('About', {
                 <span class="text-xs text-zinc-500 dark:text-zinc-500">
                   {{ new Date(item.date).toLocaleDateString() }}
                 </span>
+              </div>
+            </div>
+            <!-- Tags -->
+            <div v-if="item.tags && item.tags.length > 0" class="flex flex-wrap gap-1 mt-2">
+              <span
+                v-for="tag in item.tags"
+                :key="tag"
+                class="px-2 py-0.5 text-xs rounded-full bg-gray-200 dark:bg-slate-700 text-zinc-600 dark:text-zinc-400"
+              >
+                #{{ tag }}
+              </span>
+            </div>
+            <!-- Location, People, Event metadata -->
+            <div class="mt-2 space-y-1">
+              <div
+                v-if="item.location"
+                class="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400"
+              >
+                <Icon name="mdi:map-marker" size="14" />
+                {{ item.location }}
+              </div>
+              <div
+                v-if="item.people && item.people.length > 0"
+                class="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400"
+              >
+                <Icon name="mdi:account-group" size="14" />
+                {{ item.people.join(', ') }}
+              </div>
+              <div
+                v-if="item.event"
+                class="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400"
+              >
+                <Icon name="mdi:calendar-star" size="14" />
+                {{ item.event }}
               </div>
             </div>
           </div>
@@ -454,6 +761,40 @@ defineOgImageComponent('About', {
                 <span class="text-xs text-zinc-500 dark:text-zinc-500">
                   {{ new Date(item.date).toLocaleDateString() }}
                 </span>
+              </div>
+            </div>
+            <!-- Tags -->
+            <div v-if="item.tags && item.tags.length > 0" class="flex flex-wrap gap-1 mt-2">
+              <span
+                v-for="tag in item.tags"
+                :key="tag"
+                class="px-2 py-0.5 text-xs rounded-full bg-gray-200 dark:bg-slate-700 text-zinc-600 dark:text-zinc-400"
+              >
+                #{{ tag }}
+              </span>
+            </div>
+            <!-- Location, People, Event metadata -->
+            <div class="mt-2 space-y-1">
+              <div
+                v-if="item.location"
+                class="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400"
+              >
+                <Icon name="mdi:map-marker" size="14" />
+                {{ item.location }}
+              </div>
+              <div
+                v-if="item.people && item.people.length > 0"
+                class="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400"
+              >
+                <Icon name="mdi:account-group" size="14" />
+                {{ item.people.join(', ') }}
+              </div>
+              <div
+                v-if="item.event"
+                class="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400"
+              >
+                <Icon name="mdi:calendar-star" size="14" />
+                {{ item.event }}
               </div>
             </div>
           </div>

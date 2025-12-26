@@ -161,15 +161,22 @@ const renderGoogleSignInButton = () => {
       client_id: clientId,
       callback: async (response: { credential: string }) => {
         try {
-          const result = await $fetch<{ user: typeof user.value }>('/api/auth/google', {
+          const result = await $fetch<{
+            user: { email: string; name: string; picture: string; sub: string }
+          }>('/api/auth/google', {
             method: 'POST',
             body: { token: response.credential },
           })
-          user.value = result.user
-          localStorage.setItem('google_user', JSON.stringify(result.user))
+          if (result && result.user) {
+            user.value = result.user
+            localStorage.setItem('google_user', JSON.stringify(result.user))
 
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+            // Track login event for analytics
+            if (typeof window !== 'undefined') {
+              const { trackLogin } = await import('~/utils/analytics/trackLogin')
+              await trackLogin(result.user.email, result.user.name, window.location.pathname)
+              window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+            }
           }
         } catch (error) {
           console.error('[GalleryComments] Authentication failed:', error)

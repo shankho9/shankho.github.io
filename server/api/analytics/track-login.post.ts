@@ -39,8 +39,10 @@ export default defineEventHandler(async (event) => {
 
   try {
     // Check if database is configured
+    // Match the fallback logic used in getPool() - check both config and process.env
     const config = useRuntimeConfig()
-    if (!config.databaseUrl) {
+    const databaseUrl = config.databaseUrl || process.env.DATABASE_URL
+    if (!databaseUrl) {
       console.warn('[API] DATABASE_URL not configured, skipping login tracking')
       return { success: false, error: 'Database not configured' }
     }
