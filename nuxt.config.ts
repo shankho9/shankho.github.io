@@ -84,6 +84,10 @@ export default defineNuxtConfig({
       apiBase: '/api',
     },
     databaseUrl: process.env.DATABASE_URL,
+    // Email configuration (server-side only)
+    resendApiKey: process.env.RESEND_API_KEY,
+    alertEmail: process.env.ALERT_EMAIL,
+    fromEmail: process.env.FROM_EMAIL,
   },
 
   typescript: {
@@ -94,6 +98,10 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: true,
       routes: ['/', '/rss.xml'],
+    },
+    // Ensure environment variables are available to Nitro
+    experimental: {
+      wasm: true,
     },
   },
 })

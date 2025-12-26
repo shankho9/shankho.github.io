@@ -56,6 +56,7 @@
     "better-sqlite3": "^12.2.0",
     "dompurify": "^3.2.5",
     "pg": "^8.14.1",
+    "resend": "^6.6.0",
     "ua-parser-js": "^2.0.3"
   }
 }
