@@ -13,17 +13,29 @@ const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 hours
 // In production, consider using Redis or a database for distributed systems
 const tokenStore = new Map<string, { createdAt: number; expiresAt: number }>()
 
+// Guard flag to ensure cleanup interval is only initialized once
+let cleanupIntervalInitialized = false
+
 // Clean up expired tokens periodically (every hour)
 // Only run cleanup in Node.js environment (server-side)
-if (typeof process !== 'undefined' && typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    const now = Date.now()
-    for (const [token, data] of tokenStore.entries()) {
-      if (now > data.expiresAt) {
-        tokenStore.delete(token)
+// Guard ensures interval is only created once, even if module is imported multiple times
+if (
+  typeof process !== 'undefined' &&
+  typeof setInterval !== 'undefined' &&
+  !cleanupIntervalInitialized
+) {
+  cleanupIntervalInitialized = true
+  setInterval(
+    () => {
+      const now = Date.now()
+      for (const [token, data] of tokenStore.entries()) {
+        if (now > data.expiresAt) {
+          tokenStore.delete(token)
+        }
       }
-    }
-  }, 60 * 60 * 1000) // Every hour
+    },
+    60 * 60 * 1000,
+  ) // Every hour
 }
 
 // Configure TOTP

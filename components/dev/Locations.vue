@@ -184,7 +184,8 @@ const loadMap = async () => {
   // Re-verify that Google Maps is available before using it
   if (!window.google || !window.google.maps || !window.google.maps.Map) {
     console.error('[Locations] Google Maps API is not available')
-    errorMessage.value = 'Google Maps API is not available. Please check your API key configuration.'
+    errorMessage.value =
+      'Google Maps API is not available. Please check your API key configuration.'
     return
   }
 
