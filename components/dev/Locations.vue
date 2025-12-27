@@ -161,14 +161,20 @@ const loadMap = async () => {
   if (!window.google || !window.google.maps) {
     try {
       await new Promise<void>((resolve, reject) => {
+        // Declare checkGoogle before it's used in the timeout callback
+        let checkGoogle: NodeJS.Timeout | null = null
         const timeout = setTimeout(() => {
-          clearInterval(checkGoogle)
+          if (checkGoogle) {
+            clearInterval(checkGoogle)
+          }
           reject(new Error('Google Maps API failed to load within 10 seconds'))
         }, 10000) // 10 second timeout
 
-        const checkGoogle = setInterval(() => {
+        checkGoogle = setInterval(() => {
           if (window.google && window.google.maps) {
-            clearInterval(checkGoogle)
+            if (checkGoogle) {
+              clearInterval(checkGoogle)
+            }
             clearTimeout(timeout)
             resolve()
           }
