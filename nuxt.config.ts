@@ -21,7 +21,23 @@ export default defineNuxtConfig({
           // Nuxt automatically loads NUXT_PUBLIC_* vars from the appropriate .env file
           url: process.env.NUXT_PUBLIC_SITE_URL || seoData.mySite.replace(/\/$/, ''),
         },
-        routes: ['/', '/rss.xml'],
+        routes: [
+          '/',
+          '/blogs',
+          '/about',
+          '/gallery',
+          '/library',
+          '/resources',
+          '/personalSpace',
+          '/categories',
+          '/rss.xml',
+        ],
+        defaults: {
+          changefreq: 'weekly',
+          priority: 0.7,
+          // lastmod is omitted - let each route specify its own lastmod based on actual content modification
+          // Nuxt Content will automatically set lastmod for content-based routes
+        },
       },
     ],
     'nuxt-og-image',
@@ -75,6 +91,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || seoData.mySite.replace(/\/$/, ''),
       googleAnalytics: {
         id: process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID,
         debug: process.env.NODE_ENV !== 'production',
@@ -88,6 +105,9 @@ export default defineNuxtConfig({
     resendApiKey: process.env.RESEND_API_KEY,
     alertEmail: process.env.ALERT_EMAIL,
     fromEmail: process.env.FROM_EMAIL,
+    // Admin configuration (server-side only)
+    adminPasswordHash: process.env.ADMIN_PASSWORD_HASH,
+    admin2FASecret: process.env.ADMIN_2FA_SECRET,
   },
 
   typescript: {

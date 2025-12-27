@@ -19,9 +19,14 @@ const { user, isAuthenticated, signOut, loadStoredUser, initializeGoogleSignIn }
 
 // Dropdown state
 const showUserDropdown = ref(false)
+const showMobileMenu = ref(false)
 
 const toggleUserDropdown = () => {
   showUserDropdown.value = !showUserDropdown.value
+}
+
+const toggleMobileMenu = () => {
+  showMobileMenu.value = !showMobileMenu.value
 }
 
 const handleSignOut = () => {
@@ -135,6 +140,9 @@ const handleClickOutside = (event: MouseEvent) => {
   if (!target.closest('.user-dropdown-container')) {
     showUserDropdown.value = false
   }
+  if (!target.closest('.mobile-menu-container') && !target.closest('.mobile-menu-button')) {
+    showMobileMenu.value = false
+  }
 }
 
 onMounted(() => {
@@ -157,37 +165,53 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="py-5 border-b dark:border-gray-800 font-semibold">
-    <div class="flex px-6 container max-w-5xl justify-between mx-auto items-baseline">
-      <ul class="flex items-baseline space-x-5">
-        <li class="text-base sm:text-2xl font-bold">
-          <NuxtLink to="/" :class="{ underline: $route.path === '/' }">
-            {{ navbarData.homeTitle }}
-          </NuxtLink>
-        </li>
-      </ul>
-      <ul class="flex items-center space-x-3 sm:space-x-6 text-sm sm:text-lg">
-        <li>
-          <NuxtLink to="/blogs" :class="{ underline: isActive('/blogs') }"> Blogs </NuxtLink>
-        </li>
-        <li>
-          <NuxtLink to="/personalSpace" :class="{ underline: isActive('/personalSpace') }">
-            LifeLines
-          </NuxtLink>
-        </li>
-        <li>
-          <NuxtLink to="/library" :class="{ underline: isActive('/library') }"> Library </NuxtLink>
-        </li>
-        <li title="About Me">
-          <NuxtLink
-            to="/about"
-            aria-label="About me"
-            :class="{ underline: $route.path === '/about' }"
-          >
-            About
-          </NuxtLink>
-        </li>
-        <li>
+  <div class="py-3 sm:py-5 border-b dark:border-gray-800 font-semibold">
+    <div class="flex px-4 sm:px-6 container max-w-5xl justify-between mx-auto items-center">
+      <!-- Logo/Title -->
+      <div class="flex items-center">
+        <NuxtLink
+          to="/"
+          class="text-lg sm:text-2xl font-bold hover:opacity-80 transition-opacity"
+          :class="{ underline: $route.path === '/' }"
+        >
+          {{ navbarData.homeTitle }}
+        </NuxtLink>
+      </div>
+
+      <!-- Desktop Navigation -->
+      <nav class="hidden md:flex items-center space-x-4 lg:space-x-6 text-sm lg:text-base">
+        <NuxtLink
+          to="/blogs"
+          class="hover:opacity-80 transition-opacity"
+          :class="{ underline: isActive('/blogs') }"
+        >
+          Blogs
+        </NuxtLink>
+        <NuxtLink
+          to="/personalSpace"
+          class="hover:opacity-80 transition-opacity"
+          :class="{ underline: isActive('/personalSpace') }"
+        >
+          LifeLines
+        </NuxtLink>
+        <NuxtLink
+          to="/library"
+          class="hover:opacity-80 transition-opacity"
+          :class="{ underline: isActive('/library') }"
+        >
+          Library
+        </NuxtLink>
+        <NuxtLink
+          to="/about"
+          class="hover:opacity-80 transition-opacity"
+          :class="{ underline: $route.path === '/about' }"
+          aria-label="About me"
+        >
+          About
+        </NuxtLink>
+
+        <!-- Desktop Auth & Theme -->
+        <div class="flex items-center space-x-3 ml-2">
           <ClientOnly>
             <!-- User Profile / Sign In -->
             <div v-if="isAuthenticated && user" class="user-dropdown-container relative">
@@ -202,15 +226,13 @@ onMounted(() => {
                   :alt="user.name"
                   class="w-8 h-8 rounded-full border-2 border-sky-700 dark:border-sky-400"
                 />
-                <span
-                  class="text-sm font-semibold text-zinc-800 dark:text-zinc-200 hidden sm:inline"
-                >
+                <span class="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                   {{ user.name }}
                 </span>
                 <Icon
                   name="mdi:chevron-down"
                   size="18"
-                  class="text-zinc-600 dark:text-zinc-400 hidden sm:inline transition-transform"
+                  class="text-zinc-600 dark:text-zinc-400 transition-transform"
                   :class="{ 'rotate-180': showUserDropdown }"
                 />
               </button>
@@ -262,14 +284,12 @@ onMounted(() => {
               </button>
             </div>
             <template #fallback>
-              <!-- this will be rendered on server side -->
               <Icon name="svg-spinners:180-ring" size="20" />
             </template>
           </ClientOnly>
-        </li>
-        <li>
+
+          <!-- Theme Toggle -->
           <ClientOnly>
-            <!-- Theme Toggle -->
             <button
               v-if="colorMode.value === 'light'"
               name="light-mode"
@@ -289,12 +309,146 @@ onMounted(() => {
               <Icon name="noto:sun" size="20" />
             </button>
             <template #fallback>
-              <!-- this will be rendered on server side -->
               <Icon name="svg-spinners:180-ring" size="20" />
             </template>
           </ClientOnly>
-        </li>
-      </ul>
+        </div>
+      </nav>
+
+      <!-- Mobile Menu Button -->
+      <div class="flex md:hidden items-center space-x-2">
+        <ClientOnly>
+          <!-- Theme Toggle (Mobile) -->
+          <button
+            v-if="colorMode.value === 'light'"
+            name="light-mode"
+            title="Light"
+            class="hover:scale-110 transition-all ease-out"
+            @click="onClick('dark')"
+          >
+            <Icon name="icon-park:moon" size="20" />
+          </button>
+          <button
+            v-if="colorMode.value === 'dark'"
+            name="dark-mode"
+            title="Dark"
+            class="hover:scale-110 transition-all ease-out"
+            @click="onClick('light')"
+          >
+            <Icon name="noto:sun" size="20" />
+          </button>
+          <template #fallback>
+            <Icon name="svg-spinners:180-ring" size="20" />
+          </template>
+        </ClientOnly>
+
+        <button
+          class="mobile-menu-button p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+          aria-label="Toggle menu"
+          @click="toggleMobileMenu"
+        >
+          <Icon
+            :name="showMobileMenu ? 'mdi:close' : 'mdi:menu'"
+            size="24"
+            class="text-zinc-700 dark:text-zinc-300"
+          />
+        </button>
+      </div>
     </div>
+
+    <!-- Mobile Menu -->
+    <Transition
+      enter-active-class="transition ease-out duration-200"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition ease-in duration-150"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <div
+        v-if="showMobileMenu"
+        class="mobile-menu-container md:hidden border-t dark:border-gray-800 bg-[#F1F2F4] dark:bg-slate-950"
+      >
+        <div class="px-4 py-3 space-y-2">
+          <NuxtLink
+            to="/blogs"
+            class="block px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors"
+            :class="{ 'bg-gray-200 dark:bg-slate-800': isActive('/blogs') }"
+            @click="showMobileMenu = false"
+          >
+            Blogs
+          </NuxtLink>
+          <NuxtLink
+            to="/personalSpace"
+            class="block px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors"
+            :class="{ 'bg-gray-200 dark:bg-slate-800': isActive('/personalSpace') }"
+            @click="showMobileMenu = false"
+          >
+            LifeLines
+          </NuxtLink>
+          <NuxtLink
+            to="/library"
+            class="block px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors"
+            :class="{ 'bg-gray-200 dark:bg-slate-800': isActive('/library') }"
+            @click="showMobileMenu = false"
+          >
+            Library
+          </NuxtLink>
+          <NuxtLink
+            to="/about"
+            class="block px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors"
+            :class="{ 'bg-gray-200 dark:bg-slate-800': $route.path === '/about' }"
+            @click="showMobileMenu = false"
+          >
+            About
+          </NuxtLink>
+
+          <!-- Mobile Auth -->
+          <div class="pt-2 border-t dark:border-gray-800">
+            <ClientOnly>
+              <div v-if="isAuthenticated && user" class="px-3 py-2">
+                <div class="flex items-center gap-3 mb-3">
+                  <img
+                    v-if="user.picture"
+                    :src="user.picture"
+                    :alt="user.name"
+                    class="w-10 h-10 rounded-full border-2 border-sky-700 dark:border-sky-400"
+                  />
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">
+                      {{ user.name }}
+                    </p>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                      {{ user.email }}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  class="w-full px-3 py-2 rounded-md bg-red-600 dark:bg-red-700 hover:bg-red-700 dark:hover:bg-red-800 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                  @click="handleSignOut"
+                >
+                  <Icon name="mdi:logout" size="18" />
+                  Sign Out
+                </button>
+              </div>
+              <div v-else class="px-3">
+                <button
+                  class="w-full px-3 py-2 rounded-md bg-sky-700 dark:bg-sky-600 hover:bg-sky-800 dark:hover:bg-sky-700 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                  @click="handleGoogleSignIn"
+                >
+                  <Icon name="mdi:google" size="18" />
+                  Sign in with Google
+                </button>
+              </div>
+              <template #fallback>
+                <div class="px-3 py-2">
+                  <Icon name="svg-spinners:180-ring" size="20" />
+                </div>
+              </template>
+            </ClientOnly>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>

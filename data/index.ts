@@ -5,7 +5,7 @@ export const navbarData = {
 export const footerData = {
   author: 'Siddhartha Basu',
   aboutAuthor:
-    'Hi! I am Shankho, (aka. Siddhartha or Sid or by hack name Shankho) a Tech enthusiast, problem solver and software engineer. Currently employed at Natwest Group Bank, Gurugram, India.',
+    'Hi! I am Shankho - Siddhartha Basu, a Tech enthusiast, problem solver and software engineer. Currently employed at Natwest Group Bank, Gurugram, India.',
   authorInterest:
     'I enjoy company of those who are willing to walk the extra mile. Test Automation Engineer by profession and a philanthropic by heart - `All things bright and beautiful, all creatures great and small`',
   aboutTheSite:
@@ -295,7 +295,7 @@ export const aboutPage = {
 }
 
 export const seoData = {
-  title: `Sid's Blog | Shankho Blog`,
+  title: `Sid's Blog | Shankho Blog - Siddhartha Basu`,
   ogTitle: `Let's learn the aspects of Life through - Sid's Blog | Shankho's Blog`,
   description: `Hi I am Shankho. A Test Automation Senior Vice President at Natwest Group, with over a decade of experience in software development. - Sid's Blog | Shankho's Blog`,
   twitterDescription: `Sid's Blog, where I play around content, resources, etc - Sid's Blog | Shankho's Blog`,
