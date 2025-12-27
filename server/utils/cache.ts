@@ -32,12 +32,12 @@ export async function clearNuxtCache(): Promise<{ success: boolean; message: str
       // In Nitro server utilities, we can use the storage API or cache API if available
       // For now, we'll return a success message indicating cache clear was requested
       // The actual cache clearing may need to be handled at the deployment level (Vercel, etc.)
-      
+
       // Note: Nitro's cache is typically managed through:
       // 1. Storage API (for persistent cache)
       // 2. Runtime cache (for in-memory cache)
       // 3. External cache systems (Redis, etc.)
-      
+
       // Since we can't reliably access Nitro's internal cache from a utility function,
       // we return success with instructions for manual cache clearing
       return {
