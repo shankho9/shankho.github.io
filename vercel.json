@@ -2,10 +2,5 @@
   "buildCommand": "npm run build",
   "framework": "nuxtjs",
   "installCommand": "npm install",
-  "functions": {
-    "server/**/*.ts": {
-      "maxDuration": 10
-    }
-  },
   "regions": ["iad1"]
 }
