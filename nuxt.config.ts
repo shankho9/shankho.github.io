@@ -21,7 +21,22 @@ export default defineNuxtConfig({
           // Nuxt automatically loads NUXT_PUBLIC_* vars from the appropriate .env file
           url: process.env.NUXT_PUBLIC_SITE_URL || seoData.mySite.replace(/\/$/, ''),
         },
-        routes: ['/', '/rss.xml'],
+        routes: [
+          '/',
+          '/blogs',
+          '/about',
+          '/gallery',
+          '/library',
+          '/resources',
+          '/personalSpace',
+          '/categories',
+          '/rss.xml',
+        ],
+        defaults: {
+          changefreq: 'weekly',
+          priority: 0.7,
+          lastmod: new Date().toISOString(),
+        },
       },
     ],
     'nuxt-og-image',
@@ -75,6 +90,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || seoData.mySite.replace(/\/$/, ''),
       googleAnalytics: {
         id: process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID,
         debug: process.env.NODE_ENV !== 'production',

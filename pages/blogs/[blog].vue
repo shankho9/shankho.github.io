@@ -64,11 +64,14 @@ useHead({
   meta: [
     { name: 'description', content: data.value.description },
     { property: 'og:site_name', content: navbarData.homeTitle },
-    { property: 'og:type', content: 'website' },
+    { property: 'og:type', content: 'article' }, // Changed to 'article' for blog posts
     { property: 'og:url', content: `${seoData.mySite}/${path}` },
     { property: 'og:title', content: data.value.title },
     { property: 'og:description', content: data.value.description },
     { property: 'og:image', content: data.value.ogImage || data.value.image },
+    { property: 'article:published_time', content: data.value.date },
+    { property: 'article:author', content: 'Siddhartha Basu' },
+    ...(data.value.tags?.map((tag) => ({ property: 'article:tag', content: tag })) || []),
   ],
   link: [{ rel: 'canonical', href: `${seoData.mySite}/${path}` }],
 })
@@ -76,6 +79,15 @@ useHead({
 
 <template>
   <div>
+    <!-- Structured Data for Blog Post SEO -->
+    <SeoBlogPostSchema
+      :title="data.title"
+      :description="data.description"
+      :image="data.ogImage || data.image"
+      :published-date="data.date"
+      :tags="data.tags"
+    />
+    
     <ReadingProgress />
     <div class="px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12">
       <div class="col-span-12 lg:col-span-9">
