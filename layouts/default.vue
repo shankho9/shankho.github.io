@@ -12,7 +12,7 @@ useHead({
   <div class="gd-container font-spacegrotesk">
     <!-- Structured Data for SEO -->
     <SeoStructuredData type="website" />
-    
+
     <header class="fixed w-full bg-[#F1F2F4] dark:bg-slate-950 z-10">
       <MainHeader />
     </header>

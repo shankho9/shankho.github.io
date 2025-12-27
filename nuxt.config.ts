@@ -35,7 +35,8 @@ export default defineNuxtConfig({
         defaults: {
           changefreq: 'weekly',
           priority: 0.7,
-          lastmod: new Date().toISOString(),
+          // lastmod is omitted - let each route specify its own lastmod based on actual content modification
+          // Nuxt Content will automatically set lastmod for content-based routes
         },
       },
     ],

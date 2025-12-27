@@ -63,6 +63,8 @@ const schema = computed(() => ({
 </script>
 
 <template>
+  <!-- eslint-disable vue/no-v-html -->
+  <!-- JSON.stringify() safely escapes all content, preventing XSS -->
   <script type="application/ld+json" v-html="JSON.stringify(schema)" />
+  <!-- eslint-enable vue/no-v-html -->
 </template>
-

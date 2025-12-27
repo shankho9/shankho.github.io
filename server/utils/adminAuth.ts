@@ -9,6 +9,23 @@ import { authenticator } from 'otplib'
 const ADMIN_TOKEN_COOKIE = 'admin_token'
 const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 hours
 
+// In-memory token store: token -> { createdAt: timestamp, expiresAt: timestamp }
+// In production, consider using Redis or a database for distributed systems
+const tokenStore = new Map<string, { createdAt: number; expiresAt: number }>()
+
+// Clean up expired tokens periodically (every hour)
+// Only run cleanup in Node.js environment (server-side)
+if (typeof process !== 'undefined' && typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now()
+    for (const [token, data] of tokenStore.entries()) {
+      if (now > data.expiresAt) {
+        tokenStore.delete(token)
+      }
+    }
+  }, 60 * 60 * 1000) // Every hour
+}
+
 // Configure TOTP
 authenticator.options = {
   window: [1, 1], // Allow 1 time step before and after current time
@@ -65,7 +82,7 @@ export async function verifyAdminPassword(
 
 /**
  * Verify if the request has a valid admin token
- * Note: This is a simple implementation. For production, consider using JWT or storing tokens in a database
+ * Validates token existence, expiry, and authenticity
  */
 export function verifyAdminToken(event: H3Event): boolean {
   const config = useRuntimeConfig()
@@ -80,16 +97,37 @@ export function verifyAdminToken(event: H3Event): boolean {
     return false
   }
 
-  // Simple token validation - token exists and admin password is configured
-  // In a production system, you'd verify the token signature and check expiry
-  // For now, we rely on httpOnly cookies and the fact that tokens are only set after password verification
+  // Validate token exists in store
+  const tokenData = tokenStore.get(token)
+  if (!tokenData) {
+    return false
+  }
+
+  // Check if token has expired
+  const now = Date.now()
+  if (now > tokenData.expiresAt) {
+    // Token expired, remove it from store
+    tokenStore.delete(token)
+    return false
+  }
+
+  // Token is valid
   return true
 }
 
 /**
- * Set admin token cookie
+ * Set admin token cookie and store token with expiry
  */
 export function setAdminToken(event: H3Event, token: string): void {
+  const now = Date.now()
+  const expiresAt = now + TOKEN_EXPIRY_MS
+
+  // Store token with expiry information
+  tokenStore.set(token, {
+    createdAt: now,
+    expiresAt,
+  })
+
   setCookie(event, ADMIN_TOKEN_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -99,9 +137,14 @@ export function setAdminToken(event: H3Event, token: string): void {
 }
 
 /**
- * Clear admin token cookie
+ * Clear admin token cookie and remove from store
  */
 export function clearAdminToken(event: H3Event): void {
+  const token = getCookie(event, ADMIN_TOKEN_COOKIE)
+  if (token) {
+    tokenStore.delete(token)
+  }
+
   setCookie(event, ADMIN_TOKEN_COOKIE, '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

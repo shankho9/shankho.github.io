@@ -157,23 +157,48 @@ let marker: google.maps.Marker | null = null
 const loadMap = async () => {
   if (!mapContainer.value) return
 
-  // Wait for Google Maps to load
+  // Wait for Google Maps to load with timeout
   if (!window.google || !window.google.maps) {
-    await new Promise((resolve) => {
-      const checkGoogle = setInterval(() => {
-        if (window.google && window.google.maps) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
           clearInterval(checkGoogle)
-          resolve(undefined)
-        }
-      }, 100)
-    })
+          reject(new Error('Google Maps API failed to load within 10 seconds'))
+        }, 10000) // 10 second timeout
+
+        const checkGoogle = setInterval(() => {
+          if (window.google && window.google.maps) {
+            clearInterval(checkGoogle)
+            clearTimeout(timeout)
+            resolve()
+          }
+        }, 100)
+      })
+    } catch (error) {
+      console.error('[Locations] Failed to load Google Maps API:', error)
+      errorMessage.value = 'Failed to load Google Maps. Please refresh the page.'
+      return
+    }
+  }
+
+  // Re-verify that Google Maps is available before using it
+  if (!window.google || !window.google.maps || !window.google.maps.Map) {
+    console.error('[Locations] Google Maps API is not available')
+    errorMessage.value = 'Google Maps API is not available. Please check your API key configuration.'
+    return
   }
 
   if (!map) {
-    map = new google.maps.Map(mapContainer.value, {
-      center: { lat: 0, lng: 0 },
-      zoom: 2,
-    })
+    try {
+      map = new window.google.maps.Map(mapContainer.value, {
+        center: { lat: 0, lng: 0 },
+        zoom: 2,
+      })
+    } catch (error) {
+      console.error('[Locations] Failed to initialize map:', error)
+      errorMessage.value = 'Failed to initialize map. Please check your Google Maps API key.'
+      return
+    }
   }
 
   updateMarker()
@@ -188,20 +213,30 @@ const updateMarker = () => {
     return
   }
 
-  const position = { lat: form.value.lat, lng: form.value.lng }
-
-  if (marker) {
-    marker.setPosition(position)
-  } else {
-    marker = new google.maps.Marker({
-      position,
-      map,
-      title: form.value.name || 'Location',
-    })
+  // Verify Google Maps API is still available
+  if (!window.google?.maps?.Marker) {
+    console.error('[Locations] Google Maps Marker API is not available')
+    return
   }
 
-  map.setCenter(position)
-  map.setZoom(10)
+  const position = { lat: form.value.lat, lng: form.value.lng }
+
+  try {
+    if (marker) {
+      marker.setPosition(position)
+    } else {
+      marker = new window.google.maps.Marker({
+        position,
+        map,
+        title: form.value.name || 'Location',
+      })
+    }
+
+    map.setCenter(position)
+    map.setZoom(10)
+  } catch (error) {
+    console.error('[Locations] Failed to update marker:', error)
+  }
 }
 
 watch(

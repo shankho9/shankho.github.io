@@ -5,6 +5,7 @@ This guide covers all the places where you need to make changes to improve your 
 ## 📍 Key Files to Modify
 
 ### 1. **`data/index.ts`** - SEO Metadata
+
 This is the **primary file** where you configure your site's SEO data:
 
 ```typescript
@@ -20,18 +21,22 @@ export const seoData = {
 ```
 
 **What to update:**
+
 - `description`: Write a compelling 150-160 character description with your main keywords
 - `mySite`: Ensure this is your production domain (not localhost)
 - `image`: Add a high-quality OG image (1200x630px recommended)
 - `twitterHandle`: Your Twitter/X handle
 
 ### 2. **`nuxt.config.ts`** - Site Configuration
+
 Already configured with:
+
 - ✅ Sitemap generation (`@nuxtjs/sitemap`)
 - ✅ Robots.txt (`@nuxtjs/robots`)
 - ✅ OG Image generation (`nuxt-og-image`)
 
 **Environment Variables to Set:**
+
 ```bash
 # In .env.production
 NUXT_PUBLIC_SITE_URL=https://yourdomain.com
@@ -39,9 +44,11 @@ NUXT_PUBLIC_GOOGLE_ANALYTICS_ID=G-XXXXXXXXXX
 ```
 
 ### 3. **Individual Pages** - Page-Specific SEO
+
 Each page should have unique meta tags:
 
 **Example in `pages/index.vue`:**
+
 ```typescript
 useHead({
   title: 'Home - Shankho Blog',
@@ -55,6 +62,7 @@ useHead({
 ```
 
 **Files to update:**
+
 - `pages/index.vue` - Homepage
 - `pages/blogs/index.vue` - Blog listing
 - `pages/about.vue` - About page
@@ -64,12 +72,15 @@ useHead({
 - `pages/personalSpace/index.vue` - LifeLines page
 
 ### 4. **Blog Posts** - Content SEO
+
 Blog posts automatically get SEO from Nuxt Content, but ensure:
+
 - Each post has a `description` in frontmatter
 - Each post has relevant `tags`
 - Each post has an `image` for OG sharing
 
 **Example frontmatter:**
+
 ```yaml
 ---
 title: Your Blog Post Title
@@ -84,6 +95,7 @@ published: true
 ## 🚀 New SEO Features Added
 
 ### Structured Data (JSON-LD)
+
 I've added structured data components that help Google understand your content:
 
 1. **`components/seo/StructuredData.vue`** - Main structured data component
@@ -96,6 +108,7 @@ These are automatically included in your pages.
 ## 📋 SEO Checklist
 
 ### Technical SEO (Already Configured ✅)
+
 - [x] Sitemap generation
 - [x] Robots.txt
 - [x] Meta tags (title, description, OG tags)
@@ -105,6 +118,7 @@ These are automatically included in your pages.
 - [x] HTTPS (automatic with Vercel)
 
 ### Content SEO (You Need to Do)
+
 - [ ] **Keywords Research**: Identify 5-10 main keywords for your blog
 - [ ] **Title Tags**: Each page has unique, keyword-rich titles (50-60 chars)
 - [ ] **Meta Descriptions**: Compelling descriptions with keywords (150-160 chars)
@@ -115,12 +129,14 @@ These are automatically included in your pages.
 - [ ] **Content Quality**: Write comprehensive, valuable content (1000+ words for main posts)
 
 ### On-Page SEO
+
 - [ ] **URL Structure**: Clean, descriptive URLs (already good: `/blogs/my-post`)
 - [ ] **Image Optimization**: Compress images, use WebP format
 - [ ] **Page Speed**: Already optimized with Nuxt Image
 - [ ] **Schema Markup**: ✅ Now added automatically
 
 ### Off-Page SEO
+
 - [ ] **Google Search Console**: Submit your sitemap
 - [ ] **Google Analytics**: Already configured
 - [ ] **Social Sharing**: Share posts on social media
@@ -130,22 +146,26 @@ These are automatically included in your pages.
 ## 🔧 How to Submit to Google
 
 ### Step 1: Verify Your Site
+
 1. Go to [Google Search Console](https://search.google.com/search-console)
 2. Add your property (your domain)
 3. Verify ownership (DNS or HTML file method)
 
 ### Step 2: Submit Sitemap
+
 1. In Search Console, go to "Sitemaps"
 2. Submit: `https://yourdomain.com/sitemap.xml`
 3. Also submit: `https://yourdomain.com/sitemap-0.xml` (if exists)
 
 ### Step 3: Request Indexing
+
 1. Use "URL Inspection" tool
 2. Enter your homepage URL
 3. Click "Request Indexing"
 4. Repeat for important pages
 
 ### Step 4: Monitor Performance
+
 - Check "Performance" report weekly
 - Monitor which keywords bring traffic
 - Optimize pages based on data
@@ -191,4 +211,3 @@ These are automatically included in your pages.
 ---
 
 **Remember**: SEO is a long-term strategy. It takes 3-6 months to see significant results. Focus on creating quality content and following best practices consistently.
-
