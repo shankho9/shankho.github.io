@@ -17,11 +17,17 @@ let signOutHandler: (() => void) | null = null
 let signInHandler: ((e: Event) => void) | null = null
 
 // Register event listeners once at module level to avoid duplicates and closure issues
-// Initialize with signed-out state - users should start signed out by default
-if (typeof window !== 'undefined') {
-  // Clear any existing user state on initial load
-  sharedUser.value = null
-  localStorage.removeItem('google_user')
+// Only initialize once - check if event listeners are already set up to prevent re-initialization
+if (typeof window !== 'undefined' && !storageHandler) {
+  // Clear any existing user state ONLY on the very first initialization
+  // This ensures users start signed out by default on first page load
+  // Subsequent module imports (HMR, navigation) won't clear the state
+  const hasClearedBefore = sessionStorage.getItem('auth_initialized')
+  if (!hasClearedBefore) {
+    sharedUser.value = null
+    localStorage.removeItem('google_user')
+    sessionStorage.setItem('auth_initialized', 'true')
+  }
 
   // Listen for localStorage changes (cross-tab synchronization)
   storageHandler = (e: StorageEvent) => {

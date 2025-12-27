@@ -299,7 +299,8 @@ const checkAuth = async () => {
       '/api/admin/auth',
     )
     isAuthenticated.value = response.authenticated
-    requires2FA.value = response.requires2FA || false
+    // Don't set requires2FA here - it should only be set based on login attempt response
+    // The requires2FA from this endpoint indicates global 2FA configuration, not current login state
   } catch {
     isAuthenticated.value = false
   }
@@ -308,6 +309,9 @@ const checkAuth = async () => {
 const handleLogin = async () => {
   isLoading.value = true
   loginError.value = ''
+  // Reset 2FA state for each new login attempt
+  requires2FA.value = false
+  totpCode.value = ''
 
   try {
     const response = await $fetch<{
