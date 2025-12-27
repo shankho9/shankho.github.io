@@ -17,7 +17,12 @@ let signOutHandler: (() => void) | null = null
 let signInHandler: ((e: Event) => void) | null = null
 
 // Register event listeners once at module level to avoid duplicates and closure issues
+// Initialize with signed-out state - users should start signed out by default
 if (typeof window !== 'undefined') {
+  // Clear any existing user state on initial load
+  sharedUser.value = null
+  localStorage.removeItem('google_user')
+
   // Listen for localStorage changes (cross-tab synchronization)
   storageHandler = (e: StorageEvent) => {
     if (e.key === 'google_user') {

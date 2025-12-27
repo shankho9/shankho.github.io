@@ -5,13 +5,13 @@ import { footerData, socialLinks } from '~/data'
 
 <template>
   <div class="text-center">
-    <p class="text-black dark:text-zinc-300 text-2xl py-1 font-semibold">
+    <p class="text-black dark:text-zinc-300 text-lg font-semibold mb-2">
       {{ footerData.author }}
     </p>
-    <p class="py-2 dark:text-zinc-300">
+    <p class="text-sm dark:text-zinc-300 mb-4">
       {{ footerData.aboutAuthor }}
     </p>
-    <div class="my-5 flex justify-center items-center gap-5">
+    <div class="flex justify-center items-center gap-5">
       <NuxtLink
         v-for="(link, key) in socialLinks"
         :key="key"

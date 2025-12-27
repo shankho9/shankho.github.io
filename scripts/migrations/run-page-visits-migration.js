@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Run database migrations
+ * Run page_visits table migration
  * Usage:
- *   Development: node scripts/run-migration.js (or npm run migrate)
- *   Production: NODE_ENV=production node scripts/run-migration.js (or npm run migrate:prod)
+ *   Development: node scripts/migrations/run-page-visits-migration.js
+ *   Production: NODE_ENV=production node scripts/migrations/run-page-visits-migration.js
  */
 
 const { readFileSync, existsSync } = require('fs')
@@ -47,7 +47,7 @@ async function runMigration() {
     console.log('📦 Connecting to database...')
 
     // Read the migration file
-    const migrationPath = join(process.cwd(), 'server/db/migrations/create_comments_table.sql')
+    const migrationPath = join(process.cwd(), 'server/db/migrations/create_page_visits_table.sql')
     const migrationSQL = readFileSync(migrationPath, 'utf-8')
 
     console.log('🚀 Running migration...')
@@ -58,7 +58,7 @@ async function runMigration() {
     try {
       await client.query(migrationSQL)
       console.log('✅ Migration completed successfully!')
-      console.log('✅ Comments table created with indexes')
+      console.log('✅ page_visits table created with indexes')
     } finally {
       client.release()
     }
@@ -70,19 +70,19 @@ async function runMigration() {
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
-        AND table_name = 'comments'
+        AND table_name = 'page_visits'
       `)
 
       if (result.rows.length > 0) {
-        console.log('✅ Verification: comments table exists')
+        console.log('✅ Verification: page_visits table exists')
 
         // Check indexes
         const indexResult = await verifyClient.query(`
           SELECT indexname 
           FROM pg_indexes 
-          WHERE tablename = 'comments'
+          WHERE tablename = 'page_visits'
         `)
-        console.log(`✅ Found ${indexResult.rows.length} indexes on comments table`)
+        console.log(`✅ Found ${indexResult.rows.length} indexes on page_visits table`)
       } else {
         console.log('⚠️  Warning: Could not verify table creation')
       }

@@ -35,8 +35,11 @@ async function runMigration() {
 
   console.log(`🌍 Environment: ${isProduction ? 'production' : 'development'}`)
 
+  // Remove quotes if present (sometimes .env files have quotes)
+  const cleanDatabaseUrl = databaseUrl.trim().replace(/^["']|["']$/g, '')
+
   const pool = new Pool({
-    connectionString: databaseUrl,
+    connectionString: cleanDatabaseUrl,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   })
 

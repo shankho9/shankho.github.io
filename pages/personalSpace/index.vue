@@ -34,8 +34,21 @@ const formattedData = computed(() => {
   return data.value
     .map((articles) => {
       const meta = extractBlogPostFromMeta(articles.meta)
+      // Normalize path: remove .md extension if present and ensure proper format
+      let normalizedPath = articles.path || '/'
+      // Remove .md extension if present
+      if (normalizedPath.endsWith('.md')) {
+        normalizedPath = normalizedPath.replace(/\.md$/, '')
+      }
+      // Remove leading /content/ if present (Nuxt Content sometimes includes this)
+      if (normalizedPath.startsWith('/content/')) {
+        normalizedPath = normalizedPath.replace(/^\/content/, '')
+      }
+      // Ensure path doesn't have double slashes
+      normalizedPath = normalizedPath.replace(/\/+/g, '/')
+
       return {
-        path: articles.path,
+        path: normalizedPath,
         title: articles.title || 'no-title available',
         description: articles.description || 'no-description available',
         image: meta.image || '/not-found.jpg',

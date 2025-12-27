@@ -88,6 +88,9 @@ export default defineNuxtConfig({
     resendApiKey: process.env.RESEND_API_KEY,
     alertEmail: process.env.ALERT_EMAIL,
     fromEmail: process.env.FROM_EMAIL,
+    // Admin configuration (server-side only)
+    adminPasswordHash: process.env.ADMIN_PASSWORD_HASH,
+    admin2FASecret: process.env.ADMIN_2FA_SECRET,
   },
 
   typescript: {
