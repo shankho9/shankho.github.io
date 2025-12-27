@@ -309,11 +309,10 @@ const checkAuth = async () => {
 const handleLogin = async () => {
   isLoading.value = true
   loginError.value = ''
-  // Reset 2FA state for each new login attempt
-  requires2FA.value = false
-  totpCode.value = ''
 
   try {
+    // Include totpCode if it has a value (user entered it)
+    // Don't reset requires2FA here - it should persist from previous attempt if needed
     const response = await $fetch<{
       success: boolean
       error?: string
@@ -322,7 +321,8 @@ const handleLogin = async () => {
       method: 'POST',
       body: {
         password: password.value,
-        totpCode: requires2FA.value ? totpCode.value : undefined,
+        // Include totpCode if user entered it (has a value)
+        totpCode: totpCode.value.trim() || undefined,
       },
     })
 
@@ -335,7 +335,11 @@ const handleLogin = async () => {
       if (response.requires2FA) {
         requires2FA.value = true
         loginError.value = '2FA code required'
+        // Don't clear totpCode if 2FA is required - user can retry with same code
       } else {
+        // Reset 2FA state on non-2FA errors (wrong password, etc.)
+        requires2FA.value = false
+        totpCode.value = ''
         loginError.value = response.error || 'Invalid password or 2FA code'
       }
     }

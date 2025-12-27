@@ -46,6 +46,15 @@ const formattedData = computed(() => {
       }
       // Ensure path doesn't have double slashes
       normalizedPath = normalizedPath.replace(/\/+/g, '/')
+      // Ensure path starts with /personalSpace/ for proper routing
+      // If path doesn't start with /personalSpace/, prepend it
+      if (!normalizedPath.startsWith('/personalSpace')) {
+        // Remove leading slash if present, then add /personalSpace prefix
+        const cleanPath = normalizedPath.replace(/^\/+/, '')
+        normalizedPath = `/personalSpace/${cleanPath}`
+      }
+      // Final cleanup: ensure no double slashes and proper format
+      normalizedPath = normalizedPath.replace(/\/+/g, '/')
 
       return {
         path: normalizedPath,
