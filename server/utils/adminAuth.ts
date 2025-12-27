@@ -17,12 +17,17 @@ const tokenStore = new Map<string, { createdAt: number; expiresAt: number }>()
 let cleanupIntervalInitialized = false
 
 // Clean up expired tokens periodically (every hour)
-// Only run cleanup in Node.js environment (server-side)
+// Only run cleanup in Node.js runtime environment (not during build)
 // Guard ensures interval is only created once, even if module is imported multiple times
+// IMPORTANT: Only initialize in serverless function context, not during build/prerender
+// During build, process.env.NITRO_PRESET is set, so we skip interval initialization
 if (
   typeof process !== 'undefined' &&
   typeof setInterval !== 'undefined' &&
-  !cleanupIntervalInitialized
+  !cleanupIntervalInitialized &&
+  // Skip during build - NITRO_PRESET is set during build, not in runtime
+  // Only initialize in actual runtime (when handling requests)
+  !process.env.NITRO_PRESET
 ) {
   cleanupIntervalInitialized = true
   setInterval(

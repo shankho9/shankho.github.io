@@ -116,12 +116,19 @@ export default defineNuxtConfig({
 
   nitro: {
     prerender: {
-      crawlLinks: true,
+      // Disable crawlLinks to prevent infinite crawling during deployment
+      // This can cause deployment timeouts if pages link to each other
+      crawlLinks: false,
       routes: ['/', '/rss.xml'],
+      // Add timeout to prevent hanging
+      concurrency: 1,
     },
     // Ensure environment variables are available to Nitro
     experimental: {
       wasm: true,
     },
+    // Add build optimizations
+    minify: true,
+    sourceMap: false,
   },
 })
