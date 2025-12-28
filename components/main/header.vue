@@ -171,10 +171,10 @@ onMounted(() => {
       <div class="flex items-center">
         <NuxtLink
           to="/"
-          class="text-3xl sm:text-4xl md:text-5xl font-bold hover:opacity-80 transition-opacity no-underline"
+          class="text-3xl sm:text-4xl md:text-5xl font-bold hover:opacity-80 transition-opacity"
+          :class="{ underline: $route.path === '/' }"
           style="
             font-family: 'Brush Script MT', 'Lucida Handwriting', 'Comic Sans MS', cursive;
-            text-decoration: none;
             letter-spacing: 0.05em;
           "
         >

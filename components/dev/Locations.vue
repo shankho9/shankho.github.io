@@ -1080,30 +1080,32 @@ const filteredAndSortedLocations = computed(() => {
         aValue = a.name?.toLowerCase() || ''
         bValue = b.name?.toLowerCase() || ''
         break
-      case 'coordinates':
-        // Sort by latitude first, then longitude
+      case 'coordinates': {
+        // Sort by latitude first, then longitude (proper secondary sorting)
         // Check for null/undefined coordinates to prevent NaN
-        if (
-          typeof a.lat !== 'number' ||
-          typeof a.lng !== 'number' ||
-          isNaN(a.lat) ||
-          isNaN(a.lng)
-        ) {
-          aValue = Infinity // Treat invalid coordinates as largest
-        } else {
-          aValue = a.lat * 1000000 + a.lng
+        const aLatValid =
+          typeof a.lat === 'number' && !isNaN(a.lat) && typeof a.lng === 'number' && !isNaN(a.lng)
+        const bLatValid =
+          typeof b.lat === 'number' && !isNaN(b.lat) && typeof b.lng === 'number' && !isNaN(b.lng)
+
+        if (!aLatValid && !bLatValid) {
+          return 0 // Both invalid, equal
         }
-        if (
-          typeof b.lat !== 'number' ||
-          typeof b.lng !== 'number' ||
-          isNaN(b.lat) ||
-          isNaN(b.lng)
-        ) {
-          bValue = Infinity // Treat invalid coordinates as largest
-        } else {
-          bValue = b.lat * 1000000 + b.lng
+        if (!aLatValid) {
+          return 1 // a is invalid, sort it last
         }
-        break
+        if (!bLatValid) {
+          return -1 // b is invalid, sort it last
+        }
+
+        // Compare latitude first
+        if (a.lat !== b.lat) {
+          return sortDirection.value === 'asc' ? a.lat - b.lat : b.lat - a.lat
+        }
+
+        // If latitudes are equal, compare longitude
+        return sortDirection.value === 'asc' ? a.lng - b.lng : b.lng - a.lng
+      }
       case 'type':
         aValue = a.type?.toLowerCase() || ''
         bValue = b.type?.toLowerCase() || ''
