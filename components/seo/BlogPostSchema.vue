@@ -60,11 +60,22 @@ const schema = computed(() => ({
   },
   keywords: props.tags?.join(', ') || '',
 }))
+
+// Use useHead to inject JSON-LD script tag into document head
+// Vue 3 doesn't allow <script> tags in component templates
+// Use a function to make it reactive so it updates when schema changes
+useHead(() => ({
+  script: [
+    {
+      type: 'application/ld+json',
+      children: JSON.stringify(schema.value),
+    },
+  ],
+}))
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-v-html -->
-  <!-- JSON.stringify() safely escapes all content, preventing XSS -->
-  <script type="application/ld+json" v-html="JSON.stringify(schema)" />
-  <!-- eslint-enable vue/no-v-html -->
+  <div style="display: none">
+    <!-- JSON-LD is injected via useHead() above -->
+  </div>
 </template>

@@ -19,16 +19,18 @@
             </div>
             <div v-if="requires2FA">
               <label class="block text-sm font-medium mb-2">
-                2FA Code (Microsoft Authenticator)
+                2FA Code (Microsoft Authenticator) <span class="text-red-500">*</span>
               </label>
               <input
                 v-model="totpCode"
                 type="text"
-                required
+                :required="requires2FA"
                 maxlength="6"
                 pattern="[0-9]{6}"
                 class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
                 placeholder="000000"
+                autocomplete="one-time-code"
+                inputmode="numeric"
               />
               <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Enter the 6-digit code from Microsoft Authenticator
@@ -266,7 +268,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import DevVisitors from '~/components/dev/Visitors.vue'
 import DevLocations from '~/components/dev/Locations.vue'
 import DevDatabase from '~/components/dev/Database.vue'
@@ -334,8 +336,17 @@ const handleLogin = async () => {
     } else {
       if (response.requires2FA) {
         requires2FA.value = true
-        loginError.value = '2FA code required'
+        loginError.value =
+          'Password correct! Please enter your 2FA code from Microsoft Authenticator.'
         // Don't clear totpCode if 2FA is required - user can retry with same code
+        // Focus on 2FA input field if it's now visible
+        await nextTick()
+        const totpInput = document.querySelector(
+          'input[type="text"][maxlength="6"]',
+        ) as HTMLInputElement
+        if (totpInput) {
+          totpInput.focus()
+        }
       } else {
         // Reset 2FA state on non-2FA errors (wrong password, etc.)
         requires2FA.value = false
@@ -343,8 +354,36 @@ const handleLogin = async () => {
         loginError.value = response.error || 'Invalid password or 2FA code'
       }
     }
-  } catch {
-    loginError.value = 'Failed to authenticate. Please try again.'
+  } catch (error: unknown) {
+    // $fetch throws on 401/400, but the response body contains the error details
+    // Extract the response data if available
+    if (error && typeof error === 'object' && 'data' in error) {
+      const response = (
+        error as { data: { success?: boolean; error?: string; requires2FA?: boolean } }
+      ).data
+
+      if (response.requires2FA) {
+        requires2FA.value = true
+        loginError.value =
+          'Password correct! Please enter your 2FA code from Microsoft Authenticator.'
+        // Focus on 2FA input field if it's now visible
+        await nextTick()
+        const totpInput = document.querySelector(
+          'input[type="text"][maxlength="6"]',
+        ) as HTMLInputElement
+        if (totpInput) {
+          totpInput.focus()
+        }
+      } else {
+        requires2FA.value = false
+        totpCode.value = ''
+        loginError.value = response.error || 'Invalid password or 2FA code'
+      }
+    } else {
+      // Generic error if we can't extract response data
+      loginError.value = 'Failed to authenticate. Please try again.'
+      requires2FA.value = false
+    }
   } finally {
     isLoading.value = false
   }
