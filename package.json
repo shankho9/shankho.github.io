@@ -5,6 +5,8 @@
   "license": "MIT",
   "scripts": {
     "build": "nuxt build",
+    "deploy:prebuilt": "npm run build && npx vercel deploy --prebuilt",
+    "deploy:prebuilt:prod": "npm run build && npx vercel deploy --prebuilt --prod",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",

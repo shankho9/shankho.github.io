@@ -17,15 +17,21 @@ const tokenStore = new Map<string, { createdAt: number; expiresAt: number }>()
 let cleanupIntervalInitialized = false
 
 // Clean up expired tokens periodically (every hour)
-// Only run cleanup in Node.js environment (server-side)
+// Only run cleanup in Node.js runtime environment (not during build)
 // Guard ensures interval is only created once, even if module is imported multiple times
+// IMPORTANT: Only initialize in serverless function context, not during build/prerender
+// NITRO_PRESET is set both during build AND at runtime (e.g., 'vercel' on Vercel)
+// So we can't use it to detect build context. Instead, we:
+// 1. Always create the interval (it's safe with unref())
+// 2. Use interval.unref() so it doesn't prevent Node.js from exiting during build
+// 3. The interval will only run if the process stays alive (runtime), not during build
 if (
   typeof process !== 'undefined' &&
   typeof setInterval !== 'undefined' &&
   !cleanupIntervalInitialized
 ) {
   cleanupIntervalInitialized = true
-  setInterval(
+  const interval = setInterval(
     () => {
       const now = Date.now()
       for (const [token, data] of tokenStore.entries()) {
@@ -36,6 +42,12 @@ if (
     },
     60 * 60 * 1000,
   ) // Every hour
+
+  // Unref the interval so it doesn't prevent Node.js from exiting
+  // This is important for build processes that should exit after completion
+  if (typeof interval.unref === 'function') {
+    interval.unref()
+  }
 }
 
 // Configure TOTP
