@@ -452,6 +452,7 @@ let marker: google.maps.Marker | null = null
 let autocompleteService: google.maps.places.AutocompleteService | null = null
 let placesService: google.maps.places.PlacesService | null = null
 let searchTimeout: NodeJS.Timeout | null = null
+let currentSearchQuery: string | null = null // Track the query for the current search to prevent race conditions
 
 const loadMap = async () => {
   if (!mapContainer.value) return
@@ -560,6 +561,7 @@ const onSearchInput = () => {
   // Clear suggestions if search is empty
   if (!searchQuery.value.trim()) {
     searchSuggestions.value = []
+    currentSearchQuery = null
     return
   }
 
@@ -581,12 +583,22 @@ const performSearch = () => {
     return
   }
 
+  // Capture the current query to track which search this response belongs to
+  const queryForThisSearch = searchQuery.value.trim()
+  currentSearchQuery = queryForThisSearch
+
   autocompleteService.getPlacePredictions(
     {
-      input: searchQuery.value,
+      input: queryForThisSearch,
       types: ['geocode', 'establishment'],
     },
     (predictions, status) => {
+      // Check if this response is still relevant (user hasn't changed the query)
+      if (currentSearchQuery !== queryForThisSearch) {
+        // This response is stale, ignore it
+        return
+      }
+
       if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
         // Get details for each prediction to get lat/lng
         const promises = predictions.slice(0, 5).map((prediction) => {
@@ -632,10 +644,19 @@ const performSearch = () => {
         })
 
         Promise.all(promises).then((suggestions) => {
-          searchSuggestions.value = suggestions.filter((s) => s.lat !== 0 && s.lng !== 0)
+          // Double-check the query hasn't changed before updating suggestions
+          // This prevents stale responses from overwriting newer results
+          if (currentSearchQuery === queryForThisSearch) {
+            // Filter out only the (0, 0) error fallback cases
+            // Use OR (||) not AND (&&) to allow valid places on equator (lat=0) or prime meridian (lng=0)
+            searchSuggestions.value = suggestions.filter((s) => s.lat !== 0 || s.lng !== 0)
+          }
         })
       } else {
-        searchSuggestions.value = []
+        // Only clear suggestions if this is still the current search
+        if (currentSearchQuery === queryForThisSearch) {
+          searchSuggestions.value = []
+        }
       }
     },
   )
