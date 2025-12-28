@@ -757,8 +757,9 @@ const startEdit = (location: Location) => {
 const cancelEdit = () => {
   if (editingId.value !== null) {
     // Remove edit state for the location being cancelled
-    // Use delete operator for Vue 3 reactivity
-    delete editForms.value[editingId.value]
+    // Use object destructuring to create new object without the property (Vue 3 reactivity)
+    const { [editingId.value]: _, ...rest } = editForms.value
+    editForms.value = rest
   }
   editingId.value = null
 }
@@ -798,8 +799,9 @@ const saveEdit = async (id: number) => {
     if (response.success) {
       successMessage.value = `Location "${response.place?.name}" updated successfully!`
       // Remove edit state for this location after successful save
-      // Use delete operator for Vue 3 reactivity
-      delete editForms.value[id]
+      // Use object destructuring to create new object without the property (Vue 3 reactivity)
+      const { [id]: _, ...rest } = editForms.value
+      editForms.value = rest
       editingId.value = null
       await loadLocations()
     } else {
