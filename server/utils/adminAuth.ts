@@ -21,16 +21,25 @@ let cleanupIntervalInitialized = false
 // Guard ensures interval is only created once, even if module is imported multiple times
 // IMPORTANT: Only initialize in serverless function context, not during build/prerender
 // During build, process.env.NITRO_PRESET is set, so we skip interval initialization
+// Also check if we're in a build context by checking for build-related env vars
+// During build, Nuxt sets NITRO_PRESET, and we can also check if we're in a build script context
+const isBuildContext = 
+  process.env.NITRO_PRESET || 
+  process.env.NUXT_BUILD ||
+  // Check if we're running in a build context (npm run build, nuxt build, etc.)
+  (typeof process !== 'undefined' && process.argv && (
+    process.argv.some(arg => arg.includes('build') || arg.includes('nuxt')) &&
+    !process.argv.some(arg => arg.includes('preview') || arg.includes('start'))
+  ))
+
 if (
   typeof process !== 'undefined' &&
   typeof setInterval !== 'undefined' &&
   !cleanupIntervalInitialized &&
-  // Skip during build - NITRO_PRESET is set during build, not in runtime
-  // Only initialize in actual runtime (when handling requests)
-  !process.env.NITRO_PRESET
+  !isBuildContext
 ) {
   cleanupIntervalInitialized = true
-  setInterval(
+  const interval = setInterval(
     () => {
       const now = Date.now()
       for (const [token, data] of tokenStore.entries()) {
@@ -41,6 +50,12 @@ if (
     },
     60 * 60 * 1000,
   ) // Every hour
+  
+  // Unref the interval so it doesn't prevent Node.js from exiting
+  // This is important for build processes that should exit after completion
+  if (typeof interval.unref === 'function') {
+    interval.unref()
+  }
 }
 
 // Configure TOTP

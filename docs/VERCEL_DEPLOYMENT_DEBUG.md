@@ -31,6 +31,12 @@
 - Required env vars missing causing API calls to hang
 - External service timeouts (Google Maps, Analytics, etc.)
 
+### 6. **Font Module Network Timeouts**
+
+- `@nuxt/fonts` trying to fetch fonts during build
+- Network connectivity issues during build phase
+- Font service (Google Fonts, etc.) unavailable during build
+
 ## Debugging Steps
 
 ### Step 1: Check Vercel Build Logs
@@ -126,19 +132,80 @@ Ensure no database connections are made during:
 - Build-time code execution
 - Prerender phase
 
+### Fix 5: Disable Font Module Auto-Discovery
+
+If `@nuxt/fonts` is causing network timeouts during build:
+
+**Option A: Disable and use Google Fonts link tag**
+```typescript
+// nuxt.config.ts
+modules: [
+  // '@nuxt/fonts', // Comment out or remove
+  // ... other modules
+],
+app: {
+  head: {
+    link: [
+      {
+        rel: 'preconnect',
+        href: 'https://fonts.googleapis.com',
+      },
+      {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap',
+      },
+    ],
+  },
+}
+```
+
+**Option B: Configure with explicit fonts**
+```typescript
+// nuxt.config.ts
+modules: [
+  [
+    '@nuxt/fonts',
+    {
+      defaults: {
+        weights: [400, 500, 600, 700],
+        styles: ['normal'],
+        subsets: ['latin'],
+      },
+    },
+  ],
+]
+```
+
 ## Advanced Debugging
 
 ### Enable Verbose Logging
 
-Add to `nuxt.config.ts`:
-
+**Option 1: Via nuxt.config.ts (Already configured)**
 ```typescript
 export default defineNuxtConfig({
   // ... existing config
   nitro: {
-    logLevel: 4, // Verbose logging
+    logLevel: 4, // Verbose logging (0=silent, 1=error, 2=warn, 3=info, 4=verbose)
   },
 })
+```
+
+**Option 2: Via Environment Variables**
+```bash
+# In vercel.json or Vercel Dashboard
+NITRO_LOG_LEVEL=4
+DEBUG=nuxt:*
+```
+
+**Option 3: Post-Build Diagnostics**
+The build script now automatically runs diagnostics after build:
+```bash
+npm run build
+# This will show:
+# - Output directory sizes
+# - Number of serverless functions
+# - Large files (>10MB)
+# - Native dependencies
 ```
 
 ### Check Build Performance
@@ -152,6 +219,65 @@ time npm run build
 
 Temporarily disable routes one by one to identify the problematic route.
 
+## Deployment Phase Hanging (After Build Completes)
+
+If the build completes but deployment hangs at "Deploying outputs...":
+
+### Common Causes:
+1. **Native Dependencies**: `better-sqlite3` or other native modules causing packaging issues
+2. **Large Number of Serverless Functions**: Too many API routes being packaged
+3. **Output Directory Issues**: Problems with `.output` directory structure
+4. **Network Issues**: Slow upload of deployment artifacts
+
+### Solutions:
+
+#### Solution 1: Exclude Unused Native Dependencies
+If `better-sqlite3` is not used in production (you use PostgreSQL), exclude it:
+```typescript
+// nuxt.config.ts
+nitro: {
+  noExternals: false,
+  treeshake: true,
+}
+```
+
+#### Solution 2: Check Build Output Size
+```bash
+# Check .output size
+du -sh .output
+du -sh .output/server
+```
+
+If serverless functions are >50MB, consider:
+- Splitting large functions
+- Removing unused dependencies
+- Optimizing imports
+
+#### Solution 3: Enable Vercel Build Logs
+In Vercel Dashboard → Settings → General → Build & Development Settings:
+- Enable "Debug Logs" to see detailed deployment progress
+
+#### Solution 4: Try Prebuilt Deployment (RECOMMENDED)
+If build succeeds locally (which it does!), deploy the prebuilt output:
+```bash
+# Build locally first
+npm run build
+
+# Deploy prebuilt output to Vercel
+npx vercel deploy --prebuilt
+
+# Or if you have Vercel CLI installed:
+vercel deploy --prebuilt
+```
+
+This bypasses the build phase on Vercel and only uploads the `.output` directory, which is much faster and avoids build-timeout issues.
+
+#### Solution 5: Check for Circular Dependencies
+```bash
+# Check for circular dependencies
+npm run build 2>&1 | grep -i "circular\|dependency"
+```
+
 ## Contact Vercel Support
 
 If issues persist:
@@ -164,3 +290,4 @@ If issues persist:
    - Deployment URL
    - Build logs
    - Error messages
+   - `.output` directory size

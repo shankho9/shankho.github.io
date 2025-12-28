@@ -9,7 +9,8 @@ export default defineNuxtConfig({
   modules: [
     'nuxt-icon',
     '@nuxt/image',
-    '@nuxt/fonts',
+    // @nuxt/fonts disabled - fonts loaded via Google Fonts link tag
+    // '@nuxt/fonts',
     '@nuxt/eslint',
     '@vueuse/nuxt',
     '@nuxtjs/robots',
@@ -17,9 +18,14 @@ export default defineNuxtConfig({
       '@nuxtjs/sitemap',
       {
         site: {
-          // Reads from .env (localhost) or .env.production (production)
-          // Nuxt automatically loads NUXT_PUBLIC_* vars from the appropriate .env file
-          url: process.env.NUXT_PUBLIC_SITE_URL || seoData.mySite.replace(/\/$/, ''),
+          // Set production URL to override buildEnv auto-detection
+          // Prevents localhost warnings during build
+          url: (() => {
+            const envUrl = process.env.NUXT_PUBLIC_SITE_URL
+            const fallbackUrl = seoData.mySite.replace(/\/$/, '')
+            const url = envUrl || fallbackUrl
+            return url.includes('localhost') ? fallbackUrl : url
+          })(),
         },
         routes: [
           '/',
@@ -69,6 +75,21 @@ export default defineNuxtConfig({
       viewport: 'width=device-width,initial-scale=1',
       title: seoData.title,
       titleTemplate: `%s - ${seoData.title}`,
+      link: [
+        {
+          rel: 'preconnect',
+          href: 'https://fonts.googleapis.com',
+        },
+        {
+          rel: 'preconnect',
+          href: 'https://fonts.gstatic.com',
+          crossorigin: '',
+        },
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap',
+        },
+      ],
       script: [
         {
           src: `https://maps.googleapis.com/maps/api/js?key=${process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`,
@@ -116,18 +137,13 @@ export default defineNuxtConfig({
 
   nitro: {
     prerender: {
-      // Disable crawlLinks to prevent infinite crawling during deployment
-      // This can cause deployment timeouts if pages link to each other
       crawlLinks: false,
       routes: ['/', '/rss.xml'],
-      // Add timeout to prevent hanging
       concurrency: 1,
     },
-    // Ensure environment variables are available to Nitro
     experimental: {
       wasm: true,
     },
-    // Add build optimizations
     minify: true,
     sourceMap: false,
   },

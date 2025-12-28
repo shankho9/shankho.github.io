@@ -2,5 +2,8 @@
   "buildCommand": "npm run build",
   "framework": "nuxtjs",
   "installCommand": "npm install",
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "env": {
+    "NUXT_PUBLIC_SITE_URL": "https://shankho-blogsite.vercel.app"
+  }
 }
