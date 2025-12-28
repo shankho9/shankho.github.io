@@ -37,7 +37,12 @@
                   {{ suggestion.address }}
                 </div>
                 <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  Lat: {{ suggestion.lat.toFixed(6) }}, Lng: {{ suggestion.lng.toFixed(6) }}
+                  <span v-if="suggestion.lat !== null && suggestion.lng !== null">
+                    Lat: {{ suggestion.lat.toFixed(6) }}, Lng: {{ suggestion.lng.toFixed(6) }}
+                  </span>
+                  <span v-else class="text-yellow-600 dark:text-yellow-400">
+                    Coordinates not available - enter manually
+                  </span>
                 </div>
               </div>
             </div>
@@ -398,10 +403,10 @@ interface PlaceForm {
 interface PlaceSuggestion {
   name: string
   address: string
-  lat: number
-  lng: number
+  lat: number | null // null when coordinates aren't available (placesService unavailable)
+  lng: number | null // null when coordinates aren't available (placesService unavailable)
   placeId: string
-  isError?: boolean // Flag to indicate error fallback cases (lat: 0, lng: 0 from failed API calls)
+  isError?: boolean // Flag to indicate error fallback cases (API call failed)
 }
 
 interface Location {
@@ -601,13 +606,15 @@ const performSearch = () => {
         const promises = predictions.slice(0, 5).map((prediction) => {
           return new Promise<PlaceSuggestion>((resolve) => {
             if (!placesService) {
+              // placesService unavailable - still show prediction but without coordinates
+              // This is not an error, just a limitation (user can manually enter coordinates)
               resolve({
                 name: prediction.description,
                 address: prediction.description,
-                lat: 0,
-                lng: 0,
+                lat: null, // Coordinates not available
+                lng: null, // Coordinates not available
                 placeId: prediction.place_id,
-                isError: true, // Mark as error case
+                // Don't mark as error - this is a valid prediction without coordinates
               })
               return
             }
@@ -646,7 +653,8 @@ const performSearch = () => {
           // Double-check the query hasn't changed before updating suggestions
           // This prevents stale responses from overwriting newer results
           if (currentSearchQuery === queryForThisSearch) {
-            // Filter out only error fallback cases (marked with isError flag)
+            // Filter out only actual error cases (marked with isError flag)
+            // Keep suggestions even if coordinates are null (placesService unavailable)
             // This preserves legitimate places at (0, 0) while removing API error cases
             searchSuggestions.value = suggestions.filter((s) => !s.isError)
           }
@@ -664,14 +672,15 @@ const performSearch = () => {
 const selectSuggestion = (suggestion: PlaceSuggestion) => {
   // Fill form with selected suggestion
   form.value.name = suggestion.name
-  form.value.lat = suggestion.lat
-  form.value.lng = suggestion.lng
+  // Only set coordinates if they're available (not null)
+  form.value.lat = suggestion.lat ?? null
+  form.value.lng = suggestion.lng ?? null
 
   // Clear search
   searchQuery.value = ''
   searchSuggestions.value = []
 
-  // Update map marker
+  // Update map marker (will only show if coordinates are available)
   updateMarker()
 }
 
