@@ -627,12 +627,21 @@ const performSearch = () => {
               (place, placeStatus) => {
                 if (placeStatus === window.google.maps.places.PlacesServiceStatus.OK && place) {
                   const location = place.geometry?.location
+                  // Check if location and coordinates are valid
+                  const lat = location?.lat()
+                  const lng = location?.lng()
+                  const hasValidCoordinates =
+                    typeof lat === 'number' && !isNaN(lat) && typeof lng === 'number' && !isNaN(lng)
+
                   resolve({
                     name: place.name || prediction.description,
                     address: place.formatted_address || prediction.description,
-                    lat: location?.lat() || 0,
-                    lng: location?.lng() || 0,
+                    // Use null if coordinates are missing/invalid (user can enter manually)
+                    // Don't use (0, 0) as fallback to avoid fake Gulf of Guinea locations
+                    lat: hasValidCoordinates ? lat : null,
+                    lng: hasValidCoordinates ? lng : null,
                     placeId: prediction.place_id,
+                    // Don't mark as error - API call succeeded, just missing coordinate data
                   })
                 } else {
                   resolve({
