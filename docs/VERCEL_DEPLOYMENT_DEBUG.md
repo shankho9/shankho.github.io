@@ -137,6 +137,7 @@ Ensure no database connections are made during:
 If `@nuxt/fonts` is causing network timeouts during build:
 
 **Option A: Disable and use Google Fonts link tag**
+
 ```typescript
 // nuxt.config.ts
 modules: [
@@ -160,6 +161,7 @@ app: {
 ```
 
 **Option B: Configure with explicit fonts**
+
 ```typescript
 // nuxt.config.ts
 modules: [
@@ -181,6 +183,7 @@ modules: [
 ### Enable Verbose Logging
 
 **Option 1: Via nuxt.config.ts (Already configured)**
+
 ```typescript
 export default defineNuxtConfig({
   // ... existing config
@@ -191,6 +194,7 @@ export default defineNuxtConfig({
 ```
 
 **Option 2: Via Environment Variables**
+
 ```bash
 # In vercel.json or Vercel Dashboard
 NITRO_LOG_LEVEL=4
@@ -199,6 +203,7 @@ DEBUG=nuxt:*
 
 **Option 3: Post-Build Diagnostics**
 The build script now automatically runs diagnostics after build:
+
 ```bash
 npm run build
 # This will show:
@@ -224,6 +229,7 @@ Temporarily disable routes one by one to identify the problematic route.
 If the build completes but deployment hangs at "Deploying outputs...":
 
 ### Common Causes:
+
 1. **Native Dependencies**: `better-sqlite3` or other native modules causing packaging issues
 2. **Large Number of Serverless Functions**: Too many API routes being packaged
 3. **Output Directory Issues**: Problems with `.output` directory structure
@@ -232,7 +238,9 @@ If the build completes but deployment hangs at "Deploying outputs...":
 ### Solutions:
 
 #### Solution 1: Exclude Unused Native Dependencies
+
 If `better-sqlite3` is not used in production (you use PostgreSQL), exclude it:
+
 ```typescript
 // nuxt.config.ts
 nitro: {
@@ -242,6 +250,7 @@ nitro: {
 ```
 
 #### Solution 2: Check Build Output Size
+
 ```bash
 # Check .output size
 du -sh .output
@@ -249,16 +258,21 @@ du -sh .output/server
 ```
 
 If serverless functions are >50MB, consider:
+
 - Splitting large functions
 - Removing unused dependencies
 - Optimizing imports
 
 #### Solution 3: Enable Vercel Build Logs
+
 In Vercel Dashboard → Settings → General → Build & Development Settings:
+
 - Enable "Debug Logs" to see detailed deployment progress
 
 #### Solution 4: Try Prebuilt Deployment (RECOMMENDED)
+
 If build succeeds locally (which it does!), deploy the prebuilt output:
+
 ```bash
 # Build locally first
 npm run build
@@ -273,6 +287,7 @@ vercel deploy --prebuilt
 This bypasses the build phase on Vercel and only uploads the `.output` directory, which is much faster and avoids build-timeout issues.
 
 #### Solution 5: Check for Circular Dependencies
+
 ```bash
 # Check for circular dependencies
 npm run build 2>&1 | grep -i "circular\|dependency"

@@ -7,19 +7,15 @@ let pool: pg.Pool | null = null
 
 function getPool(): pg.Pool {
   // Prevent pool creation during build
-  // During build, NITRO_PRESET is set, and we shouldn't create database connections
-  // Check if we're in a build context by checking for build-related env vars and process args
-  const isBuildContext = 
-    process.env.NITRO_PRESET || 
-    process.env.NUXT_BUILD ||
-    // Check if we're running in a build context (npm run build, nuxt build, etc.)
-    (typeof process !== 'undefined' && process.argv && (
-      process.argv.some(arg => arg.includes('build') || arg.includes('nuxt')) &&
-      !process.argv.some(arg => arg.includes('preview') || arg.includes('start'))
-    ))
-  
+  // During build, NITRO_PRESET is set by Nitro - this is the reliable indicator
+  // We only check environment variables, not process.argv, to avoid false positives
+  // (e.g., paths containing 'nuxt' or 'build' would incorrectly trigger this)
+  const isBuildContext = !!process.env.NITRO_PRESET
+
   if (isBuildContext) {
-    throw new Error('Database pool cannot be created during build. This should only be called at runtime.')
+    throw new Error(
+      'Database pool cannot be created during build. This should only be called at runtime.',
+    )
   }
 
   if (!pool) {

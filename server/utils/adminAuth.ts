@@ -20,17 +20,10 @@ let cleanupIntervalInitialized = false
 // Only run cleanup in Node.js runtime environment (not during build)
 // Guard ensures interval is only created once, even if module is imported multiple times
 // IMPORTANT: Only initialize in serverless function context, not during build/prerender
-// During build, process.env.NITRO_PRESET is set, so we skip interval initialization
-// Also check if we're in a build context by checking for build-related env vars
-// During build, Nuxt sets NITRO_PRESET, and we can also check if we're in a build script context
-const isBuildContext = 
-  process.env.NITRO_PRESET || 
-  process.env.NUXT_BUILD ||
-  // Check if we're running in a build context (npm run build, nuxt build, etc.)
-  (typeof process !== 'undefined' && process.argv && (
-    process.argv.some(arg => arg.includes('build') || arg.includes('nuxt')) &&
-    !process.argv.some(arg => arg.includes('preview') || arg.includes('start'))
-  ))
+// During build, NITRO_PRESET is set by Nitro - this is the reliable indicator
+// We only check environment variables, not process.argv, to avoid false positives
+// (e.g., paths containing 'nuxt' or 'build' would incorrectly trigger this)
+const isBuildContext = !!process.env.NITRO_PRESET
 
 if (
   typeof process !== 'undefined' &&
@@ -50,7 +43,7 @@ if (
     },
     60 * 60 * 1000,
   ) // Every hour
-  
+
   // Unref the interval so it doesn't prevent Node.js from exiting
   // This is important for build processes that should exit after completion
   if (typeof interval.unref === 'function') {
