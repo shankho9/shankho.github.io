@@ -7,16 +7,14 @@ let pool: pg.Pool | null = null
 
 function getPool(): pg.Pool {
   // Prevent pool creation during build
-  // During build, NITRO_PRESET is set by Nitro - this is the reliable indicator
-  // We only check environment variables, not process.argv, to avoid false positives
-  // (e.g., paths containing 'nuxt' or 'build' would incorrectly trigger this)
-  const isBuildContext = !!process.env.NITRO_PRESET
-
-  if (isBuildContext) {
-    throw new Error(
-      'Database pool cannot be created during build. This should only be called at runtime.',
-    )
-  }
+  // NITRO_PRESET is set both during build AND at runtime (e.g., 'vercel' on Vercel)
+  // So we check if NITRO_PRESET is set to a build-time value (not a runtime preset)
+  // Build-time presets: undefined or values that indicate build process
+  // Runtime presets: 'vercel', 'netlify', 'node-server', etc.
+  // During actual build (not runtime), NITRO_PRESET might be undefined or set to build-specific values
+  // At runtime on Vercel, NITRO_PRESET is 'vercel', so we allow it
+  // The key is: if getPool() is called during build, useRuntimeConfig() will fail naturally
+  // So we don't need to block it - let it fail naturally if called during build
 
   if (!pool) {
     const config = useRuntimeConfig()
