@@ -518,7 +518,9 @@ const loadMap = async () => {
 }
 
 const updateMarker = () => {
-  if (!map || form.value.lat === null || form.value.lng === null) {
+  // Check for null or undefined explicitly (not truthiness) to allow valid 0 coordinates
+  // This ensures locations on equator (lat=0) or prime meridian (lng=0) are handled correctly
+  if (!map || form.value.lat == null || form.value.lng == null) {
     if (marker) {
       marker.setMap(null)
       marker = null
