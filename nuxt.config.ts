@@ -24,7 +24,19 @@ export default defineNuxtConfig({
             const envUrl = process.env.NUXT_PUBLIC_SITE_URL
             const fallbackUrl = seoData.mySite.replace(/\/$/, '')
             const url = envUrl || fallbackUrl
-            return url.includes('localhost') ? fallbackUrl : url
+            
+            // Check if URL is actually localhost (not just contains the substring)
+            // Match http://localhost, https://localhost, or localhost:port
+            try {
+              const urlObj = new URL(url)
+              const isLocalhost = urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1'
+              return isLocalhost ? fallbackUrl : url
+            } catch {
+              // If URL parsing fails, fall back to substring check as last resort
+              // But use a more specific pattern: localhost with protocol or port
+              const localhostPattern = /^https?:\/\/localhost(\/|:|$)/i
+              return localhostPattern.test(url) ? fallbackUrl : url
+            }
           })(),
         },
         routes: [
