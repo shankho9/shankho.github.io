@@ -20,16 +20,15 @@ let cleanupIntervalInitialized = false
 // Only run cleanup in Node.js runtime environment (not during build)
 // Guard ensures interval is only created once, even if module is imported multiple times
 // IMPORTANT: Only initialize in serverless function context, not during build/prerender
-// During build, NITRO_PRESET is set by Nitro - this is the reliable indicator
-// We only check environment variables, not process.argv, to avoid false positives
-// (e.g., paths containing 'nuxt' or 'build' would incorrectly trigger this)
-const isBuildContext = !!process.env.NITRO_PRESET
-
+// NITRO_PRESET is set both during build AND at runtime (e.g., 'vercel' on Vercel)
+// So we can't use it to detect build context. Instead, we:
+// 1. Always create the interval (it's safe with unref())
+// 2. Use interval.unref() so it doesn't prevent Node.js from exiting during build
+// 3. The interval will only run if the process stays alive (runtime), not during build
 if (
   typeof process !== 'undefined' &&
   typeof setInterval !== 'undefined' &&
-  !cleanupIntervalInitialized &&
-  !isBuildContext
+  !cleanupIntervalInitialized
 ) {
   cleanupIntervalInitialized = true
   const interval = setInterval(
