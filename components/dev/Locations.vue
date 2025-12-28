@@ -279,7 +279,7 @@
                 </div>
                 <select
                   v-else
-                  v-model="editForms.get(location.id)!.type"
+                  v-model="editForms[location.id].type"
                   class="w-full px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600"
                 >
                   <option value="">Select type</option>
@@ -293,7 +293,7 @@
                 </div>
                 <input
                   v-else
-                  v-model.number="editForms.get(location.id)!.year"
+                  v-model.number="editForms[location.id].year"
                   type="number"
                   min="1900"
                   max="2100"
@@ -307,7 +307,7 @@
                 </div>
                 <textarea
                   v-else
-                  v-model="editForms.get(location.id)!.description"
+                  v-model="editForms[location.id].description"
                   rows="2"
                   class="w-full px-2 py-1 border rounded dark:bg-slate-700 dark:border-slate-600"
                   placeholder="Description"
@@ -436,7 +436,8 @@ const locations = ref<Location[]>([])
 const isLoadingLocations = ref(false)
 const editingId = ref<number | null>(null)
 // Store edit state per location ID to prevent overwriting unsaved edits
-const editForms = ref<Map<number, PlaceForm>>(new Map())
+// Use Record instead of Map for Vue 3 reactivity (Vue doesn't track Map mutations)
+const editForms = ref<Record<number, PlaceForm>>({})
 const isSaving = ref(false)
 const deleteConfirm = ref<Location | null>(null)
 const isDeleting = ref(false)
@@ -740,8 +741,9 @@ const startEdit = (location: Location) => {
 
   editingId.value = location.id
   // Store edit state per location ID to prevent overwriting unsaved edits
+  // Use object property assignment for Vue 3 reactivity
   // Only set editable fields (type, year, description)
-  editForms.value.set(location.id, {
+  editForms.value[location.id] = {
     name: location.name, // Keep for display, but won't be sent to API
     lat: location.lat, // Keep for display, but won't be sent to API
     lng: location.lng, // Keep for display, but won't be sent to API
@@ -749,13 +751,14 @@ const startEdit = (location: Location) => {
     description: location.description || '',
     blog_slug: location.blog_slug || '', // Keep for API, but not editable in UI
     type: (location.type as 'home' | 'trip' | '') || '',
-  })
+  }
 }
 
 const cancelEdit = () => {
   if (editingId.value !== null) {
     // Remove edit state for the location being cancelled
-    editForms.value.delete(editingId.value)
+    // Use delete operator for Vue 3 reactivity
+    delete editForms.value[editingId.value]
   }
   editingId.value = null
 }
@@ -764,7 +767,7 @@ const saveEdit = async (id: number) => {
   isSaving.value = true
   try {
     // Get edit state for this specific location ID
-    const editForm = editForms.value.get(id)
+    const editForm = editForms.value[id]
     if (!editForm) {
       errorMessage.value = 'Edit state not found. Please try editing again.'
       editingId.value = null
@@ -795,7 +798,8 @@ const saveEdit = async (id: number) => {
     if (response.success) {
       successMessage.value = `Location "${response.place?.name}" updated successfully!`
       // Remove edit state for this location after successful save
-      editForms.value.delete(id)
+      // Use delete operator for Vue 3 reactivity
+      delete editForms.value[id]
       editingId.value = null
       await loadLocations()
     } else {
