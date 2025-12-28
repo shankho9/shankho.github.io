@@ -24,7 +24,7 @@ export default defineNuxtConfig({
             const envUrl = process.env.NUXT_PUBLIC_SITE_URL
             const fallbackUrl = seoData.mySite.replace(/\/$/, '')
             const url = envUrl || fallbackUrl
-            
+
             // Check if URL is actually localhost (not just contains the substring)
             // Match http://localhost, https://localhost, or localhost:port
             try {
