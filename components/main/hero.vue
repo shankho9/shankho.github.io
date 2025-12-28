@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { homePage } from '~/data'
-import FastTransport from '~/components/logo/FastTransport.vue'
 </script>
 
 <template>
@@ -16,8 +15,13 @@ import FastTransport from '~/components/logo/FastTransport.vue'
           {{ homePage.description }}
         </p>
       </div>
-      <div class="px-6 justify-self-center">
-        <FastTransport />
+      <div class="px-6 flex items-center justify-center">
+        <NuxtImg
+          src="/Nomadic Notion-logo-2.png"
+          alt="Nomadic Notions Logo"
+          class="w-full max-w-md h-auto object-contain"
+          loading="lazy"
+        />
       </div>
     </div>
   </div>

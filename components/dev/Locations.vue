@@ -173,12 +173,34 @@
     <!-- Locations List Section -->
     <div class="mt-8">
       <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-semibold">All Locations ({{ locations.length }})</h3>
+        <h3 class="text-lg font-semibold">
+          All Locations ({{ filteredAndSortedLocations.length
+          }}{{ locationSearchQuery ? ` of ${locations.length}` : '' }})
+        </h3>
         <button
           class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
           @click="loadLocations"
         >
           Refresh
+        </button>
+      </div>
+
+      <!-- Search and Sort Controls -->
+      <div class="mb-4 flex gap-4 items-center">
+        <div class="flex-1">
+          <input
+            v-model="locationSearchQuery"
+            type="text"
+            class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+            placeholder="Search locations by name, description, type, or coordinates..."
+          />
+        </div>
+        <button
+          v-if="locationSearchQuery"
+          class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm"
+          @click="locationSearchQuery = ''"
+        >
+          Clear
         </button>
       </div>
 
@@ -193,34 +215,86 @@
         No locations added yet. Add your first location above!
       </div>
 
+      <div
+        v-else-if="locations.length > 0 && filteredAndSortedLocations.length === 0"
+        class="text-center py-8 text-gray-500 dark:text-gray-400"
+      >
+        No locations match your search criteria.
+      </div>
+
       <div v-else class="overflow-x-auto border rounded-lg dark:border-slate-700">
         <table class="w-full">
           <thead class="bg-gray-50 dark:bg-slate-800">
             <tr>
               <th
-                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none"
+                @click="sortBy('name')"
               >
-                Name
+                <div class="flex items-center gap-1">
+                  Name
+                  <span class="text-gray-400">
+                    <span v-if="sortColumn === 'name'">
+                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                    </span>
+                    <span v-else class="opacity-30">⇅</span>
+                  </span>
+                </div>
               </th>
               <th
-                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none"
+                @click="sortBy('coordinates')"
               >
-                Coordinates
+                <div class="flex items-center gap-1">
+                  Coordinates
+                  <span class="text-gray-400">
+                    <span v-if="sortColumn === 'coordinates'">
+                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                    </span>
+                    <span v-else class="opacity-30">⇅</span>
+                  </span>
+                </div>
               </th>
               <th
-                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none"
+                @click="sortBy('type')"
               >
-                Type
+                <div class="flex items-center gap-1">
+                  Type
+                  <span class="text-gray-400">
+                    <span v-if="sortColumn === 'type'">
+                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                    </span>
+                    <span v-else class="opacity-30">⇅</span>
+                  </span>
+                </div>
               </th>
               <th
-                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none"
+                @click="sortBy('year')"
               >
-                Year
+                <div class="flex items-center gap-1">
+                  Year
+                  <span class="text-gray-400">
+                    <span v-if="sortColumn === 'year'">
+                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                    </span>
+                    <span v-else class="opacity-30">⇅</span>
+                  </span>
+                </div>
               </th>
               <th
-                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none"
+                @click="sortBy('description')"
               >
-                Description
+                <div class="flex items-center gap-1">
+                  Description
+                  <span class="text-gray-400">
+                    <span v-if="sortColumn === 'description'">
+                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                    </span>
+                    <span v-else class="opacity-30">⇅</span>
+                  </span>
+                </div>
               </th>
               <th
                 class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
@@ -231,7 +305,7 @@
           </thead>
           <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
             <tr
-              v-for="location in locations"
+              v-for="location in filteredAndSortedLocations"
               :key="location.id"
               class="hover:bg-gray-50 dark:hover:bg-slate-800"
             >
@@ -355,6 +429,49 @@
       </div>
     </div>
 
+    <!-- Duplicate Warning Modal -->
+    <div
+      v-if="duplicateWarning"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="duplicateWarning = null"
+    >
+      <div class="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 class="text-lg font-semibold mb-4 text-yellow-600 dark:text-yellow-400">
+          ⚠️ Duplicate Location Warning
+        </h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">A similar location already exists:</p>
+        <div class="bg-gray-50 dark:bg-slate-700 rounded p-4 mb-4">
+          <p class="font-medium text-gray-900 dark:text-gray-100">
+            {{ duplicateWarning.location.name }}
+          </p>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            {{ duplicateWarning.location.lat.toFixed(6) }},
+            {{ duplicateWarning.location.lng.toFixed(6) }}
+          </p>
+          <p class="text-sm text-yellow-600 dark:text-yellow-400 mt-2">
+            Distance: {{ duplicateWarning.distance.toFixed(2) }} km
+          </p>
+        </div>
+        <p class="text-gray-600 dark:text-gray-400 mb-6 text-sm">
+          Are you sure you want to add this location anyway?
+        </p>
+        <div class="flex gap-3 justify-end">
+          <button
+            class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+            @click="duplicateWarning = null"
+          >
+            Cancel
+          </button>
+          <button
+            class="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+            @click="proceedWithDuplicate"
+          >
+            Add Anyway
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Delete Confirmation Modal -->
     <div
       v-if="deleteConfirm"
@@ -447,6 +564,10 @@ const editForms = ref<Record<number, PlaceForm>>({})
 const isSaving = ref(false)
 const deleteConfirm = ref<Location | null>(null)
 const isDeleting = ref(false)
+const locationSearchQuery = ref('')
+const sortColumn = ref<'name' | 'coordinates' | 'type' | 'year' | 'description' | null>(null)
+const sortDirection = ref<'asc' | 'desc'>('asc')
+const duplicateWarning = ref<{ location: Location; distance: number } | null>(null)
 let map: google.maps.Map | null = null
 let marker: google.maps.Marker | null = null
 let autocompleteService: google.maps.places.AutocompleteService | null = null
@@ -700,7 +821,51 @@ watch(
   },
 )
 
-const submitPlace = async () => {
+/**
+ * Calculate the distance between two coordinates using the Haversine formula
+ * Returns distance in kilometers
+ */
+const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6371 // Earth's radius in kilometers
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
+/**
+ * Check if a location is within 10km of any existing location
+ */
+const checkForDuplicate = (): { location: Location; distance: number } | null => {
+  if (form.value.lat === null || form.value.lng === null) {
+    return null // Can't check duplicates without coordinates
+  }
+
+  const DUPLICATE_THRESHOLD_KM = 10
+
+  for (const location of locations.value) {
+    const distance = calculateDistance(form.value.lat!, form.value.lng!, location.lat, location.lng)
+
+    if (distance < DUPLICATE_THRESHOLD_KM) {
+      return { location, distance }
+    }
+  }
+
+  return null
+}
+
+const proceedWithDuplicate = async () => {
+  duplicateWarning.value = null
+  await submitPlaceInternal()
+}
+
+const submitPlaceInternal = async () => {
   isSubmitting.value = true
   successMessage.value = ''
   errorMessage.value = ''
@@ -739,6 +904,18 @@ const submitPlace = async () => {
   } finally {
     isSubmitting.value = false
   }
+}
+
+const submitPlace = async () => {
+  // Check for duplicates before submitting
+  const duplicate = checkForDuplicate()
+  if (duplicate) {
+    duplicateWarning.value = duplicate
+    return
+  }
+
+  // No duplicate found, proceed with submission
+  await submitPlaceInternal()
 }
 
 const loadLocations = async () => {
@@ -860,6 +1037,111 @@ const deleteLocation = async (id: number) => {
     errorMessage.value = err instanceof Error ? err.message : 'Failed to delete location'
   } finally {
     isDeleting.value = false
+  }
+}
+
+// Filter and sort locations
+const filteredLocations = computed(() => {
+  if (!locationSearchQuery.value.trim()) {
+    return locations.value
+  }
+
+  const query = locationSearchQuery.value.toLowerCase().trim()
+  return locations.value.filter((location) => {
+    const name = location.name?.toLowerCase() || ''
+    const description = location.description?.toLowerCase() || ''
+    const type = location.type?.toLowerCase() || ''
+    const coordinates = `${location.lat.toFixed(6)},${location.lng.toFixed(6)}`
+    const year = location.year?.toString() || ''
+
+    return (
+      name.includes(query) ||
+      description.includes(query) ||
+      type.includes(query) ||
+      coordinates.includes(query) ||
+      year.includes(query)
+    )
+  })
+})
+
+const filteredAndSortedLocations = computed(() => {
+  const result = [...filteredLocations.value]
+
+  if (!sortColumn.value) {
+    return result
+  }
+
+  result.sort((a, b) => {
+    let aValue: string | number | null | undefined
+    let bValue: string | number | null | undefined
+
+    switch (sortColumn.value) {
+      case 'name':
+        aValue = a.name?.toLowerCase() || ''
+        bValue = b.name?.toLowerCase() || ''
+        break
+      case 'coordinates': {
+        // Sort by latitude first, then longitude (proper secondary sorting)
+        // Check for null/undefined coordinates to prevent NaN
+        const aLatValid =
+          typeof a.lat === 'number' && !isNaN(a.lat) && typeof a.lng === 'number' && !isNaN(a.lng)
+        const bLatValid =
+          typeof b.lat === 'number' && !isNaN(b.lat) && typeof b.lng === 'number' && !isNaN(b.lng)
+
+        if (!aLatValid && !bLatValid) {
+          return 0 // Both invalid, equal
+        }
+        if (!aLatValid) {
+          return 1 // a is invalid, sort it last
+        }
+        if (!bLatValid) {
+          return -1 // b is invalid, sort it last
+        }
+
+        // Compare latitude first
+        if (a.lat !== b.lat) {
+          return sortDirection.value === 'asc' ? a.lat - b.lat : b.lat - a.lat
+        }
+
+        // If latitudes are equal, compare longitude
+        return sortDirection.value === 'asc' ? a.lng - b.lng : b.lng - a.lng
+      }
+      case 'type':
+        aValue = a.type?.toLowerCase() || ''
+        bValue = b.type?.toLowerCase() || ''
+        break
+      case 'year':
+        aValue = a.year ?? -Infinity // Treat null/undefined as smallest
+        bValue = b.year ?? -Infinity
+        break
+      case 'description':
+        aValue = a.description?.toLowerCase() || ''
+        bValue = b.description?.toLowerCase() || ''
+        break
+      default:
+        return 0
+    }
+
+    if (aValue < bValue) {
+      return sortDirection.value === 'asc' ? -1 : 1
+    }
+    if (aValue > bValue) {
+      return sortDirection.value === 'asc' ? 1 : -1
+    }
+    return 0
+  })
+
+  return result
+})
+
+const sortBy = (column: 'name' | 'coordinates' | 'type' | 'year' | 'description') => {
+  if (sortColumn.value === column) {
+    // Toggle direction if clicking the same column
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    // Set new column and default to ascending
+    sortColumn.value = column
+    sortDirection.value = 'asc'
   }
 }
 

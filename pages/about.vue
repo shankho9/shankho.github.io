@@ -33,6 +33,8 @@ const socialIcons = {
   twitter: 'mdi:twitter',
   stackoverflow: 'mdi:stack-overflow',
   spotify: 'mdi:spotify',
+  bluesky: 'simple-icons:bluesky',
+  discord: 'simple-icons:discord',
 }
 </script>
 
