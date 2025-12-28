@@ -1,5 +1,5 @@
 export const navbarData = {
-  homeTitle: "Shankho's Blog",
+  homeTitle: 'Nomadic Notions',
 }
 
 export const footerData = {
@@ -295,10 +295,10 @@ export const aboutPage = {
 }
 
 export const seoData = {
-  title: `Sid's Blog | Shankho Blog - Siddhartha Basu`,
-  ogTitle: `Let's learn the aspects of Life through - Sid's Blog | Shankho's Blog`,
-  description: `Hi I am Shankho. A Test Automation Senior Vice President at Natwest Group, with over a decade of experience in software development. - Sid's Blog | Shankho's Blog`,
-  twitterDescription: `Sid's Blog, where I play around content, resources, etc - Sid's Blog | Shankho's Blog`,
+  title: `Sid's Blog | Nomadic Notions - Siddhartha Basu`,
+  ogTitle: `Let's learn the aspects of Life through - Sid's Blog | Nomadic Notions`,
+  description: `Hi I am Shankho. A Test Automation Senior Vice President at Natwest Group, with over a decade of experience in software development. - Sid's Blog | Nomadic Notions`,
+  twitterDescription: `Sid's Blog, where I play around content, resources, etc - Sid's Blog | Nomadic Notions`,
   image:
     'https://res.cloudinary.com/dmecmyphj/image/upload/v1673548905/nuxt-blog/cover_ntgs6u.webp',
   mySite: 'https://shankho-blogsite.vercel.app/',
@@ -312,6 +312,8 @@ export const socialLinks = {
   twitter: 'https://twitter.com/shankho99',
   stackoverflow: 'https://stackoverflow.com/users/8872168/siddhartha-basu',
   spotify: 'https://open.spotify.com/user/w7b38i9wif2jjq3hfx3ay30zj?si=6ac5c35594ec4d6f',
+  bluesky: 'https://bsky.app/profile/shankho.bsky.social',
+  discord: 'https://discord.com/users/basid09',
 }
 
 export const siteMetaData = [

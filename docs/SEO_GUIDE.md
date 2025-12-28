@@ -10,7 +10,7 @@ This is the **primary file** where you configure your site's SEO data:
 
 ```typescript
 export const seoData = {
-  title: `Sid's Blog | Shankho Blog`,
+  title: `Sid's Blog | Nomadic Notions`,
   description: 'Your site description here (150-160 characters)',
   mySite: 'https://yourdomain.com', // Your production URL
   ogTitle: 'Your Open Graph title',
@@ -51,7 +51,7 @@ Each page should have unique meta tags:
 
 ```typescript
 useHead({
-  title: 'Home - Shankho Blog',
+  title: 'Home - Nomadic Notions',
   meta: [
     {
       name: 'description',
