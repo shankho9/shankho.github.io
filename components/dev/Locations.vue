@@ -4,6 +4,54 @@
       <!-- Form Section -->
       <div>
         <h3 class="text-lg font-semibold mb-4">Add New Location</h3>
+
+        <!-- Place Search -->
+        <div
+          class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
+        >
+          <label class="block text-sm font-medium mb-2">Search for a Place</label>
+          <div class="relative">
+            <input
+              ref="searchInput"
+              v-model="searchQuery"
+              type="text"
+              class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+              placeholder="Type a place name (e.g., Paris, France)"
+              @input="onSearchInput"
+              @focus="onSearchFocus"
+            />
+            <div
+              v-if="searchSuggestions.length > 0"
+              class="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto"
+            >
+              <div
+                v-for="(suggestion, index) in searchSuggestions"
+                :key="index"
+                class="px-4 py-3 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer border-b border-gray-200 dark:border-slate-700 last:border-b-0"
+                @click="selectSuggestion(suggestion)"
+              >
+                <div class="font-medium text-gray-900 dark:text-gray-100">
+                  {{ suggestion.name }}
+                </div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ suggestion.address }}
+                </div>
+                <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  <span v-if="suggestion.lat !== null && suggestion.lng !== null">
+                    Lat: {{ suggestion.lat.toFixed(6) }}, Lng: {{ suggestion.lng.toFixed(6) }}
+                  </span>
+                  <span v-else class="text-yellow-600 dark:text-yellow-400">
+                    Coordinates not available - enter manually
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            Search for a place and select from suggestions to auto-fill coordinates
+          </p>
+        </div>
+
         <form class="space-y-4" @submit.prevent="submitPlace">
           <div>
             <label class="block text-sm font-medium mb-2">Name *</label>
@@ -121,6 +169,221 @@
         </p>
       </div>
     </div>
+
+    <!-- Locations List Section -->
+    <div class="mt-8">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">All Locations ({{ locations.length }})</h3>
+        <button
+          class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
+          @click="loadLocations"
+        >
+          Refresh
+        </button>
+      </div>
+
+      <div v-if="isLoadingLocations" class="text-center py-8 text-gray-500">
+        Loading locations...
+      </div>
+
+      <div
+        v-else-if="locations.length === 0"
+        class="text-center py-8 text-gray-500 dark:text-gray-400"
+      >
+        No locations added yet. Add your first location above!
+      </div>
+
+      <div v-else class="overflow-x-auto border rounded-lg dark:border-slate-700">
+        <table class="w-full">
+          <thead class="bg-gray-50 dark:bg-slate-800">
+            <tr>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              >
+                Name
+              </th>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              >
+                Coordinates
+              </th>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              >
+                Type
+              </th>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              >
+                Year
+              </th>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              >
+                Description
+              </th>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              >
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
+            <tr
+              v-for="location in locations"
+              :key="location.id"
+              class="hover:bg-gray-50 dark:hover:bg-slate-800"
+            >
+              <td class="px-4 py-3 whitespace-nowrap">
+                <div
+                  v-if="editingId !== location.id"
+                  class="font-medium text-gray-900 dark:text-gray-100"
+                >
+                  {{ location.name }}
+                </div>
+                <input
+                  v-else
+                  :value="location.name"
+                  type="text"
+                  disabled
+                  class="w-full px-2 py-1 border rounded dark:bg-slate-700 dark:border-slate-600 bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                />
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                <div v-if="editingId !== location.id">
+                  {{ location.lat.toFixed(6) }}, {{ location.lng.toFixed(6) }}
+                </div>
+                <div v-else class="flex gap-2">
+                  <input
+                    :value="location.lat.toFixed(6)"
+                    type="text"
+                    disabled
+                    class="w-24 px-2 py-1 border rounded dark:bg-slate-700 dark:border-slate-600 bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                  />
+                  <input
+                    :value="location.lng.toFixed(6)"
+                    type="text"
+                    disabled
+                    class="w-24 px-2 py-1 border rounded dark:bg-slate-700 dark:border-slate-600 bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                  />
+                </div>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <div v-if="editingId !== location.id">
+                  <span
+                    class="px-2 py-1 text-xs rounded-full"
+                    :class="
+                      location.type === 'home'
+                        ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                    "
+                  >
+                    {{ location.type || 'N/A' }}
+                  </span>
+                </div>
+                <select
+                  v-else
+                  v-model="editForms[location.id].type"
+                  class="w-full px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600"
+                >
+                  <option value="">Select type</option>
+                  <option value="home">Home</option>
+                  <option value="trip">Trip</option>
+                </select>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                <div v-if="editingId !== location.id">
+                  {{ location.year || 'N/A' }}
+                </div>
+                <input
+                  v-else
+                  v-model.number="editForms[location.id].year"
+                  type="number"
+                  min="1900"
+                  max="2100"
+                  class="w-20 px-2 py-1 border rounded dark:bg-slate-700 dark:border-slate-600"
+                  placeholder="Year"
+                />
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                <div v-if="editingId !== location.id" class="max-w-xs truncate">
+                  {{ location.description || 'N/A' }}
+                </div>
+                <textarea
+                  v-else
+                  v-model="editForms[location.id].description"
+                  rows="2"
+                  class="w-full px-2 py-1 border rounded dark:bg-slate-700 dark:border-slate-600"
+                  placeholder="Description"
+                />
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm">
+                <div v-if="editingId !== location.id" class="flex gap-2">
+                  <button
+                    class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs"
+                    @click="startEdit(location)"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
+                    @click="confirmDelete(location)"
+                  >
+                    Delete
+                  </button>
+                </div>
+                <div v-else class="flex gap-2">
+                  <button
+                    :disabled="isSaving"
+                    class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 text-xs"
+                    @click="saveEdit(location.id)"
+                  >
+                    {{ isSaving ? 'Saving...' : 'Save' }}
+                  </button>
+                  <button
+                    class="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs"
+                    @click="cancelEdit"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div
+      v-if="deleteConfirm"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="deleteConfirm = null"
+    >
+      <div class="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 class="text-lg font-semibold mb-4">Confirm Delete</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">
+          Are you sure you want to delete <strong>{{ deleteConfirm.name }}</strong
+          >? This action cannot be undone.
+        </p>
+        <div class="flex gap-3 justify-end">
+          <button
+            class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+            @click="deleteConfirm = null"
+          >
+            Cancel
+          </button>
+          <button
+            :disabled="isDeleting"
+            class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+            @click="deleteLocation(deleteConfirm.id)"
+          >
+            {{ isDeleting ? 'Deleting...' : 'Delete' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -137,6 +400,27 @@ interface PlaceForm {
   type: 'home' | 'trip' | ''
 }
 
+interface PlaceSuggestion {
+  name: string
+  address: string
+  lat: number | null // null when coordinates aren't available (placesService unavailable)
+  lng: number | null // null when coordinates aren't available (placesService unavailable)
+  placeId: string
+  isError?: boolean // Flag to indicate error fallback cases (API call failed)
+}
+
+interface Location {
+  id: number
+  name: string
+  lat: number
+  lng: number
+  year?: number | null
+  description?: string | null
+  blog_slug?: string | null
+  type?: 'home' | 'trip' | null
+  created_at?: string
+}
+
 const form = ref<PlaceForm>({
   name: '',
   lat: null,
@@ -151,8 +435,24 @@ const isSubmitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 const mapContainer = ref<HTMLDivElement | null>(null)
+const searchInput = ref<HTMLInputElement | null>(null)
+const searchQuery = ref('')
+const searchSuggestions = ref<PlaceSuggestion[]>([])
+const locations = ref<Location[]>([])
+const isLoadingLocations = ref(false)
+const editingId = ref<number | null>(null)
+// Store edit state per location ID to prevent overwriting unsaved edits
+// Use Record instead of Map for Vue 3 reactivity (Vue doesn't track Map mutations)
+const editForms = ref<Record<number, PlaceForm>>({})
+const isSaving = ref(false)
+const deleteConfirm = ref<Location | null>(null)
+const isDeleting = ref(false)
 let map: google.maps.Map | null = null
 let marker: google.maps.Marker | null = null
+let autocompleteService: google.maps.places.AutocompleteService | null = null
+let placesService: google.maps.places.PlacesService | null = null
+let searchTimeout: NodeJS.Timeout | null = null
+let currentSearchQuery: string | null = null // Track the query for the current search to prevent race conditions
 
 const loadMap = async () => {
   if (!mapContainer.value) return
@@ -201,6 +501,12 @@ const loadMap = async () => {
         center: { lat: 0, lng: 0 },
         zoom: 2,
       })
+
+      // Initialize Places services
+      if (window.google.maps.places) {
+        autocompleteService = new window.google.maps.places.AutocompleteService()
+        placesService = new window.google.maps.places.PlacesService(map)
+      }
     } catch (error) {
       console.error('[Locations] Failed to initialize map:', error)
       errorMessage.value = 'Failed to initialize map. Please check your Google Maps API key.'
@@ -212,7 +518,9 @@ const loadMap = async () => {
 }
 
 const updateMarker = () => {
-  if (!map || form.value.lat === null || form.value.lng === null) {
+  // Check for null or undefined explicitly (not truthiness) to allow valid 0 coordinates
+  // This ensures locations on equator (lat=0) or prime meridian (lng=0) are handled correctly
+  if (!map || form.value.lat == null || form.value.lng == null) {
     if (marker) {
       marker.setMap(null)
       marker = null
@@ -244,6 +552,145 @@ const updateMarker = () => {
   } catch (error) {
     console.error('[Locations] Failed to update marker:', error)
   }
+}
+
+const onSearchInput = () => {
+  // Clear previous timeout
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
+
+  // Clear suggestions if search is empty
+  if (!searchQuery.value.trim()) {
+    searchSuggestions.value = []
+    currentSearchQuery = null
+    return
+  }
+
+  // Debounce search requests
+  searchTimeout = setTimeout(() => {
+    performSearch()
+  }, 300)
+}
+
+const onSearchFocus = () => {
+  // If there's a query, show suggestions again
+  if (searchQuery.value.trim() && searchSuggestions.value.length === 0) {
+    performSearch()
+  }
+}
+
+const performSearch = () => {
+  if (!autocompleteService || !searchQuery.value.trim()) {
+    return
+  }
+
+  // Capture the current query to track which search this response belongs to
+  const queryForThisSearch = searchQuery.value.trim()
+  currentSearchQuery = queryForThisSearch
+
+  autocompleteService.getPlacePredictions(
+    {
+      input: queryForThisSearch,
+      types: ['geocode', 'establishment'],
+    },
+    (predictions, status) => {
+      // Check if this response is still relevant (user hasn't changed the query)
+      if (currentSearchQuery !== queryForThisSearch) {
+        // This response is stale, ignore it
+        return
+      }
+
+      if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+        // Get details for each prediction to get lat/lng
+        const promises = predictions.slice(0, 5).map((prediction) => {
+          return new Promise<PlaceSuggestion>((resolve) => {
+            if (!placesService) {
+              // placesService unavailable - still show prediction but without coordinates
+              // This is not an error, just a limitation (user can manually enter coordinates)
+              resolve({
+                name: prediction.description,
+                address: prediction.description,
+                lat: null, // Coordinates not available
+                lng: null, // Coordinates not available
+                placeId: prediction.place_id,
+                // Don't mark as error - this is a valid prediction without coordinates
+              })
+              return
+            }
+
+            placesService.getDetails(
+              {
+                placeId: prediction.place_id,
+                fields: ['name', 'formatted_address', 'geometry'],
+              },
+              (place, placeStatus) => {
+                if (placeStatus === window.google.maps.places.PlacesServiceStatus.OK && place) {
+                  const location = place.geometry?.location
+                  // Check if location and coordinates are valid
+                  const lat = location?.lat()
+                  const lng = location?.lng()
+                  const hasValidCoordinates =
+                    typeof lat === 'number' && !isNaN(lat) && typeof lng === 'number' && !isNaN(lng)
+
+                  resolve({
+                    name: place.name || prediction.description,
+                    address: place.formatted_address || prediction.description,
+                    // Use null if coordinates are missing/invalid (user can enter manually)
+                    // Don't use (0, 0) as fallback to avoid fake Gulf of Guinea locations
+                    lat: hasValidCoordinates ? lat : null,
+                    lng: hasValidCoordinates ? lng : null,
+                    placeId: prediction.place_id,
+                    // Don't mark as error - API call succeeded, just missing coordinate data
+                  })
+                } else {
+                  resolve({
+                    name: prediction.description,
+                    address: prediction.description,
+                    lat: 0,
+                    lng: 0,
+                    placeId: prediction.place_id,
+                    isError: true, // Mark as error case (API call failed)
+                  })
+                }
+              },
+            )
+          })
+        })
+
+        Promise.all(promises).then((suggestions) => {
+          // Double-check the query hasn't changed before updating suggestions
+          // This prevents stale responses from overwriting newer results
+          if (currentSearchQuery === queryForThisSearch) {
+            // Filter out only actual error cases (marked with isError flag)
+            // Keep suggestions even if coordinates are null (placesService unavailable)
+            // This preserves legitimate places at (0, 0) while removing API error cases
+            searchSuggestions.value = suggestions.filter((s) => !s.isError)
+          }
+        })
+      } else {
+        // Only clear suggestions if this is still the current search
+        if (currentSearchQuery === queryForThisSearch) {
+          searchSuggestions.value = []
+        }
+      }
+    },
+  )
+}
+
+const selectSuggestion = (suggestion: PlaceSuggestion) => {
+  // Fill form with selected suggestion
+  form.value.name = suggestion.name
+  // Only set coordinates if they're available (not null)
+  form.value.lat = suggestion.lat ?? null
+  form.value.lng = suggestion.lng ?? null
+
+  // Clear search
+  searchQuery.value = ''
+  searchSuggestions.value = []
+
+  // Update map marker (will only show if coordinates are available)
+  updateMarker()
 }
 
 watch(
@@ -282,6 +729,8 @@ const submitPlace = async () => {
         marker.setMap(null)
         marker = null
       }
+      // Reload locations list
+      await loadLocations()
     } else {
       errorMessage.value = response.error || 'Failed to add location'
     }
@@ -292,13 +741,139 @@ const submitPlace = async () => {
   }
 }
 
+const loadLocations = async () => {
+  isLoadingLocations.value = true
+  try {
+    const data = await $fetch<Location[]>('/api/travel/places')
+    locations.value = data || []
+  } catch (err) {
+    console.error('[Locations] Failed to load locations:', err)
+    errorMessage.value = 'Failed to load locations'
+  } finally {
+    isLoadingLocations.value = false
+  }
+}
+
+const startEdit = (location: Location) => {
+  // If another location is being edited, cancel it first to prevent data loss
+  if (editingId.value !== null && editingId.value !== location.id) {
+    cancelEdit()
+  }
+
+  editingId.value = location.id
+  // Store edit state per location ID to prevent overwriting unsaved edits
+  // Use object property assignment for Vue 3 reactivity
+  // Only set editable fields (type, year, description)
+  editForms.value[location.id] = {
+    name: location.name, // Keep for display, but won't be sent to API
+    lat: location.lat, // Keep for display, but won't be sent to API
+    lng: location.lng, // Keep for display, but won't be sent to API
+    year: location.year ?? null, // Use ?? to preserve 0 (falsy but valid)
+    description: location.description ?? '', // Use ?? to preserve empty string if needed
+    blog_slug: location.blog_slug ?? '', // Keep for API, but not editable in UI
+    type: (location.type as 'home' | 'trip' | '') ?? '',
+  }
+}
+
+const cancelEdit = () => {
+  if (editingId.value !== null) {
+    // Remove edit state for the location being cancelled
+    // Use object destructuring to create new object without the property (Vue 3 reactivity)
+    const { [editingId.value]: _, ...rest } = editForms.value
+    editForms.value = rest
+  }
+  editingId.value = null
+}
+
+const saveEdit = async (id: number) => {
+  isSaving.value = true
+  try {
+    // Get edit state for this specific location ID
+    const editForm = editForms.value[id]
+    if (!editForm) {
+      errorMessage.value = 'Edit state not found. Please try editing again.'
+      editingId.value = null
+      return
+    }
+
+    // Use values from editForm which were captured when editing started
+    // This ensures we have valid values even if the location was deleted/refreshed
+    // editForm.name, editForm.lat, editForm.lng are guaranteed to be valid from startEdit()
+    const updateData = {
+      name: editForm.name, // Use captured name (guaranteed valid from startEdit)
+      lat: editForm.lat!, // Use captured lat (guaranteed valid from startEdit)
+      lng: editForm.lng!, // Use captured lng (guaranteed valid from startEdit)
+      type: editForm.type,
+      year: editForm.year,
+      description: editForm.description,
+      blog_slug: editForm.blog_slug || null,
+    }
+
+    const response = await $fetch<{ success: boolean; place?: Location; error?: string }>(
+      `/api/travel/places/${id}`,
+      {
+        method: 'PUT',
+        body: updateData,
+      },
+    )
+
+    if (response.success) {
+      successMessage.value = `Location "${response.place?.name}" updated successfully!`
+      // Remove edit state for this location after successful save
+      // Use object destructuring to create new object without the property (Vue 3 reactivity)
+      const { [id]: _, ...rest } = editForms.value
+      editForms.value = rest
+      editingId.value = null
+      await loadLocations()
+    } else {
+      errorMessage.value = response.error || 'Failed to update location'
+    }
+  } catch (err) {
+    errorMessage.value = err instanceof Error ? err.message : 'Failed to update location'
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const confirmDelete = (location: Location) => {
+  deleteConfirm.value = location
+}
+
+const deleteLocation = async (id: number) => {
+  isDeleting.value = true
+  try {
+    const response = await $fetch<{ success: boolean; error?: string }>(
+      `/api/travel/places/${id}`,
+      {
+        method: 'DELETE',
+      },
+    )
+
+    if (response.success) {
+      successMessage.value = 'Location deleted successfully!'
+      deleteConfirm.value = null
+      await loadLocations()
+    } else {
+      errorMessage.value = response.error || 'Failed to delete location'
+    }
+  } catch (err) {
+    errorMessage.value = err instanceof Error ? err.message : 'Failed to delete location'
+  } finally {
+    isDeleting.value = false
+  }
+}
+
 onMounted(() => {
   loadMap()
+  loadLocations()
 })
 
 onUnmounted(() => {
   if (marker) {
     marker.setMap(null)
+  }
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
   }
 })
 </script>
