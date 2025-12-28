@@ -767,11 +767,13 @@ const cancelEdit = () => {
 const saveEdit = async (id: number) => {
   isSaving.value = true
   try {
-    // Only send editable fields: type, year, description (and blog_slug if needed)
+    // Use values from editForm which were captured when editing started
+    // This ensures we have valid values even if the location was deleted/refreshed
+    // editForm.name, editForm.lat, editForm.lng are guaranteed to be valid from startEdit()
     const updateData = {
-      name: locations.value.find((l) => l.id === id)?.name || '', // Keep original name
-      lat: locations.value.find((l) => l.id === id)?.lat || 0, // Keep original lat
-      lng: locations.value.find((l) => l.id === id)?.lng || 0, // Keep original lng
+      name: editForm.value.name, // Use captured name (guaranteed valid from startEdit)
+      lat: editForm.value.lat!, // Use captured lat (guaranteed valid from startEdit)
+      lng: editForm.value.lng!, // Use captured lng (guaranteed valid from startEdit)
       type: editForm.value.type,
       year: editForm.value.year,
       description: editForm.value.description,
