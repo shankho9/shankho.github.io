@@ -401,6 +401,7 @@ interface PlaceSuggestion {
   lat: number
   lng: number
   placeId: string
+  isError?: boolean // Flag to indicate error fallback cases (lat: 0, lng: 0 from failed API calls)
 }
 
 interface Location {
@@ -606,6 +607,7 @@ const performSearch = () => {
                 lat: 0,
                 lng: 0,
                 placeId: prediction.place_id,
+                isError: true, // Mark as error case
               })
               return
             }
@@ -632,6 +634,7 @@ const performSearch = () => {
                     lat: 0,
                     lng: 0,
                     placeId: prediction.place_id,
+                    isError: true, // Mark as error case (API call failed)
                   })
                 }
               },
@@ -643,9 +646,9 @@ const performSearch = () => {
           // Double-check the query hasn't changed before updating suggestions
           // This prevents stale responses from overwriting newer results
           if (currentSearchQuery === queryForThisSearch) {
-            // Filter out only the (0, 0) error fallback cases
-            // Use OR (||) not AND (&&) to allow valid places on equator (lat=0) or prime meridian (lng=0)
-            searchSuggestions.value = suggestions.filter((s) => s.lat !== 0 || s.lng !== 0)
+            // Filter out only error fallback cases (marked with isError flag)
+            // This preserves legitimate places at (0, 0) while removing API error cases
+            searchSuggestions.value = suggestions.filter((s) => !s.isError)
           }
         })
       } else {
@@ -747,10 +750,10 @@ const startEdit = (location: Location) => {
     name: location.name, // Keep for display, but won't be sent to API
     lat: location.lat, // Keep for display, but won't be sent to API
     lng: location.lng, // Keep for display, but won't be sent to API
-    year: location.year || null,
-    description: location.description || '',
-    blog_slug: location.blog_slug || '', // Keep for API, but not editable in UI
-    type: (location.type as 'home' | 'trip' | '') || '',
+    year: location.year ?? null, // Use ?? to preserve 0 (falsy but valid)
+    description: location.description ?? '', // Use ?? to preserve empty string if needed
+    blog_slug: location.blog_slug ?? '', // Keep for API, but not editable in UI
+    type: (location.type as 'home' | 'trip' | '') ?? '',
   }
 }
 
