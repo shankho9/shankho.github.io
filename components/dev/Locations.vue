@@ -279,7 +279,7 @@
                 </div>
                 <select
                   v-else
-                  v-model="editForm.type"
+                  v-model="editForms.get(location.id)!.type"
                   class="w-full px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600"
                 >
                   <option value="">Select type</option>
@@ -293,7 +293,7 @@
                 </div>
                 <input
                   v-else
-                  v-model.number="editForm.year"
+                  v-model.number="editForms.get(location.id)!.year"
                   type="number"
                   min="1900"
                   max="2100"
@@ -307,7 +307,7 @@
                 </div>
                 <textarea
                   v-else
-                  v-model="editForm.description"
+                  v-model="editForms.get(location.id)!.description"
                   rows="2"
                   class="w-full px-2 py-1 border rounded dark:bg-slate-700 dark:border-slate-600"
                   placeholder="Description"
@@ -435,15 +435,8 @@ const searchSuggestions = ref<PlaceSuggestion[]>([])
 const locations = ref<Location[]>([])
 const isLoadingLocations = ref(false)
 const editingId = ref<number | null>(null)
-const editForm = ref<PlaceForm>({
-  name: '',
-  lat: null,
-  lng: null,
-  year: null,
-  description: '',
-  blog_slug: '',
-  type: '',
-})
+// Store edit state per location ID to prevent overwriting unsaved edits
+const editForms = ref<Map<number, PlaceForm>>(new Map())
 const isSaving = ref(false)
 const deleteConfirm = ref<Location | null>(null)
 const isDeleting = ref(false)
@@ -740,9 +733,15 @@ const loadLocations = async () => {
 }
 
 const startEdit = (location: Location) => {
+  // If another location is being edited, cancel it first to prevent data loss
+  if (editingId.value !== null && editingId.value !== location.id) {
+    cancelEdit()
+  }
+
   editingId.value = location.id
+  // Store edit state per location ID to prevent overwriting unsaved edits
   // Only set editable fields (type, year, description)
-  editForm.value = {
+  editForms.value.set(location.id, {
     name: location.name, // Keep for display, but won't be sent to API
     lat: location.lat, // Keep for display, but won't be sent to API
     lng: location.lng, // Keep for display, but won't be sent to API
@@ -750,36 +749,39 @@ const startEdit = (location: Location) => {
     description: location.description || '',
     blog_slug: location.blog_slug || '', // Keep for API, but not editable in UI
     type: (location.type as 'home' | 'trip' | '') || '',
-  }
+  })
 }
 
 const cancelEdit = () => {
-  editingId.value = null
-  editForm.value = {
-    name: '',
-    lat: null,
-    lng: null,
-    year: null,
-    description: '',
-    blog_slug: '',
-    type: '',
+  if (editingId.value !== null) {
+    // Remove edit state for the location being cancelled
+    editForms.value.delete(editingId.value)
   }
+  editingId.value = null
 }
 
 const saveEdit = async (id: number) => {
   isSaving.value = true
   try {
+    // Get edit state for this specific location ID
+    const editForm = editForms.value.get(id)
+    if (!editForm) {
+      errorMessage.value = 'Edit state not found. Please try editing again.'
+      editingId.value = null
+      return
+    }
+
     // Use values from editForm which were captured when editing started
     // This ensures we have valid values even if the location was deleted/refreshed
     // editForm.name, editForm.lat, editForm.lng are guaranteed to be valid from startEdit()
     const updateData = {
-      name: editForm.value.name, // Use captured name (guaranteed valid from startEdit)
-      lat: editForm.value.lat!, // Use captured lat (guaranteed valid from startEdit)
-      lng: editForm.value.lng!, // Use captured lng (guaranteed valid from startEdit)
-      type: editForm.value.type,
-      year: editForm.value.year,
-      description: editForm.value.description,
-      blog_slug: editForm.value.blog_slug || null,
+      name: editForm.name, // Use captured name (guaranteed valid from startEdit)
+      lat: editForm.lat!, // Use captured lat (guaranteed valid from startEdit)
+      lng: editForm.lng!, // Use captured lng (guaranteed valid from startEdit)
+      type: editForm.type,
+      year: editForm.year,
+      description: editForm.description,
+      blog_slug: editForm.blog_slug || null,
     }
 
     const response = await $fetch<{ success: boolean; place?: Location; error?: string }>(
@@ -792,6 +794,8 @@ const saveEdit = async (id: number) => {
 
     if (response.success) {
       successMessage.value = `Location "${response.place?.name}" updated successfully!`
+      // Remove edit state for this location after successful save
+      editForms.value.delete(id)
       editingId.value = null
       await loadLocations()
     } else {
