@@ -87,7 +87,7 @@ export const useNotion = () => {
    */
   const fetchResources = async (type: 'books' | 'tools' | 'learning' | 'all' = 'all') => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const filter: any = {
+    let filter: any = {
       property: 'Published',
       checkbox: {
         equals: true,
@@ -95,15 +95,24 @@ export const useNotion = () => {
     }
 
     if (type !== 'all') {
-      // Add type filter if needed
-      filter.and = [
-        {
-          property: 'Type',
-          select: {
-            equals: type === 'books' ? 'Book' : type === 'tools' ? 'Tool' : 'Learning Resource',
+      // Wrap both conditions in an 'and' array when filtering by type
+      // Notion filter format requires all conditions to be in the 'and' array
+      filter = {
+        and: [
+          {
+            property: 'Published',
+            checkbox: {
+              equals: true,
+            },
           },
-        },
-      ]
+          {
+            property: 'Type',
+            select: {
+              equals: type === 'books' ? 'Book' : type === 'tools' ? 'Tool' : 'Learning Resource',
+            },
+          },
+        ],
+      }
     }
 
     const sorts = [
