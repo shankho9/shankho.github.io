@@ -1,5 +1,7 @@
 <script lang="ts" setup>
 import { getTagColorClasses } from '~/utils/blog/tagColors'
+import { useGoogleAuth } from '~/composables/useGoogleAuth'
+import { computed } from 'vue'
 
 interface Props {
   path?: string
@@ -14,7 +16,7 @@ interface Props {
   type?: 'blog' | 'lifeline'
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   path: '/',
   title: 'no-title',
   date: 'no-date',
@@ -26,13 +28,71 @@ withDefaults(defineProps<Props>(), {
   published: false,
   type: 'blog',
 })
+
+// Check if this is a lifelines blog
+const isLifeline = computed(() => {
+  return props.type === 'lifeline' || props.tags.some((tag) => tag.toLowerCase() === 'lifelines')
+})
+
+// Authentication
+const { isAuthenticated } = useGoogleAuth()
+
+// Normalize path for lifelines blogs
+const normalizedPath = computed(() => {
+  if (!isLifeline.value) {
+    return props.path
+  }
+
+  // For lifelines blogs, ensure path uses /personalSpace/ prefix
+  let path = props.path || '/'
+
+  // Remove .md extension if present
+  if (path.endsWith('.md')) {
+    path = path.replace(/\.md$/, '')
+  }
+
+  // Remove leading /content/ if present
+  if (path.startsWith('/content/')) {
+    path = path.replace(/^\/content/, '')
+  }
+
+  // Remove leading /blogs/ if present
+  if (path.startsWith('/blogs/')) {
+    path = path.replace(/^\/blogs/, '')
+  }
+
+  // Ensure no double slashes
+  path = path.replace(/\/+/g, '/')
+
+  // Ensure path starts with /personalSpace/
+  if (!path.startsWith('/personalSpace/')) {
+    const cleanPath = path.replace(/^\/+/, '')
+    path = `/personalSpace/${cleanPath}`
+  }
+
+  // Final cleanup
+  return path.replace(/\/+/g, '/')
+})
+
+// Handle click - check auth for lifelines
+const handleClick = (event: MouseEvent) => {
+  if (isLifeline.value && !isAuthenticated.value) {
+    event.preventDefault()
+    // Navigate to personalSpace page which has auth
+    navigateTo('/personalSpace')
+  }
+}
 </script>
 
 <template>
   <article
     class="group border dark:border-gray-800 m-2 rounded-2xl overflow-hidden shadow-sm text-zinc-700 dark:text-zinc-300"
   >
-    <NuxtLink :to="path" class="grid grid-cols-1 sm:grid-cols-10 gap-1">
+    <NuxtLink
+      :to="normalizedPath"
+      class="grid grid-cols-1 sm:grid-cols-10 gap-1"
+      @click="handleClick"
+    >
       <div class="sm:col-span-3">
         <NuxtImg
           class="h-full w-full object-cover object-center rounded-t-2xl sm:rounded-l-2xl sm:rounded-t-none shadow-lg group-hover:scale-[1.02] transition-all duration-500"

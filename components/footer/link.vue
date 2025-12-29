@@ -1,7 +1,11 @@
 <template>
   <div class="flex flex-col dark:text-zinc-300 my-5 md:my-0 md:justify-self-center">
-    <p class="text-black dark:text-zinc-300 text-xl font-semibold mb-2">Quick Links</p>
-    <div class="grid grid-cols-2 gap-x-3 gap-y-1">
+    <p
+      class="text-black dark:text-zinc-300 text-lg sm:text-xl font-semibold mb-2 text-center md:text-left"
+    >
+      Quick Links
+    </p>
+    <div class="grid grid-cols-2 gap-x-2 sm:gap-x-3 gap-y-1.5 sm:gap-y-1">
       <NuxtLink
         to="/"
         class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors group text-sm"
@@ -101,8 +105,7 @@
         >
       </NuxtLink>
       <NuxtLink
-        to="/sitemap.xml"
-        target="_blank"
+        to="/sitemap"
         class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors group text-sm"
       >
         <Icon

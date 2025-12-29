@@ -35,11 +35,27 @@ export default defineEventHandler(async (event) => {
       year: post.year, // Include the year in the response
     }
   } catch (err: unknown) {
+    // Handle missing table gracefully - this API endpoint is legacy
+    // The site uses Nuxt Content for blog posts, not database
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    if (
+      errorMessage.includes('does not exist') ||
+      (errorMessage.includes('relation') && errorMessage.includes('blog_posts'))
+    ) {
+      console.warn(`[API] blog_posts table does not exist. This endpoint is legacy and not used.`)
+      setResponseStatus(event, 404)
+      return {
+        statusCode: 404,
+        message: 'Post not found. This site uses Nuxt Content for blog posts.',
+        error: 'Database table not configured',
+      }
+    }
+
     console.error('Failed to fetch post data:', err)
     setResponseStatus(event, 500)
     return {
       statusCode: 500,
-      message: err instanceof Error ? err.message : 'Failed to fetch post data',
+      message: errorMessage,
     }
   }
 })
