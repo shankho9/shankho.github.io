@@ -16,6 +16,10 @@ const props = defineProps<{
   itemId: string | number
 }>()
 
+const emit = defineEmits<{
+  'comment-added': [itemId: string | number]
+}>()
+
 const { user, isAuthenticated, signIn, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
 
 const comments = ref<Comment[]>([])
@@ -136,6 +140,8 @@ const submitComment = async () => {
       totalComments.value = newTotal
       totalPages.value = Math.ceil(newTotal / commentsPerPage.value)
       await loadComments(1)
+      // Emit event to notify parent of comment count change
+      emit('comment-added', props.itemId)
     }
   } catch (err) {
     console.error('[GalleryComments] Failed to submit comment:', err)

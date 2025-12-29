@@ -132,6 +132,13 @@ export default defineNuxtConfig({
       googleClientId: process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID,
       googleMapsApiKey: process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY,
       apiBase: '/api',
+      // ImageKit public configuration (client-side accessible)
+      imageKitUrlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/u6cq4dqll',
+      // ImageKit root folders (configurable)
+      imageKitPhotosRootFolder: process.env.IMAGEKIT_PHOTOS_ROOT_FOLDER || 'Library/Photos',
+      imageKitVideosRootFolder: process.env.IMAGEKIT_VIDEOS_ROOT_FOLDER || 'Library/Videos',
+      // Notion database ID (client-side accessible for API calls)
+      notionDatabaseId: process.env.NOTION_DATABASE_ID,
     },
     databaseUrl: process.env.DATABASE_URL,
     // Email configuration (server-side only)
@@ -141,6 +148,16 @@ export default defineNuxtConfig({
     // Admin configuration (server-side only)
     adminPasswordHash: process.env.ADMIN_PASSWORD_HASH,
     admin2FASecret: process.env.ADMIN_2FA_SECRET,
+    // ImageKit configuration (server-side only)
+    imageKitPublicKey: process.env.IMAGEKIT_PUBLIC_KEY,
+    imageKitPrivateKey: process.env.IMAGEKIT_PRIVATE_KEY,
+    imageKitUrlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/u6cq4dqll',
+    // ImageKit root folders (server-side, same as public for consistency)
+    imageKitPhotosRootFolder: process.env.IMAGEKIT_PHOTOS_ROOT_FOLDER || 'Library/Photos',
+    imageKitVideosRootFolder: process.env.IMAGEKIT_VIDEOS_ROOT_FOLDER || 'Library/Videos',
+    // Notion configuration (server-side only)
+    notionApiKey: process.env.NOTION_API_KEY,
+    notionDatabaseId: process.env.NOTION_DATABASE_ID,
   },
 
   typescript: {

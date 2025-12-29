@@ -2,6 +2,7 @@
 import type { BlogPost } from '@/types/blog'
 import { navbarData, seoData } from '~/data'
 import { computed, onMounted, nextTick, ref, watch } from 'vue'
+import LikeButton from '@/components/blog/LikeButton.vue'
 import Comments from '@/components/blog/Comments.vue'
 import ReadingProgress from '@/components/blog/ReadingProgress.vue'
 import { calculateReadingTime } from '~/utils/blog/readingTime'
@@ -274,6 +275,7 @@ defineOgImageComponent('Test', {
           :tags="data.tags"
           :reading-time="readingTime"
         />
+
         <div
           class="prose prose-pre:max-w-xs sm:prose-pre:max-w-full prose-sm sm:prose-base md:prose-lg prose-h1:no-underline max-w-5xl mx-auto prose-zinc dark:prose-invert prose-img:rounded-lg"
         >
@@ -282,6 +284,11 @@ defineOgImageComponent('Test', {
               <p>No content found.</p>
             </template>
           </ContentRenderer>
+        </div>
+
+        <!-- Like Button (Bottom) -->
+        <div class="mt-4 flex items-center gap-2">
+          <LikeButton :post-id="path" />
         </div>
       </div>
       <BlogToc />

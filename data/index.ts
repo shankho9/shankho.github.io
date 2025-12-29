@@ -207,13 +207,13 @@ export const resourcesPage = {
       link: 'https://ik.imagekit.io/u6cq4dqll/Personal/about/All_four.jpg?updatedAt=1745977729755',
     },
     {
-      title: 'Travel Adventures',
-      description: 'Exploring new places and cultures',
+      title: 'Tiya Solo',
+      description: 'Love your smile - Tiya',
       imageUrl:
-        'https://ik.imagekit.io/u6cq4dqll/Personal/about/Sid_BetDwarka_Solo_w_Terrano.jpg?updatedAt=1745979649461',
-      category: 'Travel',
+        'https://photos.app.goo.gl/cRmLEnzGetL3qrXp6',
+      category: 'Family',
       date: '2024-02-20',
-      link: 'https://ik.imagekit.io/u6cq4dqll/Personal/about/Sid_BetDwarka_Solo_w_Terrano.jpg?updatedAt=1745979649461',
+      link: 'https://photos.app.goo.gl/cRmLEnzGetL3qrXp6',
     },
     {
       title: 'Work Memories',
