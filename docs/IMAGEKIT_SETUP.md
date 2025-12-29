@@ -36,7 +36,8 @@ IMAGEKIT_PRIVATE_KEY=your_private_key_here  # REQUIRED: Use Private API Key (sta
 IMAGEKIT_URL_ENDPOINT=https://ik.imagekit.io/u6cq4dqll
 ```
 
-**Important**: 
+**Important**:
+
 - Never commit your `.env` file to version control. The private key should remain secret.
 - Make sure you're using the **Private API Key** (starts with `private_`), NOT the Public Key.
 - The Private API Key is found in **Settings → Developer Options → Private API Key**
@@ -50,10 +51,10 @@ By default, the integration will load images from the root folder (`/`). To load
 
 ```typescript
 const imageKitFolders = ref<string[]>([
-  '/',                    // Root folder
-  '/Personal/about',      // Personal photos
-  '/Personal/travel',     // Travel photos
-  '/Personal/family',     // Family photos
+  '/', // Root folder
+  '/Personal/about', // Personal photos
+  '/Personal/travel', // Travel photos
+  '/Personal/family', // Family photos
 ])
 ```
 
@@ -105,6 +106,7 @@ GET /api/imagekit/list?folderPath=/&limit=100&skip=0
 ```
 
 **Query Parameters**:
+
 - `folderPath` (optional): Folder path to load images from (default: `/`)
 - `limit` (optional): Maximum number of images to load (default: `100`)
 - `skip` (optional): Number of images to skip (default: `0`)
@@ -124,4 +126,3 @@ GET /api/imagekit/list?folderPath=/&limit=100&skip=0
 5. Click any photo to view in full-screen lightbox
 
 Enjoy your automatic photo gallery! 📸
-

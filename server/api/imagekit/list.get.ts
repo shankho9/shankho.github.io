@@ -29,13 +29,15 @@ export default defineEventHandler(async (event) => {
 
   // Get ImageKit credentials from runtime config
   const imageKitPrivateKey = config.imageKitPrivateKey
-  const imageKitUrlEndpoint = config.imageKitUrlEndpoint
+
+  const _imageKitUrlEndpoint = config.imageKitUrlEndpoint
 
   // Validate configuration - only Private Key is required for REST API
   if (!imageKitPrivateKey) {
     return {
       success: false,
-      error: 'ImageKit configuration is missing. Please set IMAGEKIT_PRIVATE_KEY environment variable. Make sure you are using the Private API Key (starts with "private_"), not the Public Key.',
+      error:
+        'ImageKit configuration is missing. Please set IMAGEKIT_PRIVATE_KEY environment variable. Make sure you are using the Private API Key (starts with "private_"), not the Public Key.',
       images: [],
     }
   }
@@ -44,7 +46,8 @@ export default defineEventHandler(async (event) => {
   if (!imageKitPrivateKey.startsWith('private_')) {
     return {
       success: false,
-      error: 'Invalid ImageKit Private Key format. The Private API Key should start with "private_". Please check your IMAGEKIT_PRIVATE_KEY environment variable.',
+      error:
+        'Invalid ImageKit Private Key format. The Private API Key should start with "private_". Please check your IMAGEKIT_PRIVATE_KEY environment variable.',
       images: [],
     }
   }
@@ -68,12 +71,12 @@ export default defineEventHandler(async (event) => {
     // Note: ImageKit API uses 'path' parameter for folder filtering
     // The path should not start with '/' for the API call
     const params = new URLSearchParams()
-    
+
     // Check if we need to fetch "All" (root + all subfolders)
     // When "All" is selected, we fetch all files and filter by path prefix
     const includeAllSubfolders = query.includeAllSubfolders === 'true'
     const rootFolderForAll = query.rootFolderForAll as string | undefined
-    
+
     if (folderPath && folderPath !== '/' && !includeAllSubfolders) {
       // Remove leading slash if present for API call
       const cleanPath = folderPath.startsWith('/') ? folderPath.slice(1) : folderPath
@@ -82,15 +85,6 @@ export default defineEventHandler(async (event) => {
     // If includeAllSubfolders is true, don't add path filter - we'll filter client-side by path prefix
     params.append('limit', includeAllSubfolders ? '1000' : limit.toString()) // Increase limit for "All"
     params.append('skip', skip.toString())
-
-    console.log('[ImageKit API] Fetching files with params:', {
-      folderPath,
-      cleanPath: folderPath && folderPath !== '/' ? (folderPath.startsWith('/') ? folderPath.slice(1) : folderPath) : undefined,
-      includeAllSubfolders,
-      rootFolderForAll,
-      limit: includeAllSubfolders ? '1000' : limit.toString(),
-      skip,
-    })
 
     // Fetch files from ImageKit
     const response = await fetch(`${apiUrl}?${params.toString()}`, {
@@ -104,7 +98,7 @@ export default defineEventHandler(async (event) => {
     if (!response.ok) {
       const errorText = await response.text()
       let errorMessage = `ImageKit API error: ${response.status}`
-      
+
       try {
         const errorJson = JSON.parse(errorText)
         errorMessage = errorJson.message || errorMessage
@@ -114,14 +108,15 @@ export default defineEventHandler(async (event) => {
 
       console.error('[ImageKit API] Error:', response.status, errorMessage)
       console.error('[ImageKit API] Response:', errorText)
-      
+
       // Provide helpful error messages
       if (response.status === 403) {
-        errorMessage = 'Authentication failed. Please check your IMAGEKIT_PRIVATE_KEY. Make sure you are using the Private API Key (starts with "private_"), not the Public Key.'
+        errorMessage =
+          'Authentication failed. Please check your IMAGEKIT_PRIVATE_KEY. Make sure you are using the Private API Key (starts with "private_"), not the Public Key.'
       } else if (response.status === 401) {
         errorMessage = 'Unauthorized. Please verify your ImageKit credentials are correct.'
       }
-      
+
       throw new Error(errorMessage)
     }
 
@@ -130,7 +125,7 @@ export default defineEventHandler(async (event) => {
     // Handle different response structures
     // ImageKit API might return an array directly or an object with 'files' property
     let files: ImageKitFile[] = []
-    
+
     if (Array.isArray(data)) {
       // Response is an array of files
       files = data
@@ -149,210 +144,208 @@ export default defineEventHandler(async (event) => {
       throw new Error('ImageKit API returned invalid data format')
     }
 
-    console.log(`[ImageKit API] Found ${files.length} files in folder "${folderPath}"`)
-
     // If "All" is selected, filter files to include root folder and all subfolders
     let filesToProcess = files
     if (includeAllSubfolders && rootFolderForAll) {
-      const normalizedRoot = rootFolderForAll.startsWith('/') ? rootFolderForAll.slice(1) : rootFolderForAll
-      filesToProcess = files.filter(file => {
+      const normalizedRoot = rootFolderForAll.startsWith('/')
+        ? rootFolderForAll.slice(1)
+        : rootFolderForAll
+      filesToProcess = files.filter((file) => {
         const filePath = file.filePath.startsWith('/') ? file.filePath.slice(1) : file.filePath
         // Include files in root folder or any subfolder
         return filePath === normalizedRoot || filePath.startsWith(normalizedRoot + '/')
       })
-      console.log(`[ImageKit API] Filtered to ${filesToProcess.length} files in root "${rootFolderForAll}" and subfolders`)
-    }
-
-    // Log file types and metadata for debugging
-    if (filesToProcess.length > 0) {
-      console.log('[ImageKit API] Sample files with metadata:', filesToProcess.slice(0, 3).map(f => ({
-        name: f.name,
-        fileType: f.fileType,
-        filePath: f.filePath,
-        hasCustomMetadata: !!f.customMetadata,
-        customMetadata: f.customMetadata,
-        customMetadataKeys: f.customMetadata ? Object.keys(f.customMetadata) : [],
-      })))
     }
 
     // Transform ImageKit files to our format
-    const filteredFiles = filesToProcess
-      .filter((file) => {
-        const fileTypeLower = file.fileType.toLowerCase()
-        const fileNameLower = file.name.toLowerCase()
-        
-        if (fileType === 'video') {
-          // Filter for video files
-          const videoMimeTypes = ['video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo', 'video/webm', 'video/ogg']
-          const videoExtensions = ['mp4', 'mpeg', 'mov', 'avi', 'webm', 'ogg', 'mkv', 'flv', 'wmv']
-          
-          // Check MIME type format
-          if (videoMimeTypes.some(type => fileTypeLower === type || fileTypeLower.includes(type))) {
-            return true
-          }
-          
-          // Check extension format
-          if (videoExtensions.some(ext => fileTypeLower === ext || fileTypeLower.includes(ext))) {
-            return true
-          }
-          
-          // Check file name extension as fallback
-          if (videoExtensions.some(ext => fileNameLower.endsWith(`.${ext}`))) {
-            return true
-          }
-        } else {
-          // Filter for image files (default)
-          const imageMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml']
-          const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']
-          
-          // Check MIME type format
-          if (imageMimeTypes.some(type => fileTypeLower === type || fileTypeLower.includes(type))) {
-            return true
-          }
-          
-          // Check extension format
-          if (imageExtensions.some(ext => fileTypeLower === ext || fileTypeLower.includes(ext))) {
-            return true
-          }
-          
-          // Check file name extension as fallback
-          if (imageExtensions.some(ext => fileNameLower.endsWith(`.${ext}`))) {
-            return true
-          }
+    const filteredFiles = filesToProcess.filter((file) => {
+      const fileTypeLower = file.fileType.toLowerCase()
+      const fileNameLower = file.name.toLowerCase()
+
+      if (fileType === 'video') {
+        // Filter for video files
+        const videoMimeTypes = [
+          'video/mp4',
+          'video/mpeg',
+          'video/quicktime',
+          'video/x-msvideo',
+          'video/webm',
+          'video/ogg',
+        ]
+        const videoExtensions = ['mp4', 'mpeg', 'mov', 'avi', 'webm', 'ogg', 'mkv', 'flv', 'wmv']
+
+        // Check MIME type format
+        if (videoMimeTypes.some((type) => fileTypeLower === type || fileTypeLower.includes(type))) {
+          return true
         }
-        
-        console.log(`[ImageKit API] Filtered out file: ${file.name} (fileType: ${file.fileType})`)
-        return false
-      })
-    
-    const images = filteredFiles
-      .map((file, index) => {
-        // Extract category from folder path (e.g., /Personal/about -> about)
-        const pathParts = file.filePath.split('/').filter(Boolean)
-        const category = pathParts.length > 1 ? pathParts[pathParts.length - 2] : 'uncategorized'
 
-        // Use filename as title (remove extension and format)
-        const title = file.name
-          .replace(/\.[^/.]+$/, '') // Remove extension
-          .replace(/[-_]/g, ' ') // Replace hyphens and underscores with spaces
-          .replace(/\b\w/g, (l) => l.toUpperCase()) // Capitalize first letter of each word
-
-        // Extract description from customMetadata if available, otherwise use default
-        const customMetadata = file.customMetadata || {}
-        
-        // Log metadata for debugging (first file only)
-        if (index === 0) {
-          console.log('[ImageKit API] Sample file metadata:', {
-            name: file.name,
-            customMetadata: customMetadata,
-            hasCustomMetadata: !!file.customMetadata,
-            customMetadataKeys: file.customMetadata ? Object.keys(file.customMetadata) : [],
-          })
+        // Check extension format
+        if (videoExtensions.some((ext) => fileTypeLower === ext || fileTypeLower.includes(ext))) {
+          return true
         }
-        
-        const description = (customMetadata.description as string) || 
-                           (customMetadata.Description as string) || 
-                           (customMetadata.desc as string) ||
-                           (customMetadata.DESCRIPTION as string) ||
-                           (fileType === 'video' ? `Video from ${category}` : `Photo from ${category}`)
 
-        if (fileType === 'video') {
-          // For videos, generate thumbnail from video (ImageKit can extract video frames)
-          // Use video thumbnail transformation or fallback to a placeholder
-          const thumbnailUrl = `${file.url}?tr=w-400,h-225,c-at_max,q-auto,f-auto,so-0` // 16:9 aspect ratio for videos
-          
-          // Use fileId if available, otherwise generate stable ID from filePath or URL
-          // filePath/URL are unique and stable across API calls, unlike array index
-          // This ensures consistent IDs for likes, comments, and navigation
-          const stableId = file.fileId || (file.filePath 
-            ? `vid-${file.filePath.replace(/[^a-zA-Z0-9]/g, '-')}` 
-            : file.url 
-              ? `vid-${Buffer.from(file.url).toString('base64').slice(0, 16).replace(/[^a-zA-Z0-9]/g, '')}`
+        // Check file name extension as fallback
+        if (videoExtensions.some((ext) => fileNameLower.endsWith(`.${ext}`))) {
+          return true
+        }
+      } else {
+        // Filter for image files (default)
+        const imageMimeTypes = [
+          'image/jpeg',
+          'image/jpg',
+          'image/png',
+          'image/gif',
+          'image/webp',
+          'image/bmp',
+          'image/svg+xml',
+        ]
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']
+
+        // Check MIME type format
+        if (imageMimeTypes.some((type) => fileTypeLower === type || fileTypeLower.includes(type))) {
+          return true
+        }
+
+        // Check extension format
+        if (imageExtensions.some((ext) => fileTypeLower === ext || fileTypeLower.includes(ext))) {
+          return true
+        }
+
+        // Check file name extension as fallback
+        if (imageExtensions.some((ext) => fileNameLower.endsWith(`.${ext}`))) {
+          return true
+        }
+      }
+
+      return false
+    })
+
+    const images = filteredFiles.map((file, index) => {
+      // Extract category from folder path (e.g., /Personal/about -> about)
+      const pathParts = file.filePath.split('/').filter(Boolean)
+      const category = pathParts.length > 1 ? pathParts[pathParts.length - 2] : 'uncategorized'
+
+      // Use filename as title (remove extension and format)
+      const title = file.name
+        .replace(/\.[^/.]+$/, '') // Remove extension
+        .replace(/[-_]/g, ' ') // Replace hyphens and underscores with spaces
+        .replace(/\b\w/g, (l) => l.toUpperCase()) // Capitalize first letter of each word
+
+      // Extract description from customMetadata if available, otherwise use default
+      const customMetadata = file.customMetadata || {}
+
+      const description =
+        (customMetadata.description as string) ||
+        (customMetadata.Description as string) ||
+        (customMetadata.desc as string) ||
+        (customMetadata.DESCRIPTION as string) ||
+        (fileType === 'video' ? `Video from ${category}` : `Photo from ${category}`)
+
+      if (fileType === 'video') {
+        // For videos, generate thumbnail from video (ImageKit can extract video frames)
+        // Use video thumbnail transformation or fallback to a placeholder
+        const thumbnailUrl = `${file.url}?tr=w-400,h-225,c-at_max,q-auto,f-auto,so-0` // 16:9 aspect ratio for videos
+
+        // Use fileId if available, otherwise generate stable ID from filePath or URL
+        // filePath/URL are unique and stable across API calls, unlike array index
+        // This ensures consistent IDs for likes, comments, and navigation
+        const stableId =
+          file.fileId ||
+          (file.filePath
+            ? `vid-${file.filePath.replace(/[^a-zA-Z0-9]/g, '-')}`
+            : file.url
+              ? `vid-${Buffer.from(file.url)
+                  .toString('base64')
+                  .slice(0, 16)
+                  .replace(/[^a-zA-Z0-9]/g, '')}`
               : `vid-fallback-${index}`)
-          
-          return {
-            id: stableId,
-            title,
-            description,
-            videoUrl: file.url,
-            thumbnail: thumbnailUrl,
-            category: category.toLowerCase(),
-            date: file.updatedAt || file.createdAt,
-            duration: (customMetadata.duration as string) || (customMetadata.Duration as string) || '0:00',
-            type: 'video',
-            filePath: file.filePath,
-            width: file.width,
-            height: file.height,
-            size: file.size,
-            tags: file.tags || [],
-            // Full metadata
-            metadata: {
-              fileId: file.fileId,
-              name: file.name,
-              url: file.url,
-              filePath: file.filePath,
-              fileType: file.fileType,
-              width: file.width,
-              height: file.height,
-              size: file.size,
-              createdAt: file.createdAt,
-              updatedAt: file.updatedAt,
-              tags: file.tags || [],
-              customMetadata: customMetadata,
-              customCoordinates: file.customCoordinates,
-              isPrivateFile: file.isPrivateFile,
-            },
-          }
-        } else {
-          // For images, generate optimized thumbnail URLs
-          const thumbnailUrl = `${file.url}?tr=w-250,h-250,c-at_max,q-auto,f-auto` // Optimized 250x250 thumbnail
-          
-          // Use fileId if available, otherwise generate stable ID from filePath or URL
-          // filePath/URL are unique and stable across API calls, unlike array index
-          // This ensures consistent IDs for likes, comments, and navigation
-          const stableId = file.fileId || (file.filePath 
-            ? `img-${file.filePath.replace(/[^a-zA-Z0-9]/g, '-')}` 
-            : file.url 
-              ? `img-${Buffer.from(file.url).toString('base64').slice(0, 16).replace(/[^a-zA-Z0-9]/g, '')}`
-              : `img-fallback-${index}`)
-          
-          return {
-            id: stableId,
-            title,
-            description,
-            image: file.url,
-            thumbnail: thumbnailUrl,
-            category: category.toLowerCase(),
-            date: file.updatedAt || file.createdAt,
-            type: 'image',
-            filePath: file.filePath,
-            width: file.width,
-            height: file.height,
-            size: file.size,
-            tags: file.tags || [],
-            // Full metadata
-            metadata: {
-              fileId: file.fileId,
-              name: file.name,
-              url: file.url,
-              filePath: file.filePath,
-              fileType: file.fileType,
-              width: file.width,
-              height: file.height,
-              size: file.size,
-              createdAt: file.createdAt,
-              updatedAt: file.updatedAt,
-              tags: file.tags || [],
-              customMetadata: customMetadata,
-              customCoordinates: file.customCoordinates,
-              isPrivateFile: file.isPrivateFile,
-            },
-          }
-        }
-      })
 
-    const fileTypeLabel = fileType === 'video' ? 'video' : 'image'
-    console.log(`[ImageKit API] Returning ${images.length} ${fileTypeLabel} files after filtering`)
+        return {
+          id: stableId,
+          title,
+          description,
+          videoUrl: file.url,
+          thumbnail: thumbnailUrl,
+          category: category.toLowerCase(),
+          date: file.updatedAt || file.createdAt,
+          duration:
+            (customMetadata.duration as string) || (customMetadata.Duration as string) || '0:00',
+          type: 'video',
+          filePath: file.filePath,
+          width: file.width,
+          height: file.height,
+          size: file.size,
+          tags: file.tags || [],
+          // Full metadata
+          metadata: {
+            fileId: file.fileId,
+            name: file.name,
+            url: file.url,
+            filePath: file.filePath,
+            fileType: file.fileType,
+            width: file.width,
+            height: file.height,
+            size: file.size,
+            createdAt: file.createdAt,
+            updatedAt: file.updatedAt,
+            tags: file.tags || [],
+            customMetadata: customMetadata,
+            customCoordinates: file.customCoordinates,
+            isPrivateFile: file.isPrivateFile,
+          },
+        }
+      } else {
+        // For images, generate optimized thumbnail URLs
+        const thumbnailUrl = `${file.url}?tr=w-250,h-250,c-at_max,q-auto,f-auto` // Optimized 250x250 thumbnail
+
+        // Use fileId if available, otherwise generate stable ID from filePath or URL
+        // filePath/URL are unique and stable across API calls, unlike array index
+        // This ensures consistent IDs for likes, comments, and navigation
+        const stableId =
+          file.fileId ||
+          (file.filePath
+            ? `img-${file.filePath.replace(/[^a-zA-Z0-9]/g, '-')}`
+            : file.url
+              ? `img-${Buffer.from(file.url)
+                  .toString('base64')
+                  .slice(0, 16)
+                  .replace(/[^a-zA-Z0-9]/g, '')}`
+              : `img-fallback-${index}`)
+
+        return {
+          id: stableId,
+          title,
+          description,
+          image: file.url,
+          thumbnail: thumbnailUrl,
+          category: category.toLowerCase(),
+          date: file.updatedAt || file.createdAt,
+          type: 'image',
+          filePath: file.filePath,
+          width: file.width,
+          height: file.height,
+          size: file.size,
+          tags: file.tags || [],
+          // Full metadata
+          metadata: {
+            fileId: file.fileId,
+            name: file.name,
+            url: file.url,
+            filePath: file.filePath,
+            fileType: file.fileType,
+            width: file.width,
+            height: file.height,
+            size: file.size,
+            createdAt: file.createdAt,
+            updatedAt: file.updatedAt,
+            tags: file.tags || [],
+            customMetadata: customMetadata,
+            customCoordinates: file.customCoordinates,
+            isPrivateFile: file.isPrivateFile,
+          },
+        }
+      }
+    })
 
     return {
       success: true,
@@ -362,7 +355,6 @@ export default defineEventHandler(async (event) => {
       total: images.length,
       folderPath,
       fileType,
-      rawFilesCount: files.length, // For debugging
     }
   } catch (error) {
     console.error('[ImageKit API] Failed to fetch images:', error)
@@ -373,4 +365,3 @@ export default defineEventHandler(async (event) => {
     }
   }
 })
-

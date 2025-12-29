@@ -24,6 +24,7 @@ const activeTab = ref<TabType>('resources')
 const viewMode = ref<'grid' | 'masonry'>('grid')
 const searchQuery = ref<string>('') // Search query for filtering by tags and metadata
 const selectedFolder = ref<string>(photosRootFolder) // ImageKit root folder path (configurable)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const selectedItem = ref<{ id: string | number; metadata?: any } | null>(null) // Selected item for metadata panel
 const isMetadataPanelOpen = ref<boolean>(false) // Metadata panel state
 const imageKitFolders = ref<string[]>([]) // Available subfolders (dynamically loaded, excludes root)
@@ -88,12 +89,16 @@ const galleryItems = ref<
     height?: number
     size?: number
     tags?: string[]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata?: any
   }>
 >([])
 
 // Load folders from ImageKit
-const loadImageKitFolders = async (rootFolder: string = photosRootFolder, fileType: string = 'image') => {
+const loadImageKitFolders = async (
+  rootFolder: string = photosRootFolder,
+  fileType: string = 'image',
+) => {
   isLoadingFolders.value = true
 
   try {
@@ -107,13 +112,14 @@ const loadImageKitFolders = async (rootFolder: string = photosRootFolder, fileTy
       // Filter out the root folder itself, keep only subfolders
       // Normalize root folder (remove leading slash if present)
       const normalizedRoot = rootFolder.startsWith('/') ? rootFolder.slice(1) : rootFolder
-      const subfolders = response.folders.filter(folder => {
+      const subfolders = response.folders.filter((folder) => {
         const normalizedFolder = folder.startsWith('/') ? folder.slice(1) : folder
         // Exclude root folder itself, include all subfolders
-        return normalizedFolder !== normalizedRoot && normalizedFolder.startsWith(normalizedRoot + '/')
+        return (
+          normalizedFolder !== normalizedRoot && normalizedFolder.startsWith(normalizedRoot + '/')
+        )
       })
       imageKitFolders.value = subfolders
-      console.log(`[Library] Loaded ${subfolders.length} subfolders from root "${rootFolder}"`)
     } else {
       console.error('[Library] Failed to load folders:', response.error)
       // No subfolders found
@@ -129,7 +135,10 @@ const loadImageKitFolders = async (rootFolder: string = photosRootFolder, fileTy
 }
 
 // Load video folders from ImageKit
-const loadVideoKitFolders = async (rootFolder: string = videosRootFolder, fileType: string = 'video') => {
+const loadVideoKitFolders = async (
+  rootFolder: string = videosRootFolder,
+  fileType: string = 'video',
+) => {
   isLoadingVideoFolders.value = true
 
   try {
@@ -143,13 +152,14 @@ const loadVideoKitFolders = async (rootFolder: string = videosRootFolder, fileTy
       // Filter out the root folder itself, keep only subfolders
       // Normalize root folder (remove leading slash if present)
       const normalizedRoot = rootFolder.startsWith('/') ? rootFolder.slice(1) : rootFolder
-      const subfolders = response.folders.filter(folder => {
+      const subfolders = response.folders.filter((folder) => {
         const normalizedFolder = folder.startsWith('/') ? folder.slice(1) : folder
         // Exclude root folder itself, include all subfolders
-        return normalizedFolder !== normalizedRoot && normalizedFolder.startsWith(normalizedRoot + '/')
+        return (
+          normalizedFolder !== normalizedRoot && normalizedFolder.startsWith(normalizedRoot + '/')
+        )
       })
       videoKitFolders.value = subfolders
-      console.log(`[Library] Loaded ${subfolders.length} video subfolders from root "${rootFolder}"`)
     } else {
       console.error('[Library] Failed to load video folders:', response.error)
       // No subfolders found
@@ -175,7 +185,7 @@ const loadImagesFromImageKit = async (folderPath: string = '/') => {
     const apiUrl = isAllSelected
       ? `/api/imagekit/list?includeAllSubfolders=true&rootFolderForAll=${encodeURIComponent(photosRootFolder)}&fileType=image&_t=${Date.now()}`
       : `/api/imagekit/list?folderPath=${encodeURIComponent(folderPath)}&fileType=image&_t=${Date.now()}`
-    
+
     const response = await $fetch<{
       success: boolean
       images: Array<{
@@ -192,19 +202,22 @@ const loadImagesFromImageKit = async (folderPath: string = '/') => {
         height?: number
         size?: number
         tags?: string[]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         metadata?: any
       }>
       error?: string
     }>(apiUrl)
 
     if (response.success && response.images) {
-      console.log(`[Library] Loaded ${response.images.length} images from folder "${folderPath}"`)
-      
       // Map ImageKit images to gallery items format
       // Use stable ID from API (fileId, filePath, or URL-based hash)
       // Never use array index as it's unstable across pagination/reloads
       galleryItems.value = response.images.map((img) => ({
-        id: img.id || img.filePath || img.image || `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id:
+          img.id ||
+          img.filePath ||
+          img.image ||
+          `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         title: img.title,
         description: img.description,
         image: img.image,
@@ -368,6 +381,7 @@ const videoItems = ref<
     height?: number
     size?: number
     tags?: string[]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata?: any
   }>
 >([])
@@ -383,7 +397,7 @@ const loadVideosFromImageKit = async (folderPath: string = '/') => {
     const apiUrl = isAllSelected
       ? `/api/imagekit/list?includeAllSubfolders=true&rootFolderForAll=${encodeURIComponent(videosRootFolder)}&fileType=video&_t=${Date.now()}`
       : `/api/imagekit/list?folderPath=${encodeURIComponent(folderPath)}&fileType=video&_t=${Date.now()}`
-    
+
     const response = await $fetch<{
       success: boolean
       items: Array<{
@@ -400,19 +414,22 @@ const loadVideosFromImageKit = async (folderPath: string = '/') => {
         height?: number
         size?: number
         tags?: string[]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         metadata?: any
       }>
       error?: string
     }>(apiUrl)
 
     if (response.success && response.items) {
-      console.log(`[Library] Loaded ${response.items.length} videos from folder "${folderPath}"`)
-      
       // Map ImageKit videos to video items format
       // Use stable ID from API (fileId, filePath, or URL-based hash)
       // Never use array index as it's unstable across pagination/reloads
       videoItems.value = response.items.map((vid) => ({
-        id: vid.id || vid.filePath || vid.videoUrl || `vid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id:
+          vid.id ||
+          vid.filePath ||
+          vid.videoUrl ||
+          `vid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         title: vid.title,
         description: vid.description,
         thumbnail: vid.thumbnail || '',
@@ -473,35 +490,6 @@ const loadVideoStats = async () => {
   }
 }
 
-// Refresh stats for a specific video item
-const refreshVideoItemStats = async (itemId: string | number) => {
-  // Convert both sides to string for consistent comparison (handles number vs string mismatch)
-  const video = videoItems.value.find((v) => String(v.id) === String(itemId))
-  if (!video) return
-
-  try {
-    // Load likes
-    const likesResponse = await $fetch<{ success: boolean; count: number }>(
-      `/api/gallery/likes?itemId=${String(itemId)}`,
-    )
-    if (likesResponse.success) {
-      video.likeCount = likesResponse.count
-    }
-
-    // Load comment count
-    const commentsResponse = await $fetch<{
-      comments: unknown[]
-      pagination: { total: number }
-    }>(`/api/gallery/comments?itemId=${String(itemId)}&page=1&limit=1`)
-    if (commentsResponse.pagination) {
-      video.commentCount = commentsResponse.pagination.total
-    }
-  } catch (error) {
-    console.error(`[Library] Failed to refresh stats for video ${itemId}:`, error)
-  }
-}
-
-
 // Tab configuration
 const tabs = [
   {
@@ -549,34 +537,34 @@ const filteredItems = computed(() => {
   if (!searchQuery.value.trim()) {
     return galleryItems.value
   }
-  
+
   const query = searchQuery.value.toLowerCase().trim()
-  
+
   return galleryItems.value.filter((item) => {
     // Search in title
     if (item.title.toLowerCase().includes(query)) return true
-    
+
     // Search in description
     if (item.description.toLowerCase().includes(query)) return true
-    
+
     // Search in tags
-    if (item.tags && item.tags.some(tag => tag.toLowerCase().includes(query))) return true
-    
+    if (item.tags && item.tags.some((tag) => tag.toLowerCase().includes(query))) return true
+
     // Search in metadata (customMetadata)
     if (item.metadata?.customMetadata) {
       const customMeta = item.metadata.customMetadata
       // Search in all metadata values
-      const metaValues = Object.values(customMeta).map(v => String(v).toLowerCase())
-      if (metaValues.some(v => v.includes(query))) return true
-      
+      const metaValues = Object.values(customMeta).map((v) => String(v).toLowerCase())
+      if (metaValues.some((v) => v.includes(query))) return true
+
       // Search in metadata keys
-      const metaKeys = Object.keys(customMeta).map(k => k.toLowerCase())
-      if (metaKeys.some(k => k.includes(query))) return true
+      const metaKeys = Object.keys(customMeta).map((k) => k.toLowerCase())
+      if (metaKeys.some((k) => k.includes(query))) return true
     }
-    
+
     // Search in file path
     if (item.filePath && item.filePath.toLowerCase().includes(query)) return true
-    
+
     return false
   })
 })
@@ -599,6 +587,7 @@ const totalPages = computed(() => {
 })
 
 // Function to open metadata panel
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const openMetadataPanel = (item: any) => {
   selectedItem.value = item
   isMetadataPanelOpen.value = true
@@ -613,15 +602,17 @@ const closeMetadataPanel = () => {
 // Computed properties for folder display (with "All" option)
 const displayImageFolders = computed(() => {
   const folders: Array<{ label: string; value: string }> = [
-    { label: 'All', value: photosRootFolder }
+    { label: 'All', value: photosRootFolder },
   ]
-  
+
   // Add subfolders with just their name (remove root folder prefix)
-  imageKitFolders.value.forEach(folder => {
+  imageKitFolders.value.forEach((folder) => {
     // Normalize both root and folder for comparison
-    const normalizedRoot = photosRootFolder.startsWith('/') ? photosRootFolder.slice(1) : photosRootFolder
+    const normalizedRoot = photosRootFolder.startsWith('/')
+      ? photosRootFolder.slice(1)
+      : photosRootFolder
     const normalizedFolder = folder.startsWith('/') ? folder.slice(1) : folder
-    
+
     let subfolderName: string
     if (normalizedFolder.startsWith(normalizedRoot + '/')) {
       // Extract subfolder name after root
@@ -630,24 +621,26 @@ const displayImageFolders = computed(() => {
       // Fallback: use folder as-is
       subfolderName = normalizedFolder
     }
-    
+
     folders.push({ label: subfolderName, value: folder })
   })
-  
+
   return folders
 })
 
 const displayVideoFolders = computed(() => {
   const folders: Array<{ label: string; value: string }> = [
-    { label: 'All', value: videosRootFolder }
+    { label: 'All', value: videosRootFolder },
   ]
-  
+
   // Add subfolders with just their name (remove root folder prefix)
-  videoKitFolders.value.forEach(folder => {
+  videoKitFolders.value.forEach((folder) => {
     // Normalize both root and folder for comparison
-    const normalizedRoot = videosRootFolder.startsWith('/') ? videosRootFolder.slice(1) : videosRootFolder
+    const normalizedRoot = videosRootFolder.startsWith('/')
+      ? videosRootFolder.slice(1)
+      : videosRootFolder
     const normalizedFolder = folder.startsWith('/') ? folder.slice(1) : folder
-    
+
     let subfolderName: string
     if (normalizedFolder.startsWith(normalizedRoot + '/')) {
       // Extract subfolder name after root
@@ -656,10 +649,10 @@ const displayVideoFolders = computed(() => {
       // Fallback: use folder as-is
       subfolderName = normalizedFolder
     }
-    
+
     folders.push({ label: subfolderName, value: folder })
   })
-  
+
   return folders
 })
 
@@ -673,34 +666,34 @@ const filteredVideos = computed(() => {
   if (!videoSearchQuery.value.trim()) {
     return videoItems.value
   }
-  
+
   const query = videoSearchQuery.value.toLowerCase().trim()
-  
+
   return videoItems.value.filter((video) => {
     // Search in title
     if (video.title.toLowerCase().includes(query)) return true
-    
+
     // Search in description
     if (video.description.toLowerCase().includes(query)) return true
-    
+
     // Search in tags
-    if (video.tags && video.tags.some(tag => tag.toLowerCase().includes(query))) return true
-    
+    if (video.tags && video.tags.some((tag) => tag.toLowerCase().includes(query))) return true
+
     // Search in metadata (customMetadata)
     if (video.metadata?.customMetadata) {
       const customMeta = video.metadata.customMetadata
       // Search in all metadata values
-      const metaValues = Object.values(customMeta).map(v => String(v).toLowerCase())
-      if (metaValues.some(v => v.includes(query))) return true
-      
+      const metaValues = Object.values(customMeta).map((v) => String(v).toLowerCase())
+      if (metaValues.some((v) => v.includes(query))) return true
+
       // Search in metadata keys
-      const metaKeys = Object.keys(customMeta).map(k => k.toLowerCase())
-      if (metaKeys.some(k => k.includes(query))) return true
+      const metaKeys = Object.keys(customMeta).map((k) => k.toLowerCase())
+      if (metaKeys.some((k) => k.includes(query))) return true
     }
-    
+
     // Search in file path
     if (video.filePath && video.filePath.toLowerCase().includes(query)) return true
-    
+
     return false
   })
 })
@@ -966,7 +959,16 @@ defineOgImageComponent('About', {
             Authentication Required
           </h2>
           <p class="text-zinc-600 dark:text-zinc-400 mb-6">
-            Please sign in with Google to access {{ activeTab === 'photos' ? 'photos' : activeTab === 'videos' ? 'videos' : activeTab === 'resources' ? 'resources' : 'this content' }}.
+            Please sign in with Google to access
+            {{
+              activeTab === 'photos'
+                ? 'photos'
+                : activeTab === 'videos'
+                  ? 'videos'
+                  : activeTab === 'resources'
+                    ? 'resources'
+                    : 'this content'
+            }}.
           </p>
           <div id="google-signin-button" class="flex justify-center"></div>
         </div>
@@ -1045,8 +1047,8 @@ defineOgImageComponent('About', {
                 <button
                   :disabled="isLoadingFolders"
                   class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  @click="loadImageKitFolders(photosRootFolder, 'image')"
                   title="Refresh folder list"
+                  @click="loadImageKitFolders(photosRootFolder, 'image')"
                 >
                   <Icon
                     :name="isLoadingFolders ? 'svg-spinners:180-ring' : 'mdi:folder-refresh'"
@@ -1069,7 +1071,10 @@ defineOgImageComponent('About', {
                 </button>
               </div>
             </div>
-            <div v-if="isLoadingFolders" class="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+            <div
+              v-if="isLoadingFolders"
+              class="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400"
+            >
               <Icon name="svg-spinners:180-ring" class="animate-spin" size="16" />
               <span>Loading folders...</span>
             </div>
@@ -1087,7 +1092,10 @@ defineOgImageComponent('About', {
               >
                 {{ folder.label }}
               </button>
-              <p v-if="displayImageFolders.length === 1" class="text-sm text-zinc-500 dark:text-zinc-400">
+              <p
+                v-if="displayImageFolders.length === 1"
+                class="text-sm text-zinc-500 dark:text-zinc-400"
+              >
                 No subfolders found. Upload files to subfolders in ImageKit to see them here.
               </p>
             </div>
@@ -1095,7 +1103,10 @@ defineOgImageComponent('About', {
 
           <!-- Loading State -->
           <div v-if="isLoadingImages" class="text-center py-12">
-            <Icon name="svg-spinners:180-ring" class="text-4xl text-sky-700 dark:text-sky-400 mb-4" />
+            <Icon
+              name="svg-spinners:180-ring"
+              class="text-4xl text-sky-700 dark:text-sky-400 mb-4"
+            />
             <p class="text-zinc-600 dark:text-zinc-400">Loading images from ImageKit...</p>
           </div>
 
@@ -1134,14 +1145,15 @@ defineOgImageComponent('About', {
               />
               <button
                 v-if="searchQuery"
-                @click="searchQuery = ''"
                 class="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                @click="searchQuery = ''"
               >
                 <Icon name="mdi:close-circle" size="20" />
               </button>
             </div>
             <p v-if="searchQuery" class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              Found {{ filteredItems.length }} {{ filteredItems.length === 1 ? 'result' : 'results' }}
+              Found {{ filteredItems.length }}
+              {{ filteredItems.length === 1 ? 'result' : 'results' }}
             </p>
           </div>
 
@@ -1151,8 +1163,10 @@ defineOgImageComponent('About', {
             class="mb-4 flex flex-col sm:flex-row items-center justify-between gap-4"
           >
             <div class="text-sm text-zinc-600 dark:text-zinc-400">
-              Showing {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, sortedItems.length) }} of
-              {{ sortedItems.length }} {{ sortedItems.length === 1 ? 'image' : 'images' }}
+              Showing {{ (currentPage - 1) * itemsPerPage + 1 }}-{{
+                Math.min(currentPage * itemsPerPage, sortedItems.length)
+              }}
+              of {{ sortedItems.length }} {{ sortedItems.length === 1 ? 'image' : 'images' }}
             </div>
             <div v-if="totalPages > 1" class="flex items-center gap-2">
               <button
@@ -1201,10 +1215,12 @@ defineOgImageComponent('About', {
             >
               <div
                 class="relative aspect-square overflow-hidden cursor-pointer"
-                @click="() => {
-                  const index = sortedItems.findIndex((i) => String(i.id) === String(item.id))
-                  if (index >= 0) openLightbox(index)
-                }"
+                @click="
+                  () => {
+                    const index = sortedItems.findIndex((i) => String(i.id) === String(item.id))
+                    if (index >= 0) openLightbox(index)
+                  }
+                "
               >
                 <NuxtImg
                   :src="item.thumbnail || item.image"
@@ -1245,9 +1261,9 @@ defineOgImageComponent('About', {
                     </span>
                     <button
                       v-if="item.metadata"
-                      @click.stop="openMetadataPanel(item)"
                       class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-1"
                       title="View metadata"
+                      @click.stop="openMetadataPanel(item)"
                     >
                       <Icon name="mdi:information" size="14" />
                       Metadata
@@ -1298,10 +1314,12 @@ defineOgImageComponent('About', {
             >
               <div
                 class="relative overflow-hidden cursor-pointer"
-                @click="() => {
-                  const index = sortedItems.findIndex((i) => String(i.id) === String(item.id))
-                  if (index >= 0) openLightbox(index)
-                }"
+                @click="
+                  () => {
+                    const index = sortedItems.findIndex((i) => String(i.id) === String(item.id))
+                    if (index >= 0) openLightbox(index)
+                  }
+                "
               >
                 <NuxtImg
                   :src="item.thumbnail || item.image"
@@ -1342,9 +1360,9 @@ defineOgImageComponent('About', {
                     </span>
                     <button
                       v-if="item.metadata"
-                      @click.stop="openMetadataPanel(item)"
                       class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-1"
                       title="View metadata"
+                      @click.stop="openMetadataPanel(item)"
                     >
                       <Icon name="mdi:information" size="14" />
                       Metadata
@@ -1392,8 +1410,10 @@ defineOgImageComponent('About', {
             class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4"
           >
             <div class="text-sm text-zinc-600 dark:text-zinc-400">
-              Showing {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, sortedItems.length) }} of
-              {{ sortedItems.length }} {{ sortedItems.length === 1 ? 'image' : 'images' }}
+              Showing {{ (currentPage - 1) * itemsPerPage + 1 }}-{{
+                Math.min(currentPage * itemsPerPage, sortedItems.length)
+              }}
+              of {{ sortedItems.length }} {{ sortedItems.length === 1 ? 'image' : 'images' }}
             </div>
             <div class="flex items-center gap-2">
               <button
@@ -1431,7 +1451,10 @@ defineOgImageComponent('About', {
           </div>
 
           <!-- Empty State -->
-          <div v-if="sortedItems.length === 0 && !isLoadingImages && !imageKitError" class="text-center py-12">
+          <div
+            v-if="sortedItems.length === 0 && !isLoadingImages && !imageKitError"
+            class="text-center py-12"
+          >
             <Icon name="mdi:image-off" class="text-6xl text-zinc-400 mb-4" />
             <p class="text-lg text-zinc-600 dark:text-zinc-400 mb-2">
               {{
@@ -1488,8 +1511,8 @@ defineOgImageComponent('About', {
                 <button
                   :disabled="isLoadingVideoFolders"
                   class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  @click="loadVideoKitFolders(videosRootFolder, 'video')"
                   title="Refresh folder list"
+                  @click="loadVideoKitFolders(videosRootFolder, 'video')"
                 >
                   <Icon
                     :name="isLoadingVideoFolders ? 'svg-spinners:180-ring' : 'mdi:folder-refresh'"
@@ -1512,7 +1535,10 @@ defineOgImageComponent('About', {
                 </button>
               </div>
             </div>
-            <div v-if="isLoadingVideoFolders" class="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+            <div
+              v-if="isLoadingVideoFolders"
+              class="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400"
+            >
               <Icon name="svg-spinners:180-ring" class="animate-spin" size="16" />
               <span>Loading folders...</span>
             </div>
@@ -1530,7 +1556,10 @@ defineOgImageComponent('About', {
               >
                 {{ folder.label }}
               </button>
-              <p v-if="displayVideoFolders.length === 1" class="text-sm text-zinc-500 dark:text-zinc-400">
+              <p
+                v-if="displayVideoFolders.length === 1"
+                class="text-sm text-zinc-500 dark:text-zinc-400"
+              >
                 No subfolders found. Upload videos to subfolders in ImageKit to see them here.
               </p>
             </div>
@@ -1538,7 +1567,10 @@ defineOgImageComponent('About', {
 
           <!-- Loading State -->
           <div v-if="isLoadingVideos" class="text-center py-12">
-            <Icon name="svg-spinners:180-ring" class="text-4xl text-sky-700 dark:text-sky-400 mb-4" />
+            <Icon
+              name="svg-spinners:180-ring"
+              class="text-4xl text-sky-700 dark:text-sky-400 mb-4"
+            />
             <p class="text-zinc-600 dark:text-zinc-400">Loading videos from ImageKit...</p>
           </div>
 
@@ -1577,14 +1609,15 @@ defineOgImageComponent('About', {
               />
               <button
                 v-if="videoSearchQuery"
-                @click="videoSearchQuery = ''"
                 class="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                @click="videoSearchQuery = ''"
               >
                 <Icon name="mdi:close-circle" size="20" />
               </button>
             </div>
             <p v-if="videoSearchQuery" class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              Found {{ filteredVideos.length }} {{ filteredVideos.length === 1 ? 'result' : 'results' }}
+              Found {{ filteredVideos.length }}
+              {{ filteredVideos.length === 1 ? 'result' : 'results' }}
             </p>
           </div>
 
@@ -1594,8 +1627,10 @@ defineOgImageComponent('About', {
             class="mb-4 flex flex-col sm:flex-row items-center justify-between gap-4"
           >
             <div class="text-sm text-zinc-600 dark:text-zinc-400">
-              Showing {{ (currentVideoPage - 1) * videosPerPage + 1 }}-{{ Math.min(currentVideoPage * videosPerPage, filteredVideos.length) }} of
-              {{ filteredVideos.length }} {{ filteredVideos.length === 1 ? 'video' : 'videos' }}
+              Showing {{ (currentVideoPage - 1) * videosPerPage + 1 }}-{{
+                Math.min(currentVideoPage * videosPerPage, filteredVideos.length)
+              }}
+              of {{ filteredVideos.length }} {{ filteredVideos.length === 1 ? 'video' : 'videos' }}
             </div>
             <div v-if="totalVideoPages > 1" class="flex items-center gap-2">
               <button
@@ -1632,7 +1667,10 @@ defineOgImageComponent('About', {
             </div>
           </div>
 
-          <div v-else-if="!isLoadingVideos && !videoKitError" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div
+            v-else-if="!isLoadingVideos && !videoKitError"
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
             <div
               v-for="video in paginatedVideos"
               :key="video.id"
@@ -1670,7 +1708,9 @@ defineOgImageComponent('About', {
                 <h3 class="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">
                   {{ video.title }}
                 </h3>
-                <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-3 line-clamp-2">{{ video.description }}</p>
+                <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-3 line-clamp-2">
+                  {{ video.description }}
+                </p>
                 <div class="flex justify-between items-center mb-2">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span
@@ -1680,9 +1720,9 @@ defineOgImageComponent('About', {
                     </span>
                     <button
                       v-if="video.metadata"
-                      @click.stop="openMetadataPanel(video)"
                       class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-1"
                       title="View metadata"
+                      @click.stop="openMetadataPanel(video)"
                     >
                       <Icon name="mdi:information" size="14" />
                       Metadata
@@ -1726,12 +1766,16 @@ defineOgImageComponent('About', {
 
           <!-- Pagination Controls (Bottom) -->
           <div
-            v-if="!isLoadingVideos && !videoKitError && filteredVideos.length > 0 && totalVideoPages > 1"
+            v-if="
+              !isLoadingVideos && !videoKitError && filteredVideos.length > 0 && totalVideoPages > 1
+            "
             class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4"
           >
             <div class="text-sm text-zinc-600 dark:text-zinc-400">
-              Showing {{ (currentVideoPage - 1) * videosPerPage + 1 }}-{{ Math.min(currentVideoPage * videosPerPage, filteredVideos.length) }} of
-              {{ filteredVideos.length }} {{ filteredVideos.length === 1 ? 'video' : 'videos' }}
+              Showing {{ (currentVideoPage - 1) * videosPerPage + 1 }}-{{
+                Math.min(currentVideoPage * videosPerPage, filteredVideos.length)
+              }}
+              of {{ filteredVideos.length }} {{ filteredVideos.length === 1 ? 'video' : 'videos' }}
             </div>
             <div class="flex items-center gap-2">
               <button
@@ -1769,7 +1813,10 @@ defineOgImageComponent('About', {
           </div>
 
           <!-- Empty State -->
-          <div v-if="filteredVideos.length === 0 && !isLoadingVideos && !videoKitError" class="text-center py-12">
+          <div
+            v-if="filteredVideos.length === 0 && !isLoadingVideos && !videoKitError"
+            class="text-center py-12"
+          >
             <Icon name="mdi:video-off" class="text-6xl text-zinc-400 mb-4" />
             <p class="text-lg text-zinc-600 dark:text-zinc-400 mb-2">
               {{
@@ -1949,11 +1996,13 @@ defineOgImageComponent('About', {
           v-if="isMetadataPanelOpen && selectedItem"
           class="fixed right-0 top-0 h-full w-96 bg-white dark:bg-slate-800 shadow-2xl z-50 overflow-y-auto border-l border-gray-200 dark:border-slate-700"
         >
-          <div class="sticky top-0 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 p-4 flex items-center justify-between">
+          <div
+            class="sticky top-0 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 p-4 flex items-center justify-between"
+          >
             <h2 class="text-xl font-bold text-zinc-800 dark:text-zinc-200">Metadata</h2>
             <button
-              @click="closeMetadataPanel"
               class="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              @click="closeMetadataPanel"
             >
               <Icon name="mdi:close" size="24" />
             </button>
@@ -1962,64 +2011,96 @@ defineOgImageComponent('About', {
             <div v-if="selectedItem.metadata" class="space-y-6">
               <!-- Basic Information -->
               <div>
-                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">Basic Information</h3>
+                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
+                  Basic Information
+                </h3>
                 <div class="space-y-2">
                   <div v-if="selectedItem.metadata?.fileId" class="flex justify-between">
                     <span class="text-sm text-zinc-600 dark:text-zinc-400">File ID:</span>
-                    <span class="text-sm font-mono text-zinc-800 dark:text-zinc-200">{{ selectedItem.metadata.fileId }}</span>
+                    <span class="text-sm font-mono text-zinc-800 dark:text-zinc-200">{{
+                      selectedItem.metadata.fileId
+                    }}</span>
                   </div>
                   <div v-if="selectedItem.metadata?.name" class="flex justify-between">
                     <span class="text-sm text-zinc-600 dark:text-zinc-400">Name:</span>
-                    <span class="text-sm text-zinc-800 dark:text-zinc-200">{{ selectedItem.metadata.name }}</span>
+                    <span class="text-sm text-zinc-800 dark:text-zinc-200">{{
+                      selectedItem.metadata.name
+                    }}</span>
                   </div>
                   <div v-if="selectedItem.metadata?.fileType" class="flex justify-between">
                     <span class="text-sm text-zinc-600 dark:text-zinc-400">Type:</span>
-                    <span class="text-sm text-zinc-800 dark:text-zinc-200">{{ selectedItem.metadata.fileType }}</span>
+                    <span class="text-sm text-zinc-800 dark:text-zinc-200">{{
+                      selectedItem.metadata.fileType
+                    }}</span>
                   </div>
                   <div v-if="selectedItem.metadata?.filePath" class="flex justify-between">
                     <span class="text-sm text-zinc-600 dark:text-zinc-400">Path:</span>
-                    <span class="text-sm font-mono text-zinc-800 dark:text-zinc-200 break-all">{{ selectedItem.metadata.filePath }}</span>
+                    <span class="text-sm font-mono text-zinc-800 dark:text-zinc-200 break-all">{{
+                      selectedItem.metadata.filePath
+                    }}</span>
                   </div>
                 </div>
               </div>
 
               <!-- Dimensions & Size -->
-              <div v-if="selectedItem.metadata?.width || selectedItem.metadata?.height || selectedItem.metadata?.size">
-                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">Dimensions & Size</h3>
+              <div
+                v-if="
+                  selectedItem.metadata?.width ||
+                  selectedItem.metadata?.height ||
+                  selectedItem.metadata?.size
+                "
+              >
+                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
+                  Dimensions & Size
+                </h3>
                 <div class="space-y-2">
                   <div v-if="selectedItem.metadata?.width" class="flex justify-between">
                     <span class="text-sm text-zinc-600 dark:text-zinc-400">Width:</span>
-                    <span class="text-sm text-zinc-800 dark:text-zinc-200">{{ selectedItem.metadata.width }}px</span>
+                    <span class="text-sm text-zinc-800 dark:text-zinc-200"
+                      >{{ selectedItem.metadata.width }}px</span
+                    >
                   </div>
                   <div v-if="selectedItem.metadata?.height" class="flex justify-between">
                     <span class="text-sm text-zinc-600 dark:text-zinc-400">Height:</span>
-                    <span class="text-sm text-zinc-800 dark:text-zinc-200">{{ selectedItem.metadata.height }}px</span>
+                    <span class="text-sm text-zinc-800 dark:text-zinc-200"
+                      >{{ selectedItem.metadata.height }}px</span
+                    >
                   </div>
                   <div v-if="selectedItem.metadata?.size" class="flex justify-between">
                     <span class="text-sm text-zinc-600 dark:text-zinc-400">Size:</span>
-                    <span class="text-sm text-zinc-800 dark:text-zinc-200">{{ (selectedItem.metadata.size / 1024 / 1024).toFixed(2) }} MB</span>
+                    <span class="text-sm text-zinc-800 dark:text-zinc-200"
+                      >{{ (selectedItem.metadata.size / 1024 / 1024).toFixed(2) }} MB</span
+                    >
                   </div>
                 </div>
               </div>
 
               <!-- Dates -->
               <div v-if="selectedItem.metadata?.createdAt || selectedItem.metadata?.updatedAt">
-                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">Dates</h3>
+                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
+                  Dates
+                </h3>
                 <div class="space-y-2">
                   <div v-if="selectedItem.metadata?.createdAt" class="flex justify-between">
                     <span class="text-sm text-zinc-600 dark:text-zinc-400">Created:</span>
-                    <span class="text-sm text-zinc-800 dark:text-zinc-200">{{ new Date(selectedItem.metadata.createdAt).toLocaleString() }}</span>
+                    <span class="text-sm text-zinc-800 dark:text-zinc-200">{{
+                      new Date(selectedItem.metadata.createdAt).toLocaleString()
+                    }}</span>
                   </div>
                   <div v-if="selectedItem.metadata?.updatedAt" class="flex justify-between">
                     <span class="text-sm text-zinc-600 dark:text-zinc-400">Updated:</span>
-                    <span class="text-sm text-zinc-800 dark:text-zinc-200">{{ new Date(selectedItem.metadata.updatedAt).toLocaleString() }}</span>
+                    <span class="text-sm text-zinc-800 dark:text-zinc-200">{{
+                      new Date(selectedItem.metadata.updatedAt).toLocaleString()
+                    }}</span>
                   </div>
                 </div>
               </div>
 
               <!-- Tags -->
               <div v-if="selectedItem.metadata?.tags && selectedItem.metadata.tags.length > 0">
-                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">Tags</h3>
+                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
+                  Tags
+                </h3>
                 <div class="flex flex-wrap gap-2">
                   <span
                     v-for="tag in selectedItem.metadata.tags"
@@ -2032,23 +2113,36 @@ defineOgImageComponent('About', {
               </div>
 
               <!-- Custom Metadata -->
-              <div v-if="selectedItem.metadata?.customMetadata && Object.keys(selectedItem.metadata.customMetadata).length > 0">
-                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">Custom Metadata</h3>
+              <div
+                v-if="
+                  selectedItem.metadata?.customMetadata &&
+                  Object.keys(selectedItem.metadata.customMetadata).length > 0
+                "
+              >
+                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
+                  Custom Metadata
+                </h3>
                 <div class="space-y-2">
                   <div
                     v-for="(value, key) in selectedItem.metadata.customMetadata"
                     :key="key"
                     class="flex justify-between"
                   >
-                    <span class="text-sm text-zinc-600 dark:text-zinc-400 capitalize">{{ key }}:</span>
-                    <span class="text-sm text-zinc-800 dark:text-zinc-200 text-right break-all">{{ String(value) }}</span>
+                    <span class="text-sm text-zinc-600 dark:text-zinc-400 capitalize"
+                      >{{ key }}:</span
+                    >
+                    <span class="text-sm text-zinc-800 dark:text-zinc-200 text-right break-all">{{
+                      String(value)
+                    }}</span>
                   </div>
                 </div>
               </div>
 
               <!-- URL -->
               <div v-if="selectedItem.metadata?.url">
-                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">URL</h3>
+                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
+                  URL
+                </h3>
                 <a
                   :href="selectedItem.metadata.url"
                   target="_blank"

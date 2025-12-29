@@ -11,6 +11,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   type: 'all',
+  databaseId: undefined,
   autoLoad: true,
 })
 
@@ -18,15 +19,15 @@ const { isLoading, error, fetchResources, fetchDatabase } = useNotion()
 const items = ref<NotionItem[]>([])
 
 // Helper function to extract type string from various formats
-const extractTypeString = (item: any): string => {
+const extractTypeString = (item: NotionItem): string => {
   // Try Type property first
   let type = item.Type || item.type
-  
+
   // If it's an object with a name property, extract the name
   if (type && typeof type === 'object' && 'name' in type) {
     type = type.name
   }
-  
+
   // If still not a string, try type property
   if (typeof type !== 'string') {
     type = item.type
@@ -34,14 +35,14 @@ const extractTypeString = (item: any): string => {
       type = type.name
     }
   }
-  
+
   // Return as string, trimmed
   return typeof type === 'string' ? type.trim() : ''
 }
 
 const filteredItems = computed(() => {
   if (props.type === 'all') return items.value
-  
+
   return items.value.filter((item) => {
     const itemType = extractTypeString(item)
     const typeMap: Record<string, string> = {
@@ -77,7 +78,7 @@ const learningResources = computed(() => {
 const loadResources = async () => {
   const config = useRuntimeConfig()
   const databaseId = props.databaseId || config.public?.notionDatabaseId || config.notionDatabaseId
-  
+
   if (databaseId) {
     const response = await fetchDatabase({
       databaseId: databaseId,
@@ -118,7 +119,10 @@ defineExpose({
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+    <div
+      v-else-if="error"
+      class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center"
+    >
       <Icon name="mdi:alert-circle" class="text-4xl text-red-600 dark:text-red-400 mb-4" />
       <p class="text-red-600 dark:text-red-400 mb-2">{{ error }}</p>
       <button
@@ -132,14 +136,27 @@ defineExpose({
 
     <!-- Content -->
     <div v-else-if="filteredItems.length > 0">
-      <slot :items="filteredItems" :books="books" :tools="tools" :learningResources="learningResources">
+      <slot
+        :items="filteredItems"
+        :books="books"
+        :tools="tools"
+        :learning-resources="learningResources"
+      >
         <!-- Default rendering -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <NotionResourceCard
             v-for="item in filteredItems"
             :key="item.id"
             :item="item"
-            :type="type === 'books' ? 'book' : type === 'tools' ? 'tool' : type === 'learning' ? 'learning' : 'default'"
+            :type="
+              type === 'books'
+                ? 'book'
+                : type === 'tools'
+                  ? 'tool'
+                  : type === 'learning'
+                    ? 'learning'
+                    : 'default'
+            "
           />
         </div>
       </slot>
@@ -155,4 +172,3 @@ defineExpose({
     </div>
   </div>
 </template>
-

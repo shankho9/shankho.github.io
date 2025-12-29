@@ -74,7 +74,7 @@ const loadLikes = async () => {
 const toggleLike = async () => {
   if (!currentItem.value || isLiking.value) return
   isLiking.value = true
-  
+
   // Capture item ID once before any async operations to prevent race conditions
   // if user navigates to a different image during the API call
   const itemId = String(currentItem.value.id)
@@ -400,7 +400,11 @@ onUnmounted(() => {
                   <Icon name="mdi:close" size="20" />
                 </button>
               </div>
-              <GalleryComments v-if="currentItem" :item-id="String(currentItem.id)" @comment-added="handleCommentAdded" />
+              <GalleryComments
+                v-if="currentItem"
+                :item-id="String(currentItem.id)"
+                @comment-added="handleCommentAdded"
+              />
             </div>
           </div>
         </Transition>

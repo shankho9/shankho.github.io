@@ -19,13 +19,15 @@ export default defineEventHandler(async (event) => {
 
   // Get ImageKit credentials from runtime config
   const imageKitPrivateKey = config.imageKitPrivateKey
-  const imageKitUrlEndpoint = config.imageKitUrlEndpoint
+
+  const _imageKitUrlEndpoint = config.imageKitUrlEndpoint
 
   // Validate configuration
   if (!imageKitPrivateKey) {
     return {
       success: false,
-      error: 'ImageKit configuration is missing. Please set IMAGEKIT_PRIVATE_KEY environment variable.',
+      error:
+        'ImageKit configuration is missing. Please set IMAGEKIT_PRIVATE_KEY environment variable.',
       folders: [],
     }
   }
@@ -34,7 +36,8 @@ export default defineEventHandler(async (event) => {
   if (!imageKitPrivateKey.startsWith('private_')) {
     return {
       success: false,
-      error: 'Invalid ImageKit Private Key format. The Private API Key should start with "private_".',
+      error:
+        'Invalid ImageKit Private Key format. The Private API Key should start with "private_".',
       folders: [],
     }
   }
@@ -46,11 +49,11 @@ export default defineEventHandler(async (event) => {
   try {
     // ImageKit API endpoint for listing files
     const apiUrl = 'https://api.imagekit.io/v1/files'
-    
+
     // Build query parameters - fetch all files to extract folder structure
     const params = new URLSearchParams()
     params.append('limit', '1000') // Get a large number to find all folders
-    
+
     // Build Basic Auth header (ImageKit uses privateKey: as username, empty password)
     const authHeader = `Basic ${Buffer.from(`${imageKitPrivateKey}:`).toString('base64')}`
 
@@ -65,7 +68,7 @@ export default defineEventHandler(async (event) => {
     if (!response.ok) {
       const errorText = await response.text()
       let errorMessage = `ImageKit API error: ${response.status}`
-      
+
       try {
         const errorJson = JSON.parse(errorText)
         errorMessage = errorJson.message || errorMessage
@@ -74,13 +77,13 @@ export default defineEventHandler(async (event) => {
       }
 
       console.error('[ImageKit API] Error:', response.status, errorMessage)
-      
+
       if (response.status === 403) {
         errorMessage = 'Authentication failed. Please check your IMAGEKIT_PRIVATE_KEY.'
       } else if (response.status === 401) {
         errorMessage = 'Unauthorized. Please verify your ImageKit credentials are correct.'
       }
-      
+
       throw new Error(errorMessage)
     }
 
@@ -88,7 +91,7 @@ export default defineEventHandler(async (event) => {
 
     // Handle different response structures
     let files: ImageKitFile[] = []
-    
+
     if (Array.isArray(data)) {
       files = data
     } else if (data && typeof data === 'object' && 'files' in data) {
@@ -103,13 +106,23 @@ export default defineEventHandler(async (event) => {
       files = files.filter((file) => {
         const fileTypeLower = file.fileType.toLowerCase()
         const fileNameLower = file.name.toLowerCase()
-        
+
         if (fileType === 'video') {
           const videoExtensions = ['mp4', 'mpeg', 'mov', 'avi', 'webm', 'ogg', 'mkv', 'flv', 'wmv']
-          return videoExtensions.some(ext => fileTypeLower === ext || fileTypeLower.includes(ext) || fileNameLower.endsWith(`.${ext}`))
+          return videoExtensions.some(
+            (ext) =>
+              fileTypeLower === ext ||
+              fileTypeLower.includes(ext) ||
+              fileNameLower.endsWith(`.${ext}`),
+          )
         } else if (fileType === 'image') {
           const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']
-          return imageExtensions.some(ext => fileTypeLower === ext || fileTypeLower.includes(ext) || fileNameLower.endsWith(`.${ext}`))
+          return imageExtensions.some(
+            (ext) =>
+              fileTypeLower === ext ||
+              fileTypeLower.includes(ext) ||
+              fileNameLower.endsWith(`.${ext}`),
+          )
         }
         return true
       })
@@ -117,17 +130,17 @@ export default defineEventHandler(async (event) => {
 
     // Extract unique folder paths from file paths
     const folderSet = new Set<string>()
-    
+
     files.forEach((file) => {
       const path = file.filePath
       if (!path) return
-      
+
       // Remove leading slash if present
       const cleanPath = path.startsWith('/') ? path.slice(1) : path
-      
+
       // Split path into parts
       const parts = cleanPath.split('/').filter(Boolean)
-      
+
       // Build folder paths incrementally
       // e.g., "Library/Family/photo.jpg" -> ["Library", "Library/Family"]
       for (let i = 1; i < parts.length; i++) {
@@ -143,10 +156,8 @@ export default defineEventHandler(async (event) => {
     let filteredFolders = folders
     if (rootFolder && rootFolder !== '/') {
       const rootPath = rootFolder.startsWith('/') ? rootFolder.slice(1) : rootFolder
-      filteredFolders = folders.filter(folder => folder.startsWith(rootPath))
+      filteredFolders = folders.filter((folder) => folder.startsWith(rootPath))
     }
-
-    console.log(`[ImageKit API] Found ${filteredFolders.length} folders`)
 
     return {
       success: true,
@@ -163,4 +174,3 @@ export default defineEventHandler(async (event) => {
     }
   }
 })
-

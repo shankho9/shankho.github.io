@@ -12,15 +12,15 @@ const { isLoading, error, fetchDatabase } = useNotion()
 const items = ref<NotionItem[]>([])
 
 // Helper function to extract type string from various formats
-const extractTypeString = (item: any): string => {
+const extractTypeString = (item: NotionItem): string => {
   // Try Type property first
   let type = item.Type || item.type
-  
+
   // If it's an object with a name property, extract the name
   if (type && typeof type === 'object' && 'name' in type) {
     type = type.name
   }
-  
+
   // If still not a string, try type property
   if (typeof type !== 'string') {
     type = item.type
@@ -28,7 +28,7 @@ const extractTypeString = (item: any): string => {
       type = type.name
     }
   }
-  
+
   // Return as string, trimmed
   return typeof type === 'string' ? type.trim() : ''
 }
@@ -39,7 +39,7 @@ const books = computed(() => {
     // Check if published
     const published = item.Published || item.published || false
     if (!published) return false
-    
+
     // Check type
     const typeStr = extractTypeString(item)
     return typeStr === 'Book'
@@ -51,7 +51,7 @@ const tools = computed(() => {
     // Check if published
     const published = item.Published || item.published || false
     if (!published) return false
-    
+
     // Check type
     const typeStr = extractTypeString(item)
     return typeStr === 'Tool'
@@ -63,7 +63,7 @@ const learningResources = computed(() => {
     // Check if published
     const published = item.Published || item.published || false
     if (!published) return false
-    
+
     // Check type
     const typeStr = extractTypeString(item)
     return typeStr === 'Learning Resource'
@@ -92,26 +92,26 @@ const filteredItems = computed(() => {
   if (!searchQuery.value.trim()) {
     return currentTabItems.value
   }
-  
+
   const query = searchQuery.value.toLowerCase().trim()
-  
+
   return currentTabItems.value.filter((item) => {
     // Search in title
     const title = item.Title || item.title || item.Name || item.name || ''
     if (title && String(title).toLowerCase().includes(query)) return true
-    
+
     // Search in description
     const description = item.Description || item.description || ''
     if (description && String(description).toLowerCase().includes(query)) return true
-    
+
     // Search in category
     const category = item.Category || item.category || ''
     if (category && String(category).toLowerCase().includes(query)) return true
-    
+
     // Search in author (for books)
     const author = item.Author || item.author || ''
     if (author && String(author).toLowerCase().includes(query)) return true
-    
+
     return false
   })
 })
@@ -120,7 +120,7 @@ const filteredItems = computed(() => {
 const loadResources = async () => {
   const config = useRuntimeConfig()
   const databaseId = config.public.notionDatabaseId
-  
+
   if (databaseId && typeof databaseId === 'string') {
     const response = await fetchDatabase({
       databaseId: databaseId,
@@ -146,7 +146,10 @@ onMounted(() => {
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+    <div
+      v-else-if="error"
+      class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center"
+    >
       <Icon name="mdi:alert-circle" class="text-4xl text-red-600 dark:text-red-400 mb-4" />
       <p class="text-red-600 dark:text-red-400 mb-2">{{ error }}</p>
       <button
@@ -164,13 +167,13 @@ onMounted(() => {
       <div class="mb-6 border-b border-gray-200 dark:border-slate-700">
         <nav class="flex space-x-8" aria-label="Resource Tabs">
           <button
-            @click="activeResourceTab = 'books'"
             :class="[
               'py-4 px-1 border-b-2 font-semibold text-sm transition-colors',
               activeResourceTab === 'books'
                 ? 'border-sky-700 dark:border-sky-400 text-sky-700 dark:text-sky-400'
                 : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600',
             ]"
+            @click="activeResourceTab = 'books'"
           >
             <div class="flex items-center gap-2">
               <Icon name="mdi:book-open-variant" size="20" />
@@ -184,13 +187,13 @@ onMounted(() => {
             </div>
           </button>
           <button
-            @click="activeResourceTab = 'tools'"
             :class="[
               'py-4 px-1 border-b-2 font-semibold text-sm transition-colors',
               activeResourceTab === 'tools'
                 ? 'border-sky-700 dark:border-sky-400 text-sky-700 dark:text-sky-400'
                 : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600',
             ]"
+            @click="activeResourceTab = 'tools'"
           >
             <div class="flex items-center gap-2">
               <Icon name="mdi:tools" size="20" />
@@ -204,13 +207,13 @@ onMounted(() => {
             </div>
           </button>
           <button
-            @click="activeResourceTab = 'learning'"
             :class="[
               'py-4 px-1 border-b-2 font-semibold text-sm transition-colors',
               activeResourceTab === 'learning'
                 ? 'border-sky-700 dark:border-sky-400 text-sky-700 dark:text-sky-400'
                 : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600',
             ]"
+            @click="activeResourceTab = 'learning'"
           >
             <div class="flex items-center gap-2">
               <Icon name="mdi:school" size="20" />
@@ -242,8 +245,8 @@ onMounted(() => {
           />
           <button
             v-if="searchQuery"
-            @click="searchQuery = ''"
             class="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            @click="searchQuery = ''"
           >
             <Icon name="mdi:close-circle" size="20" />
           </button>
@@ -258,14 +261,22 @@ onMounted(() => {
         <div
           :class="[
             'grid gap-6',
-            activeResourceTab === 'books' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
+            activeResourceTab === 'books'
+              ? 'grid-cols-1 md:grid-cols-2'
+              : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
           ]"
         >
           <NotionResourceCard
             v-for="item in filteredItems"
             :key="item.id"
             :item="item"
-            :type="activeResourceTab === 'books' ? 'book' : activeResourceTab === 'tools' ? 'tool' : 'learning'"
+            :type="
+              activeResourceTab === 'books'
+                ? 'book'
+                : activeResourceTab === 'tools'
+                  ? 'tool'
+                  : 'learning'
+            "
           />
         </div>
       </div>
@@ -273,7 +284,13 @@ onMounted(() => {
       <!-- Empty State -->
       <div v-else class="text-center py-12">
         <Icon
-          :name="activeResourceTab === 'books' ? 'mdi:book-off' : activeResourceTab === 'tools' ? 'mdi:tools' : 'mdi:school-off'"
+          :name="
+            activeResourceTab === 'books'
+              ? 'mdi:book-off'
+              : activeResourceTab === 'tools'
+                ? 'mdi:tools'
+                : 'mdi:school-off'
+          "
           class="text-6xl text-zinc-400 mb-4"
         />
         <p class="text-lg text-zinc-600 dark:text-zinc-400">
@@ -287,10 +304,17 @@ onMounted(() => {
           Try adjusting your search terms or clearing the search.
         </p>
         <p v-else class="text-sm text-zinc-500 dark:text-zinc-400 mt-2">
-          Add {{ activeResourceTab === 'books' ? 'books' : activeResourceTab === 'tools' ? 'tools' : 'learning resources' }} to your Notion database to see them here.
+          Add
+          {{
+            activeResourceTab === 'books'
+              ? 'books'
+              : activeResourceTab === 'tools'
+                ? 'tools'
+                : 'learning resources'
+          }}
+          to your Notion database to see them here.
         </p>
       </div>
     </div>
   </div>
 </template>
-

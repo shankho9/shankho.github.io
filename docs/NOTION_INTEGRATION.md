@@ -5,6 +5,7 @@ This guide explains how to integrate Notion with your Library Resources section 
 ## Overview
 
 The Notion integration allows you to:
+
 - Manage resources (books, tools, learning resources) in Notion
 - Automatically sync content to your website
 - Display resources in the Library Resources tab
@@ -30,6 +31,7 @@ The Notion integration allows you to:
 3. Add the following properties (columns):
 
 #### Required Properties:
+
 - **Title** (Title) - Name of the resource
 - **Description** (Text) - Brief description
 - **Link** (URL) - Link to the resource
@@ -37,6 +39,7 @@ The Notion integration allows you to:
 - **Published** (Checkbox) - Toggle to show/hide on website
 
 #### Recommended Properties:
+
 - **Image** or **Cover** (Files) - Cover image for the resource. Upload an image file or paste an image URL. The first image will be displayed as a thumbnail.
 - **Category** (Select) - e.g., "Web Development", "Design", "Productivity"
 - **Author** (Text) - For books
@@ -169,17 +172,17 @@ const loadCustomData = async () => {
     filter: {
       property: 'Category',
       select: {
-        equals: 'Web Development'
-      }
+        equals: 'Web Development',
+      },
     },
     sorts: [
       {
         property: 'Created',
-        direction: 'descending'
-      }
-    ]
+        direction: 'descending',
+      },
+    ],
   })
-  
+
   if (response.success) {
     console.log('Items:', response.items)
   }
@@ -191,27 +194,27 @@ const loadCustomData = async () => {
 
 ### Books Database
 
-| Property | Type | Example |
-|---------|------|---------|
-| Title | Title | "Clean Code" |
-| Author | Text | "Robert C. Martin" |
-| Description | Text | "A handbook of agile software craftsmanship" |
-| Link | URL | "https://amazon.com/..." |
-| Type | Select | "Book" |
-| Category | Select | "Programming" |
-| Published | Checkbox | ✓ |
+| Property    | Type     | Example                                      |
+| ----------- | -------- | -------------------------------------------- |
+| Title       | Title    | "Clean Code"                                 |
+| Author      | Text     | "Robert C. Martin"                           |
+| Description | Text     | "A handbook of agile software craftsmanship" |
+| Link        | URL      | "https://amazon.com/..."                     |
+| Type        | Select   | "Book"                                       |
+| Category    | Select   | "Programming"                                |
+| Published   | Checkbox | ✓                                            |
 
 ### Tools Database
 
-| Property | Type | Example |
-|---------|------|---------|
-| Title | Title | "VS Code" |
-| Description | Text | "Code editor redefined" |
-| Link | URL | "https://code.visualstudio.com" |
-| Type | Select | "Tool" |
-| Category | Select | "Development" |
-| Icon | Text | "mdi:code-tags" |
-| Published | Checkbox | ✓ |
+| Property    | Type     | Example                         |
+| ----------- | -------- | ------------------------------- |
+| Title       | Title    | "VS Code"                       |
+| Description | Text     | "Code editor redefined"         |
+| Link        | URL      | "https://code.visualstudio.com" |
+| Type        | Select   | "Tool"                          |
+| Category    | Select   | "Development"                   |
+| Icon        | Text     | "mdi:code-tags"                 |
+| Published   | Checkbox | ✓                               |
 
 ## Property Mapping
 
@@ -235,9 +238,9 @@ const response = await fetchDatabase({
   filter: {
     property: 'Published',
     checkbox: {
-      equals: true
-    }
-  }
+      equals: true,
+    },
+  },
 })
 ```
 
@@ -250,14 +253,14 @@ const response = await fetchDatabase({
     and: [
       {
         property: 'Published',
-        checkbox: { equals: true }
+        checkbox: { equals: true },
       },
       {
         property: 'Category',
-        select: { equals: 'Web Development' }
-      }
-    ]
-  }
+        select: { equals: 'Web Development' },
+      },
+    ],
+  },
 })
 ```
 
@@ -269,15 +272,16 @@ const response = await fetchDatabase({
   sorts: [
     {
       property: 'Created',
-      direction: 'descending'
-    }
-  ]
+      direction: 'descending',
+    },
+  ],
 })
 ```
 
 ## Features
 
 The Resources tab includes:
+
 - **Tabbed Navigation**: Switch between Books, Tools, and Learning Resources
 - **Search Functionality**: Search across titles, descriptions, categories, and authors
 - **Google Authentication**: Resources are protected and require sign-in
@@ -286,21 +290,25 @@ The Resources tab includes:
 ## Troubleshooting
 
 ### Error: "Unauthorized"
+
 - Check that `NOTION_API_KEY` is set correctly
 - Verify the integration token starts with `secret_`
 - Ensure the integration is shared with your database
 
 ### Error: "Database not found"
+
 - Verify `NOTION_DATABASE_ID` is correct
 - Remove hyphens from the database ID
 - Ensure the integration has access to the database
 
 ### No items showing
+
 - Check that items have `Published` checkbox checked
 - Verify the `Type` property matches expected values
 - Check browser console for errors
 
 ### Properties not mapping correctly
+
 - Ensure property names match (case-sensitive)
 - Check that property types match (Title, Text, URL, etc.)
 - Review the API response in server logs
@@ -310,12 +318,14 @@ The Resources tab includes:
 ### GET `/api/notion/database`
 
 Query parameters:
+
 - `databaseId` (required) - Notion database ID
 - `pageSize` (optional) - Number of items to fetch (default: 100)
 - `filter` (optional) - JSON stringified filter object
 - `sorts` (optional) - JSON stringified sorts array
 
 Example:
+
 ```
 /api/notion/database?databaseId=abc123&pageSize=50
 ```
@@ -347,4 +357,3 @@ Example:
 5. Customize the rendering to match your design
 
 For more information, see the [Notion API documentation](https://developers.notion.com/).
-

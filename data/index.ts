@@ -209,8 +209,7 @@ export const resourcesPage = {
     {
       title: 'Tiya Solo',
       description: 'Love your smile - Tiya',
-      imageUrl:
-        'https://photos.app.goo.gl/cRmLEnzGetL3qrXp6',
+      imageUrl: 'https://photos.app.goo.gl/cRmLEnzGetL3qrXp6',
       category: 'Family',
       date: '2024-02-20',
       link: 'https://photos.app.goo.gl/cRmLEnzGetL3qrXp6',

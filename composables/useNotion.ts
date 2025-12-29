@@ -1,10 +1,11 @@
-import { ref, type Ref } from 'vue'
+import { ref } from 'vue'
 
 export interface NotionItem {
   id: string
   notionUrl: string
   createdAt: string
   updatedAt: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any // Dynamic properties from Notion
 }
 
@@ -19,8 +20,10 @@ export interface NotionResponse {
 export interface NotionQueryOptions {
   databaseId?: string
   pageSize?: number
-  filter?: any
-  sorts?: any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  filter?: any // Notion filter format is complex and dynamic
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sorts?: any[] // Notion sort format is complex and dynamic
 }
 
 /**
@@ -39,19 +42,19 @@ export const useNotion = () => {
 
     try {
       const params = new URLSearchParams()
-      
+
       if (options.databaseId) {
         params.append('databaseId', options.databaseId)
       }
-      
+
       if (options.pageSize) {
         params.append('pageSize', options.pageSize.toString())
       }
-      
+
       if (options.filter) {
         params.append('filter', JSON.stringify(options.filter))
       }
-      
+
       if (options.sorts) {
         params.append('sorts', JSON.stringify(options.sorts))
       }
@@ -83,6 +86,7 @@ export const useNotion = () => {
    * Assumes a specific database structure with properties: Title, Description, Link, Category, etc.
    */
   const fetchResources = async (type: 'books' | 'tools' | 'learning' | 'all' = 'all') => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: any = {
       property: 'Published',
       checkbox: {
@@ -123,4 +127,3 @@ export const useNotion = () => {
     fetchResources,
   }
 }
-

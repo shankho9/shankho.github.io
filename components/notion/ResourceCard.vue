@@ -20,7 +20,9 @@ const description = computed(() => {
 })
 
 const link = computed(() => {
-  return props.item.Link || props.item.link || props.item.URL || props.item.url || props.item.notionUrl
+  return (
+    props.item.Link || props.item.link || props.item.URL || props.item.url || props.item.notionUrl
+  )
 })
 
 const category = computed(() => {
@@ -81,7 +83,7 @@ const getDefaultIcon = () => {
         quality="80"
       />
     </div>
-    
+
     <!-- Content Section -->
     <div class="p-6 flex-1 flex flex-col">
       <div class="flex items-start justify-between mb-3">
@@ -104,9 +106,11 @@ const getDefaultIcon = () => {
         </div>
         <Icon name="mdi:open-in-new" class="text-zinc-400 group-hover:text-sky-600 flex-shrink-0" />
       </div>
-      
-      <p v-if="description" class="text-zinc-600 dark:text-zinc-400 mb-3 flex-1">{{ description }}</p>
-    
+
+      <p v-if="description" class="text-zinc-600 dark:text-zinc-400 mb-3 flex-1">
+        {{ description }}
+      </p>
+
       <div v-if="category" class="flex items-center gap-2 flex-wrap">
         <span
           class="px-2 py-1 text-xs font-medium rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
@@ -117,4 +121,3 @@ const getDefaultIcon = () => {
     </div>
   </a>
 </template>
-
