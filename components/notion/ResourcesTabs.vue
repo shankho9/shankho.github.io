@@ -11,6 +11,28 @@ const searchQuery = ref('')
 const { isLoading, error, fetchDatabase } = useNotion()
 const items = ref<NotionItem[]>([])
 
+// Helper function to extract type string from various formats
+const extractTypeString = (item: any): string => {
+  // Try Type property first
+  let type = item.Type || item.type
+  
+  // If it's an object with a name property, extract the name
+  if (type && typeof type === 'object' && 'name' in type) {
+    type = type.name
+  }
+  
+  // If still not a string, try type property
+  if (typeof type !== 'string') {
+    type = item.type
+    if (type && typeof type === 'object' && 'name' in type) {
+      type = type.name
+    }
+  }
+  
+  // Return as string, trimmed
+  return typeof type === 'string' ? type.trim() : ''
+}
+
 // Filter items by type and published status
 const books = computed(() => {
   return items.value.filter((item) => {
@@ -19,8 +41,7 @@ const books = computed(() => {
     if (!published) return false
     
     // Check type
-    const type = item.Type || item.type || (typeof item.Type === 'object' ? item.Type?.name : null) || ''
-    const typeStr = String(type).trim()
+    const typeStr = extractTypeString(item)
     return typeStr === 'Book'
   })
 })
@@ -32,8 +53,7 @@ const tools = computed(() => {
     if (!published) return false
     
     // Check type
-    const type = item.Type || item.type || (typeof item.Type === 'object' ? item.Type?.name : null) || ''
-    const typeStr = String(type).trim()
+    const typeStr = extractTypeString(item)
     return typeStr === 'Tool'
   })
 })
@@ -45,8 +65,7 @@ const learningResources = computed(() => {
     if (!published) return false
     
     // Check type
-    const type = item.Type || item.type || (typeof item.Type === 'object' ? item.Type?.name : null) || ''
-    const typeStr = String(type).trim()
+    const typeStr = extractTypeString(item)
     return typeStr === 'Learning Resource'
   })
 })
@@ -109,21 +128,6 @@ const loadResources = async () => {
     })
     if (response.success) {
       items.value = response.items
-      // Debug: Log first item to check structure
-      if (response.items.length > 0) {
-        console.log('[ResourcesTabs] Sample item:', {
-          id: response.items[0].id,
-          Type: response.items[0].Type,
-          type: response.items[0].type,
-          Published: response.items[0].Published,
-          published: response.items[0].published,
-          allKeys: Object.keys(response.items[0]),
-        })
-        console.log('[ResourcesTabs] Total items loaded:', response.items.length)
-        console.log('[ResourcesTabs] Books count:', books.value.length)
-        console.log('[ResourcesTabs] Tools count:', tools.value.length)
-        console.log('[ResourcesTabs] Learning count:', learningResources.value.length)
-      }
     }
   }
 }
@@ -285,17 +289,6 @@ onMounted(() => {
         <p v-else class="text-sm text-zinc-500 dark:text-zinc-400 mt-2">
           Add {{ activeResourceTab === 'books' ? 'books' : activeResourceTab === 'tools' ? 'tools' : 'learning resources' }} to your Notion database to see them here.
         </p>
-        
-        <!-- Debug Info (temporary) -->
-        <div v-if="items.length > 0" class="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded text-left text-xs max-w-2xl mx-auto">
-          <p class="font-semibold mb-2">Debug Info:</p>
-          <p>Total items loaded: {{ items.length }}</p>
-          <p>Books: {{ books.length }}, Tools: {{ tools.length }}, Learning: {{ learningResources.length }}</p>
-          <details v-if="items.length > 0" class="mt-2">
-            <summary class="cursor-pointer font-semibold">View first item properties</summary>
-            <pre class="mt-2 text-xs overflow-auto">{{ JSON.stringify(items[0], null, 2) }}</pre>
-          </details>
-        </div>
       </div>
     </div>
   </div>

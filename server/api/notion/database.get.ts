@@ -194,10 +194,12 @@ export default defineEventHandler(async (event) => {
 
     // Filter by Published checkbox if property exists
     const publishedItems = items.filter((item) => {
-      const published = item.Published || item.published
+      // Check if Published property exists (either case)
+      const hasPublishedProp = item.Published !== undefined || item.published !== undefined
       // If Published property doesn't exist, include all items (backward compatibility)
-      if (published === undefined) return true
-      return published === true
+      if (!hasPublishedProp) return true
+      // If property exists, check if it's explicitly true (check both properties independently)
+      return item.Published === true || item.published === true
     })
 
     console.log(`[Notion API] Successfully fetched ${items.length} items from database, ${publishedItems.length} published`)

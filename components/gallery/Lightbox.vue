@@ -74,8 +74,16 @@ const loadLikes = async () => {
 const toggleLike = async () => {
   if (!currentItem.value || isLiking.value) return
   isLiking.value = true
+  
+  // Capture item ID once before any async operations to prevent race conditions
+  // if user navigates to a different image during the API call
+  const itemId = String(currentItem.value.id)
   const previousLikeCount = likeCount.value
   const previousIsLiked = isLiked.value
+
+  // Determine the action based on current state (before optimistic update)
+  // If currently liked, we're unliking; if not liked, we're liking
+  const action = previousIsLiked ? 'unlike' : 'like'
 
   // Optimistic update
   if (isLiked.value) {
@@ -90,15 +98,15 @@ const toggleLike = async () => {
     await $fetch('/api/gallery/like', {
       method: 'POST',
       body: {
-        itemId: String(currentItem.value.id),
-        action: isLiked.value ? 'like' : 'unlike',
+        itemId: itemId,
+        action: action,
       },
     })
     // Reload to get accurate count
     await loadLikes()
     // Emit event to notify parent of like count change
-    // Convert to string for consistency with parent's string comparison
-    emit('like-changed', String(currentItem.value.id))
+    // Use captured itemId to ensure we emit the correct ID even if currentItem changed
+    emit('like-changed', itemId)
   } catch (error) {
     console.error('[Lightbox] Failed to toggle like:', error)
     // Revert optimistic update

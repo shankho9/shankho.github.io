@@ -17,11 +17,33 @@ const props = withDefaults(defineProps<Props>(), {
 const { isLoading, error, fetchResources, fetchDatabase } = useNotion()
 const items = ref<NotionItem[]>([])
 
+// Helper function to extract type string from various formats
+const extractTypeString = (item: any): string => {
+  // Try Type property first
+  let type = item.Type || item.type
+  
+  // If it's an object with a name property, extract the name
+  if (type && typeof type === 'object' && 'name' in type) {
+    type = type.name
+  }
+  
+  // If still not a string, try type property
+  if (typeof type !== 'string') {
+    type = item.type
+    if (type && typeof type === 'object' && 'name' in type) {
+      type = type.name
+    }
+  }
+  
+  // Return as string, trimmed
+  return typeof type === 'string' ? type.trim() : ''
+}
+
 const filteredItems = computed(() => {
   if (props.type === 'all') return items.value
   
   return items.value.filter((item) => {
-    const itemType = item.Type || item.type || ''
+    const itemType = extractTypeString(item)
     const typeMap: Record<string, string> = {
       books: 'Book',
       tools: 'Tool',
@@ -33,24 +55,21 @@ const filteredItems = computed(() => {
 
 const books = computed(() => {
   return filteredItems.value.filter((item) => {
-    const type = item.Type || item.type || (typeof item.Type === 'object' ? item.Type?.name : null) || ''
-    const typeStr = typeof type === 'string' ? type : ''
+    const typeStr = extractTypeString(item)
     return typeStr === 'Book'
   })
 })
 
 const tools = computed(() => {
   return filteredItems.value.filter((item) => {
-    const type = item.Type || item.type || (typeof item.Type === 'object' ? item.Type?.name : null) || ''
-    const typeStr = typeof type === 'string' ? type : ''
+    const typeStr = extractTypeString(item)
     return typeStr === 'Tool'
   })
 })
 
 const learningResources = computed(() => {
   return filteredItems.value.filter((item) => {
-    const type = item.Type || item.type || (typeof item.Type === 'object' ? item.Type?.name : null) || ''
-    const typeStr = typeof type === 'string' ? type : ''
+    const typeStr = extractTypeString(item)
     return typeStr === 'Learning Resource'
   })
 })
