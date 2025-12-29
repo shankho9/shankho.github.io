@@ -19,13 +19,22 @@ let signInHandler: ((e: Event) => void) | null = null
 // Register event listeners once at module level to avoid duplicates and closure issues
 // Only initialize once - check if event listeners are already set up to prevent re-initialization
 if (typeof window !== 'undefined' && !storageHandler) {
-  // Clear any existing user state ONLY on the very first initialization
-  // This ensures users start signed out by default on first page load
-  // Subsequent module imports (HMR, navigation) won't clear the state
-  const hasClearedBefore = sessionStorage.getItem('auth_initialized')
-  if (!hasClearedBefore) {
-    sharedUser.value = null
-    localStorage.removeItem('google_user')
+  // Load existing user from localStorage if available
+  // Only clear user state if explicitly needed (not on every page load)
+  const hasInitialized = sessionStorage.getItem('auth_initialized')
+  if (!hasInitialized) {
+    // First initialization - load user from localStorage if exists
+    const stored = localStorage.getItem('google_user')
+    if (stored) {
+      try {
+        sharedUser.value = JSON.parse(stored)
+      } catch (e) {
+        console.error('[Auth] Failed to parse stored user on init:', e)
+        // Only clear if parsing fails
+        sharedUser.value = null
+        localStorage.removeItem('google_user')
+      }
+    }
     sessionStorage.setItem('auth_initialized', 'true')
   }
 

@@ -44,6 +44,10 @@ const formattedData = computed(() => {
       if (normalizedPath.startsWith('/content/')) {
         normalizedPath = normalizedPath.replace(/^\/content/, '')
       }
+      // Remove leading /blogs/ if present (content files are in /blogs/ directory)
+      if (normalizedPath.startsWith('/blogs/')) {
+        normalizedPath = normalizedPath.replace(/^\/blogs/, '')
+      }
       // Ensure path doesn't have double slashes
       normalizedPath = normalizedPath.replace(/\/+/g, '/')
       // Ensure path starts with /personalSpace/ for proper routing

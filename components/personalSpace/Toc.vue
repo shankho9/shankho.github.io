@@ -1,6 +1,50 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 const { path } = useRoute()
-const articles = await queryCollection('content').path(path).first()
+
+// Convert route path to content path for personalSpace routes
+// Route path: /personalSpace/8. Fav_map
+// Content path: /blogs/8. Fav_map
+const getContentPath = (routePath: string): string => {
+  let contentPath = routePath
+
+  // Remove /personalSpace/ prefix if present
+  if (contentPath.startsWith('/personalSpace/')) {
+    contentPath = contentPath.replace(/^\/personalSpace\//, '')
+  } else if (contentPath === '/personalSpace') {
+    // Handle exact match for /personalSpace (without trailing slash)
+    contentPath = ''
+  }
+
+  // Ensure it starts with /
+  if (!contentPath.startsWith('/')) {
+    contentPath = `/${contentPath}`
+  }
+
+  // Add /blogs/ prefix if not already present
+  if (!contentPath.startsWith('/blogs/')) {
+    const slug = contentPath.replace(/^\/+/, '')
+    contentPath = `/blogs/${slug}`
+  }
+
+  // Final cleanup
+  return contentPath.replace(/\/+/g, '/')
+}
+
+const contentPath = computed(() => getContentPath(path))
+
+// Try multiple path variations to find the content
+let articles = await queryCollection('content').path(contentPath.value).first()
+
+if (!articles) {
+  articles = await queryCollection('content').path(path).first()
+}
+
+if (!articles && path.startsWith('/personalSpace/')) {
+  const slug = path.replace(/^\/personalSpace\//, '')
+  articles = await queryCollection('content').path(`/blogs/${slug}`).first()
+}
 
 const links = articles?.body?.toc?.links || []
 </script>

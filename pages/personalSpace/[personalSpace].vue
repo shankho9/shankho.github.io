@@ -12,9 +12,63 @@ const { path } = useRoute()
 // Authentication
 const { user, isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
 
-const { data: articles, error } = await useAsyncData(`blog-post-${path}`, () =>
-  queryCollection('content').path(path).first(),
-)
+// Convert route path to content path
+// Route path: /personalSpace/8. Fav_map
+// Content path: /blogs/8. Fav_map
+const getContentPath = (routePath: string): string => {
+  let contentPath = routePath
+
+  // Remove /personalSpace/ prefix if present
+  if (contentPath.startsWith('/personalSpace/')) {
+    contentPath = contentPath.replace(/^\/personalSpace\//, '')
+  } else if (contentPath.startsWith('/personalSpace')) {
+    contentPath = contentPath.replace(/^\/personalSpace/, '')
+  }
+
+  // Ensure it starts with /
+  if (!contentPath.startsWith('/')) {
+    contentPath = `/${contentPath}`
+  }
+
+  // Add /blogs/ prefix if not already present
+  if (!contentPath.startsWith('/blogs/')) {
+    // Remove leading /, add /blogs/, then add the rest
+    const slug = contentPath.replace(/^\/+/, '')
+    contentPath = `/blogs/${slug}`
+  }
+
+  // Final cleanup - ensure no double slashes
+  return contentPath.replace(/\/+/g, '/')
+}
+
+const contentPath = computed(() => getContentPath(path))
+
+const { data: articles, error } = await useAsyncData(`blog-post-${path}`, async () => {
+  // Try the converted content path first (most likely to work)
+  let result = await queryCollection('content').path(contentPath.value).first()
+
+  // If not found, try the route path as-is (fallback)
+  if (!result) {
+    result = await queryCollection('content').path(path).first()
+  }
+
+  // If still not found, try without /personalSpace/ prefix but with /blogs/
+  if (!result && path.startsWith('/personalSpace/')) {
+    const slug = path.replace(/^\/personalSpace\//, '')
+    const blogsPath = `/blogs/${slug}`
+    result = await queryCollection('content').path(blogsPath).first()
+  }
+
+  if (!result) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Article not found',
+      fatal: true,
+    })
+  }
+
+  return result
+})
 
 if (error.value) navigateTo('/404')
 
