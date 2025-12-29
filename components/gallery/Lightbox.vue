@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import GalleryComments from './Comments.vue'
 
 interface GalleryItem {
-  id: number
+  id: string | number
   title: string
   description: string
   image: string
@@ -11,6 +11,7 @@ interface GalleryItem {
   date: string
   type: string
   likeCount?: number
+  thumbnail?: string
 }
 
 interface Props {
@@ -23,6 +24,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   close: []
   'update:currentIndex': [index: number]
+  'like-changed': [itemId: string | number]
+  'comment-added': [itemId: string | number]
 }>()
 
 const currentIndex = computed({
@@ -49,7 +52,7 @@ const loadLikes = async () => {
   if (!currentItem.value) return
 
   // Capture the itemId at the start to prevent race conditions
-  const itemId = currentItem.value.id
+  const itemId = String(currentItem.value.id)
 
   try {
     const response = await $fetch<{ success: boolean; count: number; isLiked: boolean }>(
@@ -57,7 +60,8 @@ const loadLikes = async () => {
     )
     // Verify the response is still for the current item before updating state
     // This prevents race conditions when navigating quickly between items
-    if (response.success && currentItem.value?.id === itemId) {
+    // Convert both to string for consistent comparison (itemId is already a string)
+    if (response.success && currentItem.value && String(currentItem.value.id) === itemId) {
       likeCount.value = response.count
       isLiked.value = response.isLiked
     }
@@ -70,8 +74,16 @@ const loadLikes = async () => {
 const toggleLike = async () => {
   if (!currentItem.value || isLiking.value) return
   isLiking.value = true
+
+  // Capture item ID once before any async operations to prevent race conditions
+  // if user navigates to a different image during the API call
+  const itemId = String(currentItem.value.id)
   const previousLikeCount = likeCount.value
   const previousIsLiked = isLiked.value
+
+  // Determine the action based on current state (before optimistic update)
+  // If currently liked, we're unliking; if not liked, we're liking
+  const action = previousIsLiked ? 'unlike' : 'like'
 
   // Optimistic update
   if (isLiked.value) {
@@ -86,12 +98,15 @@ const toggleLike = async () => {
     await $fetch('/api/gallery/like', {
       method: 'POST',
       body: {
-        itemId: currentItem.value.id,
-        action: isLiked.value ? 'like' : 'unlike',
+        itemId: itemId,
+        action: action,
       },
     })
     // Reload to get accurate count
     await loadLikes()
+    // Emit event to notify parent of like count change
+    // Use captured itemId to ensure we emit the correct ID even if currentItem changed
+    emit('like-changed', itemId)
   } catch (error) {
     console.error('[Lightbox] Failed to toggle like:', error)
     // Revert optimistic update
@@ -214,6 +229,13 @@ const handleKeydown = (e: KeyboardEvent) => {
 const closeLightbox = () => {
   resetZoom()
   emit('close')
+}
+
+// Handle comment added event from GalleryComments
+const handleCommentAdded = (itemId: string | number) => {
+  // Forward the event to parent
+  // Convert to string for consistency with parent's string comparison
+  emit('comment-added', String(itemId))
 }
 
 watch(
@@ -378,7 +400,11 @@ onUnmounted(() => {
                   <Icon name="mdi:close" size="20" />
                 </button>
               </div>
-              <GalleryComments :item-id="currentItem.id" />
+              <GalleryComments
+                v-if="currentItem"
+                :item-id="String(currentItem.id)"
+                @comment-added="handleCommentAdded"
+              />
             </div>
           </div>
         </Transition>
