@@ -44,7 +44,7 @@ const getContentPath = (routePath: string): string => {
 const { data: articles, error } = await useAsyncData(`blog-post-${path}`, async () => {
   // Convert path to content path for querying
   const contentPath = getContentPath(path)
-  
+
   // Try the converted content path first (most likely to work)
   let result = await queryCollection('content').path(contentPath).first()
 
