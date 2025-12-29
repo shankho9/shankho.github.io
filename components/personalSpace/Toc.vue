@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-
 const { path } = useRoute()
 
 // Convert route path to content path for personalSpace routes
@@ -32,10 +30,11 @@ const getContentPath = (routePath: string): string => {
   return contentPath.replace(/\/+/g, '/')
 }
 
-const contentPath = computed(() => getContentPath(path))
+// Convert path to content path for querying
+const contentPath = getContentPath(path)
 
 // Try multiple path variations to find the content
-let articles = await queryCollection('content').path(contentPath.value).first()
+let articles = await queryCollection('content').path(contentPath).first()
 
 if (!articles) {
   articles = await queryCollection('content').path(path).first()
