@@ -5,6 +5,18 @@ const { Pool } = pg
 
 let pool: pg.Pool | null = null
 
+// Track clients that have had statement_timeout set to avoid redundant SQL calls
+const clientsWithTimeout = new WeakSet<pg.PoolClient>()
+
+// Set statement timeout on a client if not already set
+async function ensureStatementTimeout(client: pg.PoolClient): Promise<void> {
+  if (!clientsWithTimeout.has(client)) {
+    // Set statement timeout to 10 seconds (10000ms)
+    await client.query('SET statement_timeout = 10000')
+    clientsWithTimeout.add(client)
+  }
+}
+
 function getPool(): pg.Pool {
   // Prevent pool creation during build
   // NITRO_PRESET is set both during build AND at runtime (e.g., 'vercel' on Vercel)
@@ -38,8 +50,7 @@ function getPool(): pg.Pool {
       connectionTimeoutMillis: 15000, // 15 seconds to establish connection (increased from 10s)
       idleTimeoutMillis: 30000, // 30 seconds before closing idle connections
       max: 10, // Maximum number of clients in the pool
-      // Add statement timeout to prevent queries from hanging indefinitely
-      statement_timeout: 10000, // 10 seconds for query execution
+      // Note: statement_timeout must be set via SQL, not as a Pool option
     })
 
     // Handle pool errors
@@ -60,6 +71,8 @@ export async function query<T extends Record<string, unknown> = Record<string, u
   try {
     const pool = getPool()
     client = await pool.connect()
+    // Set statement timeout to prevent queries from hanging indefinitely
+    await ensureStatementTimeout(client)
     const res = await client.query<T>(text, params)
     return res.rows
   } catch (error) {
@@ -107,6 +120,8 @@ export async function withTransaction<T>(
   let rollbackAttempted = false
   try {
     client = await pool.connect()
+    // Set statement timeout to prevent queries from hanging indefinitely
+    await ensureStatementTimeout(client)
     await client.query('BEGIN')
     const result = await callback(client)
     try {

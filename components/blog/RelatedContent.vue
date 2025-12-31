@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { watch, computed } from 'vue'
 import { extractBlogPostFromMeta } from '~/utils/blog/blogMeta'
 
 interface Props {
@@ -211,21 +212,31 @@ interface ExternalContentItem {
 }
 
 // Fetch external content from API (only if showExternal is true)
-const { data: externalContentData, pending: isLoadingExternal } = await useFetch<
-  ExternalContentItem[]
->('/api/related-content', {
-  query: {
-    tags: props.currentTags.join(','),
-    category: props.currentCategory,
-    title: '', // Can be used for semantic search
-    limit: props.limit,
-    source: 'medium', // Can be: 'medium', 'devto', 'wordpress', 'reddit', etc.
+const { data: externalContentData, pending: isLoadingExternal, refresh: refreshExternal } =
+  await useFetch<ExternalContentItem[]>('/api/related-content', {
+    query: {
+      tags: props.currentTags.join(','),
+      category: props.currentCategory,
+      title: '', // Can be used for semantic search
+      limit: props.limit,
+      source: 'medium', // Can be: 'medium', 'devto', 'wordpress', 'reddit', etc.
+    },
+    // Only fetch if showExternal is true
+    immediate: props.showExternal,
+    // Don't fetch on server side
+    server: false,
+  })
+
+// Watch for changes to showExternal and fetch when it becomes true
+watch(
+  () => props.showExternal,
+  (newValue) => {
+    if (newValue && !externalContentData.value) {
+      // If showExternal becomes true and we don't have data yet, fetch it
+      refreshExternal()
+    }
   },
-  // Only fetch if showExternal is true
-  immediate: props.showExternal,
-  // Don't fetch on server side
-  server: false,
-})
+)
 
 const externalContent = computed(() => {
   if (!props.showExternal) return []

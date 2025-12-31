@@ -4,8 +4,8 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 const isFocusMode = ref(false)
 
 const toggleFocusMode = () => {
+  // Update the reactive ref - the watch will handle DOM updates and localStorage
   isFocusMode.value = !isFocusMode.value
-  updateFocusMode()
 }
 
 const updateFocusMode = () => {
