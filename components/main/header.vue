@@ -167,7 +167,7 @@ const clickHandler = (e: MouseEvent) => {
   // Extract event properties before setTimeout to avoid event object reuse issues
   // Event objects are reused by browsers after synchronous handlers return
   const target = e.target as HTMLElement
-  
+
   // Use a slight delay to ensure toggle completes before checking outside clicks
   // This prevents the menu from closing immediately after opening
   setTimeout(() => {
@@ -176,7 +176,7 @@ const clickHandler = (e: MouseEvent) => {
     const syntheticEvent = {
       target,
     } as MouseEvent | TouchEvent
-    
+
     handleClickOutside(syntheticEvent)
   }, 10)
 }

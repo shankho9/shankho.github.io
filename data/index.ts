@@ -296,7 +296,7 @@ export const aboutPage = {
 export const seoData = {
   title: `Sid's Blog | Nomadic Notions - Siddhartha Basu`,
   ogTitle: `Let's learn the aspects of Life through - Sid's Blog | Nomadic Notions`,
-  description: `Hi I am Shankho. A Test Automation Senior Vice President at Natwest Group, with over a decade of experience in software development. - Sid's Blog | Nomadic Notions`,
+  description: `Hi I am Siddhartha Basu. A Test Automation Senior Vice President at Natwest Group, with over a decade of experience in software development. - Sid's Blog | Nomadic Notions`,
   twitterDescription: `Sid's Blog, where I play around content, resources, etc - Sid's Blog | Nomadic Notions`,
   image:
     'https://res.cloudinary.com/dmecmyphj/image/upload/v1673548905/nuxt-blog/cover_ntgs6u.webp',

@@ -30,19 +30,37 @@ export default defineNuxtPlugin(() => {
     }
   }
 
-  // Prevent keyboard shortcuts (Ctrl+S, Ctrl+Shift+I, etc.)
+  // Prevent keyboard shortcuts (Ctrl+S, Ctrl+Shift+I, etc.) only when interacting with images
   const preventKeyboardShortcuts = (e: KeyboardEvent) => {
-    // Prevent Ctrl+S (Save)
+    // Check if user is interacting with an image
+    const target = e.target as HTMLElement
+    const activeElement = document.activeElement as HTMLElement
+
+    const isImageInteraction =
+      target.tagName === 'IMG' ||
+      target.tagName === 'PICTURE' ||
+      target.closest('picture') ||
+      target.closest('img') ||
+      activeElement?.tagName === 'IMG' ||
+      activeElement?.closest('picture') ||
+      activeElement?.closest('img')
+
+    // Only prevent shortcuts when interacting with images
+    if (!isImageInteraction) {
+      return
+    }
+
+    // Prevent Ctrl+S (Save) when on an image
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault()
       return false
     }
-    // Prevent Ctrl+Shift+I (DevTools - can be used to inspect images)
+    // Prevent Ctrl+Shift+I (DevTools - can be used to inspect images) when on an image
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'I') {
       e.preventDefault()
       return false
     }
-    // Prevent F12 (DevTools)
+    // Prevent F12 (DevTools) when on an image
     if (e.key === 'F12') {
       e.preventDefault()
       return false
