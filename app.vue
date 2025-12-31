@@ -152,4 +152,57 @@ picture img {
   user-drag: none !important;
   -webkit-touch-callout: none !important;
 }
+
+/* Focus Mode Styles */
+body.focus-mode {
+  overflow-x: hidden;
+}
+
+body.focus-mode .blog-content-container {
+  max-width: 800px !important;
+  margin: 0 auto !important;
+  padding: 2rem !important;
+}
+
+body.focus-mode .blog-content-container.focus-mode-active {
+  width: 100% !important;
+}
+
+body.focus-mode .prose {
+  font-size: 1.25rem !important;
+  line-height: 1.8 !important;
+  max-width: 100% !important;
+}
+
+body.focus-mode .prose p {
+  margin-bottom: 1.5rem !important;
+}
+
+body.focus-mode .prose h1 {
+  font-size: 2.5rem !important;
+  margin-top: 2rem !important;
+  margin-bottom: 1.5rem !important;
+}
+
+body.focus-mode .prose h2 {
+  font-size: 2rem !important;
+  margin-top: 2rem !important;
+  margin-bottom: 1rem !important;
+}
+
+body.focus-mode .prose h3 {
+  font-size: 1.5rem !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+@media (max-width: 768px) {
+  body.focus-mode .blog-content-container {
+    padding: 1rem !important;
+  }
+
+  body.focus-mode .prose {
+    font-size: 1.125rem !important;
+  }
+}
 </style>
