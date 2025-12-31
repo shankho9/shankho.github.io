@@ -212,20 +212,23 @@ interface ExternalContentItem {
 }
 
 // Fetch external content from API (only if showExternal is true)
-const { data: externalContentData, pending: isLoadingExternal, refresh: refreshExternal } =
-  await useFetch<ExternalContentItem[]>('/api/related-content', {
-    query: {
-      tags: props.currentTags.join(','),
-      category: props.currentCategory,
-      title: '', // Can be used for semantic search
-      limit: props.limit,
-      source: 'medium', // Can be: 'medium', 'devto', 'wordpress', 'reddit', etc.
-    },
-    // Only fetch if showExternal is true
-    immediate: props.showExternal,
-    // Don't fetch on server side
-    server: false,
-  })
+const {
+  data: externalContentData,
+  pending: isLoadingExternal,
+  refresh: refreshExternal,
+} = await useFetch<ExternalContentItem[]>('/api/related-content', {
+  query: {
+    tags: props.currentTags.join(','),
+    category: props.currentCategory,
+    title: '', // Can be used for semantic search
+    limit: props.limit,
+    source: 'medium', // Can be: 'medium', 'devto', 'wordpress', 'reddit', etc.
+  },
+  // Only fetch if showExternal is true
+  immediate: props.showExternal,
+  // Don't fetch on server side
+  server: false,
+})
 
 // Watch for changes to showExternal and fetch when it becomes true
 watch(
