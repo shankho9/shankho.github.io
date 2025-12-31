@@ -87,6 +87,7 @@ const data = computed<BlogPost>(() => {
     date: meta?.date || 'not-date-available',
     tags: meta?.tags || [],
     published: meta?.published || false,
+    category: meta?.category,
   }
 })
 

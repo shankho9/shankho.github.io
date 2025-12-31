@@ -64,6 +64,16 @@ const normalizePathForDisplay = (path: string, isLifeline: boolean): string => {
   return normalized.replace(/\/+/g, '/')
 }
 
+// Helper function to safely parse dates and return timestamp
+// Returns 0 for invalid dates to ensure consistent sorting
+const getDateTimestamp = (dateString: string | undefined): number => {
+  if (!dateString || dateString === 'no-date-available') {
+    return 0
+  }
+  const timestamp = new Date(dateString).getTime()
+  return isNaN(timestamp) ? 0 : timestamp
+}
+
 // Fetch related posts from internal content
 const { data: relatedPosts } = await useAsyncData(
   `related-posts-${props.currentPath}`,
@@ -115,7 +125,7 @@ const { data: relatedPosts } = await useAsyncData(
             score: 1, // Base score for fallback
           }
         })
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .sort((a, b) => getDateTimestamp(b.date) - getDateTimestamp(a.date))
         .slice(0, props.limit)
     }
 
@@ -182,7 +192,7 @@ const { data: relatedPosts } = await useAsyncData(
           return b.score - a.score
         }
         // If scores are equal, sort by date
-        return new Date(b.date).getTime() - new Date(a.date).getTime()
+        return getDateTimestamp(b.date) - getDateTimestamp(a.date)
       })
       .slice(0, props.limit) // Limit results
 
@@ -200,29 +210,27 @@ interface ExternalContentItem {
   date?: string
 }
 
-const externalContent = ref<ExternalContentItem[]>([])
-const isLoadingExternal = ref(false)
+// Fetch external content from API (only if showExternal is true)
+const { data: externalContentData, pending: isLoadingExternal } = await useFetch<
+  ExternalContentItem[]
+>('/api/related-content', {
+  query: {
+    tags: props.currentTags.join(','),
+    category: props.currentCategory,
+    title: '', // Can be used for semantic search
+    limit: props.limit,
+    source: 'medium', // Can be: 'medium', 'devto', 'wordpress', 'reddit', etc.
+  },
+  // Only fetch if showExternal is true
+  immediate: props.showExternal,
+  // Don't fetch on server side
+  server: false,
+})
 
-if (props.showExternal) {
-  // Fetch external content from API
-  isLoadingExternal.value = true
-  try {
-    const { data } = await useFetch('/api/related-content', {
-      query: {
-        tags: props.currentTags.join(','),
-        category: props.currentCategory,
-        title: '', // Can be used for semantic search
-        limit: props.limit,
-        source: 'medium', // Can be: 'medium', 'devto', 'wordpress', 'reddit', etc.
-      },
-    })
-    externalContent.value = data.value || []
-  } catch (error) {
-    console.error('Failed to fetch external content:', error)
-  } finally {
-    isLoadingExternal.value = false
-  }
-}
+const externalContent = computed(() => {
+  if (!props.showExternal) return []
+  return externalContentData.value || []
+})
 </script>
 
 <template>
@@ -319,7 +327,7 @@ if (props.showExternal) {
 
       <!-- Loading State -->
       <div
-        v-if="isLoadingExternal"
+        v-if="showExternal && isLoadingExternal"
         class="text-xs text-zinc-500 dark:text-zinc-400 text-center py-4"
       >
         Loading external content...
