@@ -142,17 +142,22 @@ export default defineNuxtPlugin(() => {
   }
 
   // Also run periodically to catch images loaded after initial page load (e.g., ImageKit images)
-  setInterval(setImageProtection, 1000)
+  // Store interval ID so it can be cleared on cleanup
+  const protectionInterval = setInterval(setImageProtection, 1000)
 
   // Cleanup on unmount (though this is unlikely in a SPA)
   return {
     provide: {
       imageProtection: {
         disable: () => {
+          // Clear the interval to prevent memory leaks
+          clearInterval(protectionInterval)
+          // Remove event listeners
           document.removeEventListener('contextmenu', preventContextMenu)
           document.removeEventListener('dragstart', preventDragStart)
           document.removeEventListener('selectstart', preventSelection)
           document.removeEventListener('keydown', preventKeyboardShortcuts)
+          // Disconnect the mutation observer
           observer.disconnect()
         },
       },
