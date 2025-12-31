@@ -91,7 +91,14 @@ useHead({
 
     <ReadingProgress />
     <div class="px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12">
-      <div class="col-span-12 lg:col-span-9">
+      <div class="col-span-12 lg:col-span-9 blog-content-container">
+        <div class="flex items-center justify-between mb-4 gap-4 flex-wrap">
+          <div class="flex items-center gap-2">
+            <FocusMode />
+            <TextToSpeech :post-id="path" />
+          </div>
+        </div>
+
         <BlogHeader
           :title="data.title"
           :image="data.image"
@@ -123,7 +130,7 @@ useHead({
         </div>
       </div>
 
-      <div class="lg:col-span-3 sticky top-28 hidden lg:block justify-self-end space-y-6">
+      <div class="lg:col-span-3 sticky top-28 hidden lg:block justify-self-end space-y-6 blog-sidebar">
         <BlogToc />
         <RelatedContent
           :current-path="path"

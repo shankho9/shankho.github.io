@@ -12,6 +12,18 @@ interface Comment {
   created_at: string | Date
 }
 
+type ReactionType = 'thumbs_up' | 'heart' | 'party' | 'rocket' | 'eyes'
+
+interface CommentReactions {
+  [commentId: number]: {
+    [reactionType: string]: number
+  }
+}
+
+interface UserReactions {
+  [commentId: number]: string[]
+}
+
 const props = defineProps<{
   postId: string
 }>()
@@ -26,6 +38,19 @@ const commentText = ref('')
 const error = ref<string | null>(null)
 const imageErrors = ref<Set<number>>(new Set())
 const userImageError = ref(false)
+
+// Comment reactions state
+const commentReactions = ref<CommentReactions>({})
+const userReactions = ref<UserReactions>({})
+const reactingComments = ref<Set<number>>(new Set())
+
+const reactionTypes: { type: ReactionType; emoji: string; label: string }[] = [
+  { type: 'thumbs_up', emoji: '👍', label: 'Like' },
+  { type: 'heart', emoji: '❤️', label: 'Love' },
+  { type: 'party', emoji: '🎉', label: 'Celebrate' },
+  { type: 'rocket', emoji: '🚀', label: 'Amazing' },
+  { type: 'eyes', emoji: '👀', label: 'Interesting' },
+]
 
 // Pagination state
 const currentPage = ref(1)
@@ -44,6 +69,95 @@ const formatDate = (date: string | Date) => {
   })
 }
 
+const loadCommentReactions = async (commentIds: number[]) => {
+  if (commentIds.length === 0) return
+
+  try {
+    const response = await $fetch<{
+      reactions: CommentReactions
+      userReactions: UserReactions
+    }>(
+      `/api/blog/comment-reactions?commentIds=${commentIds.join(',')}${
+        user.value?.email ? `&userEmail=${encodeURIComponent(user.value.email)}` : ''
+      }`,
+    )
+    commentReactions.value = { ...commentReactions.value, ...response.reactions }
+    userReactions.value = { ...userReactions.value, ...response.userReactions }
+  } catch (err) {
+    console.warn('[Comments] Failed to load reactions:', err)
+  }
+}
+
+const toggleReaction = async (commentId: number, reactionType: ReactionType) => {
+  if (!isAuthenticated.value || !user.value) {
+    signIn()
+    return
+  }
+
+  if (reactingComments.value.has(commentId)) return
+
+  const userEmail = user.value.email
+  const isReacted = userReactions.value[commentId]?.includes(reactionType)
+  const action = isReacted ? 'remove' : 'add'
+
+  // Optimistic update
+  if (!commentReactions.value[commentId]) {
+    commentReactions.value[commentId] = {}
+  }
+  if (!userReactions.value[commentId]) {
+    userReactions.value[commentId] = []
+  }
+
+  const prevCount = commentReactions.value[commentId][reactionType] || 0
+  const prevUserReactions = [...(userReactions.value[commentId] || [])]
+
+  if (action === 'add') {
+    commentReactions.value[commentId][reactionType] = prevCount + 1
+    if (!userReactions.value[commentId].includes(reactionType)) {
+      userReactions.value[commentId].push(reactionType)
+    }
+  } else {
+    commentReactions.value[commentId][reactionType] = Math.max(0, prevCount - 1)
+    userReactions.value[commentId] = userReactions.value[commentId].filter(
+      (r) => r !== reactionType,
+    )
+  }
+
+  reactingComments.value.add(commentId)
+
+  try {
+    const response = await $fetch<{ success: boolean; reactions: Record<string, number> }>(
+      '/api/blog/comment-reactions',
+      {
+        method: 'POST',
+        body: {
+          commentId,
+          reactionType,
+          userEmail,
+          action,
+        },
+      },
+    )
+    // Update with server response
+    commentReactions.value[commentId] = { ...commentReactions.value[commentId], ...response.reactions }
+  } catch (err) {
+    console.warn('[Comments] Failed to update reaction:', err)
+    // Revert optimistic update
+    commentReactions.value[commentId][reactionType] = prevCount
+    userReactions.value[commentId] = prevUserReactions
+  } finally {
+    reactingComments.value.delete(commentId)
+  }
+}
+
+const getReactionCount = (commentId: number, reactionType: ReactionType): number => {
+  return commentReactions.value[commentId]?.[reactionType] || 0
+}
+
+const hasUserReacted = (commentId: number, reactionType: ReactionType): boolean => {
+  return userReactions.value[commentId]?.includes(reactionType) || false
+}
+
 const loadComments = async (page: number = currentPage.value, retryCount = 0) => {
   isLoading.value = true
   error.value = null
@@ -59,6 +173,12 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
     currentPage.value = response.pagination.page
     totalComments.value = response.pagination.total
     totalPages.value = response.pagination.totalPages
+
+    // Load reactions for these comments
+    if (comments.value.length > 0) {
+      await loadCommentReactions(comments.value.map((c) => c.id))
+    }
+
     isLoading.value = false
   } catch (err: unknown) {
     console.error('[Comments] Failed to load comments:', err)
@@ -430,9 +550,37 @@ watch(isAuthenticated, async (newValue) => {
               formatDate(comment.created_at)
             }}</span>
           </div>
-          <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
+          <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words mb-3">
             {{ comment.content }}
           </p>
+
+          <!-- Comment Reactions -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <button
+              v-for="reaction in reactionTypes"
+              :key="reaction.type"
+              :disabled="reactingComments.has(comment.id)"
+              :class="[
+                'flex items-center gap-1 px-2 py-1 rounded-full text-sm transition-all',
+                'border border-gray-300 dark:border-gray-600',
+                'hover:bg-gray-100 dark:hover:bg-gray-700',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
+                hasUserReacted(comment.id, reaction.type)
+                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-600'
+                  : 'bg-white dark:bg-gray-800',
+              ]"
+              :title="reaction.label"
+              @click="toggleReaction(comment.id, reaction.type)"
+            >
+              <span class="text-base">{{ reaction.emoji }}</span>
+              <span
+                v-if="getReactionCount(comment.id, reaction.type) > 0"
+                class="text-xs font-medium text-gray-700 dark:text-gray-300"
+              >
+                {{ getReactionCount(comment.id, reaction.type) }}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
