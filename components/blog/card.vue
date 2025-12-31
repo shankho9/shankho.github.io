@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { getTagColorClasses } from '~/utils/blog/tagColors'
-import { useGoogleAuth } from '~/composables/useGoogleAuth'
 import { computed } from 'vue'
 
 interface Props {
@@ -27,17 +26,12 @@ const props = withDefaults(defineProps<Props>(), {
   published: false,
 })
 
-// Check if this is a lifelines blog
-const isLifeline = computed(() => {
-  return props.tags.some((tag) => tag.toLowerCase() === 'lifelines')
-})
-
-// Authentication
-const { isAuthenticated } = useGoogleAuth()
-
 // Normalize path for lifelines blogs
 const normalizedPath = computed(() => {
-  if (!isLifeline.value) {
+  // Check if this is a lifelines blog
+  const isLifeline = props.tags.some((tag) => tag.toLowerCase() === 'lifelines')
+
+  if (!isLifeline) {
     return props.path
   }
 
@@ -71,15 +65,6 @@ const normalizedPath = computed(() => {
   // Final cleanup
   return path.replace(/\/+/g, '/')
 })
-
-// Handle click - check auth for lifelines
-const handleClick = (event: MouseEvent) => {
-  if (isLifeline.value && !isAuthenticated.value) {
-    event.preventDefault()
-    // Navigate to personalSpace page which has auth
-    navigateTo('/personalSpace')
-  }
-}
 </script>
 
 <template>
@@ -90,7 +75,6 @@ const handleClick = (event: MouseEvent) => {
       :to="normalizedPath"
       class="block touch-manipulation"
       style="touch-action: manipulation; -webkit-tap-highlight-color: transparent"
-      @click="handleClick"
     >
       <NuxtImg
         class="lg:h-48 md:h-36 w-full object-cover object-center rounded-t-2xl shadow-lg group-hover:scale-[1.02] transition-all duration-500"

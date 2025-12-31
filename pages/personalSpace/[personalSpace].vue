@@ -190,9 +190,14 @@ const renderGoogleSignInButton = () => {
     return
   }
 
-  // Prevent duplicate renders - use OR logic so either condition prevents rendering
+  // Prevent concurrent renders - only check the flag, not child nodes
+  // Child nodes check prevents re-rendering after logout or failed auth
+  if (isRenderingButton.value) {
+    return false
+  }
+
   const buttonElement = document.getElementById('lifelines-detail-google-signin-button')
-  if (isRenderingButton.value || buttonElement?.hasChildNodes()) {
+  if (!buttonElement) {
     return false
   }
 
@@ -213,7 +218,8 @@ const renderGoogleSignInButton = () => {
       return
     }
 
-    // Clear any existing button content
+    // Clear any existing button content to allow re-rendering
+    // This is necessary when user logs out or authentication fails
     buttonElement.innerHTML = ''
 
     // Set flag when user starts authentication to prevent concurrent renders during auth

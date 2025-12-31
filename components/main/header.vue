@@ -146,13 +146,18 @@ const handleGoogleSignIn = async () => {
 }
 
 // Close dropdown when clicking outside
-const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+// Accept target element directly to avoid brittle synthetic event objects
+const handleClickOutside = (target: HTMLElement | null) => {
   // Don't close if we're in the process of toggling
   if (isTogglingMenu.value) {
     return
   }
 
-  const target = event.target as HTMLElement
+  // Guard against null target
+  if (!target) {
+    return
+  }
+
   if (!target.closest('.user-dropdown-container')) {
     showUserDropdown.value = false
   }
@@ -171,13 +176,9 @@ const clickHandler = (e: MouseEvent) => {
   // Use a slight delay to ensure toggle completes before checking outside clicks
   // This prevents the menu from closing immediately after opening
   setTimeout(() => {
-    // Create a synthetic event-like object with the captured target
-    // This avoids accessing the original event object which may have been reused
-    const syntheticEvent = {
-      target,
-    } as MouseEvent | TouchEvent
-
-    handleClickOutside(syntheticEvent)
+    // Pass the target element directly instead of creating a synthetic event
+    // This avoids brittle type assertions and makes the code more maintainable
+    handleClickOutside(target)
   }, 10)
 }
 

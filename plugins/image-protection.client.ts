@@ -126,15 +126,66 @@ export default defineNuxtPlugin(() => {
   document.addEventListener('selectstart', preventSelection)
   document.addEventListener('keydown', preventKeyboardShortcuts)
 
-  // Also prevent on dynamically loaded images
-  const observer = new MutationObserver(() => {
-    // Re-apply protection to newly added images
+  // Apply protection to a single image
+  const protectImage = (img: HTMLImageElement) => {
+    img.setAttribute('draggable', 'false')
+    img.style.userSelect = 'none'
+    img.style.webkitUserDrag = 'none'
+  }
+
+  // Set draggable to false on all existing images (one-time initialization)
+  const setImageProtection = () => {
     const images = document.querySelectorAll('img')
-    images.forEach((img) => {
-      img.setAttribute('draggable', 'false')
-      img.style.userSelect = 'none'
-      img.style.webkitUserDrag = 'none'
-    })
+    images.forEach(protectImage)
+  }
+
+  // Run on load to protect initial images
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setImageProtection)
+  } else {
+    setImageProtection()
+  }
+
+  // Debounce function to limit MutationObserver callback frequency
+  let debounceTimer: NodeJS.Timeout | null = null
+  const debounceDelay = 250 // 250ms debounce
+
+  // Track protected images to avoid re-processing
+  const protectedImages = new WeakSet<HTMLImageElement>()
+
+  // MutationObserver to protect newly added images (debounced and optimized)
+  const observer = new MutationObserver((mutations) => {
+    // Clear existing debounce timer
+    if (debounceTimer) {
+      clearTimeout(debounceTimer)
+    }
+
+    // Debounce the callback to avoid excessive DOM queries
+    debounceTimer = setTimeout(() => {
+      // Only process newly added images, not all images
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          // If the added node is an image, protect it
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const element = node as HTMLElement
+            if (element.tagName === 'IMG' && !protectedImages.has(element as HTMLImageElement)) {
+              protectImage(element as HTMLImageElement)
+              protectedImages.add(element as HTMLImageElement)
+            }
+            // Also check for images within the added node
+            const images = element.querySelectorAll?.('img')
+            if (images) {
+              images.forEach((img) => {
+                if (!protectedImages.has(img)) {
+                  protectImage(img)
+                  protectedImages.add(img)
+                }
+              })
+            }
+          }
+        })
+      })
+    }, debounceDelay)
   })
 
   observer.observe(document.body, {
@@ -142,42 +193,56 @@ export default defineNuxtPlugin(() => {
     subtree: true,
   })
 
-  // Set draggable to false on all existing images
-  const setImageProtection = () => {
+  // Fallback interval for images that might be missed (reduced frequency)
+  // Only runs every 5 seconds as a safety net, not every 1 second
+  const protectionInterval = setInterval(() => {
+    // Only check images that aren't already protected
     const images = document.querySelectorAll('img')
     images.forEach((img) => {
-      img.setAttribute('draggable', 'false')
-      img.style.userSelect = 'none'
-      img.style.webkitUserDrag = 'none'
+      if (!protectedImages.has(img)) {
+        protectImage(img)
+        protectedImages.add(img)
+      }
     })
+  }, 5000) // Reduced from 1000ms to 5000ms
+
+  // Cleanup function
+  const cleanup = () => {
+    // Clear debounce timer
+    if (debounceTimer) {
+      clearTimeout(debounceTimer)
+      debounceTimer = null
+    }
+    // Clear the interval
+    clearInterval(protectionInterval)
+    // Remove event listeners
+    document.removeEventListener('contextmenu', preventContextMenu)
+    document.removeEventListener('dragstart', preventDragStart)
+    document.removeEventListener('selectstart', preventSelection)
+    document.removeEventListener('keydown', preventKeyboardShortcuts)
+    // Disconnect the mutation observer
+    observer.disconnect()
+    // Remove the style element
+    if (style.parentNode) {
+      style.parentNode.removeChild(style)
+    }
   }
 
-  // Run on load and after a delay to catch dynamically loaded images
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setImageProtection)
-  } else {
-    setImageProtection()
-  }
+  // Clean up on page unload (for full page reloads)
+  // Note: beforeunload doesn't allow async operations, so we use a simple cleanup
+  window.addEventListener('beforeunload', () => {
+    clearInterval(protectionInterval)
+    if (debounceTimer) {
+      clearTimeout(debounceTimer)
+    }
+    observer.disconnect()
+  })
 
-  // Also run periodically to catch images loaded after initial page load (e.g., ImageKit images)
-  // Store interval ID so it can be cleared on cleanup
-  const protectionInterval = setInterval(setImageProtection, 1000)
-
-  // Cleanup on unmount (though this is unlikely in a SPA)
+  // Return cleanup function for manual invocation
   return {
     provide: {
       imageProtection: {
-        disable: () => {
-          // Clear the interval to prevent memory leaks
-          clearInterval(protectionInterval)
-          // Remove event listeners
-          document.removeEventListener('contextmenu', preventContextMenu)
-          document.removeEventListener('dragstart', preventDragStart)
-          document.removeEventListener('selectstart', preventSelection)
-          document.removeEventListener('keydown', preventKeyboardShortcuts)
-          // Disconnect the mutation observer
-          observer.disconnect()
-        },
+        disable: cleanup,
       },
     },
   }
