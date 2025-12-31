@@ -130,7 +130,9 @@ useHead({
         </div>
       </div>
 
-      <div class="lg:col-span-3 sticky top-28 hidden lg:block justify-self-end space-y-6 blog-sidebar">
+      <div
+        class="lg:col-span-3 sticky top-28 hidden lg:block justify-self-end space-y-6 blog-sidebar"
+      >
         <BlogToc />
         <RelatedContent
           :current-path="path"

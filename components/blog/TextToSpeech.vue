@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 
-const props = defineProps<{
+// postId is defined for future use but currently not needed
+// The component extracts text from .prose element directly
+defineProps<{
   postId: string
 }>()
 
@@ -11,10 +13,23 @@ const isPaused = ref(false)
 const currentUtterance = ref<SpeechSynthesisUtterance | null>(null)
 const speechSynthesis = ref<SpeechSynthesis | null>(null)
 const voices = ref<SpeechSynthesisVoice[]>([])
-const selectedVoice = ref<SpeechSynthesisVoice | null>(null)
+const selectedVoiceName = ref<string>('')
 const rate = ref(1.0)
 const pitch = ref(1.0)
 const volume = ref(1.0)
+
+// Get available voices for the dropdown (English preferred, but show all if no English available)
+const availableVoices = computed(() => {
+  const englishVoices = voices.value.filter((v) => v.lang.startsWith('en'))
+  // If English voices exist, show only English. Otherwise, show all voices.
+  return englishVoices.length > 0 ? englishVoices : voices.value
+})
+
+// Get the voice object from the selected voice name
+const selectedVoice = computed(() => {
+  if (!selectedVoiceName.value) return null
+  return voices.value.find((v) => v.name === selectedVoiceName.value) || null
+})
 
 // Get article text content
 const articleText = computed(() => {
@@ -39,9 +54,31 @@ onMounted(() => {
     // Load voices
     const loadVoices = () => {
       voices.value = speechSynthesis.value?.getVoices() || []
-      // Prefer English voices, default to first available
-      selectedVoice.value =
-        voices.value.find((v) => v.lang.startsWith('en')) || voices.value[0] || null
+
+      // Only set default if not already set
+      if (!selectedVoiceName.value && voices.value.length > 0) {
+        // Prefer English voices, but only select from available voices (those that will appear in dropdown)
+        const englishVoices = voices.value.filter((v) => v.lang.startsWith('en'))
+        const voicesToChooseFrom = englishVoices.length > 0 ? englishVoices : voices.value
+        const defaultVoice = voicesToChooseFrom[0] || null
+
+        if (defaultVoice) {
+          selectedVoiceName.value = defaultVoice.name
+        }
+      } else if (selectedVoiceName.value) {
+        // If a voice is already selected, verify it still exists in available voices
+        // If not, reset to a valid default
+        const englishVoices = voices.value.filter((v) => v.lang.startsWith('en'))
+        const voicesToChooseFrom = englishVoices.length > 0 ? englishVoices : voices.value
+        const currentVoiceExists = voicesToChooseFrom.some(
+          (v) => v.name === selectedVoiceName.value,
+        )
+
+        if (!currentVoiceExists && voicesToChooseFrom.length > 0) {
+          // Selected voice is no longer available, reset to first available
+          selectedVoiceName.value = voicesToChooseFrom[0].name
+        }
+      }
     }
 
     loadVoices()
@@ -128,7 +165,9 @@ const togglePlayPause = () => {
 
 <template>
   <div v-if="isSupported && articleText" class="text-to-speech-controls">
-    <div class="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+    <div
+      class="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+    >
       <!-- Play/Pause Button -->
       <button
         class="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-colors"
@@ -187,15 +226,11 @@ const togglePlayPause = () => {
         <div class="flex items-center gap-2">
           <label class="text-xs text-gray-600 dark:text-gray-400">Voice:</label>
           <select
-            v-model="selectedVoice"
+            v-model="selectedVoiceName"
             class="text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             :disabled="isPlaying || isPaused"
           >
-            <option
-              v-for="voice in voices.filter((v) => v.lang.startsWith('en'))"
-              :key="voice.name"
-              :value="voice"
-            >
+            <option v-for="voice in availableVoices" :key="voice.name" :value="voice.name">
               {{ voice.name }} ({{ voice.lang }})
             </option>
           </select>

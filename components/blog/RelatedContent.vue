@@ -284,8 +284,10 @@ const externalContent = computed(() => {
         class="space-y-3 mt-4"
       >
         <div
-          v-if="relatedPosts && relatedPosts.length > 0"
-          class="text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-2 pt-2 border-t dark:border-gray-800"
+          :class="[
+            'text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-2',
+            relatedPosts && relatedPosts.length > 0 ? 'pt-2 border-t dark:border-gray-800' : '',
+          ]"
         >
           From the Web
         </div>

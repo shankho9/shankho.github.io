@@ -51,11 +51,21 @@ watch(isFocusMode, (newValue) => {
   updateFocusMode()
 })
 
-// Cleanup on unmount
+// Cleanup on unmount - mirror the deactivation logic
 onUnmounted(() => {
-  if (typeof document !== 'undefined') {
-    document.body.classList.remove('focus-mode')
-  }
+  if (typeof document === 'undefined') return
+
+  const body = document.body
+  const mainContent = document.querySelector('.blog-content-container')
+  const sidebar = document.querySelector('.blog-sidebar')
+  const header = document.querySelector('header')
+  const footer = document.querySelector('footer')
+
+  body.classList.remove('focus-mode')
+  if (mainContent) mainContent.classList.remove('focus-mode-active')
+  if (sidebar) sidebar.classList.remove('hidden')
+  if (header) header.classList.remove('hidden')
+  if (footer) footer?.classList.remove('hidden')
 })
 </script>
 

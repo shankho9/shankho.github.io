@@ -35,9 +35,11 @@ function getPool(): pg.Pool {
       connectionString: databaseUrl,
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       // Add connection timeout and retry settings
-      connectionTimeoutMillis: 10000, // 10 seconds to establish connection
+      connectionTimeoutMillis: 15000, // 15 seconds to establish connection (increased from 10s)
       idleTimeoutMillis: 30000, // 30 seconds before closing idle connections
       max: 10, // Maximum number of clients in the pool
+      // Add statement timeout to prevent queries from hanging indefinitely
+      statement_timeout: 10000, // 10 seconds for query execution
     })
 
     // Handle pool errors

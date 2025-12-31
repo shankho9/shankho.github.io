@@ -32,7 +32,15 @@ export default defineEventHandler(async (event) => {
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [page, userAgent, browser, referer, ip, country],
     )
-  } catch (err) {
+  } catch (err: unknown) {
+    // Check if it's a connection timeout error
+    if (err instanceof Error) {
+      if (err.message.includes('ETIMEDOUT') || err.message.includes('timeout')) {
+        // Silently fail for timeout errors - tracking is non-critical
+        return { success: false, error: 'timeout' }
+      }
+    }
+    // Log other errors but don't throw - tracking is non-critical
     console.error('[API] Failed to track page visit:', err)
   }
 

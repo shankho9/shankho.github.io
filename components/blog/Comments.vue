@@ -45,11 +45,11 @@ const userReactions = ref<UserReactions>({})
 const reactingComments = ref<Set<number>>(new Set())
 
 const reactionTypes: { type: ReactionType; emoji: string; label: string }[] = [
-  { type: 'thumbs_up', emoji: '👍', label: 'Like' },
-  { type: 'heart', emoji: '❤️', label: 'Love' },
-  { type: 'party', emoji: '🎉', label: 'Celebrate' },
-  { type: 'rocket', emoji: '🚀', label: 'Amazing' },
-  { type: 'eyes', emoji: '👀', label: 'Interesting' },
+  { type: 'thumbs_up', emoji: '👍', label: 'Like it!' },
+  { type: 'heart', emoji: '❤️', label: 'Love it!' },
+  { type: 'party', emoji: '🎉', label: 'Celebrate it!' },
+  { type: 'rocket', emoji: '🚀', label: 'Amazing!' },
+  { type: 'eyes', emoji: '👀', label: 'Interesting!' },
 ]
 
 // Pagination state
@@ -96,31 +96,42 @@ const toggleReaction = async (commentId: number, reactionType: ReactionType) => 
 
   if (reactingComments.value.has(commentId)) return
 
+  // Get user details - ensure we have all required fields
   const userEmail = user.value.email
-  const isReacted = userReactions.value[commentId]?.includes(reactionType)
+  const userName = user.value.name || user.value.email?.split('@')[0] || 'Anonymous'
+  const userPicture = user.value.picture
+
+  // Check if user already has a reaction (any type) for this comment
+  const existingReaction = userReactions.value[commentId]?.[0] // Only one reaction allowed
+  const isReacted = existingReaction === reactionType
   const action = isReacted ? 'remove' : 'add'
+
+  // Store previous state for rollback
+  const prevReactions = { ...commentReactions.value[commentId] }
+  const prevUserReaction = userReactions.value[commentId]?.[0] || null
 
   // Optimistic update
   if (!commentReactions.value[commentId]) {
     commentReactions.value[commentId] = {}
   }
-  if (!userReactions.value[commentId]) {
-    userReactions.value[commentId] = []
-  }
-
-  const prevCount = commentReactions.value[commentId][reactionType] || 0
-  const prevUserReactions = [...(userReactions.value[commentId] || [])]
 
   if (action === 'add') {
-    commentReactions.value[commentId][reactionType] = prevCount + 1
-    if (!userReactions.value[commentId].includes(reactionType)) {
-      userReactions.value[commentId].push(reactionType)
+    // Remove previous reaction count if exists
+    if (prevUserReaction && prevUserReaction !== reactionType) {
+      const prevType = prevUserReaction as ReactionType
+      const prevCount = commentReactions.value[commentId][prevType] || 0
+      commentReactions.value[commentId][prevType] = Math.max(0, prevCount - 1)
     }
+
+    // Add new reaction
+    const currentCount = commentReactions.value[commentId][reactionType] || 0
+    commentReactions.value[commentId][reactionType] = currentCount + 1
+    userReactions.value[commentId] = [reactionType]
   } else {
-    commentReactions.value[commentId][reactionType] = Math.max(0, prevCount - 1)
-    userReactions.value[commentId] = userReactions.value[commentId].filter(
-      (r) => r !== reactionType,
-    )
+    // Remove reaction
+    const currentCount = commentReactions.value[commentId][reactionType] || 0
+    commentReactions.value[commentId][reactionType] = Math.max(0, currentCount - 1)
+    userReactions.value[commentId] = []
   }
 
   reactingComments.value.add(commentId)
@@ -134,17 +145,41 @@ const toggleReaction = async (commentId: number, reactionType: ReactionType) => 
           commentId,
           reactionType,
           userEmail,
+          userName,
+          userPicture,
           action,
         },
       },
     )
     // Update with server response
-    commentReactions.value[commentId] = { ...commentReactions.value[commentId], ...response.reactions }
-  } catch (err) {
+    commentReactions.value[commentId] = {
+      ...commentReactions.value[commentId],
+      ...response.reactions,
+    }
+  } catch (err: unknown) {
     console.warn('[Comments] Failed to update reaction:', err)
-    // Revert optimistic update
-    commentReactions.value[commentId][reactionType] = prevCount
-    userReactions.value[commentId] = prevUserReactions
+
+    // Check if it's a timeout error
+    const isTimeout =
+      err instanceof Error &&
+      (err.message.includes('timeout') ||
+        err.message.includes('503') ||
+        ('statusCode' in err && (err as { statusCode?: number }).statusCode === 503))
+
+    if (isTimeout) {
+      // For timeout errors, show a user-friendly message
+      console.warn('[Comments] Database timeout - reaction may not have been saved')
+      // Note: We keep the optimistic update for timeout errors since the request might have succeeded
+      // but the response timed out. The next page load will sync the correct state.
+    } else {
+      // For other errors, revert optimistic update
+      commentReactions.value[commentId] = prevReactions
+      if (prevUserReaction) {
+        userReactions.value[commentId] = [prevUserReaction]
+      } else {
+        userReactions.value[commentId] = []
+      }
+    }
   } finally {
     reactingComments.value.delete(commentId)
   }
@@ -154,9 +189,19 @@ const getReactionCount = (commentId: number, reactionType: ReactionType): number
   return commentReactions.value[commentId]?.[reactionType] || 0
 }
 
-const hasUserReacted = (commentId: number, reactionType: ReactionType): boolean => {
-  return userReactions.value[commentId]?.includes(reactionType) || false
+const getTotalReactionCount = (commentId: number): number => {
+  const reactions = commentReactions.value[commentId]
+  if (!reactions) return 0
+  return Object.values(reactions).reduce((sum, count) => sum + count, 0)
 }
+
+const hasUserReacted = (commentId: number, reactionType: ReactionType): boolean => {
+  // User can only have one reaction, so check if it matches the requested type
+  return userReactions.value[commentId]?.[0] === reactionType || false
+}
+
+// Track which comment's reaction picker is open
+const openReactionPicker = ref<number | null>(null)
 
 const loadComments = async (page: number = currentPage.value, retryCount = 0) => {
   isLoading.value = true
@@ -250,7 +295,7 @@ const submitComment = async () => {
         postId: props.postId,
         content: commentText.value,
         userEmail: user.value.email,
-        userName: user.value.name,
+        userName: user.value.name || user.value.email?.split('@')[0] || 'Anonymous',
         userPicture: user.value.picture,
       },
     })
@@ -554,30 +599,112 @@ watch(isAuthenticated, async (newValue) => {
             {{ comment.content }}
           </p>
 
-          <!-- Comment Reactions -->
-          <div class="flex items-center gap-2 flex-wrap">
+          <!-- Total Reaction Count -->
+          <div
+            v-if="getTotalReactionCount(comment.id) > 0"
+            class="mb-2 text-xs text-gray-600 dark:text-gray-400 font-medium"
+          >
+            {{ getTotalReactionCount(comment.id) }}
+            {{ getTotalReactionCount(comment.id) === 1 ? 'reaction' : 'reactions' }}
+          </div>
+
+          <!-- Adaptive Comment Reactions -->
+          <div class="relative flex items-center gap-2">
+            <!-- Main Reaction Button (Like/Thumbs Up) -->
+            <div class="relative">
+              <button
+                :disabled="reactingComments.has(comment.id)"
+                :class="[
+                  'flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all',
+                  'border border-gray-300 dark:border-gray-600',
+                  'hover:bg-gray-100 dark:hover:bg-gray-700',
+                  'disabled:opacity-50 disabled:cursor-not-allowed',
+                  hasUserReacted(comment.id, 'thumbs_up')
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-600'
+                    : 'bg-white dark:bg-gray-800',
+                ]"
+                title="Like"
+                @click="toggleReaction(comment.id, 'thumbs_up')"
+                @mouseenter="openReactionPicker = comment.id"
+                @mouseleave="
+                  setTimeout(() => {
+                    if (openReactionPicker === comment.id) openReactionPicker = null
+                  }, 200)
+                "
+              >
+                <span class="text-sm leading-none">👍</span>
+                <span
+                  v-if="getReactionCount(comment.id, 'thumbs_up') > 0"
+                  class="text-[10px] font-medium text-gray-700 dark:text-gray-300 leading-none"
+                >
+                  {{ getReactionCount(comment.id, 'thumbs_up') }}
+                </span>
+              </button>
+
+              <!-- Reaction Picker (shown on hover/click) -->
+              <div
+                v-if="openReactionPicker === comment.id"
+                class="absolute bottom-full left-0 mb-2 flex items-center gap-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-full px-2 py-1 shadow-lg z-10"
+                @mouseenter="openReactionPicker = comment.id"
+                @mouseleave="openReactionPicker = null"
+              >
+                <button
+                  v-for="reaction in reactionTypes"
+                  :key="reaction.type"
+                  :disabled="reactingComments.has(comment.id)"
+                  :class="[
+                    'flex items-center justify-center w-8 h-8 rounded-full text-base transition-all',
+                    'hover:scale-125 hover:bg-gray-100 dark:hover:bg-gray-700',
+                    'disabled:opacity-50 disabled:cursor-not-allowed',
+                    hasUserReacted(comment.id, reaction.type)
+                      ? 'ring-2 ring-blue-400 dark:ring-blue-600'
+                      : '',
+                  ]"
+                  :title="reaction.label"
+                  @click="
+                    () => {
+                      toggleReaction(comment.id, reaction.type)
+                      openReactionPicker = null
+                    }
+                  "
+                >
+                  {{ reaction.emoji }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Show user's current reaction if different from thumbs_up -->
             <button
-              v-for="reaction in reactionTypes"
-              :key="reaction.type"
+              v-if="
+                userReactions[comment.id]?.[0] &&
+                userReactions[comment.id][0] !== 'thumbs_up' &&
+                hasUserReacted(comment.id, userReactions[comment.id][0] as ReactionType)
+              "
               :disabled="reactingComments.has(comment.id)"
               :class="[
-                'flex items-center gap-1 px-2 py-1 rounded-full text-sm transition-all',
-                'border border-gray-300 dark:border-gray-600',
-                'hover:bg-gray-100 dark:hover:bg-gray-700',
+                'flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs transition-all',
+                'border border-blue-400 dark:border-blue-600',
+                'bg-blue-50 dark:bg-blue-900/20',
+                'hover:bg-blue-100 dark:hover:bg-blue-900/30',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
-                hasUserReacted(comment.id, reaction.type)
-                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-600'
-                  : 'bg-white dark:bg-gray-800',
               ]"
-              :title="reaction.label"
-              @click="toggleReaction(comment.id, reaction.type)"
+              :title="
+                reactionTypes.find((r) => r.type === userReactions[comment.id][0])?.label || ''
+              "
+              @click="toggleReaction(comment.id, userReactions[comment.id][0] as ReactionType)"
             >
-              <span class="text-base">{{ reaction.emoji }}</span>
+              <span class="text-sm leading-none">
+                {{
+                  reactionTypes.find((r) => r.type === userReactions[comment.id][0])?.emoji || ''
+                }}
+              </span>
               <span
-                v-if="getReactionCount(comment.id, reaction.type) > 0"
-                class="text-xs font-medium text-gray-700 dark:text-gray-300"
+                v-if="
+                  getReactionCount(comment.id, userReactions[comment.id][0] as ReactionType) > 0
+                "
+                class="text-[10px] font-medium text-gray-700 dark:text-gray-300 leading-none"
               >
-                {{ getReactionCount(comment.id, reaction.type) }}
+                {{ getReactionCount(comment.id, userReactions[comment.id][0] as ReactionType) }}
               </span>
             </button>
           </div>

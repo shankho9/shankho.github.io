@@ -1,11 +1,6 @@
 import { defineEventHandler, getQuery } from 'h3'
 import { query } from '~/server/utils/db'
 
-interface ReactionCount {
-  reaction_type: string
-  count: number
-}
-
 interface UserReaction {
   comment_id: number
   reaction_type: string
@@ -60,6 +55,7 @@ export default defineEventHandler(async (event) => {
     })
 
     // Get user's reactions if userEmail is provided
+    // Since we only allow one reaction per user per comment, return a single reaction type
     const userReactions: Record<number, string[]> = {}
     if (userEmail && typeof userEmail === 'string') {
       const userReactionsResult = await query<UserReaction>(
@@ -70,10 +66,9 @@ export default defineEventHandler(async (event) => {
       )
 
       userReactionsResult.forEach((row) => {
-        if (!userReactions[row.comment_id]) {
-          userReactions[row.comment_id] = []
-        }
-        userReactions[row.comment_id].push(row.reaction_type)
+        // Store as array with single element for compatibility with frontend
+        // Frontend expects array but will only use the first element
+        userReactions[row.comment_id] = [row.reaction_type]
       })
     }
 
