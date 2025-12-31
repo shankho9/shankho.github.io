@@ -24,8 +24,7 @@ const activeTab = ref<TabType>('resources')
 const viewMode = ref<'grid' | 'masonry'>('grid')
 const searchQuery = ref<string>('') // Search query for filtering by tags and metadata
 const selectedFolder = ref<string>(photosRootFolder) // ImageKit root folder path (configurable)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const selectedItem = ref<{ id: string | number; metadata?: any } | null>(null) // Selected item for metadata panel
+const selectedItem = ref<GalleryItem | null>(null) // Selected item for metadata panel
 const isMetadataPanelOpen = ref<boolean>(false) // Metadata panel state
 const imageKitFolders = ref<string[]>([]) // Available subfolders (dynamically loaded, excludes root)
 const isLoadingFolders = ref(false)
@@ -586,9 +585,32 @@ const totalPages = computed(() => {
   return Math.ceil(sortedItems.value.length / itemsPerPage.value)
 })
 
+// GalleryItem type matching Lightbox component
+interface GalleryItem {
+  id: string | number
+  title: string
+  image?: string
+  video?: string
+  videoUrl?: string
+  description?: string
+  tags?: string[]
+  type: string
+  likeCount?: number
+  thumbnail?: string
+  metadata?: {
+    fileId?: string
+    name?: string
+    fileType?: string
+    filePath?: string
+    width?: number
+    height?: number
+    size?: number | string
+    customMetadata?: Record<string, unknown>
+  }
+}
+
 // Function to open metadata panel
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const openMetadataPanel = (item: any) => {
+const openMetadataPanel = (item: GalleryItem) => {
   selectedItem.value = item
   isMetadataPanelOpen.value = true
 }
