@@ -64,6 +64,25 @@ export default defineEventHandler(async (event) => {
     }
   } catch (error: unknown) {
     console.error('Failed to fetch comments:', error)
+
+    // Check if it's a connection timeout error
+    if (error instanceof Error) {
+      if (error.message.includes('ETIMEDOUT') || error.message.includes('timeout')) {
+        console.error('[API] Database connection timeout - returning empty comments')
+        // Return empty comments instead of failing completely
+        return {
+          comments: [],
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: 0,
+            totalPages: 0,
+          },
+        }
+      }
+    }
+
+    // For other errors, still throw to maintain error handling
     throw createError({
       statusCode: 500,
       message: 'Failed to fetch comments',

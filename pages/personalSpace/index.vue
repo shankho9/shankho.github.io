@@ -5,10 +5,10 @@ import { pesonalSpace } from '~/data'
 import { parseCustomDate, getDateTimestamp } from '~/utils/common/dateParser'
 import { getTagColorClasses, getTagSelectedColorClasses } from '~/utils/blog/tagColors'
 import { useGoogleAuth } from '~/composables/useGoogleAuth'
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 
-// Authentication
-const { user, isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
+// Authentication (optional - for tracking purposes, not required for viewing list)
+const { loadStoredUser } = useGoogleAuth()
 
 // Load all blog posts
 const { data } = await useAsyncData('personal-space-posts', () => queryCollection('content').all())
@@ -219,9 +219,8 @@ watch([selectedTags, searchTest, sortBy], () => {
   pageNumber.value = 1
 })
 
-// Initialize auth on mount
+// Initialize auth on mount (optional - for tracking purposes)
 onMounted(() => {
-  initializeGoogleSignIn()
   loadStoredUser()
 
   // Track page visit
@@ -232,64 +231,6 @@ onMounted(() => {
   }).catch(() => {
     // Silent fail
   })
-})
-
-// Render Google Sign-In button
-const renderGoogleSignInButton = () => {
-  nextTick(() => {
-    const buttonElement = document.getElementById('lifelines-google-signin-button')
-    if (!buttonElement || !window.google) return
-
-    const clientId = useRuntimeConfig().public.googleClientId
-    if (!clientId) {
-      console.error('[LifeLines] Google Client ID not configured')
-      return
-    }
-
-    buttonElement.innerHTML = ''
-
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: async (response: { credential: string }) => {
-        try {
-          const result = await $fetch<{
-            user: { email: string; name: string; picture: string; sub: string }
-          }>('/api/auth/google', {
-            method: 'POST',
-            body: { token: response.credential },
-          })
-          if (result && result.user) {
-            user.value = result.user
-            localStorage.setItem('google_user', JSON.stringify(result.user))
-
-            if (typeof window !== 'undefined') {
-              const { trackLogin } = await import('~/utils/analytics/trackLogin')
-              await trackLogin(result.user.email, result.user.name, window.location.pathname)
-              window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
-            }
-          }
-        } catch (error) {
-          console.error('[LifeLines] Authentication failed:', error)
-        }
-      },
-    })
-
-    window.google.accounts.id.renderButton(buttonElement, {
-      theme: 'outline',
-      size: 'large',
-      text: 'signin_with',
-      width: 250,
-    })
-  })
-}
-
-// Watch for authentication changes - render button when not authenticated
-watch(isAuthenticated, (newValue) => {
-  if (!newValue) {
-    nextTick(() => {
-      renderGoogleSignInButton()
-    })
-  }
 })
 
 useHead({
@@ -316,24 +257,8 @@ defineOgImage({
   <main class="container max-w-5xl mx-auto text-zinc-600">
     <PersonalSpaceHero />
 
-    <!-- Authentication Required Message -->
-    <div v-if="!isAuthenticated" class="max-w-2xl mx-auto mt-12 px-6">
-      <div
-        class="bg-white dark:bg-slate-800 rounded-xl p-8 text-center border border-gray-200 dark:border-slate-700 shadow-lg"
-      >
-        <Icon name="mdi:lock" class="text-6xl text-sky-700 dark:text-sky-400 mb-4 mx-auto" />
-        <h2 class="text-2xl font-bold mb-4 text-zinc-800 dark:text-zinc-200">
-          Authentication Required
-        </h2>
-        <p class="text-zinc-600 dark:text-zinc-400 mb-6">
-          Please sign in with Google to access LifeLines.
-        </p>
-        <div id="lifelines-google-signin-button" class="flex justify-center"></div>
-      </div>
-    </div>
-
-    <!-- LifeLines Content (Authenticated Users Only) -->
-    <div v-else>
+    <!-- LifeLines Content (Visible to All, Auth Required for Details) -->
+    <div>
       <!-- Stats Section -->
       <div class="px-6 mb-6">
         <div

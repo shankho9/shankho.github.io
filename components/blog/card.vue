@@ -86,7 +86,12 @@ const handleClick = (event: MouseEvent) => {
   <article
     class="group border dark:border-gray-800 m-2 overflow-hidden rounded-2xl shadow-sm text-zinc-700 dark:text-zinc-300"
   >
-    <NuxtLink :to="normalizedPath" @click="handleClick">
+    <NuxtLink
+      :to="normalizedPath"
+      class="block touch-manipulation"
+      style="touch-action: manipulation; -webkit-tap-highlight-color: transparent"
+      @click="handleClick"
+    >
       <NuxtImg
         class="lg:h-48 md:h-36 w-full object-cover object-center rounded-t-2xl shadow-lg group-hover:scale-[1.02] transition-all duration-500"
         width="300"

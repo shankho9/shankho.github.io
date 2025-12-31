@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BlogPost } from '@/types/blog'
 import { navbarData, seoData } from '~/data'
-import { computed, onMounted, nextTick, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, nextTick, ref, watch } from 'vue'
 import LikeButton from '@/components/blog/LikeButton.vue'
 import Comments from '@/components/blog/Comments.vue'
 import ReadingProgress from '@/components/blog/ReadingProgress.vue'
@@ -90,10 +90,63 @@ const data = computed<BlogPost>(() => {
   }
 })
 
+// Flag to prevent duplicate button renders
+const isRenderingButton = ref(false)
+const googleCheckTimeout = ref<NodeJS.Timeout | null>(null)
+
+// Check for Google script and render button with timeout protection
+const checkGoogleAndRender = () => {
+  // Only run in browser environment
+  if (typeof window === 'undefined') return
+
+  // Prevent duplicate renders
+  if (isRenderingButton.value) return
+
+  // Check if Google script is available
+  if (window.google && window.google.accounts) {
+    // Don't set the flag here - let renderGoogleSignInButton() set it after checking
+    // This prevents the render function from returning early due to the flag
+    const rendered = renderGoogleSignInButton()
+    return rendered
+  }
+  return false
+}
+
 // Initialize auth on mount
 onMounted(() => {
   initializeGoogleSignIn()
   loadStoredUser()
+
+  // Render sign-in button if not authenticated (after Google script loads)
+  // Only run in browser environment
+  if (typeof window !== 'undefined' && !isAuthenticated.value) {
+    // Wait for Google script to load, then render button
+    // Maximum 50 retries (5 seconds total) to prevent infinite loops
+    let retryCount = 0
+    const maxRetries = 50
+    const retryInterval = 100
+
+    const attemptRender = () => {
+      if (checkGoogleAndRender()) {
+        // Successfully rendered, stop retrying
+        return
+      }
+
+      retryCount++
+      if (retryCount < maxRetries) {
+        googleCheckTimeout.value = setTimeout(attemptRender, retryInterval)
+      } else {
+        // Max retries reached, log warning
+        console.warn(
+          '[LifeLines Detail] Google Identity Services script failed to load after maximum retries',
+        )
+        isRenderingButton.value = false
+      }
+    }
+
+    // Start checking after a brief delay to allow Google script to load
+    googleCheckTimeout.value = setTimeout(attemptRender, 200)
+  }
 
   // Calculate reading time from article content
   // Use nextTick and a small delay to ensure content is fully rendered
@@ -121,44 +174,80 @@ onMounted(() => {
   })
 })
 
+// Cleanup timeout on unmount
+onUnmounted(() => {
+  if (googleCheckTimeout.value) {
+    clearTimeout(googleCheckTimeout.value)
+    googleCheckTimeout.value = null
+  }
+  isRenderingButton.value = false
+})
+
 // Render Google Sign-In button
 const renderGoogleSignInButton = () => {
+  // Ensure we're in the browser environment
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return
+  }
+
+  // Prevent duplicate renders - use OR logic so either condition prevents rendering
+  const buttonElement = document.getElementById('lifelines-detail-google-signin-button')
+  if (isRenderingButton.value || buttonElement?.hasChildNodes()) {
+    return false
+  }
+
+  // Set flag after initial check passes to prevent concurrent renders
+  isRenderingButton.value = true
+
   nextTick(() => {
     const buttonElement = document.getElementById('lifelines-detail-google-signin-button')
-    if (!buttonElement || !window.google) return
+    if (!buttonElement || !window.google || !window.google.accounts) {
+      isRenderingButton.value = false
+      return
+    }
 
     const clientId = useRuntimeConfig().public.googleClientId
     if (!clientId) {
       console.error('[LifeLines Detail] Google Client ID not configured')
+      isRenderingButton.value = false
       return
     }
 
+    // Clear any existing button content
     buttonElement.innerHTML = ''
+
+    // Set flag when user starts authentication to prevent concurrent renders during auth
+    const originalCallback = async (response: { credential: string }) => {
+      // Set flag to prevent concurrent renders during authentication
+      isRenderingButton.value = true
+      try {
+        const result = await $fetch<{
+          user: { email: string; name: string; picture: string; sub: string }
+        }>('/api/auth/google', {
+          method: 'POST',
+          body: { token: response.credential },
+        })
+        if (result && result.user) {
+          user.value = result.user
+          localStorage.setItem('google_user', JSON.stringify(result.user))
+
+          if (typeof window !== 'undefined') {
+            const { trackLogin } = await import('~/utils/analytics/trackLogin')
+            await trackLogin(result.user.email, result.user.name, window.location.pathname)
+            window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+          }
+        }
+      } catch (error) {
+        console.error('[LifeLines Detail] Authentication failed:', error)
+      } finally {
+        // Reset flag after authentication completes (regardless of success/failure)
+        isRenderingButton.value = false
+      }
+    }
 
     window.google.accounts.id.initialize({
       client_id: clientId,
-      callback: async (response: { credential: string }) => {
-        try {
-          const result = await $fetch<{
-            user: { email: string; name: string; picture: string; sub: string }
-          }>('/api/auth/google', {
-            method: 'POST',
-            body: { token: response.credential },
-          })
-          if (result && result.user) {
-            user.value = result.user
-            localStorage.setItem('google_user', JSON.stringify(result.user))
-
-            if (typeof window !== 'undefined') {
-              const { trackLogin } = await import('~/utils/analytics/trackLogin')
-              await trackLogin(result.user.email, result.user.name, window.location.pathname)
-              window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
-            }
-          }
-        } catch (error) {
-          console.error('[LifeLines Detail] Authentication failed:', error)
-        }
-      },
+      callback: originalCallback,
     })
 
     window.google.accounts.id.renderButton(buttonElement, {
@@ -167,17 +256,62 @@ const renderGoogleSignInButton = () => {
       text: 'signin_with',
       width: 250,
     })
+
+    // Reset flag after button is rendered (button rendering is synchronous)
+    // The flag will be set again when user clicks the button to start authentication
+    // and reset in the auth callback's finally block when auth completes
+    // This prevents the race condition where timeout resets flag before auth completes
+    isRenderingButton.value = false
   })
+
+  return true
 }
 
 // Watch for authentication changes - render button when not authenticated
-watch(isAuthenticated, (newValue) => {
-  if (!newValue) {
-    nextTick(() => {
-      renderGoogleSignInButton()
-    })
-  }
-})
+watch(
+  isAuthenticated,
+  (newValue) => {
+    // Only run in browser environment
+    if (typeof window === 'undefined') return
+
+    if (!newValue && !isRenderingButton.value) {
+      // Clear any existing timeout
+      if (googleCheckTimeout.value) {
+        clearTimeout(googleCheckTimeout.value)
+        googleCheckTimeout.value = null
+      }
+
+      // Try to render immediately if Google is already loaded
+      if (window.google && window.google.accounts) {
+        checkGoogleAndRender()
+      } else {
+        // Otherwise, start the retry mechanism
+        let retryCount = 0
+        const maxRetries = 50
+        const retryInterval = 100
+
+        const attemptRender = () => {
+          if (checkGoogleAndRender()) {
+            return
+          }
+
+          retryCount++
+          if (retryCount < maxRetries) {
+            googleCheckTimeout.value = setTimeout(attemptRender, retryInterval)
+          } else {
+            console.warn(
+              '[LifeLines Detail] Google Identity Services script failed to load after maximum retries',
+            )
+            isRenderingButton.value = false
+          }
+        }
+
+        googleCheckTimeout.value = setTimeout(attemptRender, 200)
+      }
+    }
+  },
+  { immediate: false },
+) // Don't run immediately - let onMounted handle initial render
 
 useHead({
   title: data.value.title || '',
@@ -275,6 +409,11 @@ defineOgImageComponent('Test', {
           :tags="data.tags"
           :reading-time="readingTime"
         />
+
+        <!-- Like Button (Top) -->
+        <div class="mt-4 flex items-center gap-2">
+          <LikeButton :post-id="path" />
+        </div>
 
         <div
           class="prose prose-pre:max-w-xs sm:prose-pre:max-w-full prose-sm sm:prose-base md:prose-lg prose-h1:no-underline max-w-5xl mx-auto prose-zinc dark:prose-invert prose-img:rounded-lg"

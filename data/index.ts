@@ -287,7 +287,7 @@ export const resourcesPage = {
 }
 
 export const aboutPage = {
-  title: 'Shankho',
+  title: 'Siddhartha Basu',
   description: 'Software Engineer, Problem Solver, Web Enthusiast.',
   aboutMe:
     "Hello, fellow human! I'm a software wizard who spends most of his day leading Test Automation for Coutts Bank. When I'm not running after Test Automation numbers from my team :), you can find me working on complex coding challenges and spending time with my family - 2 angel daughters (Riya and Tiya). Just don't ask me to cast any love spells, my magic only works on automation code I write!",

@@ -35,8 +35,8 @@ function getPool(): pg.Pool {
       connectionString: databaseUrl,
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       // Add connection timeout and retry settings
-      connectionTimeoutMillis: 10000,
-      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000, // 10 seconds to establish connection
+      idleTimeoutMillis: 30000, // 30 seconds before closing idle connections
       max: 10, // Maximum number of clients in the pool
     })
 
@@ -65,6 +65,24 @@ export async function query<T extends Record<string, unknown> = Record<string, u
     if (error instanceof Error) {
       console.error('[DB] Error message:', error.message)
       console.error('[DB] Error stack:', error.stack)
+
+      // Provide more helpful error messages for common issues
+      if (error.message.includes('ETIMEDOUT') || error.message.includes('timeout')) {
+        console.error('[DB] Connection timeout detected')
+        console.error('[DB] Troubleshooting steps:')
+        console.error('[DB] 1. Check if database server is running and accessible')
+        console.error('[DB] 2. Verify DATABASE_URL is correct in environment variables')
+        console.error('[DB] 3. Check network connectivity to database host')
+        console.error('[DB] 4. Verify database credentials are correct')
+        console.error('[DB] 5. Check if database firewall allows connections from this IP')
+      } else if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
+        console.error('[DB] DNS resolution failed - database hostname cannot be resolved')
+        console.error('[DB] Verify DATABASE_URL hostname is correct')
+      } else if (error.message.includes('ECONNREFUSED')) {
+        console.error(
+          '[DB] Connection refused - database server may not be running or port is incorrect',
+        )
+      }
     }
     throw error
   } finally {

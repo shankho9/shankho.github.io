@@ -2,6 +2,17 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import GalleryComments from './Comments.vue'
 
+interface GalleryItemMetadata {
+  fileId?: string
+  name?: string
+  fileType?: string
+  filePath?: string
+  width?: number
+  height?: number
+  size?: number | string
+  customMetadata?: Record<string, unknown>
+}
+
 interface GalleryItem {
   id: string | number
   title: string
@@ -12,6 +23,7 @@ interface GalleryItem {
   type: string
   likeCount?: number
   thumbnail?: string
+  metadata?: GalleryItemMetadata
 }
 
 interface Props {
@@ -26,6 +38,7 @@ const emit = defineEmits<{
   'update:currentIndex': [index: number]
   'like-changed': [itemId: string | number]
   'comment-added': [itemId: string | number]
+  'open-metadata': [item: GalleryItem]
 }>()
 
 const currentIndex = computed({
@@ -372,6 +385,16 @@ onUnmounted(() => {
             @click="showComments = !showComments"
           >
             <Icon name="mdi:comment-outline" size="24" />
+          </button>
+
+          <!-- Metadata Button -->
+          <button
+            v-if="currentItem?.metadata"
+            class="p-3 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full text-white transition-colors"
+            title="View metadata"
+            @click.stop="emit('open-metadata', currentItem)"
+          >
+            <Icon name="mdi:information-outline" size="24" />
           </button>
 
           <!-- Close Button -->

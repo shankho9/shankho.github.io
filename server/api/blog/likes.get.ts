@@ -28,6 +28,19 @@ export default defineEventHandler(async (event) => {
   } catch (error: unknown) {
     console.error('[API] Failed to get like count:', error)
 
+    // Check if it's a connection timeout error
+    if (error instanceof Error) {
+      if (error.message.includes('ETIMEDOUT') || error.message.includes('timeout')) {
+        console.error('[API] Database connection timeout - returning default count')
+        // Return default values instead of failing completely
+        return {
+          success: false,
+          count: 0,
+          error: 'Database connection timeout',
+        }
+      }
+    }
+
     return {
       success: false,
       count: 0,
