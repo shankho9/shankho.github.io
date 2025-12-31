@@ -287,7 +287,7 @@ export const resourcesPage = {
 }
 
 export const aboutPage = {
-  title: 'Shankho',
+  title: 'Siddhartha Basu',
   description: 'Software Engineer, Problem Solver, Web Enthusiast.',
   aboutMe:
     "Hello, fellow human! I'm a software wizard who spends most of his day leading Test Automation for Coutts Bank. When I'm not running after Test Automation numbers from my team :), you can find me working on complex coding challenges and spending time with my family - 2 angel daughters (Riya and Tiya). Just don't ask me to cast any love spells, my magic only works on automation code I write!",
@@ -296,7 +296,7 @@ export const aboutPage = {
 export const seoData = {
   title: `Sid's Blog | Nomadic Notions - Siddhartha Basu`,
   ogTitle: `Let's learn the aspects of Life through - Sid's Blog | Nomadic Notions`,
-  description: `Hi I am Shankho. A Test Automation Senior Vice President at Natwest Group, with over a decade of experience in software development. - Sid's Blog | Nomadic Notions`,
+  description: `Hi I am Siddhartha Basu. A Test Automation Senior Vice President at Natwest Group, with over a decade of experience in software development. - Sid's Blog | Nomadic Notions`,
   twitterDescription: `Sid's Blog, where I play around content, resources, etc - Sid's Blog | Nomadic Notions`,
   image:
     'https://res.cloudinary.com/dmecmyphj/image/upload/v1673548905/nuxt-blog/cover_ntgs6u.webp',

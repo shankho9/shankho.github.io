@@ -24,8 +24,7 @@ const activeTab = ref<TabType>('resources')
 const viewMode = ref<'grid' | 'masonry'>('grid')
 const searchQuery = ref<string>('') // Search query for filtering by tags and metadata
 const selectedFolder = ref<string>(photosRootFolder) // ImageKit root folder path (configurable)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const selectedItem = ref<{ id: string | number; metadata?: any } | null>(null) // Selected item for metadata panel
+const selectedItem = ref<GalleryItem | null>(null) // Selected item for metadata panel
 const isMetadataPanelOpen = ref<boolean>(false) // Metadata panel state
 const imageKitFolders = ref<string[]>([]) // Available subfolders (dynamically loaded, excludes root)
 const isLoadingFolders = ref(false)
@@ -586,9 +585,32 @@ const totalPages = computed(() => {
   return Math.ceil(sortedItems.value.length / itemsPerPage.value)
 })
 
+// GalleryItem type matching Lightbox component
+interface GalleryItem {
+  id: string | number
+  title: string
+  image?: string
+  video?: string
+  videoUrl?: string
+  description?: string
+  tags?: string[]
+  type: string
+  likeCount?: number
+  thumbnail?: string
+  metadata?: {
+    fileId?: string
+    name?: string
+    fileType?: string
+    filePath?: string
+    width?: number
+    height?: number
+    size?: number | string
+    customMetadata?: Record<string, unknown>
+  }
+}
+
 // Function to open metadata panel
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const openMetadataPanel = (item: any) => {
+const openMetadataPanel = (item: GalleryItem) => {
   selectedItem.value = item
   isMetadataPanelOpen.value = true
 }
@@ -1206,7 +1228,7 @@ defineOgImageComponent('About', {
           <!-- Gallery Grid -->
           <div
             v-if="viewMode === 'grid'"
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
           >
             <div
               v-for="item in paginatedItems"
@@ -1214,7 +1236,8 @@ defineOgImageComponent('About', {
               class="group bg-white dark:bg-slate-800 rounded-xl overflow-hidden hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] border border-gray-200 dark:border-slate-700"
             >
               <div
-                class="relative aspect-square overflow-hidden cursor-pointer"
+                class="relative aspect-square overflow-hidden cursor-pointer touch-manipulation active:opacity-90"
+                style="touch-action: manipulation; -webkit-tap-highlight-color: transparent"
                 @click="
                   () => {
                     const index = sortedItems.findIndex((i) => String(i.id) === String(item.id))
@@ -1313,7 +1336,8 @@ defineOgImageComponent('About', {
               class="break-inside-avoid group bg-white dark:bg-slate-800 rounded-xl overflow-hidden hover:shadow-2xl transition-all duration-300 border border-gray-200 dark:border-slate-700 mb-6"
             >
               <div
-                class="relative overflow-hidden cursor-pointer"
+                class="relative overflow-hidden cursor-pointer touch-manipulation active:opacity-90"
+                style="touch-action: manipulation; -webkit-tap-highlight-color: transparent"
                 @click="
                   () => {
                     const index = sortedItems.findIndex((i) => String(i.id) === String(item.id))
@@ -1680,7 +1704,8 @@ defineOgImageComponent('About', {
                 :href="video.videoUrl"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="relative aspect-video overflow-hidden cursor-pointer block"
+                class="relative aspect-video overflow-hidden cursor-pointer block touch-manipulation active:opacity-90"
+                style="touch-action: manipulation; -webkit-tap-highlight-color: transparent"
               >
                 <NuxtImg
                   :src="video.thumbnail"
@@ -1988,13 +2013,14 @@ defineOgImageComponent('About', {
         @update:current-index="lightboxIndex = $event"
         @like-changed="handleLikeChanged"
         @comment-added="handleCommentAdded"
+        @open-metadata="openMetadataPanel"
       />
 
       <!-- Metadata Panel (Right Side, Collapsible) -->
       <Transition name="slide">
         <div
           v-if="isMetadataPanelOpen && selectedItem"
-          class="fixed right-0 top-0 h-full w-96 bg-white dark:bg-slate-800 shadow-2xl z-50 overflow-y-auto border-l border-gray-200 dark:border-slate-700"
+          class="fixed right-0 top-0 h-full w-96 bg-white dark:bg-slate-800 shadow-2xl z-[110] overflow-y-auto border-l border-gray-200 dark:border-slate-700"
         >
           <div
             class="sticky top-0 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 p-4 flex items-center justify-between"
@@ -2137,21 +2163,6 @@ defineOgImageComponent('About', {
                   </div>
                 </div>
               </div>
-
-              <!-- URL -->
-              <div v-if="selectedItem.metadata?.url">
-                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
-                  URL
-                </h3>
-                <a
-                  :href="selectedItem.metadata.url"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="text-sm text-sky-600 dark:text-sky-400 hover:underline break-all"
-                >
-                  {{ selectedItem.metadata.url }}
-                </a>
-              </div>
             </div>
             <div v-else class="text-center py-8 text-zinc-500 dark:text-zinc-400">
               No metadata available
@@ -2164,7 +2175,7 @@ defineOgImageComponent('About', {
       <Transition name="fade">
         <div
           v-if="isMetadataPanelOpen"
-          class="fixed inset-0 bg-black bg-opacity-50 z-40"
+          class="fixed inset-0 bg-black bg-opacity-50 z-[105]"
           @click="closeMetadataPanel"
         />
       </Transition>

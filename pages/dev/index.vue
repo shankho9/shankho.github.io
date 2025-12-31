@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-slate-900 py-12 px-4">
+  <div class="min-h-screen bg-gray-50 dark:bg-slate-900 py-6 sm:py-12 px-4 sm:px-6">
     <div class="max-w-7xl mx-auto">
       <!-- Login Screen -->
       <div v-if="!isAuthenticated" class="max-w-md mx-auto">
@@ -52,15 +52,17 @@
 
       <!-- Main Utilities Dashboard -->
       <div v-else>
-        <div class="mb-8 flex items-center justify-between">
+        <div
+          class="mb-6 md:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        >
           <div>
-            <h1 class="text-4xl font-bold mb-2">Dev Utilities</h1>
-            <p class="text-gray-600 dark:text-gray-400">
+            <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">Dev Utilities</h1>
+            <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400">
               Development tools and analytics dashboard
             </p>
           </div>
           <button
-            class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            class="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
             @click="handleLogout"
           >
             Logout
@@ -68,10 +70,10 @@
         </div>
 
         <!-- Utilities Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <!-- Visitor Analytics Utility -->
           <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
             @click="activeUtility = 'visitors'"
           >
             <div class="flex items-center gap-4 mb-4">
@@ -92,7 +94,7 @@
 
           <!-- Location Manager Utility -->
           <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
             @click="activeUtility = 'locations'"
           >
             <div class="flex items-center gap-4 mb-4">
@@ -113,7 +115,7 @@
 
           <!-- Database Stats Utility -->
           <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
             @click="activeUtility = 'database'"
           >
             <div class="flex items-center gap-4 mb-4">
@@ -134,7 +136,7 @@
 
           <!-- API Health Check Utility -->
           <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
             @click="activeUtility = 'health'"
           >
             <div class="flex items-center gap-4 mb-4">
@@ -159,7 +161,7 @@
 
           <!-- Email Logs Utility -->
           <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
             @click="activeUtility = 'emails'"
           >
             <div class="flex items-center gap-4 mb-4">
@@ -180,7 +182,7 @@
 
           <!-- Content Manager Utility -->
           <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
             @click="activeUtility = 'content'"
           >
             <div class="flex items-center gap-4 mb-4">
@@ -205,7 +207,7 @@
 
           <!-- Cache Management Utility -->
           <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
             @click="activeUtility = 'cache'"
           >
             <div class="flex items-center gap-4 mb-4">
@@ -226,14 +228,17 @@
         </div>
 
         <!-- Active Utility View -->
-        <div v-if="activeUtility" class="mt-8">
-          <div class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6">
-            <div class="flex items-center justify-between mb-6">
-              <h2 class="text-2xl font-bold">
+        <div v-if="activeUtility" class="mt-6 md:mt-8">
+          <div
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 overflow-x-auto max-w-full"
+          >
+            <div class="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 class="text-xl sm:text-2xl font-bold">
                 {{ utilityTitles[activeUtility] }}
               </h2>
               <button
-                class="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md"
+                class="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
+                aria-label="Close utility"
                 @click="activeUtility = null"
               >
                 <Icon name="mdi:close" size="24" />

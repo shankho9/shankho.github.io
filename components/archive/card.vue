@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { getTagColorClasses } from '~/utils/blog/tagColors'
-import { useGoogleAuth } from '~/composables/useGoogleAuth'
 import { computed } from 'vue'
 
 interface Props {
@@ -29,21 +28,16 @@ const props = withDefaults(defineProps<Props>(), {
   type: 'blog',
 })
 
-// Check if this is a lifelines blog
-const isLifeline = computed(() => {
-  return props.type === 'lifeline' || props.tags.some((tag) => tag.toLowerCase() === 'lifelines')
-})
-
-// Authentication
-const { isAuthenticated } = useGoogleAuth()
-
 // Normalize path for lifelines blogs
 const normalizedPath = computed(() => {
-  if (!isLifeline.value) {
+  // For lifelines blogs, ensure path uses /personalSpace/ prefix
+  const isLifeline =
+    props.type === 'lifeline' || props.tags.some((tag) => tag.toLowerCase() === 'lifelines')
+
+  if (!isLifeline) {
     return props.path
   }
 
-  // For lifelines blogs, ensure path uses /personalSpace/ prefix
   let path = props.path || '/'
 
   // Remove .md extension if present
@@ -73,15 +67,6 @@ const normalizedPath = computed(() => {
   // Final cleanup
   return path.replace(/\/+/g, '/')
 })
-
-// Handle click - check auth for lifelines
-const handleClick = (event: MouseEvent) => {
-  if (isLifeline.value && !isAuthenticated.value) {
-    event.preventDefault()
-    // Navigate to personalSpace page which has auth
-    navigateTo('/personalSpace')
-  }
-}
 </script>
 
 <template>
@@ -90,8 +75,8 @@ const handleClick = (event: MouseEvent) => {
   >
     <NuxtLink
       :to="normalizedPath"
-      class="grid grid-cols-1 sm:grid-cols-10 gap-1"
-      @click="handleClick"
+      class="grid grid-cols-1 sm:grid-cols-10 gap-1 touch-manipulation"
+      style="touch-action: manipulation; -webkit-tap-highlight-color: transparent"
     >
       <div class="sm:col-span-3">
         <NuxtImg

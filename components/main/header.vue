@@ -20,13 +20,24 @@ const { user, isAuthenticated, signOut, loadStoredUser, initializeGoogleSignIn }
 // Dropdown state
 const showUserDropdown = ref(false)
 const showMobileMenu = ref(false)
+const isTogglingMenu = ref(false)
 
 const toggleUserDropdown = () => {
   showUserDropdown.value = !showUserDropdown.value
 }
 
-const toggleMobileMenu = () => {
+const toggleMobileMenu = (event?: Event) => {
+  // Prevent event propagation to avoid immediate closure
+  if (event) {
+    event.stopPropagation()
+    event.preventDefault()
+  }
+  isTogglingMenu.value = true
   showMobileMenu.value = !showMobileMenu.value
+  // Reset toggle flag after a brief delay
+  setTimeout(() => {
+    isTogglingMenu.value = false
+  }, 100)
 }
 
 const handleSignOut = () => {
@@ -135,25 +146,51 @@ const handleGoogleSignIn = async () => {
 }
 
 // Close dropdown when clicking outside
-const handleClickOutside = (event: MouseEvent) => {
-  const target = event.target as HTMLElement
+// Accept target element directly to avoid brittle synthetic event objects
+const handleClickOutside = (target: HTMLElement | null) => {
+  // Don't close if we're in the process of toggling
+  if (isTogglingMenu.value) {
+    return
+  }
+
+  // Guard against null target
+  if (!target) {
+    return
+  }
+
   if (!target.closest('.user-dropdown-container')) {
     showUserDropdown.value = false
   }
+  // Only close mobile menu if clicking outside both the menu and the button
   if (!target.closest('.mobile-menu-container') && !target.closest('.mobile-menu-button')) {
     showMobileMenu.value = false
   }
 }
 
+// Store reference to the click handler for proper cleanup
+const clickHandler = (e: MouseEvent) => {
+  // Extract event properties before setTimeout to avoid event object reuse issues
+  // Event objects are reused by browsers after synchronous handlers return
+  const target = e.target as HTMLElement
+
+  // Use a slight delay to ensure toggle completes before checking outside clicks
+  // This prevents the menu from closing immediately after opening
+  setTimeout(() => {
+    // Pass the target element directly instead of creating a synthetic event
+    // This avoids brittle type assertions and makes the code more maintainable
+    handleClickOutside(target)
+  }, 10)
+}
+
 onMounted(() => {
   if (typeof window !== 'undefined') {
-    document.addEventListener('click', handleClickOutside)
+    document.addEventListener('click', clickHandler)
   }
 })
 
 onUnmounted(() => {
   if (typeof window !== 'undefined') {
-    document.removeEventListener('click', handleClickOutside)
+    document.removeEventListener('click', clickHandler)
   }
 })
 
@@ -347,9 +384,16 @@ onMounted(() => {
         </ClientOnly>
 
         <button
-          class="mobile-menu-button p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+          class="mobile-menu-button p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md transition-colors touch-manipulation active:bg-gray-200 dark:active:bg-slate-700"
+          style="
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            min-width: 44px;
+            min-height: 44px;
+          "
           aria-label="Toggle menu"
-          @click="toggleMobileMenu"
+          :aria-expanded="showMobileMenu"
+          @click.stop.prevent="toggleMobileMenu"
         >
           <Icon
             :name="showMobileMenu ? 'mdi:close' : 'mdi:menu'"
@@ -376,33 +420,37 @@ onMounted(() => {
         <div class="px-4 py-3 space-y-2">
           <NuxtLink
             to="/blogs"
-            class="block px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors"
+            class="block px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors touch-manipulation"
+            style="touch-action: manipulation"
             :class="{ 'bg-gray-200 dark:bg-slate-800': isActive('/blogs') }"
-            @click="showMobileMenu = false"
+            @click.stop="showMobileMenu = false"
           >
             Blogs
           </NuxtLink>
           <NuxtLink
             to="/personalSpace"
-            class="block px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors"
+            class="block px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors touch-manipulation"
+            style="touch-action: manipulation"
             :class="{ 'bg-gray-200 dark:bg-slate-800': isActive('/personalSpace') }"
-            @click="showMobileMenu = false"
+            @click.stop="showMobileMenu = false"
           >
             LifeLines
           </NuxtLink>
           <NuxtLink
             to="/library"
-            class="block px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors"
+            class="block px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors touch-manipulation"
+            style="touch-action: manipulation"
             :class="{ 'bg-gray-200 dark:bg-slate-800': isActive('/library') }"
-            @click="showMobileMenu = false"
+            @click.stop="showMobileMenu = false"
           >
             Library
           </NuxtLink>
           <NuxtLink
             to="/about"
-            class="block px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors"
+            class="block px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors touch-manipulation"
+            style="touch-action: manipulation"
             :class="{ 'bg-gray-200 dark:bg-slate-800': $route.path === '/about' }"
-            @click="showMobileMenu = false"
+            @click.stop="showMobileMenu = false"
           >
             About
           </NuxtLink>
