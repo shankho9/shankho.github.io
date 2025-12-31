@@ -93,6 +93,7 @@ const data = computed<BlogPost>(() => {
 // Flag to prevent duplicate button renders
 const isRenderingButton = ref(false)
 const googleCheckTimeout = ref<NodeJS.Timeout | null>(null)
+const readingTimeTimeout = ref<NodeJS.Timeout | null>(null)
 
 // Check for Google script and render button with timeout protection
 const checkGoogleAndRender = () => {
@@ -167,27 +168,34 @@ onMounted(() => {
     // Try immediately
     if (!calculateTime()) {
       // If not found, try again after a short delay
-      setTimeout(() => {
+      // Store timeout so it can be cleared on unmount
+      readingTimeTimeout.value = setTimeout(() => {
         calculateTime()
+        readingTimeTimeout.value = null
       }, 500)
     }
   })
 })
 
-// Cleanup timeout on unmount
+// Cleanup timeouts on unmount
 onUnmounted(() => {
   if (googleCheckTimeout.value) {
     clearTimeout(googleCheckTimeout.value)
     googleCheckTimeout.value = null
   }
+  if (readingTimeTimeout.value) {
+    clearTimeout(readingTimeTimeout.value)
+    readingTimeTimeout.value = null
+  }
   isRenderingButton.value = false
 })
 
 // Render Google Sign-In button
-const renderGoogleSignInButton = () => {
+// Returns: true if rendering was initiated, false otherwise
+const renderGoogleSignInButton = (): boolean => {
   // Ensure we're in the browser environment
   if (typeof window === 'undefined' || typeof document === 'undefined') {
-    return
+    return false
   }
 
   // Prevent concurrent renders - only check the flag, not child nodes
@@ -222,9 +230,9 @@ const renderGoogleSignInButton = () => {
     // This is necessary when user logs out or authentication fails
     buttonElement.innerHTML = ''
 
-    // Set flag when user starts authentication to prevent concurrent renders during auth
+    // Authentication callback - flag management is handled here
     const originalCallback = async (response: { credential: string }) => {
-      // Set flag to prevent concurrent renders during authentication
+      // Set flag to true when user starts authentication to prevent concurrent renders
       isRenderingButton.value = true
       try {
         const result = await $fetch<{
@@ -247,6 +255,7 @@ const renderGoogleSignInButton = () => {
         console.error('[LifeLines Detail] Authentication failed:', error)
       } finally {
         // Reset flag after authentication completes (regardless of success/failure)
+        // This allows re-rendering if needed (e.g., after logout or failed auth)
         isRenderingButton.value = false
       }
     }
@@ -264,9 +273,9 @@ const renderGoogleSignInButton = () => {
     })
 
     // Reset flag after button is rendered (button rendering is synchronous)
-    // The flag will be set again when user clicks the button to start authentication
+    // The flag will be set to true again when user clicks the button to start authentication
     // and reset in the auth callback's finally block when auth completes
-    // This prevents the race condition where timeout resets flag before auth completes
+    // This allows re-rendering if user logs out before clicking the button
     isRenderingButton.value = false
   })
 
