@@ -1,6 +1,6 @@
 /**
  * API endpoint for fetching related content from external sources
- * 
+ *
  * This endpoint can be extended to fetch from:
  * - Medium API
  * - Dev.to API
@@ -12,10 +12,15 @@
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
-  const { tags, category, title, limit = 5, source = 'internal' } = query
+  const { source = 'internal' } = query
 
   // For now, return empty array - this can be extended
   // Example implementations below:
+  // Uncomment and use these variables when implementing:
+  // const tags = query.tags as string
+  // const category = query.category as string
+  // const title = query.title as string
+  // const limit = Number(query.limit) || 5
 
   if (source === 'medium') {
     // TODO: Implement Medium API integration
@@ -47,7 +52,7 @@ export default defineEventHandler(async (event) => {
 
 /**
  * Example: Fetch from Medium API
- * 
+ *
  * async function fetchMediumArticles(tags: string[], limit: number) {
  *   const tag = tags[0] || 'programming'
  *   const response = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=https://medium.com/feed/tag/${tag}`)
@@ -65,7 +70,7 @@ export default defineEventHandler(async (event) => {
 
 /**
  * Example: Fetch from Dev.to API
- * 
+ *
  * async function fetchDevToArticles(tags: string[], limit: number) {
  *   const tag = tags[0] || 'webdev'
  *   const response = await fetch(`https://dev.to/api/articles?tag=${tag}&per_page=${limit}`)
@@ -83,7 +88,7 @@ export default defineEventHandler(async (event) => {
 
 /**
  * Example: Fetch from WordPress REST API
- * 
+ *
  * async function fetchWordPressPosts(tags: string[], limit: number) {
  *   const tag = tags[0] || 'technology'
  *   const response = await fetch(`https://public-api.wordpress.com/rest/v1.1/sites/example.wordpress.com/posts?tag=${tag}&number=${limit}`)

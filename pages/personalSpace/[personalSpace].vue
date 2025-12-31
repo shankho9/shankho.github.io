@@ -514,65 +514,65 @@ defineOgImageComponent('Test', {
 
 /* Facebook - bright vibrant blue */
 .social-share-facebook :deep(.social-share-button),
-.social-share-wrapper[data-network="facebook"] :deep(.social-share-button) {
+.social-share-wrapper[data-network='facebook'] :deep(.social-share-button) {
   @apply bg-blue-500 dark:bg-blue-600 text-white border-blue-600 dark:border-blue-500;
   box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.4);
 }
 
 .social-share-facebook:hover :deep(.social-share-button),
-.social-share-wrapper[data-network="facebook"]:hover :deep(.social-share-button) {
+.social-share-wrapper[data-network='facebook']:hover :deep(.social-share-button) {
   @apply bg-blue-600 dark:bg-blue-500 border-blue-700 dark:border-blue-400;
   box-shadow: 0 6px 20px 0 rgba(59, 130, 246, 0.6);
 }
 
 /* X (formerly Twitter) - bright vibrant sky blue */
 .social-share-x :deep(.social-share-button),
-.social-share-wrapper[data-network="x"] :deep(.social-share-button) {
+.social-share-wrapper[data-network='x'] :deep(.social-share-button) {
   @apply bg-sky-500 dark:bg-sky-600 text-white border-sky-600 dark:border-sky-500;
   box-shadow: 0 4px 14px 0 rgba(14, 165, 233, 0.4);
 }
 
 .social-share-x:hover :deep(.social-share-button),
-.social-share-wrapper[data-network="x"]:hover :deep(.social-share-button) {
+.social-share-wrapper[data-network='x']:hover :deep(.social-share-button) {
   @apply bg-sky-600 dark:bg-sky-500 border-sky-700 dark:border-sky-400;
   box-shadow: 0 6px 20px 0 rgba(14, 165, 233, 0.6);
 }
 
 /* LinkedIn - bright vibrant blue */
 .social-share-linkedin :deep(.social-share-button),
-.social-share-wrapper[data-network="linkedin"] :deep(.social-share-button) {
+.social-share-wrapper[data-network='linkedin'] :deep(.social-share-button) {
   @apply bg-blue-600 dark:bg-blue-700 text-white border-blue-700 dark:border-blue-600;
   box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.4);
 }
 
 .social-share-linkedin:hover :deep(.social-share-button),
-.social-share-wrapper[data-network="linkedin"]:hover :deep(.social-share-button) {
+.social-share-wrapper[data-network='linkedin']:hover :deep(.social-share-button) {
   @apply bg-blue-700 dark:bg-blue-600 border-blue-800 dark:border-blue-500;
   box-shadow: 0 6px 20px 0 rgba(37, 99, 235, 0.6);
 }
 
 /* WhatsApp - bright vibrant emerald/green */
 .social-share-whatsapp :deep(.social-share-button),
-.social-share-wrapper[data-network="whatsapp"] :deep(.social-share-button) {
+.social-share-wrapper[data-network='whatsapp'] :deep(.social-share-button) {
   @apply bg-emerald-500 dark:bg-emerald-600 text-white border-emerald-600 dark:border-emerald-500;
   box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.4);
 }
 
 .social-share-whatsapp:hover :deep(.social-share-button),
-.social-share-wrapper[data-network="whatsapp"]:hover :deep(.social-share-button) {
+.social-share-wrapper[data-network='whatsapp']:hover :deep(.social-share-button) {
   @apply bg-emerald-600 dark:bg-emerald-500 border-emerald-700 dark:border-emerald-400;
   box-shadow: 0 6px 20px 0 rgba(16, 185, 129, 0.6);
 }
 
 /* Email - bright vibrant slate/gray */
 .social-share-email :deep(.social-share-button),
-.social-share-wrapper[data-network="email"] :deep(.social-share-button) {
+.social-share-wrapper[data-network='email'] :deep(.social-share-button) {
   @apply bg-slate-600 dark:bg-slate-500 text-white border-slate-700 dark:border-slate-400;
   box-shadow: 0 4px 14px 0 rgba(71, 85, 105, 0.4);
 }
 
 .social-share-email:hover :deep(.social-share-button),
-.social-share-wrapper[data-network="email"]:hover :deep(.social-share-button) {
+.social-share-wrapper[data-network='email']:hover :deep(.social-share-button) {
   @apply bg-slate-700 dark:bg-slate-400 border-slate-800 dark:border-slate-300;
   box-shadow: 0 6px 20px 0 rgba(71, 85, 105, 0.6);
 }
