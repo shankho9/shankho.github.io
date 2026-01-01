@@ -101,6 +101,11 @@ export default defineNuxtConfig({
           rel: 'stylesheet',
           href: 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap',
         },
+        {
+          rel: 'preconnect',
+          href: 'https://ik.imagekit.io',
+          crossorigin: 'anonymous',
+        },
       ],
       script: [
         {
@@ -162,6 +167,22 @@ export default defineNuxtConfig({
 
   typescript: {
     strict: true,
+  },
+
+  image: {
+    // Allow @nuxt/image to optimize images from ImageKit domains
+    domains: ['ik.imagekit.io', 'imagekit.io'],
+    // Default quality for optimized images (can be overridden per image)
+    quality: 85,
+    // Responsive image breakpoints
+    screens: {
+      xs: 320,
+      sm: 640,
+      md: 768,
+      lg: 1024,
+      xl: 1280,
+      xxl: 1536,
+    },
   },
 
   nitro: {
