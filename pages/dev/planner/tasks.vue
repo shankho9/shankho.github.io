@@ -832,6 +832,11 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 }
 
+const openBulkUploadModal = () => {
+  isBulkUploadVisible.value = true
+  showMobileMenu.value = false
+}
+
 onMounted(async () => {
   await loadData()
   // Focus quick input on mount for better UX
@@ -990,10 +995,7 @@ onUnmounted(() => {
             </button>
             <button
               class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm border-b border-gray-200 dark:border-gray-700"
-              @click="
-                isBulkUploadVisible = true
-                showMobileMenu = false
-              "
+              @click="openBulkUploadModal"
             >
               <Icon name="mdi:upload" size="20" />
               <span>Bulk Upload</span>
