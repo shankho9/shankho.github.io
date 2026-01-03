@@ -309,8 +309,8 @@
           Google Authentication Required
         </h2>
         <p class="text-gray-600 dark:text-gray-400 mb-6">
-          Personal Planner requires Google authentication in addition to admin authentication. Please
-          sign in with Google to continue.
+          Personal Planner requires Google authentication in addition to admin authentication.
+          Please sign in with Google to continue.
         </p>
         <div id="planner-google-signin-button" class="flex justify-center mb-4"></div>
         <button
@@ -344,7 +344,12 @@ const loginError = ref('')
 const activeUtility = ref<string | null>(null)
 
 // Google authentication for Planner
-const { isAuthenticated: isGoogleAuthenticated, loadStoredUser, initializeGoogleSignIn, user } = useGoogleAuth()
+const {
+  isAuthenticated: isGoogleAuthenticated,
+  loadStoredUser,
+  initializeGoogleSignIn,
+  user,
+} = useGoogleAuth()
 const showPlannerAuthWarning = ref(false)
 
 const utilityTitles: Record<string, string> = {
@@ -506,14 +511,14 @@ const renderGoogleSignInButton = () => {
           // Update user state and localStorage
           user.value = result.user
           localStorage.setItem('google_user', JSON.stringify(result.user))
-          
+
           // Track login for analytics
           if (typeof window !== 'undefined') {
             const { trackLogin } = await import('~/utils/analytics/trackLogin')
             await trackLogin(result.user.email, result.user.name, window.location.pathname)
             window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
           }
-          
+
           // Sign-in successful, navigate to planner
           showPlannerAuthWarning.value = false
           await navigateTo('/dev/planner')
