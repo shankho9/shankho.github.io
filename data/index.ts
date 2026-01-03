@@ -315,47 +315,57 @@ export const socialLinks = {
   discord: 'https://discord.com/users/basid09',
 }
 
-export const siteMetaData = [
-  {
-    name: 'description',
-    content: seoData.description,
-  },
-  // Test on: https://developers.facebook.com/tools/debug/ or https://socialsharepreview.com/
-  { property: 'og:site_name', content: seoData.mySite },
-  { property: 'og:type', content: 'website' },
-  {
-    property: 'og:url',
-    content: seoData.mySite,
-  },
-  {
-    property: 'og:title',
-    content: seoData.ogTitle,
-  },
-  {
-    property: 'og:description',
-    content: seoData.description,
-  },
-  {
-    property: 'og:image',
-    content: seoData.image,
-  },
-  // Test on: https://cards-dev.twitter.com/validator or https://socialsharepreview.com/
-  { name: 'twitter:site', content: seoData.twitterHandle },
-  { name: 'twitter:card', content: 'summary_large_image' },
-  {
-    name: 'twitter:url',
-    content: seoData.mySite,
-  },
-  {
-    name: 'twitter:title',
-    content: seoData.ogTitle,
-  },
-  {
-    name: 'twitter:description',
-    content: seoData.twitterDescription,
-  },
-  {
-    name: 'twitter:image',
-    content: seoData.image,
-  },
-]
+// Use a function to ensure seoData is available and provide fallbacks
+export const siteMetaData = (() => {
+  const mySite = seoData?.mySite || 'https://shankho-blogsite.vercel.app'
+  const description = seoData?.description || "Sid's personal blog site"
+  const ogTitle = seoData?.ogTitle || "Sid's Blog | Nomadic Notions"
+  const image = seoData?.image || '/not-found.jpg'
+  const twitterHandle = seoData?.twitterHandle || '@shankho99'
+  const twitterDescription = seoData?.twitterDescription || description
+
+  return [
+    {
+      name: 'description',
+      content: description,
+    },
+    // Test on: https://developers.facebook.com/tools/debug/ or https://socialsharepreview.com/
+    { property: 'og:site_name', content: mySite },
+    { property: 'og:type', content: 'website' },
+    {
+      property: 'og:url',
+      content: mySite,
+    },
+    {
+      property: 'og:title',
+      content: ogTitle,
+    },
+    {
+      property: 'og:description',
+      content: description,
+    },
+    {
+      property: 'og:image',
+      content: image,
+    },
+    // Test on: https://cards-dev.twitter.com/validator or https://socialsharepreview.com/
+    { name: 'twitter:site', content: twitterHandle },
+    { name: 'twitter:card', content: 'summary_large_image' },
+    {
+      name: 'twitter:url',
+      content: mySite,
+    },
+    {
+      name: 'twitter:title',
+      content: ogTitle,
+    },
+    {
+      name: 'twitter:description',
+      content: twitterDescription,
+    },
+    {
+      name: 'twitter:image',
+      content: image,
+    },
+  ]
+})()

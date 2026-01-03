@@ -21,27 +21,29 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   type: 'website',
-  title: seoData.title,
-  description: seoData.description,
-  image: seoData.image,
+  title: seoData?.title || "Sid's Blog | Nomadic Notions",
+  description: seoData?.description || "Sid's Blog",
+  image: seoData?.image || '/not-found.jpg',
   author: () => ({
     name: 'Siddhartha Basu',
-    url: seoData.mySite,
+    url: seoData?.mySite || 'https://shankho-blogsite.vercel.app',
   }),
   publishedDate: undefined,
   modifiedDate: undefined,
   tags: () => [],
 })
 
-const siteUrl = (config.public.siteUrl as string) || seoData.mySite.replace(/\/$/, '')
+const siteUrl =
+  (config.public.siteUrl as string) ||
+  (seoData?.mySite ? seoData.mySite.replace(/\/$/, '') : 'https://shankho-blogsite.vercel.app')
 const currentUrl = `${siteUrl}${route.path}`
 
 const websiteSchema = computed(() => ({
   '@context': 'https://schema.org',
   '@type': 'WebSite',
-  name: seoData.title,
+  name: seoData?.title || "Sid's Blog | Nomadic Notions",
   url: siteUrl,
-  description: seoData.description,
+  description: seoData?.description || "Sid's Blog",
   publisher: {
     '@type': 'Person',
     name: props.author.name,
@@ -78,10 +80,10 @@ const articleSchema = computed(() => ({
   },
   publisher: {
     '@type': 'Organization',
-    name: seoData.title,
+    name: seoData?.title || "Sid's Blog | Nomadic Notions",
     logo: {
       '@type': 'ImageObject',
-      url: seoData.image,
+      url: seoData?.image || '/not-found.jpg',
     },
   },
   mainEntityOfPage: {
@@ -107,7 +109,7 @@ const personSchema = computed(() => ({
     socialLinks.twitter,
     socialLinks.stackoverflow,
   ].filter(Boolean),
-  email: seoData.mailAddress,
+  email: seoData?.mailAddress || '',
 }))
 
 const schema = computed(() => {

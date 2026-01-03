@@ -24,7 +24,19 @@ useHead({
   htmlAttrs: {
     lang: 'en',
   },
-  meta: () => siteMetaData,
+  meta: () => {
+    // Ensure siteMetaData is safely accessed with fallbacks
+    try {
+      return siteMetaData
+    } catch (error) {
+      console.warn('Error accessing siteMetaData:', error)
+      // Return minimal safe meta data as fallback
+      return [
+        { name: 'description', content: "Sid's Blog" },
+        { property: 'og:type', content: 'website' },
+      ]
+    }
+  },
 })
 </script>
 
