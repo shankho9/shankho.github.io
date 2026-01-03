@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, onMounted, watch } from 'vue'
+import { reactive, onMounted, onUnmounted, watch } from 'vue'
 import type { Task } from '~/server/api/planner/tasks.get'
 import { getLocalDateString, formatDateToDisplay } from '~/utils/common/dateParser'
 import {
@@ -25,6 +25,7 @@ const tasks = ref<Task[]>([])
 const isLoading = ref(false)
 const availableThemes = ref<string[]>([])
 const selectedDate = ref(getLocalDateString())
+const dbConnectionStatus = ref<'connected' | 'disconnected' | 'checking'>('checking')
 
 // Eisenhower Matrix data (excluding done tasks)
 const quadrantData = computed(() => {
@@ -94,6 +95,9 @@ const tasksByBucket = computed(() => {
     .sort((a, b) => b.count - a.count)
 })
 
+const showMobileMenu = ref(false)
+const showExportMenu = ref(false)
+
 const checkAdminAuth = async () => {
   try {
     const response = await $fetch<{ authenticated: boolean }>('/api/admin/auth')
@@ -106,13 +110,35 @@ const checkAdminAuth = async () => {
 const loadData = async () => {
   isLoading.value = true
   try {
+    // Load data in parallel for better performance
     const [allTasks, themes] = await Promise.all([fetchTasks(), fetchThemes()])
-    tasks.value = allTasks
+
+    // Update UI immediately (optimistic update)
     availableThemes.value = themes
+    tasks.value = allTasks
+
+    // Update connection status on successful load
+    dbConnectionStatus.value = 'connected'
   } catch (error) {
     console.error('Failed to load dashboard data:', error)
+    // Update connection status on error
+    dbConnectionStatus.value = 'disconnected'
+    // Show error but don't crash - keep existing data if available
   } finally {
     isLoading.value = false
+  }
+}
+
+// Connection status is updated based on data load success/failure, not periodic health checks
+
+// Debounce data loading to avoid rapid successive calls
+let loadDataTimeout: ReturnType<typeof setTimeout> | null = null
+
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+  if (!target.closest('.menu-container')) {
+    showMobileMenu.value = false
+    showExportMenu.value = false
   }
 }
 
@@ -125,11 +151,30 @@ onMounted(async () => {
   if (isGoogleAuthenticated.value && isAdminAuthenticated.value) {
     loadData()
   }
+
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+  // Clean up debounce timeout
+  if (loadDataTimeout) {
+    clearTimeout(loadDataTimeout)
+    loadDataTimeout = null
+  }
 })
 
 watch(selectedDate, () => {
   if (isGoogleAuthenticated.value && isAdminAuthenticated.value) {
-    loadData()
+    // Clear any pending load
+    if (loadDataTimeout) {
+      clearTimeout(loadDataTimeout)
+    }
+    // Debounce by 300ms to avoid rapid successive calls
+    loadDataTimeout = setTimeout(() => {
+      loadData()
+      loadDataTimeout = null
+    }, 300)
   }
 })
 </script>
@@ -141,36 +186,142 @@ watch(selectedDate, () => {
       <div
         class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4"
       >
-        <div>
-          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Planner Dashboard
-          </h1>
+        <div class="flex-1">
+          <div class="flex items-center gap-3">
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+              Planner Dashboard
+            </h1>
+            <!-- Database Connection Status Indicator -->
+            <div
+              :class="[
+                'flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium',
+                dbConnectionStatus === 'connected'
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : dbConnectionStatus === 'disconnected'
+                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+              ]"
+              :title="
+                dbConnectionStatus === 'connected'
+                  ? 'Database connected'
+                  : dbConnectionStatus === 'disconnected'
+                    ? 'Database disconnected - attempting to reconnect...'
+                    : 'Checking database connection...'
+              "
+            >
+              <Icon
+                :name="
+                  dbConnectionStatus === 'connected'
+                    ? 'mdi:database-check'
+                    : dbConnectionStatus === 'disconnected'
+                      ? 'mdi:database-off'
+                      : 'mdi:database-sync'
+                "
+                size="14"
+              />
+              <span class="hidden sm:inline">
+                {{
+                  dbConnectionStatus === 'connected'
+                    ? 'Connected'
+                    : dbConnectionStatus === 'disconnected'
+                      ? 'Reconnecting...'
+                      : 'Checking...'
+                }}
+              </span>
+            </div>
+          </div>
           <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
             Overview of your tasks and progress
           </p>
         </div>
-        <div class="flex items-center gap-2 flex-wrap">
+        <!-- Desktop: Large buttons with labels -->
+        <div class="hidden sm:flex items-center gap-2 flex-wrap">
           <NuxtLink
             to="/dev/planner/tasks"
-            class="p-2.5 sm:p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
-            title="Manage Tasks"
+            class="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
           >
             <Icon name="mdi:format-list-checkbox" size="20" />
+            <span>Manage Tasks</span>
           </NuxtLink>
           <NuxtLink
             to="/dev/planner/review"
-            class="p-2.5 sm:p-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
-            title="Review"
+            class="px-4 py-2.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
           >
             <Icon name="mdi:chart-line" size="20" />
+            <span>Review</span>
           </NuxtLink>
-          <NuxtLink
-            :to="`/dev/planner/print/today?date=${selectedDate}`"
-            class="p-2.5 sm:p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
-            title="Print Daily Plan"
+          <div class="relative menu-container">
+            <button
+              class="px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
+              @click.stop="showExportMenu = !showExportMenu"
+            >
+              <Icon name="mdi:file-export" size="20" />
+              <span>Export/Print</span>
+              <Icon name="mdi:chevron-down" size="16" />
+            </button>
+            <!-- Export/Print Dropdown -->
+            <div
+              v-if="showExportMenu"
+              class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+              @click.stop
+            >
+              <NuxtLink
+                :to="`/dev/planner/print/today?date=${selectedDate}`"
+                class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
+                @click="showExportMenu = false"
+              >
+                <Icon name="mdi:printer" size="20" />
+                <span>Print Summary</span>
+              </NuxtLink>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile: Hamburger Menu -->
+        <div class="sm:hidden relative menu-container">
+          <button
+            class="p-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
+            @click.stop="showMobileMenu = !showMobileMenu"
           >
-            <Icon name="mdi:printer" size="20" />
-          </NuxtLink>
+            <Icon name="mdi:menu" size="24" />
+          </button>
+          <!-- Mobile Menu Backdrop -->
+          <div
+            v-if="showMobileMenu"
+            class="fixed inset-0 bg-black/20 z-40 sm:hidden"
+            @click="showMobileMenu = false"
+          ></div>
+          <!-- Mobile Menu Dropdown -->
+          <div
+            v-if="showMobileMenu"
+            class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+            @click.stop
+          >
+            <NuxtLink
+              to="/dev/planner/tasks"
+              class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm border-b border-gray-200 dark:border-gray-700"
+              @click="showMobileMenu = false"
+            >
+              <Icon name="mdi:format-list-checkbox" size="20" />
+              <span>Manage Tasks</span>
+            </NuxtLink>
+            <NuxtLink
+              to="/dev/planner/review"
+              class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm border-b border-gray-200 dark:border-gray-700"
+              @click="showMobileMenu = false"
+            >
+              <Icon name="mdi:chart-line" size="20" />
+              <span>Review</span>
+            </NuxtLink>
+            <NuxtLink
+              :to="`/dev/planner/print/today?date=${selectedDate}`"
+              class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm"
+              @click="showMobileMenu = false"
+            >
+              <Icon name="mdi:printer" size="20" />
+              <span>Print Summary</span>
+            </NuxtLink>
+          </div>
         </div>
       </div>
     </div>
@@ -272,9 +423,10 @@ watch(selectedDate, () => {
             View All →
           </NuxtLink>
         </div>
-        <div class="grid grid-cols-2 gap-3">
+        <!-- Mobile: Sequential card layout, Desktop: 2x2 grid -->
+        <div class="flex flex-col sm:grid sm:grid-cols-2 gap-3">
           <!-- Q1: Do Now (Important & Urgent) -->
-          <div class="border-2 border-red-500 rounded-lg p-3 bg-red-50 dark:bg-red-950/20">
+          <div class="border-2 border-red-500 rounded-lg p-3 bg-red-50 dark:bg-red-950/20 w-full">
             <div class="flex items-center justify-between mb-2">
               <h3 class="font-bold text-sm text-red-700 dark:text-red-400">Q1: Do Now</h3>
               <span
@@ -322,7 +474,9 @@ watch(selectedDate, () => {
           </div>
 
           <!-- Q2: Schedule (Important & Not Urgent) -->
-          <div class="border-2 border-blue-500 rounded-lg p-3 bg-blue-50 dark:bg-blue-950/20">
+          <div
+            class="border-2 border-blue-500 rounded-lg p-3 bg-blue-50 dark:bg-blue-950/20 w-full"
+          >
             <div class="flex items-center justify-between mb-2">
               <h3 class="font-bold text-sm text-blue-700 dark:text-blue-400">Q2: Schedule</h3>
               <span
@@ -370,7 +524,9 @@ watch(selectedDate, () => {
           </div>
 
           <!-- Q3: Defer/Batch (Not Important & Urgent) -->
-          <div class="border-2 border-yellow-500 rounded-lg p-3 bg-yellow-50 dark:bg-yellow-950/20">
+          <div
+            class="border-2 border-yellow-500 rounded-lg p-3 bg-yellow-50 dark:bg-yellow-950/20 w-full"
+          >
             <div class="flex items-center justify-between mb-2">
               <h3 class="font-bold text-sm text-yellow-700 dark:text-yellow-400">
                 Q3: Defer / Batch
@@ -421,7 +577,7 @@ watch(selectedDate, () => {
 
           <!-- Q4: Later / Parking Lot (Not Important & Not Urgent) -->
           <div
-            class="border-2 border-gray-400 rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 opacity-75"
+            class="border-2 border-gray-400 rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 opacity-75 w-full"
           >
             <div class="flex items-center justify-between mb-2">
               <h3 class="font-bold text-sm text-gray-600 dark:text-gray-400">
