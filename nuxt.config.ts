@@ -22,11 +22,17 @@ export default defineNuxtConfig({
           // Prevents localhost warnings during build
           url: (() => {
             const envUrl = process.env.NUXT_PUBLIC_SITE_URL
-            const fallbackUrl = seoData.mySite.replace(/\/$/, '')
+            // Add null check to prevent "Cannot read properties of undefined" error
+            const mySite = seoData?.mySite || 'https://shankho-blogsite.vercel.app'
+            const fallbackUrl = typeof mySite === 'string' ? mySite.replace(/\/$/, '') : 'https://shankho-blogsite.vercel.app'
             const url = envUrl || fallbackUrl
 
             // Check if URL is actually localhost (not just contains the substring)
             // Match http://localhost, https://localhost, or localhost:port
+            if (!url || typeof url !== 'string') {
+              return fallbackUrl
+            }
+
             try {
               const urlObj = new URL(url)
               const isLocalhost = urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1'
@@ -134,7 +140,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || seoData.mySite.replace(/\/$/, ''),
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || (seoData?.mySite ? seoData.mySite.replace(/\/$/, '') : 'https://shankho-blogsite.vercel.app'),
       googleAnalytics: {
         id: process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID,
         debug: process.env.NODE_ENV !== 'production',
