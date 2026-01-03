@@ -247,8 +247,7 @@
               </div>
             </div>
             <p class="text-gray-600 dark:text-gray-400 text-sm">
-              Daily planner with Kanban board, backlog management, weekly reviews, and printable
-              plans
+              Daily planner with Kanban board, weekly reviews, and printable plans
             </p>
           </NuxtLink>
         </div>

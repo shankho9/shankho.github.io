@@ -29,10 +29,12 @@ const handleAddTask = async () => {
 
   try {
     const today = getLocalDateString()
+    // All tasks (today, doing, done) should get today's date
+    // Backlog status was removed, so no tasks should have null planned_date
     const newTask = await createTask({
       title: newTaskTitle.value.trim(),
       status: props.status,
-      planned_date: props.status !== 'backlog' ? today : null,
+      planned_date: today,
     })
     emit('update', newTask)
     newTaskTitle.value = ''
