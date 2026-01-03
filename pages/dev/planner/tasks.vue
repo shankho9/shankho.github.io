@@ -205,6 +205,16 @@ const loadData = async () => {
   }
 }
 
+const handleQuickTaskEsc = () => {
+  quickTaskTitle.value = ''
+  isAddingQuickTask.value = false
+}
+
+const handleThemeInputEsc = () => {
+  isThemeInputVisible.value = false
+  newThemeName.value = ''
+}
+
 const handleQuickAddTask = async () => {
   if (!quickTaskTitle.value.trim()) {
     isAddingQuickTask.value = false
@@ -669,10 +679,7 @@ onMounted(async () => {
               placeholder="Add task..."
               class="flex-1 px-2 py-1.5 text-sm border-0 bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none"
               @keyup.enter="handleQuickAddTask"
-              @keyup.esc="
-                quickTaskTitle = ''
-                isAddingQuickTask = false
-              "
+              @keyup.esc="handleQuickTaskEsc"
               @focus="isAddingQuickTask = true"
             />
 
@@ -711,10 +718,7 @@ onMounted(async () => {
                 placeholder="Bucket"
                 class="px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 w-20"
                 @keyup.enter="addNewTheme"
-                @keyup.esc="
-                  isThemeInputVisible = false
-                  newThemeName = ''
-                "
+                @keyup.esc="handleThemeInputEsc"
               />
               <button
                 :class="[
