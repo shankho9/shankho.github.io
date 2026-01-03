@@ -225,6 +225,32 @@
               Clear application cache and manage cache settings
             </p>
           </div>
+
+          <!-- Personal Planner Utility -->
+          <NuxtLink
+            to="/dev/planner"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow active:scale-[0.98] touch-manipulation block"
+          >
+            <div class="flex items-center gap-4 mb-4">
+              <div
+                class="w-12 h-12 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center"
+              >
+                <Icon
+                  name="mdi:calendar-check"
+                  size="24"
+                  class="text-orange-600 dark:text-orange-400"
+                />
+              </div>
+              <div>
+                <h3 class="text-xl font-semibold">Personal Planner</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Daily planning & tasks</p>
+              </div>
+            </div>
+            <p class="text-gray-600 dark:text-gray-400 text-sm">
+              Daily planner with Kanban board, backlog management, weekly reviews, and printable
+              plans
+            </p>
+          </NuxtLink>
         </div>
 
         <!-- Active Utility View -->

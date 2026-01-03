@@ -5,118 +5,115 @@
     >
       Quick Links
     </p>
-    <div class="grid grid-cols-2 gap-x-2 sm:gap-x-3 gap-y-1.5 sm:gap-y-1">
+    <div
+      class="flex flex-wrap items-center justify-center md:justify-start gap-x-2.5 gap-y-1.5 text-sm"
+    >
       <NuxtLink
         to="/"
-        class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors group text-sm"
+        class="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap group"
       >
         <Icon
           name="mdi:home"
-          size="16"
-          class="text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
+          size="14"
+          class="text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
         />
-        <span
-          class="text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
-          >Home</span
-        >
+        <span>Home</span>
       </NuxtLink>
+      <span class="text-gray-400 dark:text-gray-600">|</span>
       <NuxtLink
         to="/blogs"
-        class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors group text-sm"
+        class="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap group"
       >
         <Icon
           name="mdi:book-open-variant"
-          size="16"
-          class="text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
+          size="14"
+          class="text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
         />
-        <span
-          class="text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
-          >Blogs</span
-        >
+        <span>Blogs</span>
       </NuxtLink>
+      <span class="text-gray-400 dark:text-gray-600">|</span>
       <NuxtLink
         to="/personalSpace"
-        class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors group text-sm"
+        class="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap group"
       >
         <Icon
           name="mdi:account-circle"
-          size="16"
-          class="text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
+          size="14"
+          class="text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
         />
-        <span
-          class="text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
-          >LifeLines</span
-        >
+        <span>LifeLines</span>
       </NuxtLink>
+      <span class="text-gray-400 dark:text-gray-600">|</span>
       <NuxtLink
         to="/library"
-        class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors group text-sm"
+        class="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap group"
       >
         <Icon
           name="mdi:library"
-          size="16"
-          class="text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
+          size="14"
+          class="text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
         />
-        <span
-          class="text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
-          >Library</span
-        >
+        <span>Library</span>
       </NuxtLink>
+      <span class="text-gray-400 dark:text-gray-600">|</span>
+      <NuxtLink
+        to="/dev/planner"
+        class="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap group"
+      >
+        <Icon
+          name="mdi:calendar-check"
+          size="14"
+          class="text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
+        />
+        <span>Planner</span>
+      </NuxtLink>
+      <span class="text-gray-400 dark:text-gray-600">|</span>
       <NuxtLink
         to="/categories"
-        class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors group text-sm"
+        class="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap group"
       >
         <Icon
           name="mdi:tag-multiple"
-          size="16"
-          class="text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
+          size="14"
+          class="text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
         />
-        <span
-          class="text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
-          >Categories</span
-        >
+        <span>Categories</span>
       </NuxtLink>
+      <span class="text-gray-400 dark:text-gray-600">|</span>
       <NuxtLink
         to="/about"
-        class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors group text-sm"
+        class="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap group"
       >
         <Icon
           name="mdi:information"
-          size="16"
-          class="text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
+          size="14"
+          class="text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
         />
-        <span
-          class="text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
-          >About Me</span
-        >
+        <span>About Me</span>
       </NuxtLink>
+      <span class="text-gray-400 dark:text-gray-600">|</span>
       <NuxtLink
         to="/dev"
-        class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors group text-sm"
+        class="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap group"
       >
         <Icon
           name="mdi:tools"
-          size="16"
-          class="text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
+          size="14"
+          class="text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
         />
-        <span
-          class="text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
-          >Utilities</span
-        >
+        <span>Utilities</span>
       </NuxtLink>
+      <span class="text-gray-400 dark:text-gray-600">|</span>
       <NuxtLink
         to="/sitemap"
-        class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors group text-sm"
+        class="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap group"
       >
         <Icon
           name="mdi:sitemap"
-          size="16"
-          class="text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
+          size="14"
+          class="text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
         />
-        <span
-          class="text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
-          >Sitemap</span
-        >
+        <span>Sitemap</span>
       </NuxtLink>
     </div>
   </div>

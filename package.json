@@ -20,7 +20,15 @@
     "migrate:logins": "node scripts/migrations/run-login-migration.js",
     "migrate:logins:prod": "NODE_ENV=production node scripts/migrations/run-login-migration.js",
     "migrate:page-visits": "node scripts/migrations/run-page-visits-migration.js",
-    "migrate:page-visits:prod": "NODE_ENV=production node scripts/migrations/run-page-visits-migration.js"
+    "migrate:page-visits:prod": "NODE_ENV=production node scripts/migrations/run-page-visits-migration.js",
+    "migrate:planner": "node scripts/migrations/run-planner-migration.js",
+    "migrate:planner:prod": "NODE_ENV=production node scripts/migrations/run-planner-migration.js",
+    "migrate:planner-theme": "node scripts/migrations/run-planner-theme-migration.js",
+    "migrate:planner-theme:prod": "NODE_ENV=production node scripts/migrations/run-planner-theme-migration.js",
+    "migrate:estimated-time": "node scripts/migrations/run-estimated-time-migration.js",
+    "migrate:estimated-time:prod": "NODE_ENV=production node scripts/migrations/run-estimated-time-migration.js",
+    "migrate:remove-estimated-time": "node scripts/migrations/run-remove-estimated-time-migration.js",
+    "migrate:remove-estimated-time:prod": "NODE_ENV=production node scripts/migrations/run-remove-estimated-time-migration.js"
   },
   "devDependencies": {
     "@formkit/auto-animate": "^0.8.2",
