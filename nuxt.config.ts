@@ -188,12 +188,10 @@ export default defineNuxtConfig({
       xl: 1280,
       xxl: 1536,
     },
-    // Use ipx provider (built-in, no sharp required) for better compatibility
-    // This avoids sharp binary issues during deployment
-    provider: 'ipx',
-    ipx: {
-      // Use ImageKit for optimization if available, otherwise use ipx
-      domains: ['ik.imagekit.io', 'imagekit.io'],
+    // Use ipx provider only (built-in, no sharp required)
+    // This avoids sharp binary compatibility issues during deployment
+    providers: {
+      ipx: {},
     },
   },
 
@@ -208,5 +206,14 @@ export default defineNuxtConfig({
     },
     minify: true,
     sourceMap: false,
+    // Compress output for faster deployment
+    compressPublicAssets: true,
+    // Optimize bundle size
+    esbuild: {
+      options: {
+        treeShaking: true,
+        minify: true,
+      },
+    },
   },
 })
