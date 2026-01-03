@@ -1,5 +1,6 @@
 import { defineEventHandler, readBody } from 'h3'
 import { query } from '~/server/utils/db'
+import { cache } from '~/server/utils/cache'
 
 interface TaskBody {
   title: string
@@ -55,6 +56,11 @@ export default defineEventHandler(async (event) => {
        RETURNING id, title, status, is_mit, priority, TO_CHAR(planned_date, 'YYYY-MM-DD') as planned_date, notes, theme, created_at, updated_at`,
       [title.trim(), status, is_mit, priority, planned_date, notes, theme?.trim() || null],
     )
+
+    // Invalidate cache when task is created
+    // Clear both task cache and themes cache (new task may have new theme)
+    cache.clearByPrefix('tasks:')
+    cache.clearByPrefix('themes:')
 
     return {
       success: true,

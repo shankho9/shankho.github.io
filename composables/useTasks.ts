@@ -68,10 +68,22 @@ export const useTasks = () => {
     return response.task
   }
 
-  const deleteTask = async (id: number): Promise<void> => {
-    await $fetch<{ success: boolean; message: string }>(`${apiBase}/planner/tasks/${id}`, {
-      method: 'DELETE',
-    })
+  const deleteTask = async (id: number, archive: boolean = false): Promise<void> => {
+    await $fetch<{ success: boolean; message: string; archived?: boolean }>(
+      `${apiBase}/planner/tasks/${id}${archive ? '?archive=true' : ''}`,
+      {
+        method: 'DELETE',
+      },
+    )
+  }
+
+  const purgeDeletedTasks = async (): Promise<{ success: boolean; deletedCount: number }> => {
+    return await $fetch<{ success: boolean; deletedCount: number }>(
+      `${apiBase}/planner/tasks/purge`,
+      {
+        method: 'POST',
+      },
+    )
   }
 
   return {
@@ -80,5 +92,6 @@ export const useTasks = () => {
     createTask,
     updateTask,
     deleteTask,
+    purgeDeletedTasks,
   }
 }
