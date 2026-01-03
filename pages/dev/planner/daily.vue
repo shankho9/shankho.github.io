@@ -171,6 +171,22 @@ const addNewTheme = () => {
   }
 }
 
+const handleQuickTaskEsc = () => {
+  quickTaskTitle.value = ''
+  isAddingQuickTask.value = false
+}
+
+const handleQuickTaskBlur = () => {
+  setTimeout(() => {
+    if (!quickTaskTitle.value) isAddingQuickTask.value = false
+  }, 200)
+}
+
+const handleThemeInputEsc = () => {
+  isThemeInputVisible.value = false
+  newThemeName.value = ''
+}
+
 onMounted(() => {
   loadTasks()
   // Focus quick input on mount for better UX
@@ -256,16 +272,9 @@ onMounted(() => {
               placeholder="Quick add a task for today (Press Enter to add)..."
               class="flex-1 px-3 py-2 border-0 bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none text-lg"
               @keyup.enter="handleQuickAddTask"
-              @keyup.esc="
-                quickTaskTitle = ''
-                isAddingQuickTask = false
-              "
+              @keyup.esc="handleQuickTaskEsc"
               @focus="isAddingQuickTask = true"
-              @blur="
-                setTimeout(() => {
-                  if (!quickTaskTitle) isAddingQuickTask = false
-                }, 200)
-              "
+              @blur="handleQuickTaskBlur"
             />
             <button
               v-if="quickTaskTitle.trim()"
@@ -303,10 +312,7 @@ onMounted(() => {
               placeholder="New theme name"
               class="px-2 py-1 text-sm border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
               @keyup.enter="addNewTheme"
-              @keyup.esc="
-                isThemeInputVisible = false
-                newThemeName = ''
-              "
+              @keyup.esc="handleThemeInputEsc"
             />
             <span class="text-sm text-gray-600 dark:text-gray-400 ml-2">Date:</span>
             <input
