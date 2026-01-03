@@ -1,5 +1,6 @@
 import { defineEventHandler, readBody, getRouterParam } from 'h3'
 import { query } from '~/server/utils/db'
+import { cache } from '~/server/utils/cache'
 
 interface TaskBody {
   title?: string
@@ -114,6 +115,11 @@ export default defineEventHandler(async (event) => {
         message: 'Task not found',
       })
     }
+
+    // Invalidate cache when task is updated
+    // Clear both task cache and themes cache (theme may have changed)
+    cache.clearByPrefix('tasks:')
+    cache.clearByPrefix('themes:')
 
     return {
       success: true,

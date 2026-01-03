@@ -113,17 +113,26 @@ export function verifyAdminToken(event: H3Event): boolean {
   const adminPasswordHash = config.adminPasswordHash || process.env.ADMIN_PASSWORD_HASH
 
   if (!adminPasswordHash) {
+    console.warn('[AdminAuth] ADMIN_PASSWORD_HASH not configured')
     return false
   }
 
   const token = getCookie(event, ADMIN_TOKEN_COOKIE)
   if (!token) {
+    // Log for debugging - token cookie not found
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[AdminAuth] No admin token cookie found')
+    }
     return false
   }
 
   // Validate token exists in store
   const tokenData = tokenStore.get(token)
   if (!tokenData) {
+    // Token not found in store - might be due to serverless cold start or token was cleared
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[AdminAuth] Token not found in store (might be serverless cold start)')
+    }
     return false
   }
 
@@ -132,6 +141,9 @@ export function verifyAdminToken(event: H3Event): boolean {
   if (now > tokenData.expiresAt) {
     // Token expired, remove it from store
     tokenStore.delete(token)
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[AdminAuth] Token expired')
+    }
     return false
   }
 
@@ -155,7 +167,8 @@ export function setAdminToken(event: H3Event, token: string): void {
   setCookie(event, ADMIN_TOKEN_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax', // Changed from 'strict' to 'lax' to allow cookies on top-level navigations
+    path: '/', // Explicitly set path to root so cookie is available for all routes
     maxAge: TOKEN_EXPIRY_MS / 1000, // Convert to seconds
   })
 }
@@ -172,7 +185,8 @@ export function clearAdminToken(event: H3Event): void {
   setCookie(event, ADMIN_TOKEN_COOKIE, '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax', // Changed from 'strict' to 'lax' to match setAdminToken
+    path: '/', // Explicitly set path to root to match setAdminToken
     maxAge: 0,
   })
 }

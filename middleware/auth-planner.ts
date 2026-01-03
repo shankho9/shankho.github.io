@@ -10,7 +10,9 @@ export default defineNuxtRouteMiddleware(async (_to, _from) => {
   try {
     const adminResponse = await $fetch<{ authenticated: boolean }>('/api/admin/auth')
     isAdminAuthenticated = adminResponse.authenticated
-  } catch {
+  } catch (error) {
+    // Log error for debugging but don't expose details to user
+    console.warn('[Auth Planner] Admin auth check failed:', error)
     isAdminAuthenticated = false
   }
 
@@ -21,6 +23,13 @@ export default defineNuxtRouteMiddleware(async (_to, _from) => {
 
   // Require BOTH Google auth AND admin auth
   if (!isAuthenticated.value || !isAdminAuthenticated) {
+    // Log which authentication is missing for debugging
+    if (!isAuthenticated.value) {
+      console.warn('[Auth Planner] Google authentication required')
+    }
+    if (!isAdminAuthenticated) {
+      console.warn('[Auth Planner] Admin authentication required')
+    }
     return navigateTo('/dev')
   }
 })
