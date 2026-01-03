@@ -27,7 +27,6 @@ const stats = computed(() => {
     todayMits: todayTasks.filter((t) => t.is_mit).length,
     doing: allTasks.filter((t) => t.status === 'doing').length,
     done: allTasks.filter((t) => t.status === 'done').length,
-    backlog: allTasks.filter((t) => t.status === 'backlog').length,
   }
 })
 
@@ -88,23 +87,29 @@ watch(selectedDate, () => {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
     <!-- Header -->
-    <div class="mb-6">
-      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+    <div class="mb-4 sm:mb-6">
+      <div
+        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4"
+      >
         <div>
-          <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Planner Dashboard</h1>
-          <p class="text-gray-600 dark:text-gray-400 mt-1">Overview of your tasks and progress</p>
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+            Planner Dashboard
+          </h1>
+          <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
+            Overview of your tasks and progress
+          </p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <input
             v-model="selectedDate"
             type="date"
-            class="px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+            class="flex-1 sm:flex-none px-3 py-2.5 sm:px-4 sm:py-2 text-base sm:text-sm border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 min-h-[44px] sm:min-h-0"
           />
           <NuxtLink
             to="/dev/planner/daily"
-            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            class="px-4 py-2.5 sm:py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0 whitespace-nowrap"
           >
             Daily View
           </NuxtLink>
@@ -122,7 +127,7 @@ watch(selectedDate, () => {
     <!-- Dashboard Content -->
     <div v-else class="space-y-6">
       <!-- Statistics Cards -->
-      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div
           class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4"
         >
@@ -164,12 +169,6 @@ watch(selectedDate, () => {
         >
           <div class="text-2xl font-bold text-gray-700 dark:text-gray-300">{{ stats.done }}</div>
           <div class="text-sm text-gray-600 dark:text-gray-400">Done</div>
-        </div>
-        <div
-          class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4"
-        >
-          <div class="text-2xl font-bold text-red-700 dark:text-red-300">{{ stats.backlog }}</div>
-          <div class="text-sm text-red-600 dark:text-red-400">Backlog</div>
         </div>
       </div>
 
@@ -239,17 +238,6 @@ watch(selectedDate, () => {
             >
               <Icon name="mdi:calendar-today" size="24" class="text-blue-600 dark:text-blue-400" />
               <span class="text-gray-900 dark:text-gray-100">Daily Planner</span>
-            </NuxtLink>
-            <NuxtLink
-              to="/dev/planner/backlog"
-              class="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/30 rounded-lg transition-colors"
-            >
-              <Icon
-                name="mdi:format-list-bulleted"
-                size="24"
-                class="text-red-600 dark:text-red-400"
-              />
-              <span class="text-gray-900 dark:text-gray-100">Backlog</span>
             </NuxtLink>
             <NuxtLink
               to="/dev/planner/review"

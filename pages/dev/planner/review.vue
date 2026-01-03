@@ -112,28 +112,32 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8 max-w-6xl">
-    <div class="mb-6">
-      <div class="flex items-center justify-between mb-4">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Review - Done Tasks</h1>
-        <div class="flex items-center gap-2">
+  <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-6xl">
+    <div class="mb-4 sm:mb-6">
+      <div
+        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4"
+      >
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+          Review - Done Tasks
+        </h1>
+        <div class="flex items-center gap-2 flex-wrap">
           <NuxtLink
             to="/dev/planner"
-            class="p-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            class="p-2.5 sm:p-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
             title="Dashboard"
           >
             <Icon name="mdi:view-dashboard" size="20" />
           </NuxtLink>
           <NuxtLink
             to="/dev/planner/tasks"
-            class="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            class="p-2.5 sm:p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
             title="Manage Tasks"
           >
             <Icon name="mdi:format-list-checkbox" size="20" />
           </NuxtLink>
           <NuxtLink
             :to="`/dev/planner/print/today?date=${getLocalDateString()}`"
-            class="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+            class="p-2.5 sm:p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
             title="Print Daily Plan"
           >
             <Icon name="mdi:printer" size="20" />
@@ -228,7 +232,7 @@ onMounted(() => {
       </div>
       <button
         v-if="selectedTasks.length > 0"
-        class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+        class="px-4 py-2.5 sm:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0 text-sm sm:text-base"
         @click="handleBulkDelete"
       >
         Delete Selected ({{ selectedTasks.length }})
@@ -255,22 +259,26 @@ onMounted(() => {
         <div
           v-for="task in doneTasks"
           :key="task.id"
-          class="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center gap-3"
+          class="px-3 sm:px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center gap-3"
         >
           <input
             type="checkbox"
             :checked="selectedTasks.includes(task.id)"
-            class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+            class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 touch-manipulation flex-shrink-0"
             @change="toggleSelectTask(task.id)"
           />
-          <div class="flex-1">
-            <div class="font-medium text-gray-900 dark:text-gray-100">{{ task.title }}</div>
-            <div v-if="task.theme" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <div class="flex-1 min-w-0">
+            <div
+              class="font-medium text-base sm:text-sm text-gray-900 dark:text-gray-100 break-words"
+            >
+              {{ task.title }}
+            </div>
+            <div v-if="task.theme" class="text-sm sm:text-xs text-gray-500 dark:text-gray-400 mt-1">
               Bucket: {{ task.theme }}
             </div>
           </div>
           <button
-            class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+            class="px-4 py-2 sm:px-3 sm:py-1 text-sm sm:text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0"
             @click="handleDelete(task.id)"
           >
             Delete

@@ -7,6 +7,7 @@ import {
   getLocalDateString,
 } from '~/utils/common/dateParser'
 import { getAvailableTags, type TagInfo } from '~/utils/planner/eisenhower'
+import { findSimilarStrings } from '~/utils/common/stringSimilarity'
 
 definePageMeta({
   layout: 'default',
@@ -213,6 +214,7 @@ const handleQuickTaskEsc = () => {
 const handleThemeInputEsc = () => {
   isThemeInputVisible.value = false
   newThemeName.value = ''
+  selectedThemeSuggestionIndex.value = -1
 }
 
 const handleQuickAddTask = async () => {
@@ -254,14 +256,60 @@ const handleQuickAddTask = async () => {
   }
 }
 
+// Theme suggestions based on input
+const themeSuggestions = computed(() => {
+  if (!newThemeName.value.trim() || !isThemeInputVisible.value) return []
+  return findSimilarStrings(newThemeName.value, availableThemes.value, {
+    threshold: 0.3,
+    maxResults: 5,
+  })
+})
+
+const selectThemeSuggestion = (theme: string) => {
+  quickTaskTheme.value = theme
+  newThemeName.value = ''
+  isThemeInputVisible.value = false
+  selectedThemeSuggestionIndex.value = -1
+}
+
 const addNewTheme = () => {
   if (newThemeName.value.trim()) {
     const theme = newThemeName.value.trim()
-    if (!availableThemes.value.includes(theme)) {
-      quickTaskTheme.value = theme
+    // Check for exact match (case-insensitive)
+    const exactMatch = availableThemes.value.find(
+      (t) => t.toLowerCase().trim() === theme.toLowerCase().trim(),
+    )
+    if (exactMatch) {
+      // Use existing theme instead of creating duplicate
+      quickTaskTheme.value = exactMatch
       newThemeName.value = ''
       isThemeInputVisible.value = false
+      return
     }
+    // Create new theme if no exact match
+    quickTaskTheme.value = theme
+    newThemeName.value = ''
+    isThemeInputVisible.value = false
+  }
+}
+
+const handleThemeInputKeydown = (event: KeyboardEvent) => {
+  if (themeSuggestions.value.length === 0) return
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    selectedThemeSuggestionIndex.value = Math.min(
+      selectedThemeSuggestionIndex.value + 1,
+      themeSuggestions.value.length - 1,
+    )
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    selectedThemeSuggestionIndex.value = Math.max(selectedThemeSuggestionIndex.value - 1, -1)
+  } else if (event.key === 'Enter' && selectedThemeSuggestionIndex.value >= 0) {
+    event.preventDefault()
+    selectThemeSuggestion(themeSuggestions.value[selectedThemeSuggestionIndex.value])
+  } else if (event.key === 'Escape') {
+    selectedThemeSuggestionIndex.value = -1
   }
 }
 
@@ -617,17 +665,23 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
     <!-- Header -->
-    <div class="mb-6">
-      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+    <div class="mb-4 sm:mb-6">
+      <div
+        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4"
+      >
         <div>
-          <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Manage Tasks</h1>
-          <p class="text-gray-600 dark:text-gray-400 mt-1">View and edit all your tasks</p>
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+            Manage Tasks
+          </h1>
+          <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
+            View and edit all your tasks
+          </p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <button
-            class="p-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
+            class="p-2.5 sm:p-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
             title="Export Report"
             @click="exportTasksReport"
           >
@@ -635,21 +689,21 @@ onMounted(async () => {
           </button>
           <NuxtLink
             to="/dev/planner"
-            class="p-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            class="p-2.5 sm:p-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
             title="Dashboard"
           >
             <Icon name="mdi:view-dashboard" size="20" />
           </NuxtLink>
           <NuxtLink
             to="/dev/planner/review"
-            class="p-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+            class="p-2.5 sm:p-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
             title="Review"
           >
             <Icon name="mdi:chart-line" size="20" />
           </NuxtLink>
           <NuxtLink
             :to="`/dev/planner/print/today?date=${getLocalDateString()}`"
-            class="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+            class="p-2.5 sm:p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
             title="Print Daily Plan"
           >
             <Icon name="mdi:printer" size="20" />
@@ -669,15 +723,15 @@ onMounted(async () => {
       <!-- Quick Add Task Section -->
       <div class="mb-4">
         <div
-          class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+          class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-3"
         >
-          <div class="flex items-center gap-2">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <input
               ref="quickTaskInput"
               v-model="quickTaskTitle"
               type="text"
               placeholder="Add task..."
-              class="flex-1 px-2 py-1.5 text-sm border-0 bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none"
+              class="flex-1 px-3 py-2.5 sm:px-2 sm:py-1.5 text-base sm:text-sm border-0 bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none"
               @keyup.enter="handleQuickAddTask"
               @keyup.esc="handleQuickTaskEsc"
               @focus="isAddingQuickTask = true"
@@ -686,17 +740,17 @@ onMounted(async () => {
             <!-- Compact Options (always visible when focused or typing) -->
             <div
               v-if="isAddingQuickTask || quickTaskTitle.trim()"
-              class="flex items-center gap-1.5"
+              class="flex flex-wrap items-center gap-2"
             >
               <input
                 v-model="quickTaskDate"
                 type="date"
-                class="px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100"
+                class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-sm sm:text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
                 title="Date"
               />
               <select
                 v-model="quickTaskTheme"
-                class="px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100"
+                class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-sm sm:text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
                 title="Bucket"
               >
                 <option :value="null">Bucket</option>
@@ -705,24 +759,50 @@ onMounted(async () => {
                 </option>
               </select>
               <button
-                class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                class="p-2 sm:p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                 title="New bucket"
                 @click="isThemeInputVisible = !isThemeInputVisible"
               >
-                <Icon name="mdi:plus" size="14" />
+                <Icon name="mdi:plus" size="18" class="sm:w-3.5 sm:h-3.5" />
               </button>
-              <input
-                v-if="isThemeInputVisible"
-                v-model="newThemeName"
-                type="text"
-                placeholder="Bucket"
-                class="px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 w-20"
-                @keyup.enter="addNewTheme"
-                @keyup.esc="handleThemeInputEsc"
-              />
+              <div class="relative">
+                <input
+                  v-if="isThemeInputVisible"
+                  v-model="newThemeName"
+                  type="text"
+                  placeholder="Bucket"
+                  class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-sm sm:text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 w-24 sm:w-20 min-h-[44px] sm:min-h-0"
+                  @keyup.enter="addNewTheme"
+                  @keyup.esc="handleThemeInputEsc"
+                  @keydown="handleThemeInputKeydown"
+                  @input="selectedThemeSuggestionIndex = -1"
+                />
+                <!-- Theme Suggestions Dropdown -->
+                <div
+                  v-if="isThemeInputVisible && themeSuggestions.length > 0 && newThemeName.trim()"
+                  ref="themeSuggestionsRef"
+                  class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[120px]"
+                  style="left: 0; top: 100%"
+                >
+                  <div
+                    v-for="(suggestion, index) in themeSuggestions"
+                    :key="suggestion"
+                    :class="[
+                      'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm',
+                      index === selectedThemeSuggestionIndex
+                        ? 'bg-blue-100 dark:bg-blue-900/40'
+                        : '',
+                    ]"
+                    @click="selectThemeSuggestion(suggestion)"
+                  >
+                    <div class="font-medium text-gray-900 dark:text-gray-100">{{ suggestion }}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">Existing category</div>
+                  </div>
+                </div>
+              </div>
               <button
                 :class="[
-                  'px-1.5 py-1 text-xs rounded border transition-colors',
+                  'px-3 py-2 sm:px-1.5 sm:py-1 text-sm sm:text-xs rounded border transition-colors touch-manipulation min-h-[44px] sm:min-h-0',
                   quickTaskIsMit
                     ? 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700'
                     : 'bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600',
@@ -734,27 +814,30 @@ onMounted(async () => {
               </button>
             </div>
 
-            <button
-              v-if="quickTaskTitle.trim()"
-              class="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-              @click="handleQuickAddTask"
-            >
-              Add
-            </button>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <button
+                v-if="quickTaskTitle.trim()"
+                class="px-4 py-2.5 sm:px-2 sm:py-1 text-sm sm:text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0"
+                @click="handleQuickAddTask"
+              >
+                Add
+              </button>
 
-            <button
-              class="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-              title="Bulk upload"
-              @click="isBulkUploadVisible = !isBulkUploadVisible"
-            >
-              <Icon name="mdi:upload" size="14" class="inline" />
-            </button>
+              <button
+                class="px-4 py-2.5 sm:px-2 sm:py-1 text-sm sm:text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0 flex items-center justify-center gap-1"
+                title="Bulk upload"
+                @click="isBulkUploadVisible = !isBulkUploadVisible"
+              >
+                <Icon name="mdi:upload" size="16" class="sm:w-3.5 sm:h-3.5" />
+                <span class="sm:hidden">Upload</span>
+              </button>
+            </div>
           </div>
 
           <!-- Bulk Upload Section -->
           <div
             v-if="isBulkUploadVisible"
-            class="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 flex items-center gap-2"
+            class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
           >
             <input
               ref="bulkUploadInput"
@@ -764,19 +847,21 @@ onMounted(async () => {
               @change="handleBulkUpload"
             />
             <button
-              class="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+              class="px-4 py-2.5 sm:px-2 sm:py-1 text-sm sm:text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0"
               @click="bulkUploadInput?.click()"
             >
               Choose File
             </button>
             <button
-              class="px-2 py-1 text-xs bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              class="px-4 py-2.5 sm:px-2 sm:py-1 text-sm sm:text-xs bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0 flex items-center justify-center gap-1"
               @click="downloadBulkTemplate"
             >
-              <Icon name="mdi:download" size="14" class="inline mr-1" />
-              Template
+              <Icon name="mdi:download" size="16" class="sm:w-3.5 sm:h-3.5" />
+              <span>Template</span>
             </button>
-            <span class="text-xs text-gray-500 dark:text-gray-400">CSV: title,date,theme,mit</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400 self-center"
+              >CSV: title,date,theme,mit</span
+            >
           </div>
         </div>
       </div>
@@ -788,7 +873,7 @@ onMounted(async () => {
         <template v-for="themeGroup in tasksGroupedByTheme" :key="themeGroup.theme">
           <!-- Theme Header -->
           <div
-            class="bg-gray-100 dark:bg-gray-700/50 px-4 py-2.5 border-l-4 border-gray-400 dark:border-gray-500"
+            class="bg-gray-100 dark:bg-gray-700/50 px-3 sm:px-4 py-2.5 border-l-4 border-gray-400 dark:border-gray-500"
           >
             <div class="flex items-center justify-between">
               <span
@@ -806,7 +891,7 @@ onMounted(async () => {
             v-for="task in themeGroup.tasks"
             :key="task.id"
             :class="[
-              'px-4 py-2.5 border-l-4 transition-all',
+              'px-3 sm:px-4 py-3 sm:py-2.5 border-l-4 transition-all',
               editingTaskId === task.id &&
                 'bg-blue-50 dark:bg-blue-950/20 border-blue-400 dark:border-blue-600',
               task.is_mit &&
@@ -817,11 +902,14 @@ onMounted(async () => {
                 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50/50 dark:hover:bg-gray-800/30',
             ]"
           >
-            <div v-if="editingTaskId !== task.id" class="flex items-center gap-3 text-xs py-1.5">
+            <div
+              v-if="editingTaskId !== task.id"
+              class="flex items-start sm:items-center gap-3 text-sm sm:text-xs py-1"
+            >
               <!-- Done/Doing Toggle (square toggle) -->
               <button
                 :class="[
-                  'relative w-8 h-4 rounded transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1',
+                  'relative w-11 h-6 sm:w-8 sm:h-4 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0 mt-0.5 sm:mt-0',
                   task.status === 'done'
                     ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
                     : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
@@ -834,10 +922,8 @@ onMounted(async () => {
               >
                 <span
                   :class="[
-                    'absolute top-0.5 left-0.5 h-3 w-3 bg-white shadow-sm transform transition-transform duration-200',
-                    task.status === 'done'
-                      ? 'translate-x-3.5 rounded-sm'
-                      : 'translate-x-0 rounded-sm',
+                    'absolute top-0.5 left-0.5 h-5 w-5 sm:h-3 sm:w-3 bg-white shadow-sm transform transition-transform duration-200 rounded-sm',
+                    task.status === 'done' ? 'translate-x-5 sm:translate-x-3.5' : 'translate-x-0',
                   ]"
                 ></span>
               </button>
@@ -846,7 +932,7 @@ onMounted(async () => {
               <div class="flex-1 min-w-0">
                 <div
                   :class="[
-                    'font-medium truncate cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 px-1 py-0.5 rounded transition-colors',
+                    'font-medium break-words cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 px-2 py-2 sm:px-1 sm:py-0.5 rounded transition-colors touch-manipulation',
                     task.status === 'done'
                       ? 'text-gray-500 dark:text-gray-500 line-through'
                       : 'text-gray-900 dark:text-gray-100',
@@ -859,7 +945,7 @@ onMounted(async () => {
                 <!-- Notes (small text below title) -->
                 <div
                   v-if="task.notes"
-                  class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 px-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded transition-colors truncate"
+                  class="text-sm sm:text-xs text-gray-500 dark:text-gray-400 mt-1 sm:mt-0.5 px-2 sm:px-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded transition-colors break-words touch-manipulation"
                   title="Click to edit"
                   @click="startEdit(task)"
                 >
@@ -872,7 +958,7 @@ onMounted(async () => {
                 <!-- Date Tag (hidden for done tasks, clickable to edit) -->
                 <span
                   v-if="task.planned_date && task.status !== 'done'"
-                  class="px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  class="px-2.5 py-1.5 sm:px-2 sm:py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation whitespace-nowrap"
                   title="Click to edit"
                   @click="startEdit(task)"
                 >
@@ -885,34 +971,34 @@ onMounted(async () => {
 
                 <!-- Delete Icon -->
                 <button
-                  class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                  class="p-2 sm:p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                   title="Delete"
                   @click.stop="handleDelete(task.id)"
                 >
-                  <Icon name="mdi:delete-outline" size="18" />
+                  <Icon name="mdi:delete-outline" size="22" class="sm:w-[18px] sm:h-[18px]" />
                 </button>
               </div>
             </div>
 
             <!-- Edit Mode -->
-            <div v-else class="space-y-2 py-2 relative">
-              <div class="flex items-center gap-3">
+            <div v-else class="space-y-3 sm:space-y-2 py-3 sm:py-2 relative">
+              <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                 <input
                   v-model="editForm.title"
                   type="text"
-                  class="flex-1 px-2 py-1 text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  class="flex-1 px-3 py-2.5 sm:px-2 sm:py-1 text-base sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 min-h-[44px] sm:min-h-0"
                   @keyup.enter="saveEdit"
                   @keyup.esc="cancelEdit"
                 />
                 <div class="flex gap-2">
                   <button
-                    class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                    class="px-4 py-2.5 sm:px-3 sm:py-1 text-sm sm:text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0"
                     @click="saveEdit"
                   >
                     Save
                   </button>
                   <button
-                    class="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                    class="px-4 py-2.5 sm:px-3 sm:py-1 text-sm sm:text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0"
                     @click="cancelEdit"
                   >
                     Cancel
@@ -923,35 +1009,38 @@ onMounted(async () => {
                 <input
                   v-model="editForm.planned_date"
                   type="date"
-                  class="px-2 py-1 text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  class="px-3 py-2.5 sm:px-2 sm:py-1 text-sm sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 min-h-[44px] sm:min-h-0"
                 />
                 <select
                   v-model="editForm.theme"
-                  class="px-2 py-1 text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  class="px-3 py-2.5 sm:px-2 sm:py-1 text-sm sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 min-h-[44px] sm:min-h-0"
                 >
                   <option :value="null">No Bucket</option>
                   <option v-for="theme in availableThemes" :key="theme" :value="theme">
                     {{ theme }}
                   </option>
                 </select>
-                <label class="flex items-center gap-1 text-xs text-gray-700 dark:text-gray-300">
+                <label
+                  class="flex items-center gap-2 text-sm sm:text-xs text-gray-700 dark:text-gray-300 touch-manipulation min-h-[44px] sm:min-h-0 cursor-pointer"
+                >
                   <input
                     v-model="editForm.is_mit"
                     type="checkbox"
-                    class="w-3 h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
+                    class="w-5 h-5 sm:w-3 sm:h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
                   />
-                  MIT
+                  <span>MIT</span>
                 </label>
               </div>
               <!-- Notes in Edit Mode -->
               <div class="mt-2">
-                <div class="flex items-center justify-between mb-1">
-                  <label class="block text-xs font-medium text-gray-700 dark:text-gray-300"
+                <div class="flex items-center justify-between mb-2">
+                  <label
+                    class="block text-sm sm:text-xs font-medium text-gray-700 dark:text-gray-300"
                     >Notes</label
                   >
                   <button
                     type="button"
-                    class="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    class="text-sm sm:text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation py-2 px-1"
                     @click="showTagLegend = !showTagLegend"
                   >
                     {{ showTagLegend ? 'Hide' : 'Show' }} Tags Legend
@@ -960,8 +1049,8 @@ onMounted(async () => {
                 <textarea
                   ref="notesInputRef"
                   v-model="editForm.notes"
-                  class="w-full px-2 py-1 text-xs border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
-                  rows="2"
+                  class="w-full px-3 py-2.5 sm:px-2 sm:py-1 text-base sm:text-xs border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+                  rows="4"
                   placeholder="Add notes... Use @ or # for tags (e.g., @delegate, @quick-win)"
                   @input="handleNotesInput"
                   @keydown="handleNotesKeydown"

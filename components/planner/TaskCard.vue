@@ -108,7 +108,7 @@ onMounted(async () => {
           <button
             v-if="!isEditing"
             :class="[
-              'text-sm font-semibold px-2 py-0.5 rounded transition-colors',
+              'text-sm font-semibold px-3 py-1.5 sm:px-2 sm:py-0.5 rounded transition-colors touch-manipulation min-h-[44px] sm:min-h-0',
               task.is_mit
                 ? 'bg-purple-500 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
@@ -153,20 +153,20 @@ onMounted(async () => {
           <input
             v-model="editTitle"
             type="text"
-            class="w-full px-2 py-1 border rounded dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+            class="w-full px-3 py-2.5 sm:px-2 sm:py-1 border rounded dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 text-base sm:text-sm min-h-[44px] sm:min-h-0"
             placeholder="Task title"
             @keyup.enter="handleSaveEdit"
             @keyup.esc="handleCancelEdit"
           />
           <textarea
             v-model="editNotes"
-            class="w-full px-2 py-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
-            rows="2"
+            class="w-full px-3 py-2.5 sm:px-2 sm:py-1 border rounded text-base sm:text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+            rows="4"
             placeholder="Notes (optional)"
           />
           <select
             v-model="editTheme"
-            class="w-full px-2 py-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+            class="w-full px-3 py-2.5 sm:px-2 sm:py-1 border rounded text-base sm:text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 min-h-[44px] sm:min-h-0"
           >
             <option :value="null">No Theme</option>
             <option v-for="theme in availableThemes" :key="theme" :value="theme">
@@ -175,13 +175,13 @@ onMounted(async () => {
           </select>
           <div class="flex gap-2">
             <button
-              class="px-2 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+              class="px-4 py-2.5 sm:px-2 sm:py-1 text-base sm:text-sm bg-green-500 text-white rounded hover:bg-green-600 touch-manipulation min-h-[44px] sm:min-h-0"
               @click="handleSaveEdit"
             >
               Save
             </button>
             <button
-              class="px-2 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
+              class="px-4 py-2.5 sm:px-2 sm:py-1 text-base sm:text-sm bg-gray-500 text-white rounded hover:bg-gray-600 touch-manipulation min-h-[44px] sm:min-h-0"
               @click="handleCancelEdit"
             >
               Cancel
@@ -190,31 +190,31 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div v-if="!isEditing" class="flex gap-1 flex-shrink-0">
+      <div v-if="!isEditing" class="flex gap-1 sm:gap-1 flex-shrink-0">
         <div class="relative group">
           <button
-            class="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            class="p-2 sm:p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
             title="Change priority"
           >
-            <Icon name="mdi:flag" class="w-4 h-4" />
+            <Icon name="mdi:flag" class="w-5 h-5 sm:w-4 sm:h-4" />
           </button>
           <div
             class="absolute right-0 mt-1 w-32 bg-white dark:bg-gray-800 border rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition z-10"
           >
             <button
-              class="w-full text-left px-3 py-1 text-sm hover:bg-red-50 dark:hover:bg-red-950/20"
+              class="w-full text-left px-3 py-2 sm:py-1 text-base sm:text-sm hover:bg-red-50 dark:hover:bg-red-950/20 touch-manipulation min-h-[44px] sm:min-h-0"
               @click="handlePriorityChange('high')"
             >
               High
             </button>
             <button
-              class="w-full text-left px-3 py-1 text-sm hover:bg-yellow-50 dark:hover:bg-yellow-950/20"
+              class="w-full text-left px-3 py-2 sm:py-1 text-base sm:text-sm hover:bg-yellow-50 dark:hover:bg-yellow-950/20 touch-manipulation min-h-[44px] sm:min-h-0"
               @click="handlePriorityChange('medium')"
             >
               Medium
             </button>
             <button
-              class="w-full text-left px-3 py-1 text-sm hover:bg-blue-50 dark:hover:bg-blue-950/20"
+              class="w-full text-left px-3 py-2 sm:py-1 text-base sm:text-sm hover:bg-blue-50 dark:hover:bg-blue-950/20 touch-manipulation min-h-[44px] sm:min-h-0"
               @click="handlePriorityChange('low')"
             >
               Low
@@ -222,18 +222,18 @@ onMounted(async () => {
           </div>
         </div>
         <button
-          class="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+          class="p-2 sm:p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
           title="Edit task"
           @click="isEditing = true"
         >
-          <Icon name="mdi:pencil" class="w-4 h-4" />
+          <Icon name="mdi:pencil" class="w-5 h-5 sm:w-4 sm:h-4" />
         </button>
         <button
-          class="p-1 text-gray-500 hover:text-red-600 dark:hover:text-red-400"
+          class="p-2 sm:p-1 text-gray-500 hover:text-red-600 dark:hover:text-red-400 touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
           title="Delete task"
           @click="handleDelete"
         >
-          <Icon name="mdi:delete" class="w-4 h-4" />
+          <Icon name="mdi:delete" class="w-5 h-5 sm:w-4 sm:h-4" />
         </button>
       </div>
     </div>

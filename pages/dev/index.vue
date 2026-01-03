@@ -227,9 +227,9 @@
           </div>
 
           <!-- Personal Planner Utility -->
-          <NuxtLink
-            to="/dev/planner"
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow active:scale-[0.98] touch-manipulation block"
+          <div
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow active:scale-[0.98] touch-manipulation cursor-pointer"
+            @click="handlePlannerClick"
           >
             <div class="flex items-center gap-4 mb-4">
               <div
@@ -247,10 +247,9 @@
               </div>
             </div>
             <p class="text-gray-600 dark:text-gray-400 text-sm">
-              Daily planner with Kanban board, backlog management, weekly reviews, and printable
-              plans
+              Daily planner with Kanban board, weekly reviews, and printable plans
             </p>
-          </NuxtLink>
+          </div>
         </div>
 
         <!-- Active Utility View -->
@@ -295,6 +294,33 @@
         </div>
       </div>
     </div>
+
+    <!-- Planner Google Auth Warning Modal -->
+    <div
+      v-if="showPlannerAuthWarning"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      @click.self="closePlannerAuthWarning"
+    >
+      <div
+        class="bg-white dark:bg-slate-800 rounded-xl p-8 text-center border border-gray-200 dark:border-slate-700 shadow-lg max-w-md mx-4"
+      >
+        <Icon name="mdi:lock" class="text-6xl text-orange-600 dark:text-orange-400 mb-4 mx-auto" />
+        <h2 class="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+          Google Authentication Required
+        </h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">
+          Personal Planner requires Google authentication in addition to admin authentication. Please
+          sign in with Google to continue.
+        </p>
+        <div id="planner-google-signin-button" class="flex justify-center mb-4"></div>
+        <button
+          class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+          @click="closePlannerAuthWarning"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -307,6 +333,7 @@ import DevHealth from '~/components/dev/Health.vue'
 import DevEmails from '~/components/dev/Emails.vue'
 import DevContent from '~/components/dev/Content.vue'
 import DevCache from '~/components/dev/Cache.vue'
+import { useGoogleAuth } from '~/composables/useGoogleAuth'
 
 const isAuthenticated = ref(false)
 const password = ref('')
@@ -315,6 +342,10 @@ const requires2FA = ref(false)
 const isLoading = ref(false)
 const loginError = ref('')
 const activeUtility = ref<string | null>(null)
+
+// Google authentication for Planner
+const { isAuthenticated: isGoogleAuthenticated, loadStoredUser, initializeGoogleSignIn, user } = useGoogleAuth()
+const showPlannerAuthWarning = ref(false)
 
 const utilityTitles: Record<string, string> = {
   visitors: 'Visitor Analytics',
@@ -430,7 +461,84 @@ const handleLogout = async () => {
   }
 }
 
+const handlePlannerClick = async () => {
+  await loadStoredUser()
+  if (!isGoogleAuthenticated.value) {
+    showPlannerAuthWarning.value = true
+    initializeGoogleSignIn()
+    // Render sign-in button after a short delay to ensure Google script is loaded
+    await nextTick()
+    setTimeout(() => {
+      renderGoogleSignInButton()
+    }, 100)
+  } else {
+    await navigateTo('/dev/planner')
+  }
+}
+
+const renderGoogleSignInButton = () => {
+  const buttonElement = document.getElementById('planner-google-signin-button')
+  if (!buttonElement || typeof window === 'undefined' || !window.google) {
+    // Retry if Google script not loaded yet
+    setTimeout(() => renderGoogleSignInButton(), 200)
+    return
+  }
+
+  const clientId = useRuntimeConfig().public.googleClientId
+  if (!clientId) {
+    console.error('[Dev Utilities] Google Client ID not configured')
+    return
+  }
+
+  buttonElement.innerHTML = ''
+
+  window.google.accounts.id.initialize({
+    client_id: clientId,
+    callback: async (response: { credential: string }) => {
+      try {
+        const result = await $fetch<{
+          user: { email: string; name: string; picture: string; sub: string }
+        }>('/api/auth/google', {
+          method: 'POST',
+          body: { token: response.credential },
+        })
+        if (result && result.user) {
+          // Update user state and localStorage
+          user.value = result.user
+          localStorage.setItem('google_user', JSON.stringify(result.user))
+          
+          // Track login for analytics
+          if (typeof window !== 'undefined') {
+            const { trackLogin } = await import('~/utils/analytics/trackLogin')
+            await trackLogin(result.user.email, result.user.name, window.location.pathname)
+            window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+          }
+          
+          // Sign-in successful, navigate to planner
+          showPlannerAuthWarning.value = false
+          await navigateTo('/dev/planner')
+        }
+      } catch (error) {
+        console.error('[Dev Utilities] Authentication failed:', error)
+      }
+    },
+  })
+
+  window.google.accounts.id.renderButton(buttonElement, {
+    theme: 'outline',
+    size: 'large',
+    text: 'signin_with',
+    width: 250,
+  })
+}
+
+const closePlannerAuthWarning = () => {
+  showPlannerAuthWarning.value = false
+}
+
 onMounted(() => {
   checkAuth()
+  initializeGoogleSignIn()
+  loadStoredUser()
 })
 </script>
