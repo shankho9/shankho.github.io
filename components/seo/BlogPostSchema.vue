@@ -17,14 +17,16 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  image: seoData.image,
+  image: seoData?.image || '/not-found.jpg',
   authorName: 'Siddhartha Basu',
-  authorUrl: seoData.mySite,
+  authorUrl: seoData?.mySite || 'https://shankho-blogsite.vercel.app',
   modifiedDate: undefined,
   tags: () => [],
 })
 
-const siteUrl = (config.public.siteUrl as string) || seoData.mySite.replace(/\/$/, '')
+const siteUrl =
+  (config.public.siteUrl as string) ||
+  (seoData?.mySite ? seoData.mySite.replace(/\/$/, '') : 'https://shankho-blogsite.vercel.app')
 const currentUrl = `${siteUrl}${route.path}`
 
 const schema = computed(() => ({

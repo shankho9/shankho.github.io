@@ -6,6 +6,14 @@ import { seoData } from './data'
 export default defineNuxtConfig({
   compatibilityDate: '2024-09-30',
   components: true,
+
+  // Site configuration for nuxt-site-config (used by nuxt-og-image and other modules)
+  // Use a simple string to avoid any undefined issues during module evaluation
+  site: {
+    url: process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app',
+    name: "Sid's Blog | Nomadic Notions",
+  },
+
   modules: [
     'nuxt-icon',
     '@nuxt/image',
@@ -20,33 +28,8 @@ export default defineNuxtConfig({
         site: {
           // Set production URL to override buildEnv auto-detection
           // Prevents localhost warnings during build
-          url: (() => {
-            const envUrl = process.env.NUXT_PUBLIC_SITE_URL
-            // Add null check to prevent "Cannot read properties of undefined" error
-            const mySite = seoData?.mySite || 'https://shankho-blogsite.vercel.app'
-            const fallbackUrl =
-              typeof mySite === 'string'
-                ? mySite.replace(/\/$/, '')
-                : 'https://shankho-blogsite.vercel.app'
-            const url = envUrl || fallbackUrl
-
-            // Check if URL is actually localhost (not just contains the substring)
-            // Match http://localhost, https://localhost, or localhost:port
-            if (!url || typeof url !== 'string') {
-              return fallbackUrl
-            }
-
-            try {
-              const urlObj = new URL(url)
-              const isLocalhost = urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1'
-              return isLocalhost ? fallbackUrl : url
-            } catch {
-              // If URL parsing fails, fall back to substring check as last resort
-              // But use a more specific pattern: localhost with protocol or port
-              const localhostPattern = /^https?:\/\/localhost(\/|:|$)/i
-              return localhostPattern.test(url) ? fallbackUrl : url
-            }
-          })(),
+          // Use simple string to avoid any undefined issues during module evaluation
+          url: process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app',
         },
         routes: [
           '/',
@@ -143,11 +126,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      siteUrl:
-        process.env.NUXT_PUBLIC_SITE_URL ||
-        (seoData?.mySite
-          ? seoData.mySite.replace(/\/$/, '')
-          : 'https://shankho-blogsite.vercel.app'),
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app',
       googleAnalytics: {
         id: process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID,
         debug: process.env.NODE_ENV !== 'production',
@@ -209,11 +188,8 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    prerender: {
-      crawlLinks: false,
-      routes: ['/', '/rss.xml'],
-      concurrency: 1,
-    },
+    // Completely disable prerendering to avoid build errors
+    prerender: false,
     experimental: {
       wasm: true,
     },
