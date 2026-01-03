@@ -18,6 +18,10 @@ definePageMeta({
 const { fetchTasks, fetchThemes, updateTask, deleteTask, createTask, purgeDeletedTasks } =
   useTasks()
 
+// Call useRuntimeConfig at setup time (composables must be called during setup, not in async callbacks)
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBase || '/api'
+
 const tasks = ref<Task[]>([])
 const isLoading = ref(false)
 const availableThemes = ref<string[]>([])
@@ -186,8 +190,7 @@ const rollOverPastDates = async (tasksList: Task[]) => {
   if (tasksToUpdate.length > 0) {
     try {
       // Use batch update API for better performance
-      const config = useRuntimeConfig()
-      const apiBase = config.public.apiBase || '/api'
+      // Use apiBase from setup time (composables must be called at setup, not in async callbacks)
       await $fetch(`${apiBase}/planner/tasks/batch-update`, {
         method: 'POST',
         body: { updates: tasksToUpdate },
@@ -258,7 +261,7 @@ const loadData = async () => {
     // Store snapshots: one for rollover comparison (unsorted), one for user change detection (sorted)
     const originalTasksSnapshot = new Map(allTasks.map((t) => [t.id, { ...t }]))
     const sortedTasksSnapshot = new Map(tasks.value.map((t) => [t.id, { ...t }]))
-    
+
     rollOverPastDates(allTasks)
       .then((updatedTasks) => {
         // Compare updatedTasks (from rollover of unsorted allTasks) against original unsorted snapshot
@@ -272,10 +275,12 @@ const loadData = async () => {
         // This compares sorted to sorted, avoiding false positives from order differences
         const userHasChangedTasks = tasks.value.some((task) => {
           const snapshotTask = sortedTasksSnapshot.get(task.id)
-          return !snapshotTask || 
+          return (
+            !snapshotTask ||
             snapshotTask.planned_date !== task.planned_date ||
             snapshotTask.status !== task.status ||
             snapshotTask.title !== task.title
+          )
         })
 
         // Only update if no user changes detected and rollover made changes
@@ -821,10 +826,10 @@ const handleBulkUpload = async (event: Event) => {
 // Set up event listeners and cleanup at top level
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
-    if (!target.closest('.menu-container')) {
-      showMobileMenu.value = false
-      showExportMenu.value = false
-    }
+  if (!target.closest('.menu-container')) {
+    showMobileMenu.value = false
+    showExportMenu.value = false
+  }
 }
 
 onMounted(async () => {
@@ -985,7 +990,10 @@ onUnmounted(() => {
             </button>
             <button
               class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm border-b border-gray-200 dark:border-gray-700"
-              @click="isBulkUploadVisible = true; showMobileMenu = false"
+              @click="
+                isBulkUploadVisible = true
+                showMobileMenu = false
+              "
             >
               <Icon name="mdi:upload" size="20" />
               <span>Bulk Upload</span>
@@ -1026,7 +1034,6 @@ onUnmounted(() => {
     </div>
 
     <div v-else>
-
       <!-- Quick Add Task Section -->
       <div class="mb-4">
         <div
@@ -1231,7 +1238,11 @@ onUnmounted(() => {
                       ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
                       : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
                   ]"
-                  @click="async () => { await updateTaskStatus(task.id, task.status === 'done' ? 'doing' : 'done') }"
+                  @click="
+                    async () => {
+                      await updateTaskStatus(task.id, task.status === 'done' ? 'doing' : 'done')
+                    }
+                  "
                 >
                   <span
                     :class="[
@@ -1607,7 +1618,8 @@ onUnmounted(() => {
               CSV Format
             </label>
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
-              Required columns: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">title,date,theme,mit</code>
+              Required columns:
+              <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">title,date,theme,mit</code>
             </p>
             <button
               class="w-full px-4 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center gap-2 text-sm font-medium"
