@@ -284,4 +284,4 @@ Tasks within each quadrant are sorted by priority score, with the highest priori
 
 ## Support
 
-For technical issues or questions about the planner implementation, refer to the codebase documentation or contact the development team.
+For technical issues or questions about the planner implementation, refer to the codebase documentation or contact @Siddhartha Basu
