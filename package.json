@@ -10,7 +10,7 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
+    "postinstall": "nuxt prepare && npm rebuild sharp || true",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --check ./",
@@ -50,6 +50,7 @@
     "nuxt-icon": "^0.6.8",
     "nuxt-og-image": "^5.0.2",
     "prettier": "^3.5.3",
+    "sharp": "^0.34.5",
     "typescript": "^5.8.2",
     "unenv": "^1.10.0"
   },

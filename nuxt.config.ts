@@ -76,7 +76,12 @@ export default defineNuxtConfig({
         fallback: 'light',
       },
     ],
-    '@nuxtjs/tailwindcss',
+    [
+      '@nuxtjs/tailwindcss',
+      {
+        quiet: true, // Suppress JIT compilation timing warnings
+      },
+    ],
     '@formkit/auto-animate',
     '@stefanobartoletti/nuxt-social-share',
   ],
@@ -182,6 +187,13 @@ export default defineNuxtConfig({
       lg: 1024,
       xl: 1280,
       xxl: 1536,
+    },
+    // Use ipx provider (built-in, no sharp required) for better compatibility
+    // This avoids sharp binary issues during deployment
+    provider: 'ipx',
+    ipx: {
+      // Use ImageKit for optimization if available, otherwise use ipx
+      domains: ['ik.imagekit.io', 'imagekit.io'],
     },
   },
 
