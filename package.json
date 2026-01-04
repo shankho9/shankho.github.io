@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "build": "npx nuxt build",
+    "build": "nuxt build",
     "deploy:prebuilt": "npm run build && npx vercel deploy --prebuilt",
     "deploy:prebuilt:prod": "npm run build && npx vercel deploy --prebuilt --prod",
     "dev": "nuxt dev",
