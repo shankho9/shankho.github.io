@@ -14,7 +14,8 @@
           Session Expiring Soon
         </h3>
         <p class="text-xs text-amber-700 dark:text-amber-300 mb-2">
-          Your admin session token will expire in {{ timeRemaining }}. Click "Refresh Session" to extend it.
+          Your admin session token will expire in {{ timeRemaining }}. Click "Refresh Session" to
+          extend it.
         </p>
         <button
           class="text-xs font-medium text-amber-900 dark:text-amber-100 hover:underline"
@@ -59,14 +60,17 @@ const timeRemaining = computed(() => {
 const refreshSession = async () => {
   try {
     // Call the refresh endpoint to actually extend the token expiry
-    const response = await $fetch<{ success: boolean; tokenExpiresAt?: number }>('/api/admin/refresh', {
-      method: 'POST',
-    })
+    const response = await $fetch<{ success: boolean; tokenExpiresAt?: number }>(
+      '/api/admin/refresh',
+      {
+        method: 'POST',
+      },
+    )
 
     if (response.success && response.tokenExpiresAt) {
       // Update the token expiry in the composable
       setTokenExpiry(response.tokenExpiresAt)
-      
+
       // Force a fresh auth check to update the state
       await checkAuth(true)
     } else {
@@ -78,7 +82,7 @@ const refreshSession = async () => {
     // Fallback: try to check auth anyway
     await checkAuth(true)
   }
-  
+
   dismissed.value = true
   showWarning.value = false
   // Reset dismissed flag after a short delay to allow for future warnings
