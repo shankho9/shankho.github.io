@@ -60,11 +60,19 @@ const refreshSession = async () => {
   await checkAuth(true) // Force refresh
   dismissed.value = true
   showWarning.value = false
+  // Reset dismissed flag after a short delay to allow for future warnings
+  // This ensures the warning can appear again if session expires later
+  setTimeout(() => {
+    dismissed.value = false
+  }, 1000)
 }
 
 const dismissWarning = () => {
   dismissed.value = true
   showWarning.value = false
+  // Reset dismissed flag when session is no longer expiring
+  // This allows the warning to show again on subsequent expirations
+  // We'll reset it when isExpiringSoon becomes false
 }
 
 const updateWarning = () => {
@@ -88,6 +96,11 @@ onUnmounted(() => {
 watch(isExpiringSoon, (newValue) => {
   if (!dismissed.value) {
     showWarning.value = newValue
+  }
+  // Reset dismissed flag when session is no longer expiring
+  // This allows the warning to show again on future expirations
+  if (!newValue && dismissed.value) {
+    dismissed.value = false
   }
 })
 </script>

@@ -75,17 +75,20 @@ export const useAdminAuth = () => {
     sharedCheckPromise.value = (async () => {
       try {
         // Use retry logic with timeout for better reliability
-        const abortController = new AbortController()
-        const timeoutId = setTimeout(() => abortController.abort(), REQUEST_TIMEOUT)
-
+        // Each retry attempt gets its own timeout window
         const response = await retryWithBackoff(
-          () =>
-            withTimeout(
+          () => {
+            // Create a new abort controller and timeout for each retry attempt
+            const abortController = new AbortController()
+            const timeoutId = setTimeout(() => abortController.abort(), REQUEST_TIMEOUT)
+
+            return withTimeout(
               $fetch<{ authenticated: boolean }>('/api/admin/auth', {
                 signal: abortController.signal,
               }).finally(() => clearTimeout(timeoutId)),
               REQUEST_TIMEOUT,
-            ),
+            )
+          },
           MAX_RETRIES,
         )
 
