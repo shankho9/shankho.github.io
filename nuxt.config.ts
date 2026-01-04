@@ -99,8 +99,15 @@ export default defineNuxtConfig({
           rel: 'stylesheet',
           href: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
         },
+        {
+          rel: 'preconnect',
+          href: 'https://ik.imagekit.io',
+          crossorigin: 'anonymous',
+        },
       ],
     },
+    pageTransition: { name: 'page', mode: 'out-in' },
+    layoutTransition: { name: 'layout', mode: 'out-in' },
   },
 
   css: ['~/assets/css/tailwind.css'],
