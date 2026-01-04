@@ -192,6 +192,70 @@ export function clearAdminToken(event: H3Event): void {
 }
 
 /**
+ * Get token expiry timestamp for a valid token
+ * Returns null if token is invalid or not found
+ */
+export function getTokenExpiry(event: H3Event): number | null {
+  const token = getCookie(event, ADMIN_TOKEN_COOKIE)
+  if (!token) {
+    return null
+  }
+
+  const tokenData = tokenStore.get(token)
+  if (!tokenData) {
+    return null
+  }
+
+  // Check if token has expired
+  const now = Date.now()
+  if (now > tokenData.expiresAt) {
+    return null
+  }
+
+  return tokenData.expiresAt
+}
+
+/**
+ * Extend admin token expiry by resetting the expiry time
+ * Returns the new expiry timestamp, or null if token is invalid
+ */
+export function extendAdminToken(event: H3Event): number | null {
+  const token = getCookie(event, ADMIN_TOKEN_COOKIE)
+  if (!token) {
+    return null
+  }
+
+  const tokenData = tokenStore.get(token)
+  if (!tokenData) {
+    return null
+  }
+
+  // Check if token has expired
+  const now = Date.now()
+  if (now > tokenData.expiresAt) {
+    return null
+  }
+
+  // Extend token expiry by resetting to current time + TOKEN_EXPIRY_MS
+  const newExpiresAt = now + TOKEN_EXPIRY_MS
+  tokenStore.set(token, {
+    createdAt: tokenData.createdAt, // Keep original creation time
+    expiresAt: newExpiresAt, // Update expiry time
+  })
+
+  // Update cookie with new expiry
+  setCookie(event, ADMIN_TOKEN_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: TOKEN_EXPIRY_MS / 1000, // Convert to seconds
+  })
+
+  return newExpiresAt
+}
+
+/**
  * Check if 2FA is configured
  */
 export function is2FAConfigured(): boolean {

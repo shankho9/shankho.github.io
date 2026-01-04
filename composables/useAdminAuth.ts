@@ -5,8 +5,10 @@ import { ref, computed } from 'vue'
 const sharedIsAuthenticated = ref<boolean | null>(null) // null = not checked yet
 const sharedIsChecking = ref(false)
 const sharedLastCheck = ref<number>(0)
+const sharedTokenExpiresAt = ref<number | null>(null) // Actual token expiry timestamp
 const sharedCheckPromise = ref<Promise<boolean> | null>(null)
 const CHECK_CACHE_DURATION = 5 * 60 * 1000 // 5 minutes - cache auth state for 5 minutes
+const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 hours - actual token expiry duration
 const REQUEST_TIMEOUT = 10000 // 10 seconds timeout
 const MAX_RETRIES = 2 // Maximum retry attempts
 
@@ -83,7 +85,7 @@ export const useAdminAuth = () => {
             const timeoutId = setTimeout(() => abortController.abort(), REQUEST_TIMEOUT)
 
             return withTimeout(
-              $fetch<{ authenticated: boolean }>('/api/admin/auth', {
+              $fetch<{ authenticated: boolean; tokenExpiresAt?: number | null }>('/api/admin/auth', {
                 signal: abortController.signal,
               }).finally(() => clearTimeout(timeoutId)),
               REQUEST_TIMEOUT,
@@ -94,6 +96,17 @@ export const useAdminAuth = () => {
 
         sharedIsAuthenticated.value = response.authenticated
         sharedLastCheck.value = Date.now()
+        // Store actual token expiry timestamp if provided
+        if (response.tokenExpiresAt) {
+          sharedTokenExpiresAt.value = response.tokenExpiresAt
+        } else if (response.authenticated && sharedTokenExpiresAt.value === null) {
+          // If authenticated but no expiry provided, estimate based on current time + 24 hours
+          // This handles cases where the API doesn't return expiry (backward compatibility)
+          sharedTokenExpiresAt.value = Date.now() + TOKEN_EXPIRY_MS
+        } else if (!response.authenticated) {
+          // Clear token expiry if not authenticated
+          sharedTokenExpiresAt.value = null
+        }
         return response.authenticated
       } catch (error) {
         // Handle different error types
@@ -130,14 +143,35 @@ export const useAdminAuth = () => {
   const setAuthenticated = (value: boolean) => {
     sharedIsAuthenticated.value = value
     sharedLastCheck.value = Date.now()
+    // When setting authenticated, also set token expiry if not already set
+    if (value && sharedTokenExpiresAt.value === null) {
+      // Estimate token expiry as current time + 24 hours
+      sharedTokenExpiresAt.value = Date.now() + TOKEN_EXPIRY_MS
+    } else if (!value) {
+      sharedTokenExpiresAt.value = null
+    }
   }
 
   const clearAuth = () => {
     sharedIsAuthenticated.value = false
     sharedLastCheck.value = 0
+    sharedTokenExpiresAt.value = null
+  }
+
+  const setTokenExpiry = (expiresAt: number) => {
+    sharedTokenExpiresAt.value = expiresAt
+    // Also update last check time to reflect the refresh
+    sharedLastCheck.value = Date.now()
   }
 
   const getTimeUntilExpiry = computed(() => {
+    // Use actual token expiry if available, otherwise fall back to cache duration
+    if (sharedTokenExpiresAt.value !== null) {
+      const now = Date.now()
+      const remaining = sharedTokenExpiresAt.value - now
+      return Math.max(0, remaining)
+    }
+    // Fallback to cache duration if token expiry not available
     if (sharedLastCheck.value === 0) return 0
     const elapsed = Date.now() - sharedLastCheck.value
     const remaining = CHECK_CACHE_DURATION - elapsed
@@ -146,8 +180,9 @@ export const useAdminAuth = () => {
 
   const isExpiringSoon = computed(() => {
     const remaining = getTimeUntilExpiry.value
-    // Warn when less than 1 minute remaining
-    return remaining > 0 && remaining < 60 * 1000
+    // Warn when less than 5 minutes remaining (for actual token expiry)
+    // This gives users time to refresh before the token actually expires
+    return remaining > 0 && remaining < 5 * 60 * 1000
   })
 
   return {
@@ -157,6 +192,7 @@ export const useAdminAuth = () => {
     checkAuth,
     setAuthenticated,
     clearAuth,
+    setTokenExpiry,
     getTimeUntilExpiry,
     isExpiringSoon,
   }

@@ -14,7 +14,7 @@
           Session Expiring Soon
         </h3>
         <p class="text-xs text-amber-700 dark:text-amber-300 mb-2">
-          Your admin session will expire in {{ timeRemaining }}. Please save your work.
+          Your admin session token will expire in {{ timeRemaining }}. Click "Refresh Session" to extend it.
         </p>
         <button
           class="text-xs font-medium text-amber-900 dark:text-amber-100 hover:underline"
@@ -38,7 +38,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAdminAuth } from '~/composables/useAdminAuth'
 
-const { isExpiringSoon, getTimeUntilExpiry, checkAuth } = useAdminAuth()
+const { isExpiringSoon, getTimeUntilExpiry, checkAuth, setTokenExpiry } = useAdminAuth()
 const showWarning = ref(false)
 const dismissed = ref(false)
 let updateInterval: ReturnType<typeof setInterval> | null = null
@@ -57,7 +57,28 @@ const timeRemaining = computed(() => {
 })
 
 const refreshSession = async () => {
-  await checkAuth(true) // Force refresh
+  try {
+    // Call the refresh endpoint to actually extend the token expiry
+    const response = await $fetch<{ success: boolean; tokenExpiresAt?: number }>('/api/admin/refresh', {
+      method: 'POST',
+    })
+
+    if (response.success && response.tokenExpiresAt) {
+      // Update the token expiry in the composable
+      setTokenExpiry(response.tokenExpiresAt)
+      
+      // Force a fresh auth check to update the state
+      await checkAuth(true)
+    } else {
+      // Fallback: if refresh fails, just check auth (won't extend token but will update state)
+      await checkAuth(true)
+    }
+  } catch (error) {
+    console.error('[SessionExpiryWarning] Failed to refresh session:', error)
+    // Fallback: try to check auth anyway
+    await checkAuth(true)
+  }
+  
   dismissed.value = true
   showWarning.value = false
   // Reset dismissed flag after a short delay to allow for future warnings
