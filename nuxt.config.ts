@@ -114,6 +114,24 @@ export default defineNuxtConfig({
 
   devtools: { enabled: true },
 
+  vite: {
+    plugins: [
+      {
+        name: 'fix-app-manifest',
+        resolveId(id) {
+          if (id === '#app-manifest') {
+            return { id: 'virtual:app-manifest', moduleSideEffects: false }
+          }
+        },
+        load(id) {
+          if (id === 'virtual:app-manifest') {
+            return 'export default {}'
+          }
+        },
+      },
+    ],
+  },
+
   nitro: {
     // Prerender specific routes for better performance
     prerender: {

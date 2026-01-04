@@ -1,112 +1,154 @@
 <template>
   <div class="space-y-6">
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Authentication Required Message -->
+    <div v-if="!isAuthenticated" class="mb-4 sm:mb-6">
+      <div
+        class="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-8 text-center border border-gray-200 dark:border-slate-700 shadow-lg"
+      >
+        <Icon
+          name="mdi:lock"
+          class="text-4xl sm:text-6xl text-sky-700 dark:text-sky-400 mb-3 sm:mb-4 mx-auto"
+        />
+        <h2 class="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-zinc-800 dark:text-zinc-200">
+          Authentication Required
+        </h2>
+        <p class="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 mb-4 sm:mb-6 px-2">
+          Please sign in with Google to access location manager.
+        </p>
+        <div id="google-signin-button-locations" class="flex justify-center"></div>
+      </div>
+    </div>
+
+    <div v-if="isAuthenticated" class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       <!-- Form Section -->
       <div>
-        <h3 class="text-lg font-semibold mb-4">Add New Location</h3>
+        <h3 class="text-base font-semibold mb-3 text-gray-900 dark:text-gray-100">
+          Add New Location
+        </h3>
 
         <!-- Place Search -->
         <div
-          class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
+          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
         >
-          <label class="block text-sm font-medium mb-2">Search for a Place</label>
+          <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5"
+            >Search for a Place</label
+          >
           <div class="relative">
             <input
               ref="searchInput"
               v-model="searchQuery"
               type="text"
-              class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 transition-all min-h-[44px] sm:min-h-0"
               placeholder="Type a place name (e.g., Paris, France)"
               @input="onSearchInput"
               @focus="onSearchFocus"
             />
+            <!-- Loading indicator -->
+            <div
+              v-if="isSearching && searchSuggestions.length === 0"
+              class="absolute z-[9999] w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg p-3 text-center text-xs text-gray-500 dark:text-gray-400"
+            >
+              Searching...
+            </div>
+            <!-- Suggestions dropdown -->
             <div
               v-if="searchSuggestions.length > 0"
-              class="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto"
+              class="absolute z-[9999] w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-xl max-h-64 sm:max-h-56 overflow-y-auto"
+              style="position: absolute; top: 100%; left: 0"
             >
               <div
                 v-for="(suggestion, index) in searchSuggestions"
                 :key="index"
-                class="px-4 py-3 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer border-b border-gray-200 dark:border-slate-700 last:border-b-0"
+                class="px-3 py-3 sm:py-2 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer border-b border-gray-200 dark:border-slate-700 last:border-b-0 transition-colors touch-manipulation active:bg-blue-100 dark:active:bg-slate-600"
                 @click="selectSuggestion(suggestion)"
               >
-                <div class="font-medium text-gray-900 dark:text-gray-100">
+                <div class="font-medium text-sm text-gray-900 dark:text-gray-100">
                   {{ suggestion.name }}
                 </div>
-                <div class="text-sm text-gray-500 dark:text-gray-400">
+                <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   {{ suggestion.address }}
                 </div>
                 <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
                   <span v-if="suggestion.lat !== null && suggestion.lng !== null">
-                    Lat: {{ suggestion.lat.toFixed(6) }}, Lng: {{ suggestion.lng.toFixed(6) }}
+                    {{ suggestion.lat.toFixed(4) }}, {{ suggestion.lng.toFixed(4) }}
                   </span>
                   <span v-else class="text-yellow-600 dark:text-yellow-400">
-                    Coordinates not available - enter manually
+                    Coordinates not available
                   </span>
                 </div>
               </div>
             </div>
           </div>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
             Search for a place and select from suggestions to auto-fill coordinates
           </p>
         </div>
 
-        <form class="space-y-4" @submit.prevent="submitPlace">
+        <form class="space-y-3" @submit.prevent="submitPlace">
           <div>
-            <label class="block text-sm font-medium mb-2">Name *</label>
+            <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5"
+              >Name *</label
+            >
             <input
               v-model="form.name"
               type="text"
               required
-              class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 transition-all min-h-[44px] sm:min-h-0"
               placeholder="e.g. Paris, France"
             />
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-sm font-medium mb-2">Latitude *</label>
+              <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5"
+                >Latitude *</label
+              >
               <input
                 v-model.number="form.lat"
                 type="number"
                 step="any"
                 required
-                class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm font-mono border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 transition-all min-h-[44px] sm:min-h-0"
                 placeholder="e.g. 48.8566"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium mb-2">Longitude *</label>
+              <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5"
+                >Longitude *</label
+              >
               <input
                 v-model.number="form.lng"
                 type="number"
                 step="any"
                 required
-                class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm font-mono border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 transition-all min-h-[44px] sm:min-h-0"
                 placeholder="e.g. 2.3522"
               />
             </div>
           </div>
 
           <div>
-            <label class="block text-sm font-medium mb-2">Year Visited</label>
+            <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5"
+              >Year Visited</label
+            >
             <input
               v-model.number="form.year"
               type="number"
               min="1900"
               max="2100"
-              class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 transition-all min-h-[44px] sm:min-h-0"
               placeholder="e.g. 2024"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium mb-2">Type *</label>
+            <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5"
+              >Type *</label
+            >
             <select
               v-model="form.type"
               required
-              class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 transition-all min-h-[44px] sm:min-h-0"
             >
               <option disabled value="">Select a type</option>
               <option value="home">Home</option>
@@ -115,21 +157,25 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium mb-2">Description</label>
+            <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5"
+              >Description</label
+            >
             <textarea
               v-model="form.description"
               rows="3"
-              class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 transition-all resize-none min-h-[80px] sm:min-h-0"
               placeholder="Optional description"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium mb-2">Blog Slug</label>
+            <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5"
+              >Blog Slug</label
+            >
             <input
               v-model="form.blog_slug"
               type="text"
-              class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 transition-all min-h-[44px] sm:min-h-0"
               placeholder="Optional blog post slug"
             />
           </div>
@@ -137,7 +183,7 @@
           <button
             type="submit"
             :disabled="isSubmitting"
-            class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full px-4 py-3 sm:py-2 text-base sm:text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation min-h-[44px] sm:min-h-0"
           >
             {{ isSubmitting ? 'Adding...' : 'Add Location' }}
           </button>
@@ -160,25 +206,26 @@
 
       <!-- Map Preview Section -->
       <div>
-        <h3 class="text-lg font-semibold mb-4">Map Preview</h3>
-        <div class="border rounded-lg overflow-hidden" style="height: 500px">
+        <h3 class="text-base font-semibold mb-3 text-gray-900 dark:text-gray-100">Map Preview</h3>
+        <div class="border rounded-lg overflow-hidden" style="height: 300px; min-height: 300px">
           <div ref="mapContainer" class="w-full h-full"></div>
         </div>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-          Enter coordinates to see location on map
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5 px-1">
+          Search for a place above or enter coordinates to see location on map. Marker will appear
+          when coordinates are set.
         </p>
       </div>
     </div>
 
     <!-- Locations List Section -->
-    <div class="mt-8">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-semibold">
+    <div v-if="isAuthenticated" class="mt-4 sm:mt-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">
           All Locations ({{ filteredAndSortedLocations.length
           }}{{ locationSearchQuery ? ` of ${locations.length}` : '' }})
         </h3>
         <button
-          class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
+          class="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-base sm:text-sm touch-manipulation min-h-[44px] sm:min-h-0"
           @click="loadLocations"
         >
           Refresh
@@ -186,18 +233,18 @@
       </div>
 
       <!-- Search and Sort Controls -->
-      <div class="mb-4 flex gap-4 items-center">
+      <div class="mb-3 flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
         <div class="flex-1">
           <input
             v-model="locationSearchQuery"
             type="text"
-            class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
-            placeholder="Search locations by name, description, type, or coordinates..."
+            class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 transition-all min-h-[44px] sm:min-h-0"
+            placeholder="Search locations..."
           />
         </div>
         <button
           v-if="locationSearchQuery"
-          class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm"
+          class="px-4 py-2.5 sm:py-2 text-sm font-medium bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0 whitespace-nowrap"
           @click="locationSearchQuery = ''"
         >
           Clear
@@ -222,210 +269,227 @@
         No locations match your search criteria.
       </div>
 
-      <div v-else class="overflow-x-auto border rounded-lg dark:border-slate-700">
-        <table class="w-full">
-          <thead class="bg-gray-50 dark:bg-slate-800">
-            <tr>
-              <th
-                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none"
-                @click="sortBy('name')"
-              >
-                <div class="flex items-center gap-1">
-                  Name
-                  <span class="text-gray-400">
-                    <span v-if="sortColumn === 'name'">
-                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                    </span>
-                    <span v-else class="opacity-30">⇅</span>
-                  </span>
-                </div>
-              </th>
-              <th
-                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none"
-                @click="sortBy('coordinates')"
-              >
-                <div class="flex items-center gap-1">
-                  Coordinates
-                  <span class="text-gray-400">
-                    <span v-if="sortColumn === 'coordinates'">
-                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                    </span>
-                    <span v-else class="opacity-30">⇅</span>
-                  </span>
-                </div>
-              </th>
-              <th
-                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none"
-                @click="sortBy('type')"
-              >
-                <div class="flex items-center gap-1">
-                  Type
-                  <span class="text-gray-400">
-                    <span v-if="sortColumn === 'type'">
-                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                    </span>
-                    <span v-else class="opacity-30">⇅</span>
-                  </span>
-                </div>
-              </th>
-              <th
-                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none"
-                @click="sortBy('year')"
-              >
-                <div class="flex items-center gap-1">
-                  Year
-                  <span class="text-gray-400">
-                    <span v-if="sortColumn === 'year'">
-                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                    </span>
-                    <span v-else class="opacity-30">⇅</span>
-                  </span>
-                </div>
-              </th>
-              <th
-                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none"
-                @click="sortBy('description')"
-              >
-                <div class="flex items-center gap-1">
-                  Description
-                  <span class="text-gray-400">
-                    <span v-if="sortColumn === 'description'">
-                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                    </span>
-                    <span v-else class="opacity-30">⇅</span>
-                  </span>
-                </div>
-              </th>
-              <th
-                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-              >
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
-            <tr
-              v-for="location in filteredAndSortedLocations"
-              :key="location.id"
-              class="hover:bg-gray-50 dark:hover:bg-slate-800"
+      <div v-else class="overflow-x-auto border rounded-lg dark:border-slate-700 -mx-2 sm:mx-0">
+        <div class="inline-block min-w-full align-middle">
+          <table class="min-w-full text-sm">
+            <thead class="bg-gray-50 dark:bg-slate-800">
+              <tr>
+                <th
+                  class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
+                  @click="sortBy('name')"
+                >
+                  <div class="flex items-center gap-1.5">
+                    Name
+                    <Icon
+                      :name="
+                        sortColumn === 'name'
+                          ? sortDirection === 'asc'
+                            ? 'mdi:chevron-up'
+                            : 'mdi:chevron-down'
+                          : 'mdi:unfold-more-horizontal'
+                      "
+                      size="16"
+                      class="text-gray-400"
+                    />
+                  </div>
+                </th>
+                <th
+                  class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
+                  @click="sortBy('coordinates')"
+                >
+                  <div class="flex items-center gap-1.5">
+                    Coordinates
+                    <Icon
+                      :name="
+                        sortColumn === 'coordinates'
+                          ? sortDirection === 'asc'
+                            ? 'mdi:chevron-up'
+                            : 'mdi:chevron-down'
+                          : 'mdi:unfold-more-horizontal'
+                      "
+                      size="16"
+                      class="text-gray-400"
+                    />
+                  </div>
+                </th>
+                <th
+                  class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
+                  @click="sortBy('type')"
+                >
+                  <div class="flex items-center gap-1.5">
+                    Type
+                    <Icon
+                      :name="
+                        sortColumn === 'type'
+                          ? sortDirection === 'asc'
+                            ? 'mdi:chevron-up'
+                            : 'mdi:chevron-down'
+                          : 'mdi:unfold-more-horizontal'
+                      "
+                      size="16"
+                      class="text-gray-400"
+                    />
+                  </div>
+                </th>
+                <th
+                  class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
+                  @click="sortBy('year')"
+                >
+                  <div class="flex items-center gap-1.5">
+                    Year
+                    <Icon
+                      :name="
+                        sortColumn === 'year'
+                          ? sortDirection === 'asc'
+                            ? 'mdi:chevron-up'
+                            : 'mdi:chevron-down'
+                          : 'mdi:unfold-more-horizontal'
+                      "
+                      size="16"
+                      class="text-gray-400"
+                    />
+                  </div>
+                </th>
+                <th
+                  class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
+                  @click="sortBy('description')"
+                >
+                  <div class="flex items-center gap-1.5">
+                    Description
+                    <Icon
+                      :name="
+                        sortColumn === 'description'
+                          ? sortDirection === 'asc'
+                            ? 'mdi:chevron-up'
+                            : 'mdi:chevron-down'
+                          : 'mdi:unfold-more-horizontal'
+                      "
+                      size="16"
+                      class="text-gray-400"
+                    />
+                  </div>
+                </th>
+                <th
+                  class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider w-20 sm:w-16"
+                >
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody
+              class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700"
             >
-              <td class="px-4 py-3 whitespace-nowrap">
-                <div
-                  v-if="editingId !== location.id"
-                  class="font-medium text-gray-900 dark:text-gray-100"
+              <tr
+                v-for="location in filteredAndSortedLocations"
+                :key="location.id"
+                class="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+              >
+                <td class="px-2 sm:px-3 py-2">
+                  <div class="font-medium text-sm text-gray-900 dark:text-gray-100 break-words">
+                    {{ location.name }}
+                  </div>
+                </td>
+                <td
+                  class="px-2 sm:px-3 py-2 text-xs text-gray-600 dark:text-gray-400 font-mono whitespace-nowrap"
                 >
-                  {{ location.name }}
-                </div>
-                <input
-                  v-else
-                  :value="location.name"
-                  type="text"
-                  disabled
-                  class="w-full px-2 py-1 border rounded dark:bg-slate-700 dark:border-slate-600 bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                />
-              </td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                <div v-if="editingId !== location.id">
-                  {{ location.lat.toFixed(6) }}, {{ location.lng.toFixed(6) }}
-                </div>
-                <div v-else class="flex gap-2">
-                  <input
-                    :value="location.lat.toFixed(6)"
-                    type="text"
-                    disabled
-                    class="w-24 px-2 py-1 border rounded dark:bg-slate-700 dark:border-slate-600 bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                  />
-                  <input
-                    :value="location.lng.toFixed(6)"
-                    type="text"
-                    disabled
-                    class="w-24 px-2 py-1 border rounded dark:bg-slate-700 dark:border-slate-600 bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                  />
-                </div>
-              </td>
-              <td class="px-4 py-3 whitespace-nowrap">
-                <div v-if="editingId !== location.id">
-                  <span
-                    class="px-2 py-1 text-xs rounded-full"
-                    :class="
-                      location.type === 'home'
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                    "
-                  >
-                    {{ location.type || 'N/A' }}
-                  </span>
-                </div>
-                <select
-                  v-else
-                  v-model="editForms[location.id].type"
-                  class="w-full px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600"
-                >
-                  <option value="">Select type</option>
-                  <option value="home">Home</option>
-                  <option value="trip">Trip</option>
-                </select>
-              </td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                <div v-if="editingId !== location.id">
-                  {{ location.year || 'N/A' }}
-                </div>
-                <input
-                  v-else
-                  v-model.number="editForms[location.id].year"
-                  type="number"
-                  min="1900"
-                  max="2100"
-                  class="w-20 px-2 py-1 border rounded dark:bg-slate-700 dark:border-slate-600"
-                  placeholder="Year"
-                />
-              </td>
-              <td class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                <div v-if="editingId !== location.id" class="max-w-xs truncate">
-                  {{ location.description || 'N/A' }}
-                </div>
-                <textarea
-                  v-else
-                  v-model="editForms[location.id].description"
-                  rows="2"
-                  class="w-full px-2 py-1 border rounded dark:bg-slate-700 dark:border-slate-600"
-                  placeholder="Description"
-                />
-              </td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm">
-                <div v-if="editingId !== location.id" class="flex gap-2">
-                  <button
-                    class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs"
+                  {{ location.lat.toFixed(4) }}, {{ location.lng.toFixed(4) }}
+                </td>
+                <td class="px-2 sm:px-3 py-2">
+                  <div
+                    v-if="editingId !== location.id"
+                    class="cursor-pointer"
+                    title="Click to edit"
                     @click="startEdit(location)"
                   >
-                    Edit
-                  </button>
-                  <button
-                    class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
-                    @click="confirmDelete(location)"
+                    <span
+                      class="px-2 py-0.5 text-xs font-medium rounded-full"
+                      :class="
+                        location.type === 'home'
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                      "
+                    >
+                      {{ location.type || 'N/A' }}
+                    </span>
+                  </div>
+                  <select
+                    v-else
+                    v-model="editForms[location.id].type"
+                    class="w-full px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
                   >
-                    Delete
-                  </button>
-                </div>
-                <div v-else class="flex gap-2">
-                  <button
-                    :disabled="isSaving"
-                    class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 text-xs"
-                    @click="saveEdit(location.id)"
+                    <option value="">Select type</option>
+                    <option value="home">Home</option>
+                    <option value="trip">Trip</option>
+                  </select>
+                </td>
+                <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-400">
+                  <div
+                    v-if="editingId !== location.id"
+                    class="cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    title="Click to edit"
+                    @click="startEdit(location)"
                   >
-                    {{ isSaving ? 'Saving...' : 'Save' }}
-                  </button>
-                  <button
-                    class="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs"
-                    @click="cancelEdit"
+                    {{ location.year || 'N/A' }}
+                  </div>
+                  <input
+                    v-else
+                    v-model.number="editForms[location.id].year"
+                    type="number"
+                    min="1900"
+                    max="2100"
+                    class="w-20 px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+                    placeholder="Year"
+                  />
+                </td>
+                <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-400">
+                  <div
+                    v-if="editingId !== location.id"
+                    class="max-w-xs truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    :title="location.description || 'Click to add description'"
+                    @click="startEdit(location)"
                   >
-                    Cancel
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                    {{ location.description || 'N/A' }}
+                  </div>
+                  <textarea
+                    v-else
+                    v-model="editForms[location.id].description"
+                    rows="2"
+                    class="w-full px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 resize-none"
+                    placeholder="Description"
+                  />
+                </td>
+                <td class="px-2 sm:px-3 py-2">
+                  <div v-if="editingId !== location.id" class="flex items-center justify-end gap-1">
+                    <button
+                      class="p-2 sm:p-1.5 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors rounded hover:bg-red-50 dark:hover:bg-red-900/20 touch-manipulation"
+                      title="Delete location"
+                      @click.stop="confirmDelete(location)"
+                    >
+                      <Icon name="mdi:delete-outline" size="20" class="sm:w-[18px] sm:h-[18px]" />
+                    </button>
+                  </div>
+                  <div v-else class="flex items-center justify-end gap-1.5">
+                    <button
+                      :disabled="isSaving"
+                      class="p-2 sm:p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 disabled:opacity-50 transition-colors rounded hover:bg-green-50 dark:hover:bg-green-900/20 touch-manipulation"
+                      title="Save changes"
+                      @click="saveEdit(location.id)"
+                    >
+                      <Icon name="mdi:check" size="20" class="sm:w-[18px] sm:h-[18px]" />
+                    </button>
+                    <button
+                      class="p-2 sm:p-1.5 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors rounded hover:bg-gray-50 dark:hover:bg-gray-900/20 touch-manipulation"
+                      title="Cancel editing"
+                      @click="cancelEdit"
+                    >
+                      <Icon name="mdi:close" size="20" class="sm:w-[18px] sm:h-[18px]" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -505,7 +569,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { useGoogleAuth } from '~/composables/useGoogleAuth'
 
 interface PlaceForm {
   name: string
@@ -555,6 +620,7 @@ const mapContainer = ref<HTMLDivElement | null>(null)
 const searchInput = ref<HTMLInputElement | null>(null)
 const searchQuery = ref('')
 const searchSuggestions = ref<PlaceSuggestion[]>([])
+const isSearching = ref(false)
 const locations = ref<Location[]>([])
 const isLoadingLocations = ref(false)
 const editingId = ref<number | null>(null)
@@ -575,39 +641,118 @@ let placesService: google.maps.places.PlacesService | null = null
 let searchTimeout: NodeJS.Timeout | null = null
 let currentSearchQuery: string | null = null // Track the query for the current search to prevent race conditions
 
-const loadMap = async () => {
-  if (!mapContainer.value) return
+// Google Authentication
+const { user, isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
 
-  // Wait for Google Maps to load with timeout
-  if (!window.google || !window.google.maps) {
-    try {
-      await new Promise<void>((resolve, reject) => {
-        // Declare checkGoogle before it's used in the timeout callback
-        let checkGoogle: NodeJS.Timeout | null = null
-        const timeout = setTimeout(() => {
-          if (checkGoogle) {
-            clearInterval(checkGoogle)
+const loadGoogleMapsScript = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    // Check if Google Maps is already loaded
+    if (window.google && window.google.maps && window.google.maps.places) {
+      resolve()
+      return
+    }
+
+    // Check if script is already being loaded
+    const existing = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]')
+    if (existing) {
+      const script = existing as HTMLScriptElement
+      // Check if it includes places library
+      if (script.src.includes('libraries=places')) {
+        // Wait for it to load
+        if (script.readyState === 'complete' || script.readyState === 'loaded') {
+          if (window.google && window.google.maps && window.google.maps.places) {
+            resolve()
+            return
           }
-          reject(new Error('Google Maps API failed to load within 10 seconds'))
-        }, 10000) // 10 second timeout
-
-        if (import.meta.client) {
-          checkGoogle = setInterval(() => {
-            if (window.google && window.google.maps) {
-              if (checkGoogle) {
-                clearInterval(checkGoogle)
-              }
-              clearTimeout(timeout)
+          // Poll for API availability
+          const checkInterval = setInterval(() => {
+            if (window.google && window.google.maps && window.google.maps.places) {
+              clearInterval(checkInterval)
               resolve()
             }
           }, 100)
+          setTimeout(() => {
+            clearInterval(checkInterval)
+            reject(new Error('Google Maps Places API failed to load'))
+          }, 10000)
+          return
         }
-      })
-    } catch (error) {
-      console.error('[Locations] Failed to load Google Maps API:', error)
-      errorMessage.value = 'Failed to load Google Maps. Please refresh the page.'
+        // Script is loading, wait for it
+        existing.addEventListener('load', () => {
+          const checkInterval = setInterval(() => {
+            if (window.google && window.google.maps && window.google.maps.places) {
+              clearInterval(checkInterval)
+              resolve()
+            }
+          }, 100)
+          setTimeout(() => {
+            clearInterval(checkInterval)
+            reject(new Error('Google Maps Places API failed to load'))
+          }, 10000)
+        })
+        existing.addEventListener('error', () => {
+          reject(new Error('Failed to load Google Maps script'))
+        })
+        return
+      } else {
+        // Script exists but doesn't have places library - need to load new one
+        existing.remove()
+      }
+    }
+
+    // Load Google Maps script with Places library
+    const config = useRuntimeConfig()
+    const apiKey = config.public.googleMapsApiKey
+    if (!apiKey) {
+      reject(
+        new Error(
+          'Google Maps API key is not configured. Please set NUXT_PUBLIC_GOOGLE_MAPS_API_KEY environment variable.',
+        ),
+      )
       return
     }
+
+    const script = document.createElement('script')
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
+    script.async = true
+    script.defer = true
+
+    script.onload = () => {
+      // Wait a bit for the API to initialize
+      const checkInterval = setInterval(() => {
+        if (window.google && window.google.maps && window.google.maps.places) {
+          clearInterval(checkInterval)
+          resolve()
+        }
+      }, 100)
+      setTimeout(() => {
+        clearInterval(checkInterval)
+        if (window.google && window.google.maps && window.google.maps.places) {
+          resolve()
+        } else {
+          reject(new Error('Google Maps Places API not available after script load'))
+        }
+      }, 5000)
+    }
+
+    script.onerror = () => {
+      reject(new Error('Failed to load Google Maps script'))
+    }
+
+    document.head.appendChild(script)
+  })
+}
+
+const loadMap = async () => {
+  if (!mapContainer.value) return
+
+  // Load Google Maps script with Places library
+  try {
+    await loadGoogleMapsScript()
+  } catch (error) {
+    console.error('[Locations] Failed to load Google Maps API:', error)
+    errorMessage.value = 'Failed to load Google Maps. Please refresh the page.'
+    return
   }
 
   // Re-verify that Google Maps is available before using it
@@ -629,11 +774,28 @@ const loadMap = async () => {
       if (window.google.maps.places) {
         autocompleteService = new window.google.maps.places.AutocompleteService()
         placesService = new window.google.maps.places.PlacesService(map)
+        console.log('[Locations] Places services initialized')
+      } else {
+        console.error('[Locations] Google Maps Places API not available')
+        errorMessage.value =
+          'Google Maps Places API is not available. Please check your API key includes Places API.'
       }
     } catch (error) {
       console.error('[Locations] Failed to initialize map:', error)
       errorMessage.value = 'Failed to initialize map. Please check your Google Maps API key.'
       return
+    }
+  } else {
+    // Map already exists, ensure services are initialized
+    if (window.google.maps.places) {
+      if (!autocompleteService) {
+        autocompleteService = new window.google.maps.places.AutocompleteService()
+        console.log('[Locations] AutocompleteService re-initialized')
+      }
+      if (!placesService && map) {
+        placesService = new window.google.maps.places.PlacesService(map)
+        console.log('[Locations] PlacesService re-initialized')
+      }
     }
   }
 
@@ -661,17 +823,22 @@ const updateMarker = () => {
 
   try {
     if (marker) {
+      // Update existing marker position and title
       marker.setPosition(position)
+      marker.setTitle(form.value.name || 'Location')
     } else {
+      // Create new marker
       marker = new window.google.maps.Marker({
         position,
         map,
         title: form.value.name || 'Location',
+        animation: window.google.maps.Animation.DROP, // Add drop animation for better visibility
       })
     }
 
+    // Center and zoom map to show the marker clearly
     map.setCenter(position)
-    map.setZoom(10)
+    map.setZoom(12) // Increased zoom for better visibility of the selected location
   } catch (error) {
     console.error('[Locations] Failed to update marker:', error)
   }
@@ -686,6 +853,7 @@ const onSearchInput = () => {
   // Clear suggestions if search is empty
   if (!searchQuery.value.trim()) {
     searchSuggestions.value = []
+    isSearching.value = false
     currentSearchQuery = null
     return
   }
@@ -704,13 +872,33 @@ const onSearchFocus = () => {
 }
 
 const performSearch = () => {
-  if (!autocompleteService || !searchQuery.value.trim()) {
+  if (!searchQuery.value.trim()) {
+    searchSuggestions.value = []
+    isSearching.value = false
     return
+  }
+
+  if (!autocompleteService) {
+    console.warn('[Locations] AutocompleteService not available. Attempting to initialize...')
+    // Try to initialize if map exists
+    if (map && window.google?.maps?.places) {
+      autocompleteService = new window.google.maps.places.AutocompleteService()
+      placesService =
+        placesService || (map ? new window.google.maps.places.PlacesService(map) : null)
+      console.log('[Locations] AutocompleteService initialized during search')
+    } else {
+      console.error(
+        '[Locations] Cannot initialize AutocompleteService - map or Google Maps API not available',
+      )
+      isSearching.value = false
+      return
+    }
   }
 
   // Capture the current query to track which search this response belongs to
   const queryForThisSearch = searchQuery.value.trim()
   currentSearchQuery = queryForThisSearch
+  isSearching.value = true
 
   autocompleteService.getPlacePredictions(
     {
@@ -788,20 +976,29 @@ const performSearch = () => {
             // Filter out only actual error cases (marked with isError flag)
             // Keep suggestions even if coordinates are null (placesService unavailable)
             // This preserves legitimate places at (0, 0) while removing API error cases
-            searchSuggestions.value = suggestions.filter((s) => !s.isError)
+            const filteredSuggestions = suggestions.filter((s) => !s.isError)
+            searchSuggestions.value = filteredSuggestions
+            isSearching.value = false
+            console.log('[Locations] Search results:', {
+              query: queryForThisSearch,
+              total: suggestions.length,
+              filtered: filteredSuggestions.length,
+              suggestions: filteredSuggestions,
+            })
           }
         })
       } else {
         // Only clear suggestions if this is still the current search
         if (currentSearchQuery === queryForThisSearch) {
           searchSuggestions.value = []
+          isSearching.value = false
         }
       }
     },
   )
 }
 
-const selectSuggestion = (suggestion: PlaceSuggestion) => {
+const selectSuggestion = async (suggestion: PlaceSuggestion) => {
   // Fill form with selected suggestion
   form.value.name = suggestion.name
   // Only set coordinates if they're available (not null)
@@ -812,7 +1009,14 @@ const selectSuggestion = (suggestion: PlaceSuggestion) => {
   searchQuery.value = ''
   searchSuggestions.value = []
 
+  // Ensure map is loaded before updating marker
+  if (!map) {
+    await loadMap()
+  }
+
   // Update map marker (will only show if coordinates are available)
+  // Use nextTick to ensure form values are updated
+  await nextTick()
   updateMarker()
 }
 
@@ -942,11 +1146,11 @@ const startEdit = (location: Location) => {
   editingId.value = location.id
   // Store edit state per location ID to prevent overwriting unsaved edits
   // Use object property assignment for Vue 3 reactivity
-  // Only set editable fields (type, year, description)
+  // Name and coordinates are not editable - only type, year, and description
   editForms.value[location.id] = {
-    name: location.name, // Keep for display, but won't be sent to API
-    lat: location.lat, // Keep for display, but won't be sent to API
-    lng: location.lng, // Keep for display, but won't be sent to API
+    name: location.name, // Not editable, but needed for API
+    lat: location.lat, // Not editable, but needed for API
+    lng: location.lng, // Not editable, but needed for API
     year: location.year ?? null, // Use ?? to preserve 0 (falsy but valid)
     description: location.description ?? '', // Use ?? to preserve empty string if needed
     blog_slug: location.blog_slug ?? '', // Keep for API, but not editable in UI
@@ -977,11 +1181,17 @@ const saveEdit = async (id: number) => {
 
     // Use values from editForm which were captured when editing started
     // This ensures we have valid values even if the location was deleted/refreshed
-    // editForm.name, editForm.lat, editForm.lng are guaranteed to be valid from startEdit()
+    // Name and coordinates are not editable, so they should always be valid from startEdit()
+    // Validate that required fields are present
+    if (!editForm.name || editForm.lat == null || editForm.lng == null) {
+      errorMessage.value = 'Name, latitude, and longitude are required.'
+      return
+    }
+
     const updateData = {
-      name: editForm.name, // Use captured name (guaranteed valid from startEdit)
-      lat: editForm.lat!, // Use captured lat (guaranteed valid from startEdit)
-      lng: editForm.lng!, // Use captured lng (guaranteed valid from startEdit)
+      name: editForm.name, // Not editable, but required for API
+      lat: editForm.lat, // Not editable, but required for API
+      lng: editForm.lng, // Not editable, but required for API
       type: editForm.type,
       year: editForm.year,
       description: editForm.description,
@@ -1147,9 +1357,166 @@ const sortBy = (column: 'name' | 'coordinates' | 'type' | 'year' | 'description'
   }
 }
 
-onMounted(() => {
-  loadMap()
-  loadLocations()
+onMounted(async () => {
+  initializeGoogleSignIn()
+  loadStoredUser()
+
+  // Only load map and locations if authenticated
+  if (isAuthenticated.value) {
+    // Wait a bit for DOM to be ready
+    await nextTick()
+    setTimeout(async () => {
+      try {
+        await loadMap()
+        loadLocations()
+      } catch (error) {
+        console.error('[Locations] Failed to initialize on mount:', error)
+      }
+    }, 100)
+  }
+
+  // Render sign-in button if not authenticated
+  if (typeof window !== 'undefined' && !isAuthenticated.value) {
+    // Wait for Google script to load, then render button
+    let retryCount = 0
+    const maxRetries = 50
+    const retryInterval = 100
+
+    const attemptRender = () => {
+      if (typeof window === 'undefined' || !window.google || !window.google.accounts) {
+        if (retryCount < maxRetries) {
+          retryCount++
+          setTimeout(attemptRender, retryInterval)
+        }
+        return
+      }
+
+      const clientId = useRuntimeConfig().public.googleClientId
+      if (!clientId) {
+        console.error('[Locations] Google Client ID not configured')
+        return
+      }
+
+      // Initialize Google Sign-In
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async (response: { credential: string }) => {
+          try {
+            const result = await $fetch<{
+              user: { email: string; name: string; picture: string; sub: string }
+            }>('/api/auth/google', {
+              method: 'POST',
+              body: { token: response.credential },
+            })
+            if (result && result.user) {
+              user.value = result.user
+              localStorage.setItem('google_user', JSON.stringify(result.user))
+
+              if (typeof window !== 'undefined') {
+                const { trackLogin } = await import('~/utils/analytics/trackLogin')
+                await trackLogin(result.user.email, result.user.name, window.location.pathname)
+                window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+              }
+            }
+          } catch (error) {
+            console.error('[Locations] Authentication failed:', error)
+          }
+        },
+      })
+
+      const buttonElement = document.getElementById('google-signin-button-locations')
+      if (buttonElement && window.google && window.google.accounts) {
+        buttonElement.innerHTML = ''
+        window.google.accounts.id.renderButton(buttonElement, {
+          theme: 'outline',
+          size: 'large',
+          text: 'signin_with',
+          width: 250,
+        })
+      }
+    }
+
+    attemptRender()
+  }
+})
+
+// Watch for authentication changes to re-render button
+watch(isAuthenticated, async (newValue) => {
+  if (newValue) {
+    // When authenticated, ensure map and services are loaded
+    await nextTick()
+    // Wait for DOM to be ready and map container to exist
+    let retries = 0
+    const maxRetries = 20
+    const checkAndLoad = async () => {
+      if (mapContainer.value) {
+        try {
+          console.log('[Locations] Authentication changed to true, reloading map...')
+          await loadMap()
+          loadLocations()
+          console.log('[Locations] Map and services loaded after authentication')
+        } catch (error) {
+          console.error('[Locations] Failed to reload map after authentication:', error)
+        }
+      } else if (retries < maxRetries) {
+        retries++
+        setTimeout(checkAndLoad, 100)
+      } else {
+        console.error('[Locations] Map container not found after authentication')
+      }
+    }
+    checkAndLoad()
+  } else if (typeof window !== 'undefined') {
+    // When not authenticated, render sign-in button
+    nextTick(() => {
+      if (typeof window === 'undefined' || !window.google || !window.google.accounts) return
+
+      const buttonElement = document.getElementById('google-signin-button-locations')
+      if (!buttonElement) return
+
+      buttonElement.innerHTML = ''
+      const clientId = useRuntimeConfig().public.googleClientId
+      if (!clientId) {
+        console.error('[Locations] Google Client ID not configured')
+        return
+      }
+
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async (response: { credential: string }) => {
+          try {
+            const result = await $fetch<{
+              user: { email: string; name: string; picture: string; sub: string }
+            }>('/api/auth/google', {
+              method: 'POST',
+              body: { token: response.credential },
+            })
+            if (result && result.user) {
+              user.value = result.user
+              localStorage.setItem('google_user', JSON.stringify(result.user))
+
+              if (typeof window !== 'undefined') {
+                const { trackLogin } = await import('~/utils/analytics/trackLogin')
+                await trackLogin(result.user.email, result.user.name, window.location.pathname)
+                window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
+              }
+            }
+          } catch (error) {
+            console.error('[Locations] Authentication failed:', error)
+          }
+        },
+      })
+
+      if (window.google && window.google.accounts) {
+        window.google.accounts.id.renderButton(buttonElement, {
+          theme: 'outline',
+          size: 'large',
+          text: 'signin_with',
+          width: 250,
+        })
+      }
+    })
+  }
 })
 
 onUnmounted(() => {

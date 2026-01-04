@@ -93,9 +93,9 @@
           </div>
 
           <!-- Location Manager Utility -->
-          <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
-            @click="activeUtility = 'locations'"
+          <NuxtLink
+            to="/dev/locations"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation block"
           >
             <div class="flex items-center gap-4 mb-4">
               <div
@@ -111,7 +111,7 @@
             <p class="text-gray-600 dark:text-gray-400 text-sm">
               Web interface to add and manage locations on the travel map
             </p>
-          </div>
+          </NuxtLink>
 
           <!-- Database Stats Utility -->
           <div
@@ -273,9 +273,6 @@
             <!-- Visitor Analytics Component -->
             <DevVisitors v-if="activeUtility === 'visitors'" />
 
-            <!-- Location Manager Component -->
-            <DevLocations v-else-if="activeUtility === 'locations'" />
-
             <!-- Database Stats Component -->
             <DevDatabase v-else-if="activeUtility === 'database'" />
 
@@ -327,7 +324,6 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import DevVisitors from '~/components/dev/Visitors.vue'
-import DevLocations from '~/components/dev/Locations.vue'
 import DevDatabase from '~/components/dev/Database.vue'
 import DevHealth from '~/components/dev/Health.vue'
 import DevEmails from '~/components/dev/Emails.vue'
@@ -354,7 +350,6 @@ const showPlannerAuthWarning = ref(false)
 
 const utilityTitles: Record<string, string> = {
   visitors: 'Visitor Analytics',
-  locations: 'Location Manager',
   database: 'Database Statistics',
   health: 'API Health Check',
   emails: 'Email Logs',
