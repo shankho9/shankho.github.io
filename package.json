@@ -10,7 +10,7 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
+    "postinstall": "node -e \"try { const nuxt = require.resolve('nuxt/bin/nuxt.js'); require('child_process').execSync('node ' + nuxt + ' prepare', {stdio: 'inherit'}); } catch(e) { console.log('nuxt prepare skipped (will run during build)'); }\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --check ./",
