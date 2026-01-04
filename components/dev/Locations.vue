@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-6 w-full max-w-full overflow-x-hidden">
     <!-- Authentication Required Message -->
     <div v-if="!isAuthenticated" class="mb-4 sm:mb-6">
       <div
@@ -21,7 +21,7 @@
 
     <div v-if="isAuthenticated" class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       <!-- Form Section -->
-      <div>
+      <div class="min-w-0">
         <h3 class="text-base font-semibold mb-3 text-gray-900 dark:text-gray-100">
           Add New Location
         </h3>
@@ -33,12 +33,12 @@
           <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5"
             >Search for a Place</label
           >
-          <div class="relative">
+          <div class="relative w-full">
             <input
               ref="searchInput"
               v-model="searchQuery"
               type="text"
-              class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 transition-all min-h-[44px] sm:min-h-0"
+              class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 transition-all min-h-[44px] sm:min-h-0 max-w-full"
               placeholder="Type a place name (e.g., Paris, France)"
               @input="onSearchInput"
               @focus="onSearchFocus"
@@ -205,9 +205,12 @@
       </div>
 
       <!-- Map Preview Section -->
-      <div>
+      <div class="min-w-0">
         <h3 class="text-base font-semibold mb-3 text-gray-900 dark:text-gray-100">Map Preview</h3>
-        <div class="border rounded-lg overflow-hidden" style="height: 300px; min-height: 300px">
+        <div
+          class="border rounded-lg overflow-hidden w-full"
+          style="height: 300px; min-height: 300px; max-width: 100%"
+        >
           <div ref="mapContainer" class="w-full h-full"></div>
         </div>
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5 px-1">
@@ -269,228 +272,350 @@
         No locations match your search criteria.
       </div>
 
-      <div v-else class="overflow-x-auto border rounded-lg dark:border-slate-700 -mx-2 sm:mx-0">
-        <div class="inline-block min-w-full align-middle">
-          <table class="min-w-full text-sm">
-            <thead class="bg-gray-50 dark:bg-slate-800">
-              <tr>
-                <th
-                  class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
-                  @click="sortBy('name')"
-                >
-                  <div class="flex items-center gap-1.5">
-                    Name
-                    <Icon
-                      :name="
-                        sortColumn === 'name'
-                          ? sortDirection === 'asc'
-                            ? 'mdi:chevron-up'
-                            : 'mdi:chevron-down'
-                          : 'mdi:unfold-more-horizontal'
-                      "
-                      size="16"
-                      class="text-gray-400"
-                    />
-                  </div>
-                </th>
-                <th
-                  class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
-                  @click="sortBy('coordinates')"
-                >
-                  <div class="flex items-center gap-1.5">
-                    Coordinates
-                    <Icon
-                      :name="
-                        sortColumn === 'coordinates'
-                          ? sortDirection === 'asc'
-                            ? 'mdi:chevron-up'
-                            : 'mdi:chevron-down'
-                          : 'mdi:unfold-more-horizontal'
-                      "
-                      size="16"
-                      class="text-gray-400"
-                    />
-                  </div>
-                </th>
-                <th
-                  class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
-                  @click="sortBy('type')"
-                >
-                  <div class="flex items-center gap-1.5">
-                    Type
-                    <Icon
-                      :name="
-                        sortColumn === 'type'
-                          ? sortDirection === 'asc'
-                            ? 'mdi:chevron-up'
-                            : 'mdi:chevron-down'
-                          : 'mdi:unfold-more-horizontal'
-                      "
-                      size="16"
-                      class="text-gray-400"
-                    />
-                  </div>
-                </th>
-                <th
-                  class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
-                  @click="sortBy('year')"
-                >
-                  <div class="flex items-center gap-1.5">
-                    Year
-                    <Icon
-                      :name="
-                        sortColumn === 'year'
-                          ? sortDirection === 'asc'
-                            ? 'mdi:chevron-up'
-                            : 'mdi:chevron-down'
-                          : 'mdi:unfold-more-horizontal'
-                      "
-                      size="16"
-                      class="text-gray-400"
-                    />
-                  </div>
-                </th>
-                <th
-                  class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
-                  @click="sortBy('description')"
-                >
-                  <div class="flex items-center gap-1.5">
-                    Description
-                    <Icon
-                      :name="
-                        sortColumn === 'description'
-                          ? sortDirection === 'asc'
-                            ? 'mdi:chevron-up'
-                            : 'mdi:chevron-down'
-                          : 'mdi:unfold-more-horizontal'
-                      "
-                      size="16"
-                      class="text-gray-400"
-                    />
-                  </div>
-                </th>
-                <th
-                  class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider w-20 sm:w-16"
-                >
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody
-              class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700"
-            >
-              <tr
-                v-for="location in filteredAndSortedLocations"
-                :key="location.id"
-                class="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
-              >
-                <td class="px-2 sm:px-3 py-2">
-                  <div class="font-medium text-sm text-gray-900 dark:text-gray-100 break-words">
-                    {{ location.name }}
-                  </div>
-                </td>
-                <td
-                  class="px-2 sm:px-3 py-2 text-xs text-gray-600 dark:text-gray-400 font-mono whitespace-nowrap"
-                >
+      <!-- Mobile: Card Layout, Desktop: Table Layout -->
+      <template v-if="filteredAndSortedLocations.length > 0">
+        <div class="block sm:hidden space-y-3">
+          <div
+            v-for="location in filteredAndSortedLocations"
+            :key="location.id"
+            class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4 space-y-3"
+          >
+            <div class="flex items-start justify-between">
+              <div class="flex-1 min-w-0">
+                <h4 class="font-semibold text-sm text-gray-900 dark:text-gray-100 break-words">
+                  {{ location.name }}
+                </h4>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono">
                   {{ location.lat.toFixed(4) }}, {{ location.lng.toFixed(4) }}
-                </td>
-                <td class="px-2 sm:px-3 py-2">
-                  <div
-                    v-if="editingId !== location.id"
-                    class="cursor-pointer"
-                    title="Click to edit"
-                    @click="startEdit(location)"
+                </p>
+              </div>
+              <div class="flex items-center gap-2 ml-2 flex-shrink-0">
+                <button
+                  v-if="editingId !== location.id"
+                  class="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors rounded hover:bg-red-50 dark:hover:bg-red-900/20 touch-manipulation"
+                  title="Delete location"
+                  @click.stop="confirmDelete(location)"
+                >
+                  <Icon name="mdi:delete-outline" size="20" />
+                </button>
+                <div v-else class="flex items-center gap-1.5">
+                  <button
+                    :disabled="isSaving"
+                    class="p-2 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 disabled:opacity-50 transition-colors rounded hover:bg-green-50 dark:hover:bg-green-900/20 touch-manipulation"
+                    title="Save changes"
+                    @click="saveEdit(location.id)"
                   >
-                    <span
-                      class="px-2 py-0.5 text-xs font-medium rounded-full"
-                      :class="
-                        location.type === 'home'
-                          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                      "
-                    >
-                      {{ location.type || 'N/A' }}
-                    </span>
-                  </div>
-                  <select
-                    v-else
-                    v-model="editForms[location.id].type"
-                    class="w-full px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+                    <Icon name="mdi:check" size="20" />
+                  </button>
+                  <button
+                    class="p-2 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors rounded hover:bg-gray-50 dark:hover:bg-gray-900/20 touch-manipulation"
+                    title="Cancel editing"
+                    @click="cancelEdit"
                   >
-                    <option value="">Select type</option>
-                    <option value="home">Home</option>
-                    <option value="trip">Trip</option>
-                  </select>
-                </td>
-                <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-400">
-                  <div
-                    v-if="editingId !== location.id"
-                    class="cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                    title="Click to edit"
-                    @click="startEdit(location)"
+                    <Icon name="mdi:close" size="20" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span class="text-gray-500 dark:text-gray-400">Type:</span>
+                <div
+                  v-if="editingId !== location.id"
+                  class="cursor-pointer mt-1"
+                  @click="startEdit(location)"
+                >
+                  <span
+                    class="px-2 py-0.5 text-xs font-medium rounded-full inline-block"
+                    :class="
+                      location.type === 'home'
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    "
                   >
-                    {{ location.year || 'N/A' }}
-                  </div>
-                  <input
-                    v-else
-                    v-model.number="editForms[location.id].year"
-                    type="number"
-                    min="1900"
-                    max="2100"
-                    class="w-20 px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
-                    placeholder="Year"
-                  />
-                </td>
-                <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-400">
-                  <div
-                    v-if="editingId !== location.id"
-                    class="max-w-xs truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                    :title="location.description || 'Click to add description'"
-                    @click="startEdit(location)"
-                  >
-                    {{ location.description || 'N/A' }}
-                  </div>
-                  <textarea
-                    v-else
-                    v-model="editForms[location.id].description"
-                    rows="2"
-                    class="w-full px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 resize-none"
-                    placeholder="Description"
-                  />
-                </td>
-                <td class="px-2 sm:px-3 py-2">
-                  <div v-if="editingId !== location.id" class="flex items-center justify-end gap-1">
-                    <button
-                      class="p-2 sm:p-1.5 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors rounded hover:bg-red-50 dark:hover:bg-red-900/20 touch-manipulation"
-                      title="Delete location"
-                      @click.stop="confirmDelete(location)"
-                    >
-                      <Icon name="mdi:delete-outline" size="20" class="sm:w-[18px] sm:h-[18px]" />
-                    </button>
-                  </div>
-                  <div v-else class="flex items-center justify-end gap-1.5">
-                    <button
-                      :disabled="isSaving"
-                      class="p-2 sm:p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 disabled:opacity-50 transition-colors rounded hover:bg-green-50 dark:hover:bg-green-900/20 touch-manipulation"
-                      title="Save changes"
-                      @click="saveEdit(location.id)"
-                    >
-                      <Icon name="mdi:check" size="20" class="sm:w-[18px] sm:h-[18px]" />
-                    </button>
-                    <button
-                      class="p-2 sm:p-1.5 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors rounded hover:bg-gray-50 dark:hover:bg-gray-900/20 touch-manipulation"
-                      title="Cancel editing"
-                      @click="cancelEdit"
-                    >
-                      <Icon name="mdi:close" size="20" class="sm:w-[18px] sm:h-[18px]" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                    {{ location.type || 'N/A' }}
+                  </span>
+                </div>
+                <select
+                  v-else
+                  v-model="editForms[location.id].type"
+                  class="w-full px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 mt-1"
+                >
+                  <option value="">Select type</option>
+                  <option value="home">Home</option>
+                  <option value="trip">Trip</option>
+                </select>
+              </div>
+              <div>
+                <span class="text-gray-500 dark:text-gray-400">Year:</span>
+                <div
+                  v-if="editingId !== location.id"
+                  class="cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors mt-1"
+                  @click="startEdit(location)"
+                >
+                  {{ location.year || 'N/A' }}
+                </div>
+                <input
+                  v-else
+                  v-model.number="editForms[location.id].year"
+                  type="number"
+                  min="1900"
+                  max="2100"
+                  class="w-full px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 mt-1"
+                  placeholder="Year"
+                />
+              </div>
+            </div>
+
+            <div>
+              <span class="text-gray-500 dark:text-gray-400 text-xs">Description:</span>
+              <div
+                v-if="editingId !== location.id"
+                class="text-xs text-gray-600 dark:text-gray-400 mt-1 break-words cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                :title="location.description || 'Click to add description'"
+                @click="startEdit(location)"
+              >
+                {{ location.description || 'N/A' }}
+              </div>
+              <textarea
+                v-else
+                v-model="editForms[location.id].description"
+                rows="2"
+                class="w-full px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 resize-none mt-1"
+                placeholder="Description"
+              />
+            </div>
+          </div>
         </div>
-      </div>
+
+        <!-- Desktop: Table Layout -->
+        <div class="hidden sm:block overflow-x-auto border rounded-lg dark:border-slate-700">
+          <div class="inline-block min-w-full align-middle">
+            <table class="min-w-full text-sm">
+              <thead class="bg-gray-50 dark:bg-slate-800">
+                <tr>
+                  <th
+                    class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
+                    @click="sortBy('name')"
+                  >
+                    <div class="flex items-center gap-1.5">
+                      Name
+                      <Icon
+                        :name="
+                          sortColumn === 'name'
+                            ? sortDirection === 'asc'
+                              ? 'mdi:chevron-up'
+                              : 'mdi:chevron-down'
+                            : 'mdi:unfold-more-horizontal'
+                        "
+                        size="16"
+                        class="text-gray-400"
+                      />
+                    </div>
+                  </th>
+                  <th
+                    class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
+                    @click="sortBy('coordinates')"
+                  >
+                    <div class="flex items-center gap-1.5">
+                      Coordinates
+                      <Icon
+                        :name="
+                          sortColumn === 'coordinates'
+                            ? sortDirection === 'asc'
+                              ? 'mdi:chevron-up'
+                              : 'mdi:chevron-down'
+                            : 'mdi:unfold-more-horizontal'
+                        "
+                        size="16"
+                        class="text-gray-400"
+                      />
+                    </div>
+                  </th>
+                  <th
+                    class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
+                    @click="sortBy('type')"
+                  >
+                    <div class="flex items-center gap-1.5">
+                      Type
+                      <Icon
+                        :name="
+                          sortColumn === 'type'
+                            ? sortDirection === 'asc'
+                              ? 'mdi:chevron-up'
+                              : 'mdi:chevron-down'
+                            : 'mdi:unfold-more-horizontal'
+                        "
+                        size="16"
+                        class="text-gray-400"
+                      />
+                    </div>
+                  </th>
+                  <th
+                    class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
+                    @click="sortBy('year')"
+                  >
+                    <div class="flex items-center gap-1.5">
+                      Year
+                      <Icon
+                        :name="
+                          sortColumn === 'year'
+                            ? sortDirection === 'asc'
+                              ? 'mdi:chevron-up'
+                              : 'mdi:chevron-down'
+                            : 'mdi:unfold-more-horizontal'
+                        "
+                        size="16"
+                        class="text-gray-400"
+                      />
+                    </div>
+                  </th>
+                  <th
+                    class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 select-none transition-colors touch-manipulation"
+                    @click="sortBy('description')"
+                  >
+                    <div class="flex items-center gap-1.5">
+                      Description
+                      <Icon
+                        :name="
+                          sortColumn === 'description'
+                            ? sortDirection === 'asc'
+                              ? 'mdi:chevron-up'
+                              : 'mdi:chevron-down'
+                            : 'mdi:unfold-more-horizontal'
+                        "
+                        size="16"
+                        class="text-gray-400"
+                      />
+                    </div>
+                  </th>
+                  <th
+                    class="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider w-20 sm:w-16"
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700"
+              >
+                <tr
+                  v-for="location in filteredAndSortedLocations"
+                  :key="location.id"
+                  class="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <td class="px-2 sm:px-3 py-2">
+                    <div class="font-medium text-sm text-gray-900 dark:text-gray-100 break-words">
+                      {{ location.name }}
+                    </div>
+                  </td>
+                  <td
+                    class="px-2 sm:px-3 py-2 text-xs text-gray-600 dark:text-gray-400 font-mono whitespace-nowrap"
+                  >
+                    {{ location.lat.toFixed(4) }}, {{ location.lng.toFixed(4) }}
+                  </td>
+                  <td class="px-2 sm:px-3 py-2">
+                    <div
+                      v-if="editingId !== location.id"
+                      class="cursor-pointer"
+                      title="Click to edit"
+                      @click="startEdit(location)"
+                    >
+                      <span
+                        class="px-2 py-0.5 text-xs font-medium rounded-full"
+                        :class="
+                          location.type === 'home'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        "
+                      >
+                        {{ location.type || 'N/A' }}
+                      </span>
+                    </div>
+                    <select
+                      v-else
+                      v-model="editForms[location.id].type"
+                      class="w-full px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select type</option>
+                      <option value="home">Home</option>
+                      <option value="trip">Trip</option>
+                    </select>
+                  </td>
+                  <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-400">
+                    <div
+                      v-if="editingId !== location.id"
+                      class="cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      title="Click to edit"
+                      @click="startEdit(location)"
+                    >
+                      {{ location.year || 'N/A' }}
+                    </div>
+                    <input
+                      v-else
+                      v-model.number="editForms[location.id].year"
+                      type="number"
+                      min="1900"
+                      max="2100"
+                      class="w-20 px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
+                      placeholder="Year"
+                    />
+                  </td>
+                  <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-400">
+                    <div
+                      v-if="editingId !== location.id"
+                      class="max-w-xs truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      :title="location.description || 'Click to add description'"
+                      @click="startEdit(location)"
+                    >
+                      {{ location.description || 'N/A' }}
+                    </div>
+                    <textarea
+                      v-else
+                      v-model="editForms[location.id].description"
+                      rows="2"
+                      class="w-full px-2 py-1 text-xs border rounded dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder="Description"
+                    />
+                  </td>
+                  <td class="px-2 sm:px-3 py-2">
+                    <div
+                      v-if="editingId !== location.id"
+                      class="flex items-center justify-end gap-1"
+                    >
+                      <button
+                        class="p-2 sm:p-1.5 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors rounded hover:bg-red-50 dark:hover:bg-red-900/20 touch-manipulation"
+                        title="Delete location"
+                        @click.stop="confirmDelete(location)"
+                      >
+                        <Icon name="mdi:delete-outline" size="20" class="sm:w-[18px] sm:h-[18px]" />
+                      </button>
+                    </div>
+                    <div v-else class="flex items-center justify-end gap-1.5">
+                      <button
+                        :disabled="isSaving"
+                        class="p-2 sm:p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 disabled:opacity-50 transition-colors rounded hover:bg-green-50 dark:hover:bg-green-900/20 touch-manipulation"
+                        title="Save changes"
+                        @click="saveEdit(location.id)"
+                      >
+                        <Icon name="mdi:check" size="20" class="sm:w-[18px] sm:h-[18px]" />
+                      </button>
+                      <button
+                        class="p-2 sm:p-1.5 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors rounded hover:bg-gray-50 dark:hover:bg-gray-900/20 touch-manipulation"
+                        title="Cancel editing"
+                        @click="cancelEdit"
+                      >
+                        <Icon name="mdi:close" size="20" class="sm:w-[18px] sm:h-[18px]" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
     </div>
 
     <!-- Duplicate Warning Modal -->

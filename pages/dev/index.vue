@@ -330,6 +330,7 @@ import DevEmails from '~/components/dev/Emails.vue'
 import DevContent from '~/components/dev/Content.vue'
 import DevCache from '~/components/dev/Cache.vue'
 import { useGoogleAuth } from '~/composables/useGoogleAuth'
+import { useAdminAuth } from '~/composables/useAdminAuth'
 
 const isAuthenticated = ref(false)
 const password = ref('')
@@ -357,16 +358,21 @@ const utilityTitles: Record<string, string> = {
   cache: 'Cache Management',
 }
 
+const { setAuthenticated: setAdminAuthenticated, clearAuth: clearAdminAuth } = useAdminAuth()
+
 const checkAuth = async () => {
   try {
     const response = await $fetch<{ authenticated: boolean; requires2FA?: boolean }>(
       '/api/admin/auth',
     )
     isAuthenticated.value = response.authenticated
+    // Update the shared admin auth state
+    setAdminAuthenticated(response.authenticated)
     // Don't set requires2FA here - it should only be set based on login attempt response
     // The requires2FA from this endpoint indicates global 2FA configuration, not current login state
   } catch {
     isAuthenticated.value = false
+    setAdminAuthenticated(false)
   }
 }
 
@@ -392,6 +398,8 @@ const handleLogin = async () => {
 
     if (response.success) {
       isAuthenticated.value = true
+      // Update the shared admin auth state
+      setAdminAuthenticated(true)
       password.value = ''
       totpCode.value = ''
       requires2FA.value = false
@@ -413,7 +421,15 @@ const handleLogin = async () => {
         // Reset 2FA state on non-2FA errors (wrong password, etc.)
         requires2FA.value = false
         totpCode.value = ''
-        loginError.value = response.error || 'Invalid password or 2FA code'
+        // Provide more user-friendly error messages
+        const errorMsg = response.error || 'Invalid password or 2FA code'
+        if (errorMsg.includes('password')) {
+          loginError.value = 'Incorrect password. Please try again.'
+        } else if (errorMsg.includes('2FA') || errorMsg.includes('code')) {
+          loginError.value = 'Invalid 2FA code. Please check your authenticator app and try again.'
+        } else {
+          loginError.value = errorMsg
+        }
       }
     }
   } catch (error: unknown) {
@@ -439,7 +455,15 @@ const handleLogin = async () => {
       } else {
         requires2FA.value = false
         totpCode.value = ''
-        loginError.value = response.error || 'Invalid password or 2FA code'
+        // Provide more user-friendly error messages
+        const errorMsg = response.error || 'Invalid password or 2FA code'
+        if (errorMsg.includes('password')) {
+          loginError.value = 'Incorrect password. Please try again.'
+        } else if (errorMsg.includes('2FA') || errorMsg.includes('code')) {
+          loginError.value = 'Invalid 2FA code. Please check your authenticator app and try again.'
+        } else {
+          loginError.value = errorMsg
+        }
       }
     } else {
       // Generic error if we can't extract response data
@@ -455,6 +479,8 @@ const handleLogout = async () => {
   try {
     await $fetch('/api/admin/logout', { method: 'POST' })
     isAuthenticated.value = false
+    // Clear the shared admin auth state
+    clearAdminAuth()
     activeUtility.value = null
   } catch (error) {
     console.error('Logout error:', error)

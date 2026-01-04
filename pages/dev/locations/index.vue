@@ -7,7 +7,7 @@ definePageMeta({
 </script>
 
 <template>
-  <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+  <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-full overflow-x-hidden">
     <!-- Header -->
     <div class="mb-4 sm:mb-6">
       <div
