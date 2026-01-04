@@ -87,13 +87,13 @@ const refreshSession = async () => {
 
   dismissed.value = true
   showWarning.value = false
-  
+
   // Clear any existing refresh timeout
   if (refreshTimeout) {
     clearTimeout(refreshTimeout)
     refreshTimeout = null
   }
-  
+
   // Reset dismissed flag after a short delay to allow for future warnings
   // This ensures the warning can appear again if session expires later
   refreshTimeout = setTimeout(() => {
