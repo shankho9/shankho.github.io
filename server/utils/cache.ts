@@ -69,13 +69,25 @@ export const cache = new SimpleCache()
 let cleanupInterval: ReturnType<typeof setInterval> | null = null
 
 // Clean up expired entries every 5 minutes
-if (typeof setInterval !== 'undefined' && !cleanupInterval) {
+// Only create interval at runtime, not during build
+if (
+  typeof setInterval !== 'undefined' &&
+  !cleanupInterval &&
+  typeof process !== 'undefined' &&
+  process.env.NITRO_PRESET !== undefined // Only at runtime, not during build
+) {
   cleanupInterval = setInterval(
     () => {
       cache.cleanup()
     },
     5 * 60 * 1000,
   ) // Every 5 minutes
+
+  // Unref the interval so it doesn't prevent Node.js from exiting during build
+  // This is important for build processes that should exit after completion
+  if (typeof cleanupInterval.unref === 'function') {
+    cleanupInterval.unref()
+  }
 }
 
 // Clear Nuxt's internal cache (for admin endpoint)

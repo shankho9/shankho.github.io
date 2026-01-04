@@ -414,7 +414,7 @@ onMounted(async () => {
   await loadComments()
 
   // Initialize Google Sign In button after component mounts
-  if (typeof window !== 'undefined') {
+  if (import.meta.client && typeof window !== 'undefined') {
     if (window.google) {
       setTimeout(renderGoogleSignInButton, 500)
     } else {
@@ -434,7 +434,7 @@ onMounted(async () => {
 
 // Watch for authentication state changes to re-render button
 watch(isAuthenticated, async (newValue) => {
-  if (!newValue && typeof window !== 'undefined') {
+  if (!newValue && import.meta.client && typeof window !== 'undefined') {
     // User signed out, wait for DOM to update then re-render the sign-in button
     await nextTick()
     if (window.google) {
