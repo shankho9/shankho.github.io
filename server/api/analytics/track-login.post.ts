@@ -47,6 +47,14 @@ export default defineEventHandler(async (event) => {
       return { success: false, error: 'Database not configured' }
     }
 
+    // Check if we're in build mode - skip database operations during build
+    const isBuildMode =
+      process.env.NUXT_BUILD === 'true' || process.env.BUILD === 'true'
+    if (isBuildMode) {
+      console.warn('[API] Skipping login tracking during build')
+      return { success: false, error: 'Cannot track login during build' }
+    }
+
     // Atomically insert login and determine if this is a new user using a transaction
     // This prevents race conditions when concurrent requests arrive for the same email
     // by using PostgreSQL advisory locks to ensure only one request can check and insert at a time
