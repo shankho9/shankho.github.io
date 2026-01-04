@@ -7,7 +7,10 @@ const sharedIsChecking = ref(false)
 const sharedLastCheck = ref<number>(0)
 const sharedTokenExpiresAt = ref<number | null>(null) // Actual token expiry timestamp
 const sharedCheckPromise = ref<Promise<boolean> | null>(null)
-const CHECK_CACHE_DURATION = 5 * 60 * 1000 // 5 minutes - cache auth state for 5 minutes
+// Cache duration for how often to re-check authentication status
+// Keep this short (5 minutes) to quickly detect token revocations on the backend
+// The actual token validity is determined by sharedTokenExpiresAt, not this cache duration
+const CHECK_CACHE_DURATION = 5 * 60 * 1000 // 5 minutes - re-check auth status every 5 minutes
 const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 hours - actual token expiry duration
 const REQUEST_TIMEOUT = 10000 // 10 seconds timeout
 const MAX_RETRIES = 2 // Maximum retry attempts
@@ -54,11 +57,13 @@ export const useAdminAuth = () => {
   const needsCheck = computed(() => {
     // Need to check if:
     // 1. Never checked before (null)
-    // 2. Last check was more than 5 minutes ago
-    return (
-      sharedIsAuthenticated.value === null ||
-      Date.now() - sharedLastCheck.value > CHECK_CACHE_DURATION
-    )
+    // 2. Last check was more than CHECK_CACHE_DURATION ago (for detecting revocations)
+    // 3. Token has expired according to sharedTokenExpiresAt (if available)
+    const now = Date.now()
+    const cacheExpired = now - sharedLastCheck.value > CHECK_CACHE_DURATION
+    const tokenExpired = sharedTokenExpiresAt.value !== null && now >= sharedTokenExpiresAt.value
+
+    return sharedIsAuthenticated.value === null || cacheExpired || tokenExpired
   })
 
   const checkAuth = async (force = false): Promise<boolean> => {

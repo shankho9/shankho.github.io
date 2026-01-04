@@ -18,20 +18,55 @@ const isLoadingArchive = ref(false)
 const doneTasks = ref<Task[]>([])
 const selectedTasks = ref<number[]>([])
 const archiveStats = ref<ArchiveStats | null>(null)
-const activeTab = ref<'current' | 'archive'>('current')
 
-// Metrics and insights
+// Metrics and insights - includes both current done tasks and archived tasks
 const metrics = computed(() => {
-  const total = doneTasks.value.length
-  const withTheme = doneTasks.value.filter((t) => t.theme).length
-  const mits = doneTasks.value.filter((t) => t.is_mit).length
-  const recentWeek = doneTasks.value.filter((task) => {
+  const currentTotal = doneTasks.value.length
+  // Count only tasks that actually have a theme set (not null/undefined)
+  // Note: The UI may display "No Bucket" as a fallback for display purposes, but for metrics
+  // we should only count tasks where task.theme is actually set
+  const currentWithTheme = doneTasks.value.filter((t) => t.theme != null && t.theme !== '').length
+  const currentMits = doneTasks.value.filter((t) => t.is_mit).length
+  const currentRecentWeek = doneTasks.value.filter((task) => {
     if (!task.updated_at) return false
     const taskDate = new Date(task.updated_at)
     const weekAgo = new Date()
     weekAgo.setDate(weekAgo.getDate() - 7)
     return taskDate >= weekAgo
   }).length
+
+  // Get archive stats (default to 0 if not loaded)
+  const archived = archiveStats.value || {
+    totalArchived: 0,
+    totalArchivedMits: 0,
+    totalArchivedRegular: 0,
+    archivedByTheme: [],
+    archivedByPeriod: {
+      today: 0,
+      thisWeek: 0,
+      thisMonth: 0,
+      lastMonth: 0,
+      last3Months: 0,
+      last6Months: 0,
+      lastYear: 0,
+    },
+    dailyTrend: [],
+    weeklyTrend: [],
+    monthlyTrend: [],
+    themeTrend: [],
+  }
+
+  // Combine current and archived stats
+  const total = currentTotal + archived.totalArchived
+  const mits = currentMits + archived.totalArchivedMits
+  const recentWeek = currentRecentWeek + archived.archivedByPeriod.thisWeek
+
+  // For archived tasks, count only items with non-null themes to match current task counting logic
+  // Filter out null/empty themes to ensure consistent counting between current and archived tasks
+  const archivedWithTheme = archived.archivedByTheme
+    .filter((item) => item.theme != null && item.theme !== '')
+    .reduce((sum, item) => sum + item.count, 0)
+  const withTheme = currentWithTheme + archivedWithTheme
 
   return {
     total,
@@ -343,102 +378,156 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Tabs -->
-    <div class="mb-6 flex gap-2 border-b border-gray-200 dark:border-gray-700">
-      <button
-        :class="[
-          'px-4 py-2 font-medium transition-colors border-b-2',
-          activeTab === 'current'
-            ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300',
-        ]"
-        @click="activeTab = 'current'"
-      >
-        Current Done Tasks
-      </button>
-      <button
-        :class="[
-          'px-4 py-2 font-medium transition-colors border-b-2',
-          activeTab === 'archive'
-            ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300',
-        ]"
-        @click="activeTab = 'archive'"
-      >
-        Archive Stats & Insights
-      </button>
-    </div>
-
-    <!-- Archive Stats Tab -->
-    <div v-if="activeTab === 'archive'">
-      <div v-if="isLoadingArchive" class="text-center py-12">
+    <!-- Combined Stats Section -->
+    <div class="space-y-6">
+      <!-- Combined Overview Metrics (Current + Archive) -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <div
-          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"
-        ></div>
-        <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">Loading archive statistics...</p>
+          class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4"
+        >
+          <div class="text-2xl font-bold text-green-700 dark:text-green-300">
+            {{ metrics.total }}
+          </div>
+          <div class="text-sm text-green-600 dark:text-green-400">Total Completed</div>
+        </div>
+        <div
+          class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4"
+        >
+          <div class="text-2xl font-bold text-purple-700 dark:text-purple-300">
+            {{ metrics.mits }}
+          </div>
+          <div class="text-sm text-purple-600 dark:text-purple-400">MITs Completed</div>
+        </div>
+        <div
+          class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4"
+        >
+          <div class="text-2xl font-bold text-blue-700 dark:text-blue-300">
+            {{ metrics.regular }}
+          </div>
+          <div class="text-sm text-blue-600 dark:text-blue-400">Regular Tasks</div>
+        </div>
+        <div
+          class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4"
+        >
+          <div class="text-2xl font-bold text-orange-700 dark:text-orange-300">
+            {{ metrics.recentWeek }}
+          </div>
+          <div class="text-sm text-orange-600 dark:text-orange-400">Last 7 Days</div>
+        </div>
+        <div
+          class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4"
+        >
+          <div class="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
+            {{ metrics.withTheme }}
+          </div>
+          <div class="text-sm text-yellow-600 dark:text-yellow-400">With Bucket</div>
+        </div>
       </div>
 
-      <div v-else-if="archiveStats">
-        <!-- Archive Overview Metrics -->
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
-          <div
-            class="bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4"
-          >
-            <div class="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
-              {{ archiveMetrics.total }}
-            </div>
-            <div class="text-sm text-indigo-600 dark:text-indigo-400">Total Archived</div>
+      <!-- Archive Period Metrics -->
+      <div v-if="archiveStats" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+        <div
+          class="bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4"
+        >
+          <div class="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+            {{ archiveMetrics.total }}
           </div>
-          <div
-            class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4"
-          >
-            <div class="text-2xl font-bold text-purple-700 dark:text-purple-300">
-              {{ archiveMetrics.mits }}
-            </div>
-            <div class="text-sm text-purple-600 dark:text-purple-400">Archived MITs</div>
+          <div class="text-sm text-indigo-600 dark:text-indigo-400">Total Archived</div>
+        </div>
+        <div
+          class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4"
+        >
+          <div class="text-2xl font-bold text-green-700 dark:text-green-300">
+            {{ archiveMetrics.thisWeek }}
           </div>
-          <div
-            class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4"
-          >
-            <div class="text-2xl font-bold text-blue-700 dark:text-blue-300">
-              {{ archiveMetrics.regular }}
-            </div>
-            <div class="text-sm text-blue-600 dark:text-blue-400">Regular Tasks</div>
+          <div class="text-sm text-green-600 dark:text-green-400">This Week</div>
+        </div>
+        <div
+          class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4"
+        >
+          <div class="text-2xl font-bold text-orange-700 dark:text-orange-300">
+            {{ archiveMetrics.thisMonth }}
           </div>
-          <div
-            class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4"
-          >
-            <div class="text-2xl font-bold text-green-700 dark:text-green-300">
-              {{ archiveMetrics.thisWeek }}
-            </div>
-            <div class="text-sm text-green-600 dark:text-green-400">This Week</div>
+          <div class="text-sm text-orange-600 dark:text-orange-400">This Month</div>
+        </div>
+        <div
+          class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4"
+        >
+          <div class="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
+            {{ archiveMetrics.last3Months }}
           </div>
-          <div
-            class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4"
-          >
-            <div class="text-2xl font-bold text-orange-700 dark:text-orange-300">
-              {{ archiveMetrics.thisMonth }}
-            </div>
-            <div class="text-sm text-orange-600 dark:text-orange-400">This Month</div>
+          <div class="text-sm text-yellow-600 dark:text-yellow-400">Last 3 Months</div>
+        </div>
+        <div
+          class="bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800 rounded-lg p-4"
+        >
+          <div class="text-2xl font-bold text-teal-700 dark:text-teal-300">
+            {{ archiveMetrics.last6Months }}
           </div>
-          <div
-            class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4"
-          >
-            <div class="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-              {{ archiveMetrics.last3Months }}
-            </div>
-            <div class="text-sm text-yellow-600 dark:text-yellow-400">Last 3 Months</div>
+          <div class="text-sm text-teal-600 dark:text-teal-400">Last 6 Months</div>
+        </div>
+        <div
+          class="bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-800 rounded-lg p-4"
+        >
+          <div class="text-2xl font-bold text-cyan-700 dark:text-cyan-300">
+            {{ archiveMetrics.lastYear }}
           </div>
+          <div class="text-sm text-cyan-600 dark:text-cyan-400">Last Year</div>
+        </div>
+        <div
+          class="bg-pink-50 dark:bg-pink-950/20 border border-pink-200 dark:border-pink-800 rounded-lg p-4"
+        >
+          <div class="text-2xl font-bold text-pink-700 dark:text-pink-300">
+            {{ archiveMetrics.lastMonth }}
+          </div>
+          <div class="text-sm text-pink-600 dark:text-pink-400">Last Month</div>
+        </div>
+      </div>
+
+      <!-- Top Themes Insight (Combined) -->
+      <div
+        v-if="tasksByTheme.length > 0"
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6"
+      >
+        <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+          Top Completed Themes
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <div
-            class="bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800 rounded-lg p-4"
+            v-for="item in tasksByTheme"
+            :key="item.theme"
+            class="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
           >
-            <div class="text-2xl font-bold text-teal-700 dark:text-teal-300">
-              {{ archiveMetrics.lastYear }}
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                {{ item.theme }}
+              </h3>
+              <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">{{
+                item.count
+              }}</span>
             </div>
-            <div class="text-sm text-teal-600 dark:text-teal-400">Last Year</div>
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div
+                class="bg-green-600 dark:bg-green-500 h-2 rounded-full transition-all"
+                :style="{
+                  width: `${doneTasks.length > 0 ? (item.count / doneTasks.length) * 100 : 0}%`,
+                }"
+              ></div>
+            </div>
           </div>
         </div>
+      </div>
 
+      <!-- Archive Loading State -->
+      <div v-if="isLoadingArchive" class="text-center py-8">
+        <div
+          class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 dark:border-gray-100"
+        ></div>
+        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading archive statistics...</p>
+      </div>
+
+      <!-- Archive Insights Section -->
+      <div v-else-if="archiveStats">
         <!-- Completion Rate Insight -->
         <div
           v-if="archiveMetrics && archiveMetrics.lastMonth > 0"
@@ -600,7 +689,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Top Themes Over Time -->
+        <!-- Top Archived Themes -->
         <div
           v-if="
             archiveStats && archiveStats.archivedByTheme && archiveStats.archivedByTheme.length > 0
@@ -635,181 +724,83 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div v-else class="text-center py-12">
-        <Icon
-          name="mdi:archive-outline"
-          size="64"
-          class="mx-auto mb-4 text-gray-400 dark:text-gray-600"
-        />
-        <p class="text-lg text-gray-500 dark:text-gray-400">No archive data available yet</p>
-        <p class="text-sm text-gray-400 dark:text-gray-500 mt-2 mb-4">
-          Archive tasks by using "Close and Archive" when deleting tasks
-        </p>
-        <div
-          v-if="archiveStats && archiveStats.totalArchived === 0"
-          class="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3 max-w-md mx-auto"
-        >
-          <p class="font-semibold mb-1">Note:</p>
-          <p>
-            If you've archived tasks but see no data, ensure the database migration has been run:
-            <code class="text-xs bg-amber-100 dark:bg-amber-900/40 px-1 py-0.5 rounded">
-              node scripts/migrations/run-task-archival-migration.js
-            </code>
-          </p>
-        </div>
-      </div>
-    </div>
+      <!-- Completed Tasks Table Section -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Completed Tasks</h2>
 
-    <!-- Current Done Tasks Tab -->
-    <div v-if="activeTab === 'current'">
-      <!-- Key Metrics -->
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-        <div
-          class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4"
-        >
-          <div class="text-2xl font-bold text-green-700 dark:text-green-300">
-            {{ metrics.total }}
+        <!-- Bulk Actions -->
+        <div v-if="doneTasks.length > 0" class="mb-4 flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                :checked="selectedTasks.length === doneTasks.length && doneTasks.length > 0"
+                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                @change="selectAll"
+              />
+              <span class="text-sm text-gray-700 dark:text-gray-300">Select All</span>
+            </label>
+            <span v-if="selectedTasks.length > 0" class="text-sm text-gray-600 dark:text-gray-400">
+              {{ selectedTasks.length }} selected
+            </span>
           </div>
-          <div class="text-sm text-green-600 dark:text-green-400">Total Completed</div>
-        </div>
-        <div
-          class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4"
-        >
-          <div class="text-2xl font-bold text-purple-700 dark:text-purple-300">
-            {{ metrics.mits }}
-          </div>
-          <div class="text-sm text-purple-600 dark:text-purple-400">MITs Completed</div>
-        </div>
-        <div
-          class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4"
-        >
-          <div class="text-2xl font-bold text-blue-700 dark:text-blue-300">
-            {{ metrics.regular }}
-          </div>
-          <div class="text-sm text-blue-600 dark:text-blue-400">Regular Tasks</div>
-        </div>
-        <div
-          class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4"
-        >
-          <div class="text-2xl font-bold text-orange-700 dark:text-orange-300">
-            {{ metrics.recentWeek }}
-          </div>
-          <div class="text-sm text-orange-600 dark:text-orange-400">Last 7 Days</div>
-        </div>
-        <div
-          class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4"
-        >
-          <div class="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-            {{ metrics.withTheme }}
-          </div>
-          <div class="text-sm text-yellow-600 dark:text-yellow-400">With Bucket</div>
-        </div>
-      </div>
-
-      <!-- Top Themes Insight -->
-      <div
-        v-if="tasksByTheme.length > 0"
-        class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6"
-      >
-        <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          Top Completed Themes
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <div
-            v-for="item in tasksByTheme"
-            :key="item.theme"
-            class="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+          <button
+            v-if="selectedTasks.length > 0"
+            class="px-4 py-2.5 sm:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0 text-sm sm:text-base"
+            @click="handleBulkDelete"
           >
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-                {{ item.theme }}
-              </h3>
-              <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">{{
-                item.count
-              }}</span>
-            </div>
-            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div
-                class="bg-green-600 dark:bg-green-500 h-2 rounded-full transition-all"
-                :style="{ width: `${(item.count / metrics.total) * 100}%` }"
-              ></div>
-            </div>
-          </div>
+            Delete Selected ({{ selectedTasks.length }})
+          </button>
         </div>
-      </div>
 
-      <!-- Bulk Actions -->
-      <div v-if="doneTasks.length > 0" class="mb-4 flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              :checked="selectedTasks.length === doneTasks.length && doneTasks.length > 0"
-              class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              @change="selectAll"
-            />
-            <span class="text-sm text-gray-700 dark:text-gray-300">Select All</span>
-          </label>
-          <span v-if="selectedTasks.length > 0" class="text-sm text-gray-600 dark:text-gray-400">
-            {{ selectedTasks.length }} selected
-          </span>
-        </div>
-        <button
-          v-if="selectedTasks.length > 0"
-          class="px-4 py-2.5 sm:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0 text-sm sm:text-base"
-          @click="handleBulkDelete"
-        >
-          Delete Selected ({{ selectedTasks.length }})
-        </button>
-      </div>
-
-      <div v-if="isLoading" class="text-center py-12">
-        <div
-          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"
-        ></div>
-      </div>
-
-      <div v-else-if="doneTasks.length === 0" class="text-center py-12">
-        <Icon
-          name="mdi:check-circle-outline"
-          size="64"
-          class="mx-auto mb-4 text-gray-400 dark:text-gray-600"
-        />
-        <p class="text-lg text-gray-500 dark:text-gray-400">No completed tasks found</p>
-      </div>
-
-      <div v-else class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-        <div class="divide-y divide-gray-200 dark:divide-gray-700">
+        <div v-if="isLoading" class="text-center py-12">
           <div
-            v-for="task in doneTasks"
-            :key="task.id"
-            class="px-3 sm:px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center gap-3"
-          >
-            <input
-              type="checkbox"
-              :checked="selectedTasks.includes(task.id)"
-              class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 touch-manipulation flex-shrink-0"
-              @change="toggleSelectTask(task.id)"
-            />
-            <div class="flex-1 min-w-0">
-              <div
-                class="font-medium text-base sm:text-sm text-gray-900 dark:text-gray-100 break-words"
-              >
-                {{ task.title }}
-              </div>
-              <div
-                v-if="task.theme"
-                class="text-sm sm:text-xs text-gray-500 dark:text-gray-400 mt-1"
-              >
-                Bucket: {{ task.theme }}
-              </div>
-            </div>
-            <button
-              class="px-4 py-2 sm:px-3 sm:py-1 text-sm sm:text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0"
-              @click="handleDelete(task.id)"
+            class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"
+          ></div>
+        </div>
+
+        <div v-else-if="doneTasks.length === 0" class="text-center py-12">
+          <Icon
+            name="mdi:check-circle-outline"
+            size="64"
+            class="mx-auto mb-4 text-gray-400 dark:text-gray-600"
+          />
+          <p class="text-lg text-gray-500 dark:text-gray-400">No completed tasks found</p>
+        </div>
+
+        <div v-else class="overflow-hidden">
+          <div class="divide-y divide-gray-200 dark:divide-gray-700">
+            <div
+              v-for="task in doneTasks"
+              :key="task.id"
+              class="px-3 sm:px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center gap-3"
             >
-              Delete
-            </button>
+              <input
+                type="checkbox"
+                :checked="selectedTasks.includes(task.id)"
+                class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 touch-manipulation flex-shrink-0"
+                @change="toggleSelectTask(task.id)"
+              />
+              <div class="flex-1 min-w-0">
+                <div
+                  class="font-medium text-base sm:text-sm text-gray-900 dark:text-gray-100 break-words"
+                >
+                  {{ task.title }}
+                </div>
+                <div
+                  v-if="task.theme"
+                  class="text-sm sm:text-xs text-gray-500 dark:text-gray-400 mt-1"
+                >
+                  Bucket: {{ task.theme }}
+                </div>
+              </div>
+              <button
+                class="px-4 py-2 sm:px-3 sm:py-1 text-sm sm:text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0"
+                @click="handleDelete(task.id)"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       </div>

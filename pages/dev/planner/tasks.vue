@@ -30,14 +30,18 @@ const quickTaskTitle = ref('')
 const quickTaskTheme = ref<string | null>(null)
 const quickTaskDate = ref<string | null>(null)
 const quickTaskIsMit = ref(false)
+const quickTaskNotes = ref<string | null>(null)
 const isAddingQuickTask = ref(false)
 const isThemeInputVisible = ref(false)
 const newThemeName = ref('')
 const quickTaskInput = ref<HTMLInputElement | null>(null)
+const quickTaskNotesInputRef = ref<HTMLTextAreaElement | null>(null)
 
 // Tag suggestions and legend
 const availableTags = getAvailableTags()
-const showTagLegend = ref(false)
+const showTagLegendQuickAdd = ref(false) // For quick add mode only
+const showTagLegendEdit = ref(false) // For edit mode only
+const showTagLegendForTask = ref<Set<number>>(new Set()) // For view mode (per-task)
 const tagSuggestions = ref<TagInfo[]>([])
 const suggestionIndex = ref(-1)
 const notesInputRef = ref<HTMLTextAreaElement | null>(null)
@@ -231,9 +235,24 @@ const rollOverPastDates = async (tasksList: Task[]) => {
 
 const loadData = async () => {
   isLoading.value = true
+  dbConnectionStatus.value = 'checking'
+
+  // Add timeout to prevent hanging indefinitely
+  // Store timeout ID so we can clean it up reliably
+  let timeoutId: NodeJS.Timeout | null = null
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error('Request timeout - database connection may be slow or unavailable')),
+      30000,
+    ) // 30 second timeout
+  })
+
   try {
-    // Load data in parallel for better performance
-    const [allTasks, themes] = await Promise.all([fetchTasks(), fetchThemes()])
+    // Load data in parallel for better performance with timeout
+    const [allTasks, themes] = (await Promise.race([
+      Promise.all([fetchTasks(), fetchThemes()]),
+      timeoutPromise,
+    ])) as [Task[], string[]]
 
     // Update UI immediately with fetched data (optimistic update)
     availableThemes.value = themes
@@ -302,17 +321,60 @@ const loadData = async () => {
       })
   } catch (error) {
     console.error('Failed to load tasks:', error)
+
+    // Check if it's an auth error (401/403) or network error
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const isAuthError =
+      errorMessage.includes('401') ||
+      errorMessage.includes('403') ||
+      errorMessage.includes('authentication') ||
+      errorMessage.includes('unauthorized')
+
+    const isNetworkError =
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('ECONNREFUSED') ||
+      errorMessage.includes('ENOTFOUND') ||
+      errorMessage.includes('fetch')
+
     // Update connection status on error
-    dbConnectionStatus.value = 'disconnected'
+    if (isAuthError) {
+      // Auth error - likely need to re-authenticate (serverless cold start)
+      console.warn('[Tasks] Authentication error - redirecting to login')
+      dbConnectionStatus.value = 'disconnected'
+      // The middleware should handle redirect, but if we're here, try to navigate
+      await navigateTo('/dev')
+    } else if (isNetworkError || errorMessage.includes('timeout')) {
+      // Network or timeout error - database connection issue
+      dbConnectionStatus.value = 'disconnected'
+      console.error('[Tasks] Database connection error:', errorMessage)
+    } else {
+      // Other error
+      dbConnectionStatus.value = 'disconnected'
+    }
+
     // Show error but don't crash - keep existing data if available
   } finally {
+    // Always clean up timeout regardless of success or failure
+    // This prevents race conditions where the timeout might fire after the promise resolves
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
     isLoading.value = false
   }
 }
 
 const handleQuickTaskEsc = () => {
   quickTaskTitle.value = ''
+  quickTaskNotes.value = null
+  quickTaskTheme.value = null
+  quickTaskDate.value = null
+  quickTaskIsMit.value = false
+  newThemeName.value = ''
   isAddingQuickTask.value = false
+  isThemeInputVisible.value = false
+  tagSuggestions.value = []
+  showTagLegendQuickAdd.value = false
 }
 
 const handleThemeInputEsc = () => {
@@ -335,6 +397,7 @@ const handleQuickAddTask = async () => {
       is_mit: quickTaskIsMit.value,
       planned_date: quickTaskDate.value || null,
       theme: theme,
+      notes: quickTaskNotes.value?.trim() || null,
     })
 
     // Add to tasks list immediately (optimistic update)
@@ -350,6 +413,7 @@ const handleQuickAddTask = async () => {
     quickTaskTheme.value = null
     quickTaskDate.value = null
     quickTaskIsMit.value = false
+    quickTaskNotes.value = null
     newThemeName.value = ''
     isAddingQuickTask.value = false
     isThemeInputVisible.value = false
@@ -448,10 +512,10 @@ const cancelEdit = () => {
   }
   tagSuggestions.value = []
   suggestionIndex.value = -1
-  showTagLegend.value = false
+  showTagLegendEdit.value = false
 }
 
-// Handle notes input for tag suggestions
+// Handle notes input for tag suggestions (edit form)
 const handleNotesInput = (event: Event) => {
   const target = event.target as HTMLTextAreaElement
   const cursorPos = target.selectionStart
@@ -475,8 +539,54 @@ const handleNotesInput = (event: Event) => {
   }
 }
 
-// Handle keyboard navigation in tag suggestions
+// Handle notes input for tag suggestions (quick add form)
+const handleQuickNotesInput = (event: Event) => {
+  const target = event.target as HTMLTextAreaElement
+  const cursorPos = target.selectionStart
+  const textBeforeCursor = quickTaskNotes.value?.substring(0, cursorPos) || ''
+
+  // Check if we're typing a tag (after @ or #)
+  const match = textBeforeCursor.match(/[@#]([a-z-]*)$/i)
+
+  if (match) {
+    const query = match[1].toLowerCase()
+    // Filter tags that match the query
+    tagSuggestions.value = availableTags.filter(
+      (tagInfo) =>
+        tagInfo.tag.toLowerCase().includes(query) ||
+        tagInfo.description.toLowerCase().includes(query),
+    )
+    suggestionIndex.value = -1
+  } else {
+    tagSuggestions.value = []
+    suggestionIndex.value = -1
+  }
+}
+
+// Handle keyboard navigation in tag suggestions (edit form)
 const handleNotesKeydown = (event: KeyboardEvent) => {
+  if (tagSuggestions.value.length === 0) return
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    suggestionIndex.value = (suggestionIndex.value + 1) % tagSuggestions.value.length
+    scrollSuggestionIntoView()
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    suggestionIndex.value =
+      suggestionIndex.value <= 0 ? tagSuggestions.value.length - 1 : suggestionIndex.value - 1
+    scrollSuggestionIntoView()
+  } else if (event.key === 'Enter' && suggestionIndex.value >= 0) {
+    event.preventDefault()
+    insertTag(tagSuggestions.value[suggestionIndex.value].tag)
+  } else if (event.key === 'Escape') {
+    tagSuggestions.value = []
+    suggestionIndex.value = -1
+  }
+}
+
+// Handle keyboard navigation in tag suggestions (quick add form)
+const handleQuickNotesKeydown = (event: KeyboardEvent) => {
   if (tagSuggestions.value.length === 0) return
 
   if (event.key === 'ArrowDown') {
@@ -517,26 +627,88 @@ const scrollSuggestionIntoView = () => {
 
 // Insert tag into notes at cursor position
 const insertTag = (tag: string) => {
-  if (!notesInputRef.value) return
+  // Determine which textarea is active (edit form or quick add form)
+  // First check if either textarea is currently focused
+  const quickAddFocused =
+    quickTaskNotesInputRef.value && document.activeElement === quickTaskNotesInputRef.value
+  const editFocused = notesInputRef.value && document.activeElement === notesInputRef.value
 
-  const textarea = notesInputRef.value
+  // If neither is focused, determine based on which form is active
+  // (editingTaskId indicates edit mode, otherwise assume quick add if available)
+  let isQuickAdd: boolean
+  let textarea: HTMLTextAreaElement | null
+
+  if (quickAddFocused) {
+    isQuickAdd = true
+    textarea = quickTaskNotesInputRef.value
+  } else if (editFocused) {
+    isQuickAdd = false
+    textarea = notesInputRef.value
+  } else {
+    // Neither is focused - determine based on form state
+    // If we're in edit mode, use edit form; otherwise use quick add if available
+    if (editingTaskId.value !== null && notesInputRef.value) {
+      isQuickAdd = false
+      textarea = notesInputRef.value
+    } else if (quickTaskNotesInputRef.value) {
+      isQuickAdd = true
+      textarea = quickTaskNotesInputRef.value
+    } else {
+      // No valid textarea available - cannot insert tag
+      return
+    }
+  }
+
+  if (!textarea) return
+
   const cursorPos = textarea.selectionStart
-  const text = editForm.value.notes || ''
-  const textBeforeCursor = text.substring(0, cursorPos)
-  const textAfterCursor = text.substring(cursorPos)
+  const currentText = isQuickAdd ? quickTaskNotes.value || '' : editForm.value.notes || ''
+  const textBeforeCursor = currentText.substring(0, cursorPos)
+  const textAfterCursor = currentText.substring(cursorPos)
 
   // Find the @ or # that started the tag
   const match = textBeforeCursor.match(/[@#][a-z-]*$/i)
   if (match) {
     const startPos = cursorPos - match[0].length
-    const newText = text.substring(0, startPos) + tag + ' ' + textAfterCursor
-    editForm.value.notes = newText
+    const newText = currentText.substring(0, startPos) + tag + ' ' + textAfterCursor
+
+    if (isQuickAdd) {
+      quickTaskNotes.value = newText
+    } else {
+      editForm.value.notes = newText
+    }
 
     // Set cursor position after the inserted tag
+    // Re-fetch textarea ref after reactive update to ensure we have the current DOM element
+    // Re-evaluate which textarea to use based on current state (not stale state)
+    // This prevents inserting tags into the wrong textarea if form context changes
     nextTick(() => {
+      // Re-evaluate which textarea is active based on current state
+      // Check if either textarea is currently focused
+      const quickAddFocused =
+        quickTaskNotesInputRef.value && document.activeElement === quickTaskNotesInputRef.value
+      const editFocused = notesInputRef.value && document.activeElement === notesInputRef.value
+
+      // Determine which textarea to use based on current state
+      let textareaEl: HTMLTextAreaElement | null = null
+      if (quickAddFocused) {
+        textareaEl = quickTaskNotesInputRef.value
+      } else if (editFocused) {
+        textareaEl = notesInputRef.value
+      } else {
+        // Neither is focused - determine based on current form state
+        if (editingTaskId.value !== null && notesInputRef.value) {
+          textareaEl = notesInputRef.value
+        } else if (quickTaskNotesInputRef.value) {
+          textareaEl = quickTaskNotesInputRef.value
+        }
+      }
+
+      if (!textareaEl) return
+
       const newCursorPos = startPos + tag.length + 1
-      textarea.setSelectionRange(newCursorPos, newCursorPos)
-      textarea.focus()
+      textareaEl.setSelectionRange(newCursorPos, newCursorPos)
+      textareaEl.focus()
     })
   }
 
@@ -876,7 +1048,7 @@ onUnmounted(() => {
                 dbConnectionStatus === 'connected'
                   ? 'Database connected'
                   : dbConnectionStatus === 'disconnected'
-                    ? 'Database disconnected - attempting to reconnect...'
+                    ? 'Database disconnected - check console for errors and verify DATABASE_URL is set correctly'
                     : 'Checking database connection...'
               "
             >
@@ -1036,29 +1208,248 @@ onUnmounted(() => {
 
     <div v-else>
       <!-- Quick Add Task Section -->
-      <div class="mb-4">
+      <div class="mb-3">
         <div
-          class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-3"
+          class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 sm:p-2.5"
         >
-          <!-- Main input row with Add button always visible -->
-          <div class="flex items-center gap-2 mb-2">
-            <input
-              ref="quickTaskInput"
-              v-model="quickTaskTitle"
-              type="text"
-              placeholder="Add task..."
-              class="flex-1 px-3 py-2.5 sm:px-2 sm:py-1.5 text-base sm:text-sm border-0 bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none"
-              @keyup.enter="handleQuickAddTask"
-              @keyup.esc="handleQuickTaskEsc"
-              @focus="isAddingQuickTask = true"
-            />
-            <button
-              v-if="quickTaskTitle.trim()"
-              class="px-4 py-2.5 sm:px-2 sm:py-1 text-sm sm:text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0 flex-shrink-0"
-              @click="handleQuickAddTask"
-            >
-              Add
-            </button>
+          <!-- Task and Notes row (aligned layout) -->
+          <div class="flex flex-col sm:flex-row gap-2 mb-1.5 items-start">
+            <!-- Task input -->
+            <div class="flex-1 flex flex-col w-full">
+              <div class="flex items-center justify-between mb-1.5 h-5">
+                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5">
+                  Task
+                </label>
+                <span class="text-xs text-transparent leading-5">Placeholder</span>
+              </div>
+              <div class="flex items-stretch gap-2">
+                <input
+                  ref="quickTaskInput"
+                  v-model="quickTaskTitle"
+                  type="text"
+                  placeholder="Add task..."
+                  class="flex-1 px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
+                  style="box-sizing: border-box"
+                  @keyup.enter="handleQuickAddTask"
+                  @keyup.esc="handleQuickTaskEsc"
+                  @focus="isAddingQuickTask = true"
+                />
+                <button
+                  v-if="quickTaskTitle.trim()"
+                  class="px-3 py-2 sm:px-2.5 sm:py-1.5 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex-shrink-0 self-stretch flex items-center justify-center"
+                  @click="handleQuickAddTask"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
+            <!-- Notes field -->
+            <div class="flex-1 flex flex-col w-full">
+              <div class="flex items-center justify-between mb-1.5 h-5">
+                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
+                  >Notes</label
+                >
+                <button
+                  type="button"
+                  class="text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation py-1 px-1 leading-5"
+                  @click="showTagLegendQuickAdd = !showTagLegendQuickAdd"
+                >
+                  {{ showTagLegendQuickAdd ? 'Hide' : 'Show' }} Tags
+                </button>
+              </div>
+              <div class="relative">
+                <textarea
+                  ref="quickTaskNotesInputRef"
+                  v-model="quickTaskNotes"
+                  class="w-full px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
+                  style="box-sizing: border-box; vertical-align: top"
+                  rows="2"
+                  placeholder="Add notes... Use @ or # for tags (e.g., @delegate, @quick-win)"
+                  @input="handleQuickNotesInput"
+                  @keydown="handleQuickNotesKeydown"
+                />
+                <!-- Tag Suggestions Dropdown for quick add -->
+                <div
+                  v-if="tagSuggestions.length > 0"
+                  ref="tagSuggestionsRef"
+                  class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[200px]"
+                  style="left: 0; top: 100%"
+                >
+                  <div
+                    v-for="(tagInfo, index) in tagSuggestions"
+                    :key="tagInfo.tag"
+                    :data-suggestion-index="index"
+                    :class="[
+                      'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm',
+                      index === suggestionIndex ? 'bg-blue-100 dark:bg-blue-900/40' : '',
+                    ]"
+                    @click="insertTag(tagInfo.tag)"
+                  >
+                    <div class="font-medium text-gray-900 dark:text-gray-100">
+                      {{ tagInfo.tag }}
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ tagInfo.description }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tag Legend for quick add (shown below when toggled) -->
+          <div
+            v-if="
+              showTagLegendQuickAdd &&
+              (isAddingQuickTask || quickTaskTitle.trim() || quickTaskNotes)
+            "
+            class="mb-1.5 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+          >
+            <!-- Quadrant Reference Guide -->
+            <div class="mb-3 pb-2 border-b border-gray-300 dark:border-gray-600">
+              <div class="font-semibold mb-1.5 text-gray-900 dark:text-gray-100 text-xs">
+                Quadrant Guide:
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                <div class="flex items-center gap-1">
+                  <span
+                    class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 shrink-0"
+                    >Q1</span
+                  >
+                  <span class="text-gray-600 dark:text-gray-400 text-xs">Do Now</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span
+                    class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0"
+                    >Q2</span
+                  >
+                  <span class="text-gray-600 dark:text-gray-400 text-xs">Schedule</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span
+                    class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 shrink-0"
+                    >Q3</span
+                  >
+                  <span class="text-gray-600 dark:text-gray-400 text-xs">Defer</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span
+                    class="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shrink-0"
+                    >Q4</span
+                  >
+                  <span class="text-gray-600 dark:text-gray-400 text-xs">Later</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Support Needed Tasks -->
+            <div class="mb-2">
+              <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                Support Needed:
+              </div>
+              <div class="flex flex-wrap gap-1">
+                <div
+                  v-for="tagInfo in availableTags.filter((t) => t.category === 'support-needed')"
+                  :key="tagInfo.tag"
+                  class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                >
+                  <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                    tagInfo.tag
+                  }}</span>
+                  <span class="text-gray-500 dark:text-gray-500">•</span>
+                  <span class="text-gray-700 dark:text-gray-300">{{ tagInfo.description }}</span>
+                  <span
+                    :class="[
+                      'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                      tagInfo.quadrant === 'Q1'
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                        : tagInfo.quadrant === 'Q2'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                          : tagInfo.quadrant === 'Q3'
+                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                            : tagInfo.quadrant === 'Q4'
+                              ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                              : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                    ]"
+                  >
+                    {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Time/Effort Related Tasks -->
+            <div class="mb-2">
+              <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                Time/Effort:
+              </div>
+              <div class="flex flex-wrap gap-1">
+                <div
+                  v-for="tagInfo in availableTags.filter((t) => t.category === 'time-effort')"
+                  :key="tagInfo.tag"
+                  class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                >
+                  <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                    tagInfo.tag
+                  }}</span>
+                  <span class="text-gray-500 dark:text-gray-500">•</span>
+                  <span class="text-gray-700 dark:text-gray-300">{{ tagInfo.description }}</span>
+                  <span
+                    :class="[
+                      'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                      tagInfo.quadrant === 'Q1'
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                        : tagInfo.quadrant === 'Q2'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                          : tagInfo.quadrant === 'Q3'
+                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                            : tagInfo.quadrant === 'Q4'
+                              ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                              : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                    ]"
+                  >
+                    {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Administrative Tasks -->
+            <div class="mb-0">
+              <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                Administrative:
+              </div>
+              <div class="flex flex-wrap gap-1">
+                <div
+                  v-for="tagInfo in availableTags.filter((t) => t.category === 'administrative')"
+                  :key="tagInfo.tag"
+                  class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                >
+                  <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                    tagInfo.tag
+                  }}</span>
+                  <span class="text-gray-500 dark:text-gray-500">•</span>
+                  <span class="text-gray-700 dark:text-gray-300">{{ tagInfo.description }}</span>
+                  <span
+                    :class="[
+                      'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                      tagInfo.quadrant === 'Q1'
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                        : tagInfo.quadrant === 'Q2'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                          : tagInfo.quadrant === 'Q3'
+                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                            : tagInfo.quadrant === 'Q4'
+                              ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                              : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                    ]"
+                  >
+                    {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Options row (shown when focused or typing) -->
@@ -1076,7 +1467,7 @@ onUnmounted(() => {
                   ref="datePickerRef"
                   v-model="quickTaskDate"
                   type="date"
-                  class="w-full px-3 py-2.5 sm:px-2.5 sm:py-2 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 pr-10"
+                  class="w-full px-3 py-2.5 sm:px-2.5 sm:py-2 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 pr-10"
                   :class="{
                     'text-gray-400': !quickTaskDate,
                   }"
@@ -1101,7 +1492,7 @@ onUnmounted(() => {
             </div>
             <select
               v-model="quickTaskTheme"
-              class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-sm sm:text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
+              class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
               title="Bucket"
             >
               <option :value="null">Bucket</option>
@@ -1122,7 +1513,7 @@ onUnmounted(() => {
                 v-model="newThemeName"
                 type="text"
                 placeholder="Bucket"
-                class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-sm sm:text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 w-24 sm:w-20 min-h-[44px] sm:min-h-0"
+                class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 w-24 sm:w-20 min-h-[44px] sm:min-h-0"
                 @keyup.enter="addNewTheme"
                 @keyup.esc="handleThemeInputEsc"
                 @keydown="handleThemeInputKeydown"
@@ -1229,7 +1620,7 @@ onUnmounted(() => {
             >
               <div
                 v-if="editingTaskId !== task.id"
-                class="flex items-start sm:items-center gap-3 text-sm sm:text-xs py-1"
+                class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3"
               >
                 <!-- Done/Doing Toggle (square toggle) -->
                 <button
@@ -1253,37 +1644,53 @@ onUnmounted(() => {
                   ></span>
                 </button>
 
-                <!-- Title (clickable to edit) -->
+                <!-- Task Title and Notes (compact) -->
                 <div class="flex-1 min-w-0">
-                  <div
-                    :class="[
-                      'font-medium break-words cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 px-2 py-2 sm:px-1 sm:py-0.5 rounded transition-colors touch-manipulation',
-                      task.status === 'done'
-                        ? 'text-gray-500 dark:text-gray-500 line-through'
-                        : 'text-gray-900 dark:text-gray-100',
-                    ]"
-                    title="Click to edit"
-                    @click="startEdit(task)"
-                  >
-                    {{ task.title }}
-                  </div>
-                  <!-- Notes (small text below title) -->
-                  <div
-                    v-if="task.notes"
-                    class="text-sm sm:text-xs text-gray-500 dark:text-gray-400 mt-1 sm:mt-0.5 px-2 sm:px-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded transition-colors break-words touch-manipulation"
-                    title="Click to edit"
-                    @click="startEdit(task)"
-                  >
-                    {{ task.notes }}
+                  <div class="flex items-center justify-between gap-2 mb-1">
+                    <div
+                      :class="[
+                        'text-sm cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex-1',
+                        task.status === 'done'
+                          ? 'text-gray-500 dark:text-gray-500 line-through'
+                          : 'text-gray-900 dark:text-gray-100',
+                      ]"
+                      title="Click to edit"
+                      @click="startEdit(task)"
+                    >
+                      <span class="font-medium">{{ task.title }}</span>
+                      <span v-if="task.notes" class="text-gray-600 dark:text-gray-400 ml-2">
+                        – {{ task.notes }}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      class="text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation py-1 px-1 leading-5 flex-shrink-0"
+                      @click.stop="
+                        (() => {
+                          if (!showTagLegendForTask.value) {
+                            showTagLegendForTask.value = new Set()
+                          }
+                          if (showTagLegendForTask.value.has(task.id)) {
+                            showTagLegendForTask.value.delete(task.id)
+                          } else {
+                            showTagLegendForTask.value.add(task.id)
+                          }
+                          // Trigger reactivity by reassigning
+                          showTagLegendForTask.value = new Set(showTagLegendForTask.value)
+                        })()
+                      "
+                    >
+                      {{ showTagLegendForTask.value?.has(task.id) ? 'Hide' : 'Show' }} Tags
+                    </button>
                   </div>
                 </div>
 
-                <!-- Tags: Date, Actions -->
+                <!-- Actions -->
                 <div class="flex items-center gap-2 flex-shrink-0">
                   <!-- Date Tag (hidden for done tasks, clickable to edit) -->
                   <span
                     v-if="task.planned_date && task.status !== 'done'"
-                    class="px-2.5 py-1.5 sm:px-2 sm:py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation whitespace-nowrap"
+                    class="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation whitespace-nowrap"
                     title="Click to edit"
                     @click="startEdit(task)"
                   >
@@ -1296,244 +1703,455 @@ onUnmounted(() => {
 
                   <!-- Delete Icon -->
                   <button
-                    class="p-2 sm:p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
+                    class="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors touch-manipulation"
                     title="Delete"
                     @click.stop="openDeleteModal(task)"
                   >
-                    <Icon name="mdi:delete-outline" size="22" class="sm:w-[18px] sm:h-[18px]" />
+                    <Icon name="mdi:delete-outline" size="20" />
                   </button>
+                </div>
+
+                <!-- Tag Legend for view mode (shown below when toggled) -->
+                <div
+                  v-if="showTagLegendForTask.value?.has(task.id)"
+                  class="mt-2 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+                >
+                  <!-- Quadrant Reference Guide -->
+                  <div class="mb-3 pb-2 border-b border-gray-300 dark:border-gray-600">
+                    <div class="font-semibold mb-1.5 text-gray-900 dark:text-gray-100 text-xs">
+                      Quadrant Guide:
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                      <div class="flex items-center gap-1">
+                        <span
+                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 shrink-0"
+                          >Q1</span
+                        >
+                        <span class="text-gray-600 dark:text-gray-400 text-xs">Do Now</span>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <span
+                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0"
+                          >Q2</span
+                        >
+                        <span class="text-gray-600 dark:text-gray-400 text-xs">Schedule</span>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <span
+                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 shrink-0"
+                          >Q3</span
+                        >
+                        <span class="text-gray-600 dark:text-gray-400 text-xs">Defer</span>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <span
+                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shrink-0"
+                          >Q4</span
+                        >
+                        <span class="text-gray-600 dark:text-gray-400 text-xs">Later</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Support Needed Tasks -->
+                  <div class="mb-2">
+                    <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                      Support Needed:
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                      <div
+                        v-for="tagInfo in availableTags.filter(
+                          (t) => t.category === 'support-needed',
+                        )"
+                        :key="tagInfo.tag"
+                        class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                      >
+                        <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                          tagInfo.tag
+                        }}</span>
+                        <span class="text-gray-500 dark:text-gray-500">•</span>
+                        <span class="text-gray-700 dark:text-gray-300">{{
+                          tagInfo.description
+                        }}</span>
+                        <span
+                          :class="[
+                            'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                            tagInfo.quadrant === 'Q1'
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                              : tagInfo.quadrant === 'Q2'
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                : tagInfo.quadrant === 'Q3'
+                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                  : tagInfo.quadrant === 'Q4'
+                                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                          ]"
+                        >
+                          {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Time/Effort Related Tasks -->
+                  <div class="mb-2">
+                    <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                      Time/Effort:
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                      <div
+                        v-for="tagInfo in availableTags.filter((t) => t.category === 'time-effort')"
+                        :key="tagInfo.tag"
+                        class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                      >
+                        <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                          tagInfo.tag
+                        }}</span>
+                        <span class="text-gray-500 dark:text-gray-500">•</span>
+                        <span class="text-gray-700 dark:text-gray-300">{{
+                          tagInfo.description
+                        }}</span>
+                        <span
+                          :class="[
+                            'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                            tagInfo.quadrant === 'Q1'
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                              : tagInfo.quadrant === 'Q2'
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                : tagInfo.quadrant === 'Q3'
+                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                  : tagInfo.quadrant === 'Q4'
+                                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                          ]"
+                        >
+                          {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Administrative Tasks -->
+                  <div class="mb-0">
+                    <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                      Administrative:
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                      <div
+                        v-for="tagInfo in availableTags.filter(
+                          (t) => t.category === 'administrative',
+                        )"
+                        :key="tagInfo.tag"
+                        class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                      >
+                        <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                          tagInfo.tag
+                        }}</span>
+                        <span class="text-gray-500 dark:text-gray-500">•</span>
+                        <span class="text-gray-700 dark:text-gray-300">{{
+                          tagInfo.description
+                        }}</span>
+                        <span
+                          :class="[
+                            'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                            tagInfo.quadrant === 'Q1'
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                              : tagInfo.quadrant === 'Q2'
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                : tagInfo.quadrant === 'Q3'
+                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                  : tagInfo.quadrant === 'Q4'
+                                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                          ]"
+                        >
+                          {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <!-- Edit Mode -->
-              <div v-else class="space-y-3 sm:space-y-2 py-3 sm:py-2 relative">
-                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                  <input
-                    v-model="editForm.title"
-                    type="text"
-                    class="flex-1 px-3 py-2.5 sm:px-2 sm:py-1 text-base sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 min-h-[44px] sm:min-h-0"
-                    @keyup.enter="saveEdit"
-                    @keyup.esc="cancelEdit"
-                  />
-                  <div class="flex gap-2">
-                    <button
-                      class="px-4 py-2.5 sm:px-3 sm:py-1 text-sm sm:text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0"
-                      @click="saveEdit"
-                    >
-                      Save
-                    </button>
-                    <button
-                      class="px-4 py-2.5 sm:px-3 sm:py-1 text-sm sm:text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0"
-                      @click="cancelEdit"
-                    >
-                      Cancel
-                    </button>
+              <div v-else class="space-y-2 sm:space-y-1.5 py-2 sm:py-1.5 relative">
+                <!-- Task and Notes row (aligned layout - same as quick add) -->
+                <div class="flex flex-col sm:flex-row gap-2 mb-1.5 items-start">
+                  <!-- Task input -->
+                  <div class="flex-1 flex flex-col w-full">
+                    <div class="flex items-center justify-between mb-1.5 h-5">
+                      <label
+                        class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
+                      >
+                        Task
+                      </label>
+                      <span class="text-xs text-transparent leading-5">Placeholder</span>
+                    </div>
+                    <input
+                      v-model="editForm.title"
+                      type="text"
+                      class="w-full px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
+                      style="box-sizing: border-box"
+                      @keyup.enter="saveEdit"
+                      @keyup.esc="cancelEdit"
+                    />
+                  </div>
+
+                  <!-- Notes field -->
+                  <div class="flex-1 flex flex-col w-full">
+                    <div class="flex items-center justify-between mb-1.5 h-5">
+                      <label
+                        class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
+                        >Notes</label
+                      >
+                      <button
+                        type="button"
+                        class="text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation py-1 px-1 leading-5"
+                        @click="showTagLegendEdit = !showTagLegendEdit"
+                      >
+                        {{ showTagLegendEdit ? 'Hide' : 'Show' }} Tags
+                      </button>
+                    </div>
+                    <div class="relative flex items-stretch gap-1.5">
+                      <textarea
+                        ref="notesInputRef"
+                        v-model="editForm.notes"
+                        class="flex-1 px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
+                        style="box-sizing: border-box; vertical-align: top"
+                        rows="2"
+                        placeholder="Add notes... Use @ or # for tags (e.g., @delegate, @quick-win)"
+                        @input="handleNotesInput"
+                        @keydown="handleNotesKeydown"
+                      />
+                      <div class="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          class="p-2 sm:p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors rounded hover:bg-green-50 dark:hover:bg-green-900/20 touch-manipulation"
+                          title="Save changes"
+                          @click="saveEdit"
+                        >
+                          <Icon name="mdi:check" size="20" class="sm:w-[18px] sm:h-[18px]" />
+                        </button>
+                        <button
+                          class="p-2 sm:p-1.5 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors rounded hover:bg-gray-50 dark:hover:bg-gray-900/20 touch-manipulation"
+                          title="Cancel editing"
+                          @click="cancelEdit"
+                        >
+                          <Icon name="mdi:close" size="20" class="sm:w-[18px] sm:h-[18px]" />
+                        </button>
+                      </div>
+                      <!-- Tag Suggestions Dropdown -->
+                      <div
+                        v-if="tagSuggestions.length > 0"
+                        ref="tagSuggestionsRef"
+                        class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[200px]"
+                        style="left: 0; top: 100%"
+                      >
+                        <div
+                          v-for="(tagInfo, index) in tagSuggestions"
+                          :key="tagInfo.tag"
+                          :data-suggestion-index="index"
+                          :class="[
+                            'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm',
+                            index === suggestionIndex ? 'bg-blue-100 dark:bg-blue-900/40' : '',
+                          ]"
+                          @click="insertTag(tagInfo.tag)"
+                        >
+                          <div class="font-medium text-gray-900 dark:text-gray-100">
+                            {{ tagInfo.tag }}
+                          </div>
+                          <div class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ tagInfo.description }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div class="flex flex-wrap items-center gap-2">
+
+                <!-- Options row (Date, Bucket, MIT) -->
+                <div
+                  class="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-gray-200 dark:border-gray-700"
+                >
                   <input
                     v-model="editForm.planned_date"
                     type="date"
-                    class="px-3 py-2.5 sm:px-2 sm:py-1 text-sm sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 min-h-[44px] sm:min-h-0"
+                    class="px-3 py-2.5 sm:px-2.5 sm:py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
                   />
                   <select
                     v-model="editForm.theme"
-                    class="px-3 py-2.5 sm:px-2 sm:py-1 text-sm sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 min-h-[44px] sm:min-h-0"
+                    class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
                   >
-                    <option :value="null">No Bucket</option>
+                    <option :value="null">Bucket</option>
                     <option v-for="theme in availableThemes" :key="theme" :value="theme">
                       {{ theme }}
                     </option>
                   </select>
                   <label
-                    class="flex items-center gap-2 text-sm sm:text-xs text-gray-700 dark:text-gray-300 touch-manipulation min-h-[44px] sm:min-h-0 cursor-pointer"
+                    class="flex items-center gap-2 px-3 py-2 sm:px-1.5 sm:py-1 text-xs text-gray-700 dark:text-gray-300 touch-manipulation min-h-[44px] sm:min-h-0 cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
                   >
                     <input
                       v-model="editForm.is_mit"
                       type="checkbox"
-                      class="w-5 h-5 sm:w-3 sm:h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
+                      class="w-4 h-4 sm:w-3 sm:h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
                     />
                     <span>MIT</span>
                   </label>
                 </div>
-                <!-- Notes in Edit Mode -->
-                <div class="mt-2">
-                  <div class="flex items-center justify-between mb-2">
-                    <label
-                      class="block text-sm sm:text-xs font-medium text-gray-700 dark:text-gray-300"
-                      >Notes</label
-                    >
-                    <button
-                      type="button"
-                      class="text-sm sm:text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation py-2 px-1"
-                      @click="showTagLegend = !showTagLegend"
-                    >
-                      {{ showTagLegend ? 'Hide' : 'Show' }} Tags Legend
-                    </button>
-                  </div>
-                  <textarea
-                    ref="notesInputRef"
-                    v-model="editForm.notes"
-                    class="w-full px-3 py-2.5 sm:px-2 sm:py-1 text-base sm:text-xs border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
-                    rows="4"
-                    placeholder="Add notes... Use @ or # for tags (e.g., @delegate, @quick-win)"
-                    @input="handleNotesInput"
-                    @keydown="handleNotesKeydown"
-                  />
-                  <!-- Tag Suggestions Dropdown -->
-                  <div
-                    v-if="tagSuggestions.length > 0"
-                    ref="tagSuggestionsRef"
-                    class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                    style="width: calc(100% - 2rem); max-width: 400px"
-                  >
-                    <div
-                      v-for="(tagInfo, index) in tagSuggestions"
-                      :key="tagInfo.tag"
-                      :data-suggestion-index="index"
-                      :class="[
-                        'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs',
-                        index === suggestionIndex ? 'bg-blue-100 dark:bg-blue-900/40' : '',
-                      ]"
-                      @click="insertTag(tagInfo.tag)"
-                    >
-                      <div class="font-medium text-gray-900 dark:text-gray-100">
-                        {{ tagInfo.tag }}
+
+                <!-- Tag Legend -->
+                <div
+                  v-if="showTagLegendEdit"
+                  class="mt-1.5 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+                >
+                  <!-- Quadrant Reference Guide -->
+                  <div class="mb-3 pb-2 border-b border-gray-300 dark:border-gray-600">
+                    <div class="font-semibold mb-1.5 text-gray-900 dark:text-gray-100 text-xs">
+                      Quadrant Guide:
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                      <div class="flex items-center gap-1">
+                        <span
+                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 shrink-0"
+                          >Q1</span
+                        >
+                        <span class="text-gray-600 dark:text-gray-400 text-xs">Do Now</span>
                       </div>
-                      <div class="text-gray-600 dark:text-gray-400 text-xs">
-                        {{ tagInfo.description }}
+                      <div class="flex items-center gap-1">
+                        <span
+                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0"
+                          >Q2</span
+                        >
+                        <span class="text-gray-600 dark:text-gray-400 text-xs">Schedule</span>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <span
+                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 shrink-0"
+                          >Q3</span
+                        >
+                        <span class="text-gray-600 dark:text-gray-400 text-xs">Defer</span>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <span
+                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shrink-0"
+                          >Q4</span
+                        >
+                        <span class="text-gray-600 dark:text-gray-400 text-xs">Later</span>
                       </div>
                     </div>
                   </div>
-                  <!-- Tag Legend -->
-                  <div
-                    v-if="showTagLegend"
-                    class="mt-2 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
-                  >
-                    <div class="font-semibold mb-2 text-gray-900 dark:text-gray-100 text-xs">
-                      Available Tags:
-                    </div>
 
-                    <!-- Support Needed Tasks -->
-                    <div class="mb-2.5">
-                      <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1.5">
-                        Support Needed:
-                      </div>
-                      <div class="flex flex-wrap gap-1.5">
-                        <div
-                          v-for="tagInfo in availableTags.filter(
-                            (t) => t.category === 'support-needed',
-                          )"
-                          :key="tagInfo.tag"
-                          class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded"
+                  <!-- Support Needed Tasks -->
+                  <div class="mb-2">
+                    <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                      Support Needed:
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                      <div
+                        v-for="tagInfo in availableTags.filter(
+                          (t) => t.category === 'support-needed',
+                        )"
+                        :key="tagInfo.tag"
+                        class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                      >
+                        <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                          tagInfo.tag
+                        }}</span>
+                        <span class="text-gray-500 dark:text-gray-500">•</span>
+                        <span class="text-gray-700 dark:text-gray-300">{{
+                          tagInfo.description
+                        }}</span>
+                        <span
+                          :class="[
+                            'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                            tagInfo.quadrant === 'Q1'
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                              : tagInfo.quadrant === 'Q2'
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                : tagInfo.quadrant === 'Q3'
+                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                  : tagInfo.quadrant === 'Q4'
+                                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                          ]"
                         >
-                          <span
-                            class="font-mono font-medium text-blue-600 dark:text-blue-400 text-xs"
-                            >{{ tagInfo.tag }}</span
-                          >
-                          <span class="text-gray-600 dark:text-gray-400 text-xs">–</span>
-                          <span class="text-gray-700 dark:text-gray-300 text-xs">{{
-                            tagInfo.description
-                          }}</span>
-                          <span
-                            :class="[
-                              'px-1.5 py-0.5 rounded text-xs font-medium shrink-0',
-                              tagInfo.quadrant === 'Q1'
-                                ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                                : tagInfo.quadrant === 'Q2'
-                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                  : tagInfo.quadrant === 'Q3'
-                                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                                    : tagInfo.quadrant === 'Q4'
-                                      ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                      : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                            ]"
-                          >
-                            {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                          </span>
-                        </div>
+                          {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                        </span>
                       </div>
                     </div>
+                  </div>
 
-                    <!-- Time/Effort Related Tasks -->
-                    <div class="mb-2.5">
-                      <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1.5">
-                        Time/Effort:
-                      </div>
-                      <div class="flex flex-wrap gap-1.5">
-                        <div
-                          v-for="tagInfo in availableTags.filter(
-                            (t) => t.category === 'time-effort',
-                          )"
-                          :key="tagInfo.tag"
-                          class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded"
+                  <!-- Time/Effort Related Tasks -->
+                  <div class="mb-2">
+                    <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                      Time/Effort:
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                      <div
+                        v-for="tagInfo in availableTags.filter((t) => t.category === 'time-effort')"
+                        :key="tagInfo.tag"
+                        class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                      >
+                        <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                          tagInfo.tag
+                        }}</span>
+                        <span class="text-gray-500 dark:text-gray-500">•</span>
+                        <span class="text-gray-700 dark:text-gray-300">{{
+                          tagInfo.description
+                        }}</span>
+                        <span
+                          :class="[
+                            'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                            tagInfo.quadrant === 'Q1'
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                              : tagInfo.quadrant === 'Q2'
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                : tagInfo.quadrant === 'Q3'
+                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                  : tagInfo.quadrant === 'Q4'
+                                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                          ]"
                         >
-                          <span
-                            class="font-mono font-medium text-blue-600 dark:text-blue-400 text-xs"
-                            >{{ tagInfo.tag }}</span
-                          >
-                          <span class="text-gray-600 dark:text-gray-400 text-xs">–</span>
-                          <span class="text-gray-700 dark:text-gray-300 text-xs">{{
-                            tagInfo.description
-                          }}</span>
-                          <span
-                            :class="[
-                              'px-1.5 py-0.5 rounded text-xs font-medium shrink-0',
-                              tagInfo.quadrant === 'Q1'
-                                ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                                : tagInfo.quadrant === 'Q2'
-                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                  : tagInfo.quadrant === 'Q3'
-                                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                                    : tagInfo.quadrant === 'Q4'
-                                      ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                      : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                            ]"
-                          >
-                            {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                          </span>
-                        </div>
+                          {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                        </span>
                       </div>
                     </div>
+                  </div>
 
-                    <!-- Administrative Tasks -->
-                    <div class="mb-0">
-                      <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1.5">
-                        Administrative:
-                      </div>
-                      <div class="flex flex-wrap gap-1.5">
-                        <div
-                          v-for="tagInfo in availableTags.filter(
-                            (t) => t.category === 'administrative',
-                          )"
-                          :key="tagInfo.tag"
-                          class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded"
+                  <!-- Administrative Tasks -->
+                  <div class="mb-0">
+                    <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                      Administrative:
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                      <div
+                        v-for="tagInfo in availableTags.filter(
+                          (t) => t.category === 'administrative',
+                        )"
+                        :key="tagInfo.tag"
+                        class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                      >
+                        <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                          tagInfo.tag
+                        }}</span>
+                        <span class="text-gray-500 dark:text-gray-500">•</span>
+                        <span class="text-gray-700 dark:text-gray-300">{{
+                          tagInfo.description
+                        }}</span>
+                        <span
+                          :class="[
+                            'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                            tagInfo.quadrant === 'Q1'
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                              : tagInfo.quadrant === 'Q2'
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                : tagInfo.quadrant === 'Q3'
+                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                  : tagInfo.quadrant === 'Q4'
+                                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                          ]"
                         >
-                          <span
-                            class="font-mono font-medium text-blue-600 dark:text-blue-400 text-xs"
-                            >{{ tagInfo.tag }}</span
-                          >
-                          <span class="text-gray-600 dark:text-gray-400 text-xs">–</span>
-                          <span class="text-gray-700 dark:text-gray-300 text-xs">{{
-                            tagInfo.description
-                          }}</span>
-                          <span
-                            :class="[
-                              'px-1.5 py-0.5 rounded text-xs font-medium shrink-0',
-                              tagInfo.quadrant === 'Q1'
-                                ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                                : tagInfo.quadrant === 'Q2'
-                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                  : tagInfo.quadrant === 'Q3'
-                                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                                    : tagInfo.quadrant === 'Q4'
-                                      ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                      : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                            ]"
-                          >
-                            {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                          </span>
-                        </div>
+                          {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1550,26 +2168,26 @@ onUnmounted(() => {
             No tasks found
           </div>
         </div>
-      </div>
 
-      <!-- Summary and Disclaimer -->
-      <div class="mt-4 space-y-2">
-        <div class="text-sm text-gray-600 dark:text-gray-400">
-          Showing {{ filteredAndSortedTasks.length }} task{{
-            filteredAndSortedTasks.length !== 1 ? 's' : ''
-          }}
-        </div>
-        <div
-          class="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2"
-        >
-          <Icon name="mdi:information-outline" size="16" class="inline align-middle mr-1" />
-          <span
-            >Done tasks are automatically removed after 1 day. Use the purge icon above to remove
-            deleted tasks immediately. Archived tasks are preserved for statistics and can be viewed
-            in the
-            <NuxtLink to="/dev/planner/review" class="underline font-medium">Review page</NuxtLink
-            >.</span
+        <!-- Summary and Disclaimer -->
+        <div class="mt-4 space-y-2">
+          <div class="text-sm text-gray-600 dark:text-gray-400">
+            Showing {{ filteredAndSortedTasks.length }} task{{
+              filteredAndSortedTasks.length !== 1 ? 's' : ''
+            }}
+          </div>
+          <div
+            class="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2"
           >
+            <Icon name="mdi:information-outline" size="16" class="inline align-middle mr-1" />
+            <span>
+              Done tasks are automatically removed after 1 day. Use the purge icon above to remove
+              deleted tasks immediately. Archived tasks are preserved for statistics and can be
+              viewed in the
+              <NuxtLink to="/dev/planner/review" class="underline font-medium">Review page</NuxtLink
+              >.
+            </span>
+          </div>
         </div>
       </div>
     </div>

@@ -37,17 +37,18 @@ const quadrantData = computed(() => {
   return groupTasksByQuadrant(activeTasks.value, date.value)
 })
 
-// Administrative tasks (meeting, email, admin tags)
+// Administrative tasks (meeting, email, admin tags) - Top 10
 const administrativeTasks = computed(() => {
   const adminTags = new Set(['meeting', 'email', 'admin'])
   return activeTasks.value
     .map((t) => enrichTaskWithQuadrant(t, date.value))
     .filter((t) => adminTags.has(parseDelegationStatus(t.notes)))
     .sort((a, b) => b.priorityScore - a.priorityScore)
+    .slice(0, 10)
 })
 
-// Top 5 tasks that need to be completed (sorted by priority)
-const top5Tasks = computed(() => {
+// Top 10 priority tasks
+const top10Tasks = computed(() => {
   const quadrantOrder: Record<string, number> = { Q1: 4, Q2: 3, Q3: 2, Q4: 1 }
   return activeTasks.value
     .map((t) => enrichTaskWithQuadrant(t, date.value))
@@ -56,7 +57,44 @@ const top5Tasks = computed(() => {
       const quadrantDiff = quadrantOrder[b.quadrant] - quadrantOrder[a.quadrant]
       return quadrantDiff !== 0 ? quadrantDiff : b.priorityScore - a.priorityScore
     })
-    .slice(0, 5)
+    .slice(0, 10)
+})
+
+// Top 10 MITs
+const top10Mits = computed(() => {
+  return activeTasks.value
+    .filter((t) => t.is_mit)
+    .map((t) => enrichTaskWithQuadrant(t, date.value))
+    .sort((a, b) => {
+      const quadrantOrder: Record<string, number> = { Q1: 4, Q2: 3, Q3: 2, Q4: 1 }
+      const quadrantDiff = quadrantOrder[b.quadrant] - quadrantOrder[a.quadrant]
+      return quadrantDiff !== 0 ? quadrantDiff : b.priorityScore - a.priorityScore
+    })
+    .slice(0, 10)
+})
+
+// Tasks by theme/bucket - Top 10 themes with their top tasks
+const tasksByTheme = computed(() => {
+  const themeMap = new Map<string, Task[]>()
+  activeTasks.value.forEach((task) => {
+    const theme = task.theme || 'No Bucket'
+    if (!themeMap.has(theme)) {
+      themeMap.set(theme, [])
+    }
+    themeMap.get(theme)!.push(task)
+  })
+
+  return Array.from(themeMap.entries())
+    .map(([theme, themeTasks]) => ({
+      theme,
+      count: themeTasks.length,
+      tasks: themeTasks
+        .map((t) => enrichTaskWithQuadrant(t, date.value))
+        .sort((a, b) => b.priorityScore - a.priorityScore)
+        .slice(0, 10), // Top 10 tasks per theme
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10) // Top 10 themes
 })
 
 const loadTasks = async () => {
@@ -74,15 +112,25 @@ const handlePrint = () => {
   window.print()
 }
 
-const handleBack = () => {
+const handleBack = (event?: Event) => {
   if (!import.meta.client) return
+
+  // Prevent default behavior and stop propagation
+  if (event) {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  // Use window.location.href for reliable navigation
+  // This ensures a full page load and avoids blank page issues
+  // that can occur with SPA navigation in modal contexts
   window.location.href = '/dev/planner'
 }
 
 // Close on Escape key
 const handleKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape') {
-    handleBack()
+    handleBack(e) // Pass event to allow preventDefault() to be called
   }
 }
 
@@ -141,46 +189,84 @@ onUnmounted(() => {
 
         <!-- Print Content -->
         <section v-else class="print-content">
-          <!-- Top 5 Tasks -->
-          <div class="mb-3 print-top-tasks">
-            <h2 class="text-sm font-bold mb-1 print-heading">Top 5 Tasks</h2>
+          <!-- Top 10 Priority Tasks -->
+          <div class="mb-3 print-section">
+            <h2 class="text-sm font-bold mb-1 print-heading">Top 10 Priority Tasks</h2>
             <ul class="space-y-0.5 text-xs print-list">
-              <li v-for="(task, index) in top5Tasks" :key="task.id" class="flex items-start gap-1">
+              <li v-for="(task, index) in top10Tasks" :key="task.id" class="flex items-start gap-1">
                 <span class="font-bold">{{ index + 1 }}.</span>
                 <span class="flex-1">{{ task.title }}</span>
+                <span class="text-gray-500 text-[8pt]">{{ task.quadrant }}</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Top 10 MITs -->
+          <div v-if="top10Mits.length > 0" class="mb-3 print-section">
+            <h2 class="text-sm font-bold mb-1 print-heading">Top 10 MITs (Most Important Tasks)</h2>
+            <ul class="space-y-0.5 text-xs print-list">
+              <li v-for="task in top10Mits" :key="task.id" class="flex items-start gap-1">
+                <span class="font-bold">★</span>
+                <span class="flex-1">{{ task.title }}</span>
+                <span class="text-gray-500 text-[8pt]">{{ task.quadrant }}</span>
               </li>
             </ul>
           </div>
 
           <!-- Administrative Tasks -->
-          <div class="mb-3 print-admin-tasks">
+          <div v-if="administrativeTasks.length > 0" class="mb-3 print-section">
             <h2 class="text-sm font-bold mb-1 print-heading">
-              Admin ({{ administrativeTasks.length }})
+              Administrative Tasks ({{ administrativeTasks.length }})
             </h2>
             <ul class="space-y-0.5 text-xs print-list">
-              <li
-                v-for="task in administrativeTasks.slice(0, 8)"
-                :key="task.id"
-                class="flex items-start gap-1"
-              >
+              <li v-for="task in administrativeTasks" :key="task.id" class="flex items-start gap-1">
                 <span>☐</span>
                 <span class="flex-1">{{ task.title }}</span>
               </li>
             </ul>
           </div>
 
+          <!-- Tasks by Theme/Bucket -->
+          <div v-if="tasksByTheme.length > 0" class="mb-3 print-section">
+            <h2 class="text-sm font-bold mb-1 print-heading">Tasks by Bucket (Top 10)</h2>
+            <div class="space-y-2">
+              <div
+                v-for="themeGroup in tasksByTheme"
+                :key="themeGroup.theme"
+                class="print-theme-group"
+              >
+                <h3 class="text-xs font-semibold mb-0.5">
+                  {{ themeGroup.theme }} ({{ themeGroup.count }})
+                </h3>
+                <ul class="space-y-0.5 text-[9pt] print-list ml-2">
+                  <li
+                    v-for="task in themeGroup.tasks.slice(0, 5)"
+                    :key="task.id"
+                    class="flex items-start gap-1"
+                  >
+                    <span>☐</span>
+                    <span class="flex-1">{{ task.title }}</span>
+                  </li>
+                  <li v-if="themeGroup.tasks.length > 5" class="text-[8pt] text-gray-500 italic">
+                    +{{ themeGroup.tasks.length - 5 }} more
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           <!-- Eisenhower Matrix -->
           <div class="print-matrix">
-            <h2 class="text-sm font-bold mb-1 print-heading">Matrix</h2>
+            <h2 class="text-sm font-bold mb-1 print-heading">Eisenhower Matrix</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 print-grid">
               <!-- Q1: Do Now -->
               <div class="border border-red-400 rounded p-1.5 print-quadrant print-q1">
                 <h3 class="font-bold text-xs text-red-700 mb-0.5">
-                  Q1 ({{ quadrantData[0].tasks.length }})
+                  Q1: Urgent & Important ({{ quadrantData[0].tasks.length }})
                 </h3>
                 <ul class="space-y-0.5 text-xs print-quadrant-list">
                   <li
-                    v-for="task in quadrantData[0].tasks.slice(0, 6)"
+                    v-for="task in quadrantData[0].tasks.slice(0, 10)"
                     :key="task.id"
                     class="flex items-start gap-1"
                   >
@@ -193,11 +279,11 @@ onUnmounted(() => {
               <!-- Q2: Schedule -->
               <div class="border border-blue-400 rounded p-1.5 print-quadrant print-q2">
                 <h3 class="font-bold text-xs text-blue-700 mb-0.5">
-                  Q2 ({{ quadrantData[1].tasks.length }})
+                  Q2: Important & Not Urgent ({{ quadrantData[1].tasks.length }})
                 </h3>
                 <ul class="space-y-0.5 text-xs print-quadrant-list">
                   <li
-                    v-for="task in quadrantData[1].tasks.slice(0, 6)"
+                    v-for="task in quadrantData[1].tasks.slice(0, 10)"
                     :key="task.id"
                     class="flex items-start gap-1"
                   >
@@ -210,11 +296,11 @@ onUnmounted(() => {
               <!-- Q3: Defer/Batch -->
               <div class="border border-yellow-400 rounded p-1.5 print-quadrant print-q3">
                 <h3 class="font-bold text-xs text-yellow-700 mb-0.5">
-                  Q3 ({{ quadrantData[2].tasks.length }})
+                  Q3: Urgent & Not Important ({{ quadrantData[2].tasks.length }})
                 </h3>
                 <ul class="space-y-0.5 text-xs print-quadrant-list">
                   <li
-                    v-for="task in quadrantData[2].tasks.slice(0, 6)"
+                    v-for="task in quadrantData[2].tasks.slice(0, 10)"
                     :key="task.id"
                     class="flex items-start gap-1"
                   >
@@ -227,11 +313,11 @@ onUnmounted(() => {
               <!-- Q4: Later / Parking Lot -->
               <div class="border border-gray-400 rounded p-1.5 print-quadrant print-q4">
                 <h3 class="font-bold text-xs text-gray-600 mb-0.5">
-                  Q4 ({{ quadrantData[3].tasks.length }})
+                  Q4: Not Urgent & Not Important ({{ quadrantData[3].tasks.length }})
                 </h3>
                 <ul class="space-y-0.5 text-xs print-quadrant-list">
                   <li
-                    v-for="task in quadrantData[3].tasks.slice(0, 6)"
+                    v-for="task in quadrantData[3].tasks.slice(0, 10)"
                     :key="task.id"
                     class="flex items-start gap-1"
                   >
@@ -310,10 +396,19 @@ onUnmounted(() => {
     padding: 1pt 0;
   }
 
-  .print-top-tasks,
-  .print-admin-tasks {
-    margin-bottom: 6pt;
+  .print-section {
+    margin-bottom: 8pt;
     page-break-inside: avoid;
+  }
+
+  .print-theme-group {
+    margin-bottom: 4pt;
+    padding-bottom: 2pt;
+    border-bottom: 0.5pt solid #ccc;
+  }
+
+  .print-theme-group:last-child {
+    border-bottom: none;
   }
 
   /* Compact matrix */
@@ -360,14 +455,7 @@ onUnmounted(() => {
     background: white !important;
   }
 
-  /* Limit items to fit on page */
-  .print-quadrant-list li:nth-child(n + 7) {
-    display: none;
-  }
-
-  .print-list li:nth-child(n + 6) {
-    display: none;
-  }
+  /* Limit items to top 10 - handled in template with .slice(0, 10) */
 }
 
 /* Screen styling */

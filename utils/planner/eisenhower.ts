@@ -146,19 +146,16 @@ export function calculateQuadrant(task: Task, todayDate: string = getLocalDateSt
 
   // Tags that force Q3 for non-important tasks (batching/delegation)
   // Q3 tags force Q3 if the task is due within the next 3 days (including today)
-  const q3Tags = [
-    'delegate',
-    'depends-on',
-    'depends',
-    'batch',
-    'meeting',
-    'email',
-    'admin',
-    'waiting',
-    'blocked',
-    'support',
-  ]
+  // Note: Administrative tags (meeting, email, admin) are mapped to Q2, not Q3
+  const q3Tags = ['delegate', 'depends-on', 'depends', 'batch', 'waiting', 'blocked', 'support']
   const hasQ3Tag = q3Tags.includes(delegationStatus)
+
+  // Administrative tags force Q2 (Important & Not Urgent)
+  const adminTags = ['meeting', 'email', 'admin']
+  const hasAdminTag = adminTags.includes(delegationStatus)
+
+  // Administrative tags override: always Q2 (Important & Not Urgent)
+  if (hasAdminTag) return 'Q2'
 
   // Standard quadrant logic (after tag overrides)
   if (important && urgent) return 'Q1'
@@ -251,21 +248,21 @@ export function getAvailableTags(): TagInfo[] {
     {
       tag: '@meeting',
       description: 'Meeting or call related',
-      quadrant: 'Q3',
+      quadrant: 'Q2',
       examples: ['@meeting', '#meeting'],
       category: 'administrative',
     },
     {
       tag: '@email',
       description: 'Email-related task',
-      quadrant: 'Q3',
+      quadrant: 'Q2',
       examples: ['@email', '#email'],
       category: 'administrative',
     },
     {
       tag: '@admin',
       description: 'Administrative or routine task',
-      quadrant: 'Q3',
+      quadrant: 'Q2',
       examples: ['@admin', '#admin'],
       category: 'administrative',
     },

@@ -128,10 +128,21 @@ export function verifyAdminToken(event: H3Event): boolean {
 
   // Validate token exists in store
   const tokenData = tokenStore.get(token)
+
   if (!tokenData) {
-    // Token not found in store - might be due to serverless cold start or token was cleared
+    // Token not found in store - reject it
+    // This could be due to:
+    // 1. Serverless cold start (in-memory store was lost) - USER NEEDS TO RE-AUTHENTICATE
+    // 2. Token was never set or was cleared
+    // 3. Token is invalid/forged
+    // Security: We must not restore tokens as this would allow expired tokens to become valid again
+    // The in-memory store is the source of truth for token validity
+    // In serverless environments, users will need to re-authenticate after cold starts
+    // This is expected behavior and the client should redirect to login
     if (process.env.NODE_ENV === 'development') {
-      console.debug('[AdminAuth] Token not found in store (might be serverless cold start)')
+      console.debug(
+        '[AdminAuth] Token not found in store - rejecting (likely serverless cold start - user needs to re-authenticate)',
+      )
     }
     return false
   }
