@@ -12,12 +12,18 @@ useHead({
   ],
 })
 
-defineOgImageComponent('About', {
-  headline: 'Greetings 👋',
-  title: navbarData.homeTitle,
-  description: 'Dive into the world so beautiful. Do good, be good.',
-  link: '/blogs-img/personal/Sid_BetDwarka_Solo_w_Terrano.jpg',
-})
+// Generate OG Image with error handling
+try {
+  defineOgImageComponent('About', {
+    headline: 'Greetings 👋',
+    title: navbarData.homeTitle,
+    description: 'Dive into the world so beautiful. Do good, be good.',
+    link: '/blogs-img/personal/Sid_BetDwarka_Solo_w_Terrano.jpg',
+  })
+} catch (error) {
+  console.error('[About Page] Failed to define OG image:', error)
+  // Don't throw - allow page to render without OG image
+}
 
 onMounted(async () => {
   await fetch('/api/analytics/track-visit', {

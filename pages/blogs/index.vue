@@ -224,14 +224,22 @@ useHead({
   ],
 })
 
-const siteData = useSiteConfig()
-defineOgImage({
-  props: {
-    title: blogsPage.title,
-    description: blogsPage.description,
-    siteName: siteData.url,
-  },
-})
+// Generate OG Image with error handling
+try {
+  const siteData = useSiteConfig()
+  const siteUrl =
+    siteData?.url || process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app'
+  defineOgImage({
+    props: {
+      title: blogsPage.title,
+      description: blogsPage.description,
+      siteName: siteUrl,
+    },
+  })
+} catch (error) {
+  console.error('[Blogs Index] Failed to define OG image:', error)
+  // Don't throw - allow page to render without OG image
+}
 </script>
 
 <template>

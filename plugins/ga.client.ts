@@ -9,7 +9,7 @@ declare global {
 
 export default defineNuxtPlugin(() => {
   const runtimeConfig = useRuntimeConfig()
-  const id = runtimeConfig.public.googleAnalytics.id
+  const id = runtimeConfig.public?.googleAnalytics?.id
 
   if (!id) return
 

@@ -384,13 +384,18 @@ useHead({
   ],
 })
 
-// Generate OG Image
-defineOgImageComponent('Test', {
-  headline: 'Shankhos Blog 👋',
-  title: articles.value?.seo.title || '',
-  description: articles.value?.seo.description || '',
-  link: data.value.ogImage,
-})
+// Generate OG Image with error handling
+try {
+  defineOgImageComponent('Test', {
+    headline: 'Shankhos Blog 👋',
+    title: articles.value?.seo.title || '',
+    description: articles.value?.seo.description || '',
+    link: data.value.ogImage,
+  })
+} catch (error) {
+  console.error('[Personal Space Detail] Failed to define OG image:', error)
+  // Don't throw - allow page to render without OG image
+}
 </script>
 
 <template>
