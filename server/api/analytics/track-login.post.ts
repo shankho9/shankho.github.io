@@ -48,8 +48,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Check if we're in build mode - skip database operations during build
-    const isBuildMode =
-      process.env.NUXT_BUILD === 'true' || process.env.BUILD === 'true'
+    const isBuildMode = process.env.NUXT_BUILD === 'true' || process.env.BUILD === 'true'
     if (isBuildMode) {
       console.warn('[API] Skipping login tracking during build')
       return { success: false, error: 'Cannot track login during build' }
