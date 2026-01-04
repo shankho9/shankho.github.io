@@ -195,16 +195,19 @@ export default defineNuxtPlugin(() => {
 
   // Fallback interval for images that might be missed (reduced frequency)
   // Only runs every 5 seconds as a safety net, not every 1 second
-  const protectionInterval = setInterval(() => {
-    // Only check images that aren't already protected
-    const images = document.querySelectorAll('img')
-    images.forEach((img) => {
-      if (!protectedImages.has(img)) {
-        protectImage(img)
-        protectedImages.add(img)
-      }
-    })
-  }, 5000) // Reduced from 1000ms to 5000ms
+  let protectionInterval: ReturnType<typeof setInterval> | null = null
+  if (import.meta.client) {
+    protectionInterval = setInterval(() => {
+      // Only check images that aren't already protected
+      const images = document.querySelectorAll('img')
+      images.forEach((img) => {
+        if (!protectedImages.has(img)) {
+          protectImage(img)
+          protectedImages.add(img)
+        }
+      })
+    }, 5000) // Reduced from 1000ms to 5000ms
+  }
 
   // Cleanup function
   const cleanup = () => {
@@ -214,7 +217,9 @@ export default defineNuxtPlugin(() => {
       debounceTimer = null
     }
     // Clear the interval
-    clearInterval(protectionInterval)
+    if (protectionInterval) {
+      clearInterval(protectionInterval)
+    }
     // Remove event listeners
     document.removeEventListener('contextmenu', preventContextMenu)
     document.removeEventListener('dragstart', preventDragStart)
@@ -230,13 +235,17 @@ export default defineNuxtPlugin(() => {
 
   // Clean up on page unload (for full page reloads)
   // Note: beforeunload doesn't allow async operations, so we use a simple cleanup
-  window.addEventListener('beforeunload', () => {
-    clearInterval(protectionInterval)
-    if (debounceTimer) {
-      clearTimeout(debounceTimer)
-    }
-    observer.disconnect()
-  })
+  if (import.meta.client) {
+    window.addEventListener('beforeunload', () => {
+      if (protectionInterval) {
+        clearInterval(protectionInterval)
+      }
+      if (debounceTimer) {
+        clearTimeout(debounceTimer)
+      }
+      observer.disconnect()
+    })
+  }
 
   // Return cleanup function for manual invocation
   return {

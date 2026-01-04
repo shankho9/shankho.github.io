@@ -46,23 +46,25 @@ const handleSignOut = () => {
 }
 
 const handleGoogleSignIn = async () => {
-  if (typeof window === 'undefined') return
+  if (!import.meta.client || typeof window === 'undefined') return
 
   // Ensure Google script is loaded
   if (!window.google) {
     initializeGoogleSignIn()
     // Wait for script to load
     await new Promise<void>((resolve) => {
-      const checkGoogle = setInterval(() => {
-        if (window.google) {
+      if (import.meta.client) {
+        const checkGoogle = setInterval(() => {
+          if (window.google) {
+            clearInterval(checkGoogle)
+            resolve()
+          }
+        }, 100)
+        setTimeout(() => {
           clearInterval(checkGoogle)
           resolve()
-        }
-      }, 100)
-      setTimeout(() => {
-        clearInterval(checkGoogle)
-        resolve()
-      }, 5000)
+        }, 5000)
+      }
     })
   }
 

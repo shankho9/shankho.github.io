@@ -181,7 +181,9 @@ export default defineNuxtConfig({
     // Completely disable prerendering to avoid build errors
     prerender: false,
     experimental: {
-      wasm: true,
+      // Disable WASM to prevent build hanging issues
+      // WASM can cause event loop issues during build
+      wasm: false,
     },
     minify: true,
     sourceMap: false,

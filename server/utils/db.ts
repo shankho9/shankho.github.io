@@ -25,14 +25,19 @@ async function ensureStatementTimeout(client: pg.PoolClient): Promise<void> {
 
 function getPool(): pg.Pool {
   // Prevent pool creation during build
-  // NITRO_PRESET is set both during build AND at runtime (e.g., 'vercel' on Vercel)
-  // So we check if NITRO_PRESET is set to a build-time value (not a runtime preset)
-  // Build-time presets: undefined or values that indicate build process
-  // Runtime presets: 'vercel', 'netlify', 'node-server', etc.
-  // During actual build (not runtime), NITRO_PRESET might be undefined or set to build-specific values
-  // At runtime on Vercel, NITRO_PRESET is 'vercel', so we allow it
-  // The key is: if getPool() is called during build, useRuntimeConfig() will fail naturally
-  // So we don't need to block it - let it fail naturally if called during build
+  // Check if we're in build mode - during build, NITRO_PRESET is typically undefined
+  // At runtime, NITRO_PRESET is set to the deployment preset (e.g., 'vercel', 'node-server')
+  const isBuildMode =
+    typeof process !== 'undefined' &&
+    (process.env.NITRO_PRESET === undefined ||
+      process.env.NUXT_BUILD === 'true' ||
+      process.env.BUILD === 'true')
+
+  if (isBuildMode) {
+    throw new Error(
+      'Database pool cannot be created during build. This should only be called at runtime.',
+    )
+  }
 
   // Only recreate pool if it doesn't exist or is actually closed
   // Don't recreate on every check - pool persists across requests
@@ -71,7 +76,8 @@ function getPool(): pg.Pool {
       max: 20, // Increased max connections for better concurrency
       min: 2, // Keep at least 2 connections warm
       // Allow pool to retry connections
-      allowExitOnIdle: false,
+      // Set to true to allow Node.js to exit when pool is idle (important for build processes)
+      allowExitOnIdle: true,
       // Keep connections alive
       keepAlive: true,
       keepAliveInitialDelayMillis: 10000,

@@ -591,15 +591,17 @@ const loadMap = async () => {
           reject(new Error('Google Maps API failed to load within 10 seconds'))
         }, 10000) // 10 second timeout
 
-        checkGoogle = setInterval(() => {
-          if (window.google && window.google.maps) {
-            if (checkGoogle) {
-              clearInterval(checkGoogle)
+        if (import.meta.client) {
+          checkGoogle = setInterval(() => {
+            if (window.google && window.google.maps) {
+              if (checkGoogle) {
+                clearInterval(checkGoogle)
+              }
+              clearTimeout(timeout)
+              resolve()
             }
-            clearTimeout(timeout)
-            resolve()
-          }
-        }, 100)
+          }, 100)
+        }
       })
     } catch (error) {
       console.error('[Locations] Failed to load Google Maps API:', error)
