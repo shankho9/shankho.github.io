@@ -6,6 +6,14 @@ import { seoData } from './data'
 export default defineNuxtConfig({
   compatibilityDate: '2024-09-30',
   components: true,
+
+  // Site configuration for nuxt-site-config (used by nuxt-og-image and other modules)
+  // Use a simple string to avoid any undefined issues during module evaluation
+  site: {
+    url: process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app',
+    name: "Sid's Blog | Nomadic Notions",
+  },
+
   modules: [
     'nuxt-icon',
     '@nuxt/image',
@@ -20,24 +28,8 @@ export default defineNuxtConfig({
         site: {
           // Set production URL to override buildEnv auto-detection
           // Prevents localhost warnings during build
-          url: (() => {
-            const envUrl = process.env.NUXT_PUBLIC_SITE_URL
-            const fallbackUrl = seoData.mySite.replace(/\/$/, '')
-            const url = envUrl || fallbackUrl
-
-            // Check if URL is actually localhost (not just contains the substring)
-            // Match http://localhost, https://localhost, or localhost:port
-            try {
-              const urlObj = new URL(url)
-              const isLocalhost = urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1'
-              return isLocalhost ? fallbackUrl : url
-            } catch {
-              // If URL parsing fails, fall back to substring check as last resort
-              // But use a more specific pattern: localhost with protocol or port
-              const localhostPattern = /^https?:\/\/localhost(\/|:|$)/i
-              return localhostPattern.test(url) ? fallbackUrl : url
-            }
-          })(),
+          // Use simple string to avoid any undefined issues during module evaluation
+          url: process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app',
         },
         routes: [
           '/',
@@ -76,7 +68,12 @@ export default defineNuxtConfig({
         fallback: 'light',
       },
     ],
-    '@nuxtjs/tailwindcss',
+    [
+      '@nuxtjs/tailwindcss',
+      {
+        quiet: true, // Suppress JIT compilation timing warnings
+      },
+    ],
     '@formkit/auto-animate',
     '@stefanobartoletti/nuxt-social-share',
   ],
@@ -129,7 +126,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || seoData.mySite.replace(/\/$/, ''),
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app',
       googleAnalytics: {
         id: process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID,
         debug: process.env.NODE_ENV !== 'production',
@@ -183,18 +180,31 @@ export default defineNuxtConfig({
       xl: 1280,
       xxl: 1536,
     },
+    // Use ipx provider only (built-in, no sharp required)
+    // This avoids sharp binary compatibility issues during deployment
+    providers: {
+      ipx: {},
+    },
   },
 
   nitro: {
-    prerender: {
-      crawlLinks: false,
-      routes: ['/', '/rss.xml'],
-      concurrency: 1,
-    },
+    // Completely disable prerendering to avoid build errors
+    prerender: false,
     experimental: {
-      wasm: true,
+      // Disable WASM to prevent build hanging issues
+      // WASM can cause event loop issues during build
+      wasm: false,
     },
     minify: true,
     sourceMap: false,
+    // Compress output for faster deployment
+    compressPublicAssets: true,
+    // Optimize bundle size
+    esbuild: {
+      options: {
+        treeShaking: true,
+        minify: true,
+      },
+    },
   },
 })

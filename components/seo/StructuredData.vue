@@ -21,19 +21,21 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   type: 'website',
-  title: seoData.title,
-  description: seoData.description,
-  image: seoData.image,
+  title: seoData?.title || "Sid's Blog | Nomadic Notions",
+  description: seoData?.description || "Sid's Blog",
+  image: seoData?.image || '/not-found.jpg',
   author: () => ({
     name: 'Siddhartha Basu',
-    url: seoData.mySite,
+    url: seoData?.mySite || 'https://shankho-blogsite.vercel.app',
   }),
   publishedDate: undefined,
   modifiedDate: undefined,
   tags: () => [],
 })
 
-const siteUrl = (config.public.siteUrl as string) || seoData.mySite.replace(/\/$/, '')
+const siteUrl =
+  (config.public.siteUrl as string) ||
+  (seoData?.mySite ? seoData.mySite.replace(/\/$/, '') : 'https://shankho-blogsite.vercel.app')
 const currentUrl = `${siteUrl}${route.path}`
 
 const websiteSchema = computed(() => ({
