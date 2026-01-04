@@ -7,12 +7,11 @@ export default defineNuxtPlugin({
     // Only run on server side AND not during build
     // During build, NITRO_PRESET is typically undefined
     // At runtime, NITRO_PRESET is set to the deployment preset (e.g., 'vercel', 'node-server')
-    // Check for explicit build flags or missing NITRO_PRESET (which indicates build mode)
+    // Check for explicit build flags only - don't rely on NITRO_PRESET
+    // as it might be undefined in dev mode, but is set in production (e.g., 'vercel')
     const isBuildMode =
       typeof process !== 'undefined' &&
-      (process.env.NITRO_PRESET === undefined ||
-        process.env.NUXT_BUILD === 'true' ||
-        process.env.BUILD === 'true')
+      (process.env.NUXT_BUILD === 'true' || process.env.BUILD === 'true')
 
     if (import.meta.server && !isBuildMode) {
       // Use onNuxtReady to ensure we're in the right lifecycle

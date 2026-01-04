@@ -908,12 +908,18 @@ useHead({
   link: [{ rel: 'canonical', href: `${seoData.mySite}/library` }],
 })
 
-defineOgImageComponent('About', {
-  headline: 'Library 📚',
-  title: 'Media Library',
-  description: 'Photos, Videos & Resources',
-  link: '/blogs-img/personal/Sid_BetDwarka_Solo_w_Terrano.jpg',
-})
+// Generate OG Image with error handling
+try {
+  defineOgImageComponent('About', {
+    headline: 'Library 📚',
+    title: 'Media Library',
+    description: 'Photos, Videos & Resources',
+    link: '/blogs-img/personal/Sid_BetDwarka_Solo_w_Terrano.jpg',
+  })
+} catch (error) {
+  console.error('[Library Page] Failed to define OG image:', error)
+  // Don't throw - allow page to render without OG image
+}
 </script>
 
 <template>

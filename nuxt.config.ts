@@ -8,9 +8,10 @@ export default defineNuxtConfig({
   components: true,
 
   // Site configuration for nuxt-site-config (used by nuxt-og-image and other modules)
-  // Use a simple string to avoid any undefined issues during module evaluation
+  // CRITICAL: Always ensure url is a string, never undefined
+  // nuxt-og-image calls .replace() on this, so it must be a string
   site: {
-    url: process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app',
+    url: String(process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app'),
     name: "Sid's Blog | Nomadic Notions",
   },
 
@@ -28,8 +29,8 @@ export default defineNuxtConfig({
         site: {
           // Set production URL to override buildEnv auto-detection
           // Prevents localhost warnings during build
-          // Use simple string to avoid any undefined issues during module evaluation
-          url: process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app',
+          // CRITICAL: Always ensure url is a string
+          url: String(process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app'),
         },
         routes: [
           '/',
@@ -96,37 +97,43 @@ export default defineNuxtConfig({
         },
         {
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap',
-        },
-        {
-          rel: 'preconnect',
-          href: 'https://ik.imagekit.io',
-          crossorigin: 'anonymous',
-        },
-      ],
-      script: [
-        {
-          src: `https://maps.googleapis.com/maps/api/js?key=${process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`,
-          async: true,
-        },
-        {
-          src: `https://www.googletagmanager.com/gtag/js?id=${process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID}`,
-          async: true,
-        },
-        {
-          src: 'https://accounts.google.com/gsi/client',
-          async: true,
-          defer: true,
+          href: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
         },
       ],
     },
-    pageTransition: { name: 'page', mode: 'out-in' },
-    layoutTransition: { name: 'layout', mode: 'out-in' },
+  },
+
+  css: ['~/assets/css/tailwind.css'],
+
+  devtools: { enabled: true },
+
+  nitro: {
+    // Prerender specific routes for better performance
+    prerender: {
+      routes: ['/sitemap.xml', '/robots.txt'],
+      crawlLinks: false,
+    },
+    // Enable WASM support (required for some modules)
+    experimental: {
+      wasm: true,
+    },
+    // Compress public assets
+    compressPublicAssets: {
+      gzip: true,
+      brotli: true,
+    },
+    // Optimize esbuild
+    esbuild: {
+      options: {
+        target: 'node18',
+      },
+    },
   },
 
   runtimeConfig: {
     public: {
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app',
+      // CRITICAL: Always ensure siteUrl is a string, never undefined
+      siteUrl: String(process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app'),
       googleAnalytics: {
         id: process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID,
         debug: process.env.NODE_ENV !== 'production',
@@ -184,27 +191,6 @@ export default defineNuxtConfig({
     // This avoids sharp binary compatibility issues during deployment
     providers: {
       ipx: {},
-    },
-  },
-
-  nitro: {
-    // Completely disable prerendering to avoid build errors
-    prerender: false,
-    experimental: {
-      // Disable WASM to prevent build hanging issues
-      // WASM can cause event loop issues during build
-      wasm: false,
-    },
-    minify: true,
-    sourceMap: false,
-    // Compress output for faster deployment
-    compressPublicAssets: true,
-    // Optimize bundle size
-    esbuild: {
-      options: {
-        treeShaking: true,
-        minify: true,
-      },
     },
   },
 })

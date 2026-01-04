@@ -18,12 +18,18 @@ useHead({
   link: [{ rel: 'canonical', href: `${seoData.mySite}/resources` }],
 })
 
-defineOgImageComponent('About', {
-  headline: 'Resources 📚',
-  title: resourcesPage.title,
-  description: resourcesPage.description,
-  link: '/blogs-img/personal/Sid_BetDwarka_Solo_w_Terrano.jpg',
-})
+// Generate OG Image with error handling
+try {
+  defineOgImageComponent('About', {
+    headline: 'Resources 📚',
+    title: resourcesPage.title,
+    description: resourcesPage.description,
+    link: '/blogs-img/personal/Sid_BetDwarka_Solo_w_Terrano.jpg',
+  })
+} catch (error) {
+  console.error('[Resources Page] Failed to define OG image:', error)
+  // Don't throw - allow page to render without OG image
+}
 
 onMounted(async () => {
   await fetch('/api/analytics/track-visit', {

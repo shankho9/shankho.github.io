@@ -30,15 +30,22 @@ useHead({
   ],
 })
 
-// Generate OG Image
-const siteData = useSiteConfig()
-defineOgImage({
-  props: {
-    title: 'Categories',
-    description: 'The blogger in me. Dedicated to my 2 kids Riya and Tiya',
-    siteName: siteData.url,
-  },
-})
+// Generate OG Image with error handling
+try {
+  const siteData = useSiteConfig()
+  const siteUrl =
+    siteData?.url || process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app'
+  defineOgImage({
+    props: {
+      title: 'Categories',
+      description: 'The blogger in me. Dedicated to my 2 kids Riya and Tiya',
+      siteName: siteUrl,
+    },
+  })
+} catch (error) {
+  console.error('[Categories Index] Failed to define OG image:', error)
+  // Don't throw - allow page to render without OG image
+}
 </script>
 
 <template>
