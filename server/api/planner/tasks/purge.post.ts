@@ -3,10 +3,13 @@ import { query } from '~/server/utils/db'
 
 export default defineEventHandler(async (_event) => {
   try {
-    // Delete all tasks that have been marked for deletion (deleted_at is set)
+    // Delete only tasks that have been marked for deletion AND are older than 1 day
+    // This matches the behavior in tasks.get which shows soft-deleted tasks for 1 day
+    // Tasks deleted less than 1 day ago should still be visible and not purged
     const result = await query<{ count: number }>(
       `DELETE FROM tasks 
        WHERE deleted_at IS NOT NULL 
+         AND deleted_at <= CURRENT_TIMESTAMP - INTERVAL '1 day'
        RETURNING id`,
     )
 

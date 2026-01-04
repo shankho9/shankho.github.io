@@ -68,7 +68,12 @@ export default defineNuxtConfig({
         fallback: 'light',
       },
     ],
-    '@nuxtjs/tailwindcss',
+    [
+      '@nuxtjs/tailwindcss',
+      {
+        quiet: true, // Suppress JIT compilation timing warnings
+      },
+    ],
     '@formkit/auto-animate',
     '@stefanobartoletti/nuxt-social-share',
   ],
@@ -175,6 +180,11 @@ export default defineNuxtConfig({
       xl: 1280,
       xxl: 1536,
     },
+    // Use ipx provider only (built-in, no sharp required)
+    // This avoids sharp binary compatibility issues during deployment
+    providers: {
+      ipx: {},
+    },
   },
 
   nitro: {
@@ -187,5 +197,14 @@ export default defineNuxtConfig({
     },
     minify: true,
     sourceMap: false,
+    // Compress output for faster deployment
+    compressPublicAssets: true,
+    // Optimize bundle size
+    esbuild: {
+      options: {
+        treeShaking: true,
+        minify: true,
+      },
+    },
   },
 })

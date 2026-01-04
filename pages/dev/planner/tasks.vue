@@ -18,6 +18,10 @@ definePageMeta({
 const { fetchTasks, fetchThemes, updateTask, deleteTask, createTask, purgeDeletedTasks } =
   useTasks()
 
+// Call useRuntimeConfig at setup time (composables must be called during setup, not in async callbacks)
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBase || '/api'
+
 const tasks = ref<Task[]>([])
 const isLoading = ref(false)
 const availableThemes = ref<string[]>([])
@@ -829,6 +833,11 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 }
 
+const openBulkUploadModal = () => {
+  isBulkUploadVisible.value = true
+  showMobileMenu.value = false
+}
+
 onMounted(async () => {
   await loadData()
   // Focus quick input on mount for better UX
@@ -1232,7 +1241,11 @@ onUnmounted(() => {
                       ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
                       : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
                   ]"
-                  @click="async () => { await updateTaskStatus(task.id, task.status === 'done' ? 'doing' : 'done') }"
+                  @click="
+                    async () => {
+                      await updateTaskStatus(task.id, task.status === 'done' ? 'doing' : 'done')
+                    }
+                  "
                 >
                   <span
                     :class="[
