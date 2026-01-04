@@ -987,10 +987,7 @@ onUnmounted(() => {
             </button>
             <button
               class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm border-b border-gray-200 dark:border-gray-700"
-              @click="
-                isBulkUploadVisible = true
-                showMobileMenu = false
-              "
+              @click="isBulkUploadVisible = true; showMobileMenu = false"
             >
               <Icon name="mdi:upload" size="20" />
               <span>Bulk Upload</span>
@@ -1235,11 +1232,7 @@ onUnmounted(() => {
                       ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
                       : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
                   ]"
-                  @click="
-                    async () => {
-                      await updateTaskStatus(task.id, task.status === 'done' ? 'doing' : 'done')
-                    }
-                  "
+                  @click="async () => { await updateTaskStatus(task.id, task.status === 'done' ? 'doing' : 'done') }"
                 >
                   <span
                     :class="[
