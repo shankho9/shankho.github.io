@@ -44,6 +44,7 @@ const showWarning = ref(false)
 const dismissed = ref(false)
 let updateInterval: ReturnType<typeof setInterval> | null = null
 let dismissTimeout: ReturnType<typeof setTimeout> | null = null
+let refreshTimeout: ReturnType<typeof setTimeout> | null = null
 
 const timeRemaining = computed(() => {
   const remaining = getTimeUntilExpiry.value
@@ -86,10 +87,18 @@ const refreshSession = async () => {
 
   dismissed.value = true
   showWarning.value = false
+  
+  // Clear any existing refresh timeout
+  if (refreshTimeout) {
+    clearTimeout(refreshTimeout)
+    refreshTimeout = null
+  }
+  
   // Reset dismissed flag after a short delay to allow for future warnings
   // This ensures the warning can appear again if session expires later
-  setTimeout(() => {
+  refreshTimeout = setTimeout(() => {
     dismissed.value = false
+    refreshTimeout = null
   }, 1000)
 }
 
@@ -138,6 +147,9 @@ onUnmounted(() => {
   }
   if (dismissTimeout) {
     clearTimeout(dismissTimeout)
+  }
+  if (refreshTimeout) {
+    clearTimeout(refreshTimeout)
   }
 })
 
