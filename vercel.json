@@ -3,11 +3,6 @@
   "framework": "nuxtjs",
   "installCommand": "npm ci --prefer-offline --no-audit",
   "regions": ["iad1"],
-  "functions": {
-    "server/**/*.ts": {
-      "maxDuration": 30
-    }
-  },
   "env": {
     "NUXT_PUBLIC_SITE_URL": "https://shankho-blogsite.vercel.app"
   },
