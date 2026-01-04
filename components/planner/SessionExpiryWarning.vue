@@ -43,6 +43,7 @@ const { isExpiringSoon, getTimeUntilExpiry, checkAuth, setTokenExpiry } = useAdm
 const showWarning = ref(false)
 const dismissed = ref(false)
 let updateInterval: ReturnType<typeof setInterval> | null = null
+let dismissTimeout: ReturnType<typeof setTimeout> | null = null
 
 const timeRemaining = computed(() => {
   const remaining = getTimeUntilExpiry.value
@@ -95,9 +96,29 @@ const refreshSession = async () => {
 const dismissWarning = () => {
   dismissed.value = true
   showWarning.value = false
-  // Reset dismissed flag when session is no longer expiring
-  // This allows the warning to show again on subsequent expirations
-  // We'll reset it when isExpiringSoon becomes false
+
+  // Clear any existing dismiss timeout
+  if (dismissTimeout) {
+    clearTimeout(dismissTimeout)
+    dismissTimeout = null
+  }
+
+  // Reset dismissed flag after a delay to ensure it can show again
+  // This provides a safeguard in case isExpiringSoon never becomes false
+  // (e.g., due to clock skew, network issues, or edge cases)
+  // The timeout is set to 2 minutes, which is less than the 5-minute warning threshold
+  // This ensures the warning can reappear if the session is still expiring
+  dismissTimeout = setTimeout(
+    () => {
+      dismissed.value = false
+      dismissTimeout = null
+      // Check if we should show the warning again
+      if (isExpiringSoon.value) {
+        showWarning.value = true
+      }
+    },
+    2 * 60 * 1000,
+  ) // Reset after 2 minutes as a safeguard
 }
 
 const updateWarning = () => {
@@ -115,6 +136,9 @@ onUnmounted(() => {
   if (updateInterval) {
     clearInterval(updateInterval)
   }
+  if (dismissTimeout) {
+    clearTimeout(dismissTimeout)
+  }
 })
 
 // Watch for changes in expiry status
@@ -125,6 +149,11 @@ watch(isExpiringSoon, (newValue) => {
   // Reset dismissed flag when session is no longer expiring
   // This allows the warning to show again on future expirations
   if (!newValue && dismissed.value) {
+    // Clear the dismiss timeout since the watcher is handling the reset
+    if (dismissTimeout) {
+      clearTimeout(dismissTimeout)
+      dismissTimeout = null
+    }
     dismissed.value = false
   }
 })
