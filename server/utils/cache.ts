@@ -70,11 +70,13 @@ let cleanupInterval: ReturnType<typeof setInterval> | null = null
 
 // Clean up expired entries every 5 minutes
 // Only create interval at runtime, not during build
+// Skip if explicitly in build mode
 if (
   typeof setInterval !== 'undefined' &&
   !cleanupInterval &&
   typeof process !== 'undefined' &&
-  process.env.NITRO_PRESET !== undefined // Only at runtime, not during build
+  process.env.NUXT_BUILD !== 'true' &&
+  process.env.BUILD !== 'true'
 ) {
   cleanupInterval = setInterval(
     () => {

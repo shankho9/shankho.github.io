@@ -25,13 +25,22 @@ async function ensureStatementTimeout(client: pg.PoolClient): Promise<void> {
 
 function getPool(): pg.Pool {
   // Prevent pool creation during build
-  // Check if we're in build mode - during build, NITRO_PRESET is typically undefined
-  // At runtime, NITRO_PRESET is set to the deployment preset (e.g., 'vercel', 'node-server')
+  // Only block if we're explicitly in build mode (explicit build flags)
+  // Don't block just because NITRO_PRESET is missing - it might not be set in all environments
   const isBuildMode =
     typeof process !== 'undefined' &&
-    (process.env.NITRO_PRESET === undefined ||
-      process.env.NUXT_BUILD === 'true' ||
-      process.env.BUILD === 'true')
+    (process.env.NUXT_BUILD === 'true' || process.env.BUILD === 'true')
+
+  // Debug logging (can be removed after verification)
+  if (typeof process !== 'undefined') {
+    console.log('[DB] getPool called:', {
+      isBuildMode,
+      NUXT_BUILD: process.env.NUXT_BUILD,
+      BUILD: process.env.BUILD,
+      NITRO_PRESET: process.env.NITRO_PRESET,
+      NODE_ENV: process.env.NODE_ENV,
+    })
+  }
 
   if (isBuildMode) {
     throw new Error(
