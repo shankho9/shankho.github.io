@@ -10,7 +10,7 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "lint": "eslint .",
+    "lint": "nuxt prepare && eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --check ./",
     "format:fix": "prettier --write ./",
