@@ -18,10 +18,6 @@ definePageMeta({
 const { fetchTasks, fetchThemes, updateTask, deleteTask, createTask, purgeDeletedTasks } =
   useTasks()
 
-// Call useRuntimeConfig at setup time (composables must be called during setup, not in async callbacks)
-const config = useRuntimeConfig()
-const apiBase = config.public.apiBase || '/api'
-
 const tasks = ref<Task[]>([])
 const isLoading = ref(false)
 const availableThemes = ref<string[]>([])
@@ -190,7 +186,8 @@ const rollOverPastDates = async (tasksList: Task[]) => {
   if (tasksToUpdate.length > 0) {
     try {
       // Use batch update API for better performance
-      // Use apiBase from setup time (composables must be called at setup, not in async callbacks)
+      const config = useRuntimeConfig()
+      const apiBase = config.public.apiBase || '/api'
       await $fetch(`${apiBase}/planner/tasks/batch-update`, {
         method: 'POST',
         body: { updates: tasksToUpdate },

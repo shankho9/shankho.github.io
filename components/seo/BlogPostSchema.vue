@@ -50,10 +50,10 @@ const schema = computed(() => ({
   },
   publisher: {
     '@type': 'Organization',
-    name: seoData.title,
+    name: seoData?.title || "Sid's Blog | Nomadic Notions",
     logo: {
       '@type': 'ImageObject',
-      url: seoData.image,
+      url: seoData?.image || '/not-found.jpg',
     },
   },
   mainEntityOfPage: {
