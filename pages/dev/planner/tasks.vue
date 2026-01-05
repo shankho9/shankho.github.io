@@ -452,6 +452,16 @@ const selectThemeSuggestion = (theme: string) => {
   selectedThemeSuggestionIndex.value = -1
 }
 
+const clearQuickTaskTheme = () => {
+  quickTaskTheme.value = null
+  showThemeDropdown.value = false
+}
+
+const selectQuickTaskTheme = (theme: string) => {
+  quickTaskTheme.value = theme
+  showThemeDropdown.value = false
+}
+
 const addNewTheme = () => {
   if (newThemeName.value.trim()) {
     const theme = newThemeName.value.trim()
@@ -801,6 +811,12 @@ const openDeleteModal = async (task: Task) => {
   showDeleteModal.value = true
 }
 
+const handleDeleteTaskClick = (task: Task) => {
+  openDeleteModal(task).catch((error) => {
+    console.error('Error in delete task handler:', error)
+  })
+}
+
 const closeDeleteModal = () => {
   showDeleteModal.value = false
   taskToDelete.value = null
@@ -1011,6 +1027,7 @@ const handleClickOutside = (event: MouseEvent) => {
   if (!target.closest('.menu-container')) {
     showExportMenu.value = false
     showThemeDropdown.value = false
+    isThemeInputVisible.value = false
   }
 }
 
@@ -1475,10 +1492,7 @@ onUnmounted(() => {
                   :class="{
                     'bg-blue-100 dark:bg-blue-900/40': !quickTaskTheme,
                   }"
-                  @click="
-                    quickTaskTheme = null
-                    showThemeDropdown = false
-                  "
+                  @click="clearQuickTaskTheme"
                 >
                   <div class="font-medium text-gray-900 dark:text-gray-100">No Bucket</div>
                 </div>
@@ -1489,10 +1503,7 @@ onUnmounted(() => {
                   :class="{
                     'bg-blue-100 dark:bg-blue-900/40': quickTaskTheme === theme,
                   }"
-                  @click="
-                    quickTaskTheme = theme
-                    showThemeDropdown = false
-                  "
+                  @click="selectQuickTaskTheme(theme)"
                 >
                   <div class="font-medium text-gray-900 dark:text-gray-100">{{ theme }}</div>
                 </div>
@@ -1525,7 +1536,7 @@ onUnmounted(() => {
             </button>
 
             <!-- New Theme Input (when + button is clicked) -->
-            <div class="relative">
+            <div class="relative menu-container">
               <input
                 v-if="isThemeInputVisible"
                 v-model="newThemeName"
@@ -1702,7 +1713,7 @@ onUnmounted(() => {
                   <button
                     class="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors touch-manipulation"
                     title="Delete"
-                    @click.stop="openDeleteModal(task)"
+                    @click.stop="handleDeleteTaskClick(task)"
                   >
                     <Icon name="mdi:delete-outline" size="20" />
                   </button>
