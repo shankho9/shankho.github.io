@@ -55,7 +55,8 @@ export default defineEventHandler(async (event) => {
                TO_CHAR(planned_date, 'YYYY-MM-DD') as planned_date,
                notes, theme, created_at, updated_at 
                FROM tasks 
-               WHERE (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')`
+               WHERE (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')
+               AND (is_archived IS NULL OR is_archived = false)`
     const params: unknown[] = []
     let paramIndex = 1
 

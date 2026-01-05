@@ -78,6 +78,7 @@ const isPurging = ref(false)
 // Menu and dropdown state
 const showExportMenu = ref(false)
 const datePickerRef = ref<HTMLInputElement | null>(null)
+const showThemeDropdown = ref(false)
 
 const filteredAndSortedTasks = computed(() => {
   let filtered = tasks.value
@@ -152,9 +153,19 @@ const tasksGroupedByTheme = computed(() => {
     grouped.get(theme)!.push(task)
   })
 
-  // Convert to array and sort by bucket name (No Bucket comes last)
+  // Convert to array, sort by bucket name (No Bucket comes last), and sort tasks within each group by date (earliest first)
   return Array.from(grouped.entries())
-    .map(([theme, tasks]) => ({ theme, tasks }))
+    .map(([theme, tasks]) => ({
+      theme,
+      tasks: tasks.sort((a, b) => {
+        // Handle null dates - put them at the end
+        if (!a.planned_date && !b.planned_date) return 0
+        if (!a.planned_date) return 1
+        if (!b.planned_date) return -1
+        // Sort by date ascending (earliest first)
+        return a.planned_date.localeCompare(b.planned_date)
+      }),
+    }))
     .sort((a, b) => {
       if (a.theme === 'No Bucket') return 1
       if (b.theme === 'No Bucket') return -1
@@ -379,6 +390,7 @@ const handleQuickTaskEsc = () => {
 const handleThemeInputEsc = () => {
   isThemeInputVisible.value = false
   newThemeName.value = ''
+  showThemeDropdown.value = false
   selectedThemeSuggestionIndex.value = -1
 }
 
@@ -436,6 +448,7 @@ const selectThemeSuggestion = (theme: string) => {
   quickTaskTheme.value = theme
   newThemeName.value = ''
   isThemeInputVisible.value = false
+  showThemeDropdown.value = false
   selectedThemeSuggestionIndex.value = -1
 }
 
@@ -451,12 +464,14 @@ const addNewTheme = () => {
       quickTaskTheme.value = exactMatch
       newThemeName.value = ''
       isThemeInputVisible.value = false
+      showThemeDropdown.value = false
       return
     }
     // Create new theme if no exact match
     quickTaskTheme.value = theme
     newThemeName.value = ''
     isThemeInputVisible.value = false
+    showThemeDropdown.value = false
   }
 }
 
@@ -768,7 +783,20 @@ const updateTaskStatus = async (id: number, newStatus: TaskStatus) => {
   }
 }
 
-const openDeleteModal = (task: Task) => {
+const openDeleteModal = async (task: Task) => {
+  // If task is done, delete directly with archival
+  if (task.status === 'done') {
+    try {
+      await deleteTask(task.id, true) // archive=true for archival record
+      tasks.value = tasks.value.filter((t) => t.id !== task.id)
+    } catch (error) {
+      console.error('Failed to delete task:', error)
+      alert('Failed to delete task. Please try again.')
+    }
+    return
+  }
+
+  // For non-done tasks, show confirmation modal
   taskToDelete.value = { id: task.id, title: task.title }
   showDeleteModal.value = true
 }
@@ -982,6 +1010,7 @@ const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
   if (!target.closest('.menu-container')) {
     showExportMenu.value = false
+    showThemeDropdown.value = false
   }
 }
 
@@ -1160,26 +1189,17 @@ onUnmounted(() => {
                 </label>
                 <span class="text-xs text-transparent leading-5">Placeholder</span>
               </div>
-              <div class="flex items-stretch gap-2">
-                <input
-                  ref="quickTaskInput"
-                  v-model="quickTaskTitle"
-                  type="text"
-                  placeholder="Add task..."
-                  class="flex-1 px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
-                  style="box-sizing: border-box"
-                  @keyup.enter="handleQuickAddTask"
-                  @keyup.esc="handleQuickTaskEsc"
-                  @focus="isAddingQuickTask = true"
-                />
-                <button
-                  v-if="quickTaskTitle.trim()"
-                  class="px-3 py-2 sm:px-2.5 sm:py-1.5 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex-shrink-0 self-stretch flex items-center justify-center"
-                  @click="handleQuickAddTask"
-                >
-                  Add
-                </button>
-              </div>
+              <input
+                ref="quickTaskInput"
+                v-model="quickTaskTitle"
+                type="text"
+                placeholder="Add task..."
+                class="w-full px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
+                style="box-sizing: border-box"
+                @keyup.enter="handleQuickAddTask"
+                @keyup.esc="handleQuickTaskEsc"
+                @focus="isAddingQuickTask = true"
+              />
             </div>
 
             <!-- Notes field -->
@@ -1393,66 +1413,125 @@ onUnmounted(() => {
           <!-- Options row (shown when focused or typing) -->
           <div
             v-if="isAddingQuickTask || quickTaskTitle.trim()"
-            class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700"
+            class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700 relative"
           >
-            <!-- Date Picker - Compact with + button and MIT on same row -->
-            <div class="relative flex items-center gap-2">
-              <input
-                ref="datePickerRef"
-                v-model="quickTaskDate"
-                type="date"
-                class="w-28 px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 h-9 sm:min-h-0"
-                :class="{
-                  'text-gray-400': !quickTaskDate,
-                }"
-              />
+            <!-- Date Input overlaid on button (for browser compatibility) -->
+            <div class="flex items-center gap-1 relative">
+              <div class="relative">
+                <input
+                  ref="datePickerRef"
+                  v-model="quickTaskDate"
+                  type="date"
+                  :class="[
+                    'absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10',
+                    'px-2 py-1.5 rounded-lg',
+                  ]"
+                  :title="quickTaskDate ? `Date: ${quickTaskDate}` : 'Set date'"
+                  @dblclick="quickTaskDate = null"
+                />
+                <div
+                  :class="[
+                    'px-2 py-1.5 rounded-lg transition-colors touch-manipulation flex items-center gap-1.5 pointer-events-none',
+                    quickTaskDate
+                      ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+                  ]"
+                >
+                  <Icon name="mdi:calendar" size="16" />
+                  <span v-if="quickTaskDate" class="text-xs font-medium">
+                    {{ formatDateToDisplay(quickTaskDate) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bucket Icon Button with Dropdown and Display -->
+            <div class="relative menu-container flex items-center gap-1">
               <button
-                v-if="quickTaskDate"
                 type="button"
-                class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 touch-manipulation p-1"
-                @click="quickTaskDate = null"
-              >
-                <Icon name="mdi:close-circle" size="14" />
-              </button>
-            </div>
-            <select
-              v-model="quickTaskTheme"
-              class="w-28 px-2 py-1.5 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 h-9 sm:min-h-0"
-              title="Bucket"
-            >
-              <option :value="null">Bucket</option>
-              <option v-for="theme in availableThemes" :key="theme" :value="theme">
-                {{ theme }}
-              </option>
-            </select>
-            <div class="flex items-center gap-2">
-              <button
-                class="p-1.5 sm:p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 touch-manipulation h-9 sm:min-h-0 flex items-center justify-center"
-                title="New bucket"
-                @click="isThemeInputVisible = !isThemeInputVisible"
-              >
-                <Icon name="mdi:plus" size="16" class="sm:w-3.5 sm:h-3.5" />
-              </button>
-              <button
                 :class="[
-                  'px-2.5 py-1 text-xs rounded border transition-colors touch-manipulation h-9 sm:min-h-0 flex items-center justify-center',
-                  quickTaskIsMit
-                    ? 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700'
-                    : 'bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600',
+                  'px-2 py-1.5 rounded-lg transition-colors touch-manipulation flex items-center gap-1.5',
+                  quickTaskTheme
+                    ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
                 ]"
-                title="MIT"
-                @click="quickTaskIsMit = !quickTaskIsMit"
+                :title="quickTaskTheme ? `Bucket: ${quickTaskTheme}` : 'Select bucket'"
+                @click.stop="showThemeDropdown = !showThemeDropdown"
               >
-                MIT
+                <Icon name="mdi:folder" size="16" />
+                <span v-if="quickTaskTheme" class="text-xs font-medium max-w-[80px] truncate">
+                  {{ quickTaskTheme }}
+                </span>
               </button>
+              <!-- Theme Dropdown -->
+              <div
+                v-if="showThemeDropdown"
+                class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[150px]"
+                style="left: 0; top: 100%"
+                @click.stop
+              >
+                <div
+                  class="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm border-b border-gray-200 dark:border-gray-700"
+                  :class="{
+                    'bg-blue-100 dark:bg-blue-900/40': !quickTaskTheme,
+                  }"
+                  @click="
+                    quickTaskTheme = null
+                    showThemeDropdown = false
+                  "
+                >
+                  <div class="font-medium text-gray-900 dark:text-gray-100">No Bucket</div>
+                </div>
+                <div
+                  v-for="theme in availableThemes"
+                  :key="theme"
+                  class="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
+                  :class="{
+                    'bg-blue-100 dark:bg-blue-900/40': quickTaskTheme === theme,
+                  }"
+                  @click="
+                    quickTaskTheme = theme
+                    showThemeDropdown = false
+                  "
+                >
+                  <div class="font-medium text-gray-900 dark:text-gray-100">{{ theme }}</div>
+                </div>
+              </div>
             </div>
+
+            <!-- New Bucket Icon Button -->
+            <button
+              type="button"
+              class="p-2 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center"
+              title="New bucket"
+              @click="isThemeInputVisible = !isThemeInputVisible"
+            >
+              <Icon name="mdi:plus" size="18" />
+            </button>
+
+            <!-- MIT Icon Toggle Button -->
+            <button
+              type="button"
+              :class="[
+                'p-2 rounded-lg transition-colors touch-manipulation flex items-center justify-center',
+                quickTaskIsMit
+                  ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                  : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+              ]"
+              title="MIT (Most Important Task)"
+              @click="quickTaskIsMit = !quickTaskIsMit"
+            >
+              <Icon name="mdi:flag" size="18" />
+            </button>
+
+            <!-- New Theme Input (when + button is clicked) -->
             <div class="relative">
               <input
                 v-if="isThemeInputVisible"
                 v-model="newThemeName"
                 type="text"
                 placeholder="Bucket"
-                class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 w-24 sm:w-20 min-h-[44px] sm:min-h-0"
+                class="px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 w-28 sm:w-20 h-9 sm:min-h-0"
                 @keyup.enter="addNewTheme"
                 @keyup.esc="handleThemeInputEsc"
                 @keydown="handleThemeInputKeydown"
@@ -1464,6 +1543,7 @@ onUnmounted(() => {
                 ref="themeSuggestionsRef"
                 class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[120px]"
                 style="left: 0; top: 100%"
+                @click.stop
               >
                 <div
                   v-for="(suggestion, index) in themeSuggestions"
@@ -1479,6 +1559,16 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
+
+            <!-- Add Button (moved to end of options row) -->
+            <button
+              v-if="quickTaskTitle.trim()"
+              class="px-3 py-2 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center justify-center gap-1.5 ml-auto"
+              @click="handleQuickAddTask"
+            >
+              <Icon name="mdi:plus" size="16" />
+              <span>Add</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1547,12 +1637,12 @@ onUnmounted(() => {
             >
               <div
                 v-if="editingTaskId !== task.id"
-                class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3"
+                class="flex flex-row items-center gap-2 sm:gap-3"
               >
                 <!-- Done/Doing Toggle (square toggle) -->
                 <button
                   :class="[
-                    'relative w-11 h-6 sm:w-8 sm:h-4 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0 mt-0.5 sm:mt-0',
+                    'relative w-11 h-6 sm:w-8 sm:h-4 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0',
                     task.status === 'done'
                       ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
                       : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',

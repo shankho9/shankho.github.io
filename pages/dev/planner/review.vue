@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted } from 'vue'
+import { onUnmounted, onMounted } from 'vue'
 import type { Task } from '~/server/api/planner/tasks.get'
 import type { ArchiveStats } from '~/server/api/planner/archive-stats.get'
 import { getLocalDateString, formatDateToDisplay } from '~/utils/common/dateParser'
@@ -15,27 +15,81 @@ const apiBase = config.public.apiBase || '/api'
 
 const isLoading = ref(false)
 const isLoadingArchive = ref(false)
-const doneTasks = ref<Task[]>([])
+const allTasks = ref<Task[]>([])
 const selectedTasks = ref<number[]>([])
 const archiveStats = ref<ArchiveStats | null>(null)
 
-// Metrics and insights - includes both current done tasks and archived tasks
-const metrics = computed(() => {
-  const currentTotal = doneTasks.value.length
-  // Count only tasks that actually have a theme set (not null/undefined)
-  // Note: The UI may display "No Bucket" as a fallback for display purposes, but for metrics
-  // we should only count tasks where task.theme is actually set
-  const currentWithTheme = doneTasks.value.filter((t) => t.theme != null && t.theme !== '').length
-  const currentMits = doneTasks.value.filter((t) => t.is_mit).length
-  const currentRecentWeek = doneTasks.value.filter((task) => {
-    if (!task.updated_at) return false
-    const taskDate = new Date(task.updated_at)
-    const weekAgo = new Date()
-    weekAgo.setDate(weekAgo.getDate() - 7)
-    return taskDate >= weekAgo
-  }).length
+// ========== OPEN TASKS METRICS ==========
 
-  // Get archive stats (default to 0 if not loaded)
+const openTasks = computed(() => {
+  return allTasks.value.filter((task) => task.status !== 'done')
+})
+
+const openTasksMetrics = computed(() => {
+  const open = openTasks.value
+  const total = open.length
+
+  // Open tasks by MIT status
+  const withMits = open.filter((t) => t.is_mit).length
+  const withoutMits = total - withMits
+
+  // Open tasks by bucket
+  const byBucket = new Map<string, number>()
+  open.forEach((task) => {
+    const bucket = task.theme || 'No Bucket'
+    byBucket.set(bucket, (byBucket.get(bucket) || 0) + 1)
+  })
+  const byBucketArray = Array.from(byBucket.entries())
+    .map(([bucket, count]) => ({ bucket, count }))
+    .sort((a, b) => b.count - a.count)
+
+  // Open task aging (days since creation)
+  const now = new Date()
+  const aging = {
+    '0-7': 0,
+    '8-14': 0,
+    '15-30': 0,
+    '31-60': 0,
+    '60+': 0,
+  }
+
+  open.forEach((task) => {
+    if (!task.created_at) return
+    const created = new Date(task.created_at)
+    const daysOpen = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (daysOpen <= 7) aging['0-7']++
+    else if (daysOpen <= 14) aging['8-14']++
+    else if (daysOpen <= 30) aging['15-30']++
+    else if (daysOpen <= 60) aging['31-60']++
+    else aging['60+']++
+  })
+
+  // Open tasks by priority
+  const byPriority = {
+    high: open.filter((t) => t.priority === 'high').length,
+    medium: open.filter((t) => t.priority === 'medium').length,
+    low: open.filter((t) => t.priority === 'low').length,
+  }
+
+  return {
+    total,
+    withMits,
+    withoutMits,
+    byBucket: byBucketArray,
+    aging,
+    byPriority,
+  }
+})
+
+// ========== CLOSED TASKS METRICS ==========
+
+const closedTasks = computed(() => {
+  return allTasks.value.filter((task) => task.status === 'done')
+})
+
+const closedTasksMetrics = computed(() => {
+  const closed = closedTasks.value
   const archived = archiveStats.value || {
     totalArchived: 0,
     totalArchivedMits: 0,
@@ -56,136 +110,105 @@ const metrics = computed(() => {
     themeTrend: [],
   }
 
-  // Combine current and archived stats
-  const total = currentTotal + archived.totalArchived
-  const mits = currentMits + archived.totalArchivedMits
-  const recentWeek = currentRecentWeek + archived.archivedByPeriod.thisWeek
+  // Total closed (current + archived)
+  const totalClosed = closed.length + archived.totalArchived
 
-  // For archived tasks, count only items with non-null themes to match current task counting logic
-  // Filter out null/empty themes to ensure consistent counting between current and archived tasks
-  const archivedWithTheme = archived.archivedByTheme
-    .filter((item) => item.theme != null && item.theme !== '')
-    .reduce((sum, item) => sum + item.count, 0)
-  const withTheme = currentWithTheme + archivedWithTheme
+  // Closed with MITs vs regular
+  const currentMits = closed.filter((t) => t.is_mit).length
+  const totalMits = currentMits + archived.totalArchivedMits
+  const totalRegular = totalClosed - totalMits
 
-  return {
-    total,
-    withTheme,
-    withoutTheme: total - withTheme,
-    mits,
-    regular: total - mits,
-    recentWeek,
+  // Trends
+  const trends = {
+    thisWeek:
+      archived.archivedByPeriod.thisWeek +
+      closed.filter((task) => {
+        if (!task.updated_at) return false
+        const taskDate = new Date(task.updated_at)
+        const weekAgo = new Date()
+        weekAgo.setDate(weekAgo.getDate() - 7)
+        return taskDate >= weekAgo
+      }).length,
+    thisMonth: archived.archivedByPeriod.thisMonth,
+    last3Months: archived.archivedByPeriod.last3Months,
+    last6Months: archived.archivedByPeriod.last6Months,
   }
-})
 
-const tasksByTheme = computed(() => {
-  const themeMap = new Map<string, Task[]>()
-  doneTasks.value.forEach((task) => {
-    const theme = task.theme || 'No Bucket'
-    if (!themeMap.has(theme)) {
-      themeMap.set(theme, [])
-    }
-    themeMap.get(theme)!.push(task)
+  // Closed by bucket (current + archived)
+  // Calculate total tasks per bucket first (all current tasks + archived tasks)
+  const totalByBucket = new Map<string, number>()
+
+  // Count all current tasks (open + closed) by bucket
+  allTasks.value.forEach((task) => {
+    const bucket = task.theme || 'No Bucket'
+    totalByBucket.set(bucket, (totalByBucket.get(bucket) || 0) + 1)
   })
-  return Array.from(themeMap.entries())
-    .map(([theme, tasks]) => ({ theme, count: tasks.length, tasks }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5) // Top 5 buckets
-})
 
-const loadDoneTasks = async () => {
-  isLoading.value = true
-  try {
-    const allTasks = await fetchTasks()
-    doneTasks.value = allTasks.filter((task) => task.status === 'done')
-  } catch (error) {
-    console.error('Failed to load done tasks:', error)
-  } finally {
-    isLoading.value = false
-  }
-}
+  // Count archived tasks by bucket and add to total
+  archived.archivedByTheme.forEach((item) => {
+    const bucket = item.theme || 'No Bucket'
+    totalByBucket.set(bucket, (totalByBucket.get(bucket) || 0) + item.count)
+  })
 
-const loadArchiveStats = async () => {
-  isLoadingArchive.value = true
-  try {
-    const stats = await $fetch<ArchiveStats>(`${apiBase}/planner/archive-stats`)
-    archiveStats.value = stats
-    console.log('[Review] Archive stats loaded successfully:', {
-      total: stats.totalArchived,
-      mits: stats.totalArchivedMits,
-      themes: stats.archivedByTheme.length,
+  // Count closed tasks by bucket (current closed + archived)
+  const closedByBucket = new Map<string, number>()
+
+  // Add current closed tasks
+  closed.forEach((task) => {
+    const bucket = task.theme || 'No Bucket'
+    closedByBucket.set(bucket, (closedByBucket.get(bucket) || 0) + 1)
+  })
+
+  // Add archived tasks (all archived tasks are closed)
+  archived.archivedByTheme.forEach((item) => {
+    const bucket = item.theme || 'No Bucket'
+    closedByBucket.set(bucket, (closedByBucket.get(bucket) || 0) + item.count)
+  })
+
+  // Combine into array with percentages
+  const closedByBucketArray = Array.from(totalByBucket.entries())
+    .map(([bucket, total]) => {
+      const closedCount = closedByBucket.get(bucket) || 0
+      return {
+        bucket,
+        closed: closedCount,
+        total,
+        percentage: total > 0 ? Math.round((closedCount / total) * 100) : 0,
+      }
     })
-  } catch (error) {
-    console.error('[Review] Failed to load archive stats:', error)
-    // Set empty stats structure if API fails (e.g., table doesn't exist yet)
-    archiveStats.value = {
-      totalArchived: 0,
-      totalArchivedMits: 0,
-      totalArchivedRegular: 0,
-      archivedByTheme: [],
-      archivedByPeriod: {
-        today: 0,
-        thisWeek: 0,
-        thisMonth: 0,
-        lastMonth: 0,
-        last3Months: 0,
-        last6Months: 0,
-        lastYear: 0,
-      },
-      dailyTrend: [],
-      weeklyTrend: [],
-      monthlyTrend: [],
-      themeTrend: [],
-    }
-    console.log('[Review] Set empty archive stats as fallback')
-  } finally {
-    isLoadingArchive.value = false
-  }
-}
+    .filter((item) => item.closed > 0) // Only show buckets with closed tasks
+    .sort((a, b) => b.closed - a.closed)
 
-// Computed properties for archive insights
-const archiveMetrics = computed(() => {
-  if (!archiveStats.value) {
-    // Return default empty metrics
-    return {
-      total: 0,
-      mits: 0,
-      regular: 0,
-      thisMonth: 0,
-      lastMonth: 0,
-      thisWeek: 0,
-      last3Months: 0,
-      last6Months: 0,
-      lastYear: 0,
-      completionRate: 0,
-      topThemes: [],
-    }
-  }
+  // Average time to close (for tasks that have both created_at and updated_at)
+  let totalDaysToClose = 0
+  let tasksWithTimeData = 0
 
-  const stats = archiveStats.value
-  const completionRate =
-    stats.archivedByPeriod.lastMonth > 0
-      ? (
-          ((stats.archivedByPeriod.thisMonth - stats.archivedByPeriod.lastMonth) /
-            stats.archivedByPeriod.lastMonth) *
-          100
-        ).toFixed(1)
-      : '0'
+  closed.forEach((task) => {
+    if (task.created_at && task.updated_at) {
+      const created = new Date(task.created_at)
+      const updated = new Date(task.updated_at)
+      const days = Math.floor((updated.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
+      if (days >= 0) {
+        totalDaysToClose += days
+        tasksWithTimeData++
+      }
+    }
+  })
+
+  const avgDaysToClose =
+    tasksWithTimeData > 0 ? Math.round(totalDaysToClose / tasksWithTimeData) : 0
 
   return {
-    total: stats.totalArchived,
-    mits: stats.totalArchivedMits,
-    regular: stats.totalArchivedRegular,
-    thisMonth: stats.archivedByPeriod.thisMonth,
-    lastMonth: stats.archivedByPeriod.lastMonth,
-    thisWeek: stats.archivedByPeriod.thisWeek,
-    last3Months: stats.archivedByPeriod.last3Months,
-    last6Months: stats.archivedByPeriod.last6Months,
-    lastYear: stats.archivedByPeriod.lastYear,
-    completionRate: parseFloat(completionRate),
-    topThemes: stats.archivedByTheme.slice(0, 5),
+    totalClosed,
+    totalMits,
+    totalRegular,
+    trends,
+    closedByBucket: closedByBucketArray,
+    avgDaysToClose,
   }
 })
+
+// ========== CHART DATA (for completion trends) ==========
 
 const maxDailyCount = computed(() => {
   if (!archiveStats.value?.dailyTrend.length) return 1
@@ -202,54 +225,304 @@ const maxMonthlyCount = computed(() => {
   return Math.max(...archiveStats.value.monthlyTrend.map((m) => m.count), 1)
 })
 
+const formatWeekLabel = (weekStr: string): string => {
+  // Format: "2024-W01" -> "Jan 15"
+  const match = weekStr.match(/(\d{4})-W(\d{2})/)
+  if (!match) return weekStr
+
+  const year = parseInt(match[1], 10)
+  const week = parseInt(match[2], 10)
+
+  // Calculate first day of week (Monday)
+  const jan4 = new Date(year, 0, 4)
+  const jan4Day = jan4.getDay() || 7 // Convert Sunday (0) to 7
+  const daysToMonday = (jan4Day - 1) % 7
+  const firstMonday = new Date(jan4)
+  firstMonday.setDate(jan4.getDate() - daysToMonday)
+
+  const weekStart = new Date(firstMonday)
+  weekStart.setDate(firstMonday.getDate() + (week - 1) * 7)
+
+  const monthNames = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ]
+  return `${monthNames[weekStart.getMonth()]} ${weekStart.getDate()}`
+}
+
+const dailyBarChartData = computed(() => {
+  if (!archiveStats.value?.dailyTrend.length) return []
+  const days = archiveStats.value.dailyTrend.slice().reverse()
+  const maxCount = maxDailyCount.value || 1
+  const chartWidth = 320
+  const chartHeight = 160
+  const startX = 50
+  const startY = 30
+  const spacing = Math.max(2, Math.min(8, chartWidth / (days.length * 3)))
+  const availableWidth = chartWidth - spacing * (days.length - 1)
+  const barWidth = Math.max(3, availableWidth / days.length)
+
+  return days.map((day, index) => {
+    const x = startX + index * (barWidth + spacing)
+    const height = ((day.count || 0) / maxCount) * chartHeight
+    const y = startY + chartHeight - height
+
+    return {
+      x,
+      y,
+      width: barWidth,
+      height,
+      count: day.count,
+      date: formatDateToDisplay(day.date) || day.date,
+      mits: day.mits,
+      centerX: x + barWidth / 2,
+    }
+  })
+})
+
+const weeklyBarChartData = computed(() => {
+  if (!archiveStats.value?.weeklyTrend.length) return []
+  const weeks = archiveStats.value.weeklyTrend.slice().reverse()
+  const maxCount = maxWeeklyCount.value || 1
+  const chartWidth = 320
+  const chartHeight = 160
+  const startX = 50
+  const startY = 30
+  const spacing = Math.max(2, Math.min(8, chartWidth / (weeks.length * 3)))
+  const availableWidth = chartWidth - spacing * (weeks.length - 1)
+  const barWidth = Math.max(3, availableWidth / weeks.length)
+
+  return weeks.map((week, index) => {
+    const x = startX + index * (barWidth + spacing)
+    const height = ((week.count || 0) / maxCount) * chartHeight
+    const y = startY + chartHeight - height
+
+    return {
+      x,
+      y,
+      width: barWidth,
+      height,
+      count: week.count,
+      label: formatWeekLabel(week.week),
+      mits: week.mits,
+      centerX: x + barWidth / 2,
+    }
+  })
+})
+
+const monthlyBarChartData = computed(() => {
+  if (!archiveStats.value?.monthlyTrend.length) return []
+  const months = archiveStats.value.monthlyTrend.slice().reverse()
+  const maxCount = maxMonthlyCount.value || 1
+  const chartWidth = 320
+  const chartHeight = 160
+  const startX = 50
+  const startY = 30
+  const spacing = Math.max(2, Math.min(8, chartWidth / (months.length * 3)))
+  const availableWidth = chartWidth - spacing * (months.length - 1)
+  const barWidth = Math.max(3, availableWidth / months.length)
+
+  return months.map((month, index) => {
+    const x = startX + index * (barWidth + spacing)
+    const height = ((month.count || 0) / maxCount) * chartHeight
+    const y = startY + chartHeight - height
+
+    return {
+      x,
+      y,
+      width: barWidth,
+      height,
+      count: month.count,
+      label: month.month,
+      mits: month.mits,
+      centerX: x + barWidth / 2,
+    }
+  })
+})
+
+// Modal chart data
+const selectedChart = ref<'daily' | 'weekly' | 'monthly' | null>(null)
+
+const modalDailyBarChartData = computed(() => {
+  if (!archiveStats.value?.dailyTrend.length) return []
+  const days = archiveStats.value.dailyTrend.slice().reverse()
+  const maxCount = maxDailyCount.value || 1
+  const chartWidth = 700
+  const chartHeight = 320
+  const startX = 60
+  const startY = 40
+  const spacing = Math.max(3, Math.min(10, chartWidth / (days.length * 2)))
+  const availableWidth = chartWidth - spacing * (days.length - 1)
+  const barWidth = Math.max(4, availableWidth / days.length)
+
+  return days.map((day, index) => {
+    const x = startX + index * (barWidth + spacing)
+    const height = ((day.count || 0) / maxCount) * chartHeight
+    const y = startY + chartHeight - height
+
+    return {
+      x,
+      y,
+      width: barWidth,
+      height,
+      count: day.count,
+      date: formatDateToDisplay(day.date) || day.date,
+      mits: day.mits,
+      centerX: x + barWidth / 2,
+    }
+  })
+})
+
+const modalWeeklyBarChartData = computed(() => {
+  if (!archiveStats.value?.weeklyTrend.length) return []
+  const weeks = archiveStats.value.weeklyTrend.slice().reverse()
+  const maxCount = maxWeeklyCount.value || 1
+  const chartWidth = 700
+  const chartHeight = 320
+  const startX = 60
+  const startY = 40
+  const spacing = Math.max(4, Math.min(12, chartWidth / (weeks.length * 2)))
+  const availableWidth = chartWidth - spacing * (weeks.length - 1)
+  const barWidth = Math.max(5, availableWidth / weeks.length)
+
+  return weeks.map((week, index) => {
+    const x = startX + index * (barWidth + spacing)
+    const height = ((week.count || 0) / maxCount) * chartHeight
+    const y = startY + chartHeight - height
+
+    return {
+      x,
+      y,
+      width: barWidth,
+      height,
+      count: week.count,
+      label: formatWeekLabel(week.week),
+      mits: week.mits,
+      centerX: x + barWidth / 2,
+    }
+  })
+})
+
+const modalMonthlyBarChartData = computed(() => {
+  if (!archiveStats.value?.monthlyTrend.length) return []
+  const months = archiveStats.value.monthlyTrend.slice().reverse()
+  const maxCount = maxMonthlyCount.value || 1
+  const chartWidth = 700
+  const chartHeight = 320
+  const startX = 60
+  const startY = 40
+  const spacing = Math.max(4, Math.min(12, chartWidth / (months.length * 2)))
+  const availableWidth = chartWidth - spacing * (months.length - 1)
+  const barWidth = Math.max(8, availableWidth / months.length)
+
+  return months.map((month, index) => {
+    const x = startX + index * (barWidth + spacing)
+    const height = ((month.count || 0) / maxCount) * chartHeight
+    const y = startY + chartHeight - height
+
+    return {
+      x,
+      y,
+      width: barWidth,
+      height,
+      count: month.count,
+      label: month.month,
+      mits: month.mits,
+      centerX: x + barWidth / 2,
+    }
+  })
+})
+
+// ========== DATA LOADING ==========
+
+const loadTasks = async () => {
+  isLoading.value = true
+  try {
+    const fetchedTasks = await fetchTasks()
+    allTasks.value = fetchedTasks
+  } catch (error) {
+    console.error('Failed to load tasks:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const loadArchiveStats = async () => {
+  isLoadingArchive.value = true
+  try {
+    const stats = await $fetch<ArchiveStats>(`${apiBase}/planner/archive-stats`)
+    archiveStats.value = stats
+  } catch (error) {
+    console.error('Failed to load archive stats:', error)
+  } finally {
+    isLoadingArchive.value = false
+  }
+}
+
+// ========== DELETE FUNCTIONALITY ==========
+
 const handleDelete = async (id: number) => {
   if (!confirm('Are you sure you want to delete this task?')) return
-
   try {
-    // Archive the task since it's a completed task on the review page
-    // This preserves it for statistics and historical tracking
-    await deleteTask(id, true) // archive = true
-    doneTasks.value = doneTasks.value.filter((t) => t.id !== id)
-    selectedTasks.value = selectedTasks.value.filter((tid) => tid !== id)
+    await deleteTask(id, true) // archive=true for archival record
+    allTasks.value = allTasks.value.filter((t) => t.id !== id)
+    await loadArchiveStats() // Reload archive stats to reflect the change
   } catch (error) {
     console.error('Failed to delete task:', error)
+    alert('Failed to delete task. Please try again.')
   }
 }
 
 const handleBulkDelete = async () => {
-  if (selectedTasks.value.length === 0) return
+  if (selectedTasks.value.length === 0) {
+    alert('Please select at least one task to delete.')
+    return
+  }
+
   if (!confirm(`Are you sure you want to delete ${selectedTasks.value.length} task(s)?`)) return
 
+  const taskIdsToDelete = [...selectedTasks.value]
+  selectedTasks.value = []
+
   try {
-    // Archive all tasks since they're completed tasks on the review page
-    // This preserves them for statistics and historical tracking
-    await Promise.all(selectedTasks.value.map((id) => deleteTask(id, true))) // archive = true
-    doneTasks.value = doneTasks.value.filter((t) => !selectedTasks.value.includes(t.id))
-    selectedTasks.value = []
-    await loadDoneTasks()
+    await Promise.all(taskIdsToDelete.map((id) => deleteTask(id, true)))
+    allTasks.value = allTasks.value.filter((t) => !taskIdsToDelete.includes(t.id))
+    await loadArchiveStats()
+    alert(`Successfully deleted ${taskIdsToDelete.length} task(s).`)
   } catch (error) {
     console.error('Failed to delete tasks:', error)
+    alert('Failed to delete some tasks. Please try again.')
   }
 }
 
-const toggleSelectTask = (id: number) => {
-  const index = selectedTasks.value.indexOf(id)
-  if (index > -1) {
-    selectedTasks.value.splice(index, 1)
-  } else {
-    selectedTasks.value.push(id)
+// ========== CHART MODAL ==========
+
+const openChartModal = (chartType: 'daily' | 'weekly' | 'monthly') => {
+  selectedChart.value = chartType
+}
+
+const closeChartModal = () => {
+  selectedChart.value = null
+}
+
+const handleEscapeKey = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && selectedChart.value) {
+    closeChartModal()
   }
 }
 
-const selectAll = () => {
-  if (selectedTasks.value.length === doneTasks.value.length) {
-    selectedTasks.value = []
-  } else {
-    selectedTasks.value = doneTasks.value.map((t) => t.id)
-  }
-}
+// ========== EXPORT/PRINT ==========
 
-// Menu and dropdown state
 const showExportMenu = ref(false)
 
 const handlePrintReport = () => {
@@ -257,7 +530,6 @@ const handlePrintReport = () => {
   navigateTo(`/dev/planner/print/today?date=${getLocalDateString()}`)
 }
 
-// Set up event listeners and cleanup at top level
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
   if (!target.closest('.menu-container')) {
@@ -266,27 +538,29 @@ const handleClickOutside = (event: MouseEvent) => {
 }
 
 onMounted(() => {
-  loadDoneTasks()
+  loadTasks()
   loadArchiveStats()
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleEscapeKey)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleEscapeKey)
 })
 </script>
 
 <template>
   <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-6xl">
+    <!-- Header -->
     <div class="mb-4 sm:mb-6">
-      <div
-        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4"
-      >
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
         <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-          Review & Insights
+          Planner Review
         </h1>
-        <!-- Desktop: Large buttons with labels -->
-        <div class="hidden sm:flex items-center gap-2 flex-wrap">
+
+        <!-- Desktop: Button Row -->
+        <div class="hidden sm:flex items-center gap-3">
           <NuxtLink
             to="/dev/planner"
             class="px-4 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
@@ -310,7 +584,6 @@ onUnmounted(() => {
               <span>Export/Print</span>
               <Icon name="mdi:chevron-down" size="16" />
             </button>
-            <!-- Export/Print Dropdown -->
             <div
               v-if="showExportMenu"
               class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
@@ -357,452 +630,1042 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Combined Stats Section -->
-    <div class="space-y-6">
-      <!-- Current Period Overview -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 mb-6">
-        <h2 class="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          Current Period Overview
+    <!-- Loading State -->
+    <div v-if="isLoading || isLoadingArchive" class="text-center py-8">
+      <div class="text-gray-600 dark:text-gray-400">Loading...</div>
+    </div>
+
+    <!-- Main Content -->
+    <div v-else class="space-y-6">
+      <!-- ========== OPEN TASKS SECTION ========== -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6">
+        <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+          Open Tasks
         </h2>
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+
+        <!-- Overview Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
           <div
-            class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3 sm:p-4"
+            class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4"
           >
-            <div class="text-xl sm:text-2xl font-bold text-green-700 dark:text-green-300">
-              {{ metrics.total }}
+            <div class="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-300">
+              {{ openTasksMetrics.total }}
             </div>
-            <div class="text-xs sm:text-sm text-green-600 dark:text-green-400">Total Completed</div>
+            <div class="text-xs sm:text-sm text-blue-600 dark:text-blue-400">Total Open</div>
           </div>
           <div
-            class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 sm:p-4"
+            class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3 sm:p-4"
           >
-            <div class="text-xl sm:text-2xl font-bold text-orange-700 dark:text-orange-300">
-              {{ metrics.recentWeek }}
+            <div class="text-xl sm:text-2xl font-bold text-red-700 dark:text-red-300">
+              {{ openTasksMetrics.withMits }}
             </div>
-            <div class="text-xs sm:text-sm text-orange-600 dark:text-orange-400">Last 7 Days</div>
+            <div class="text-xs sm:text-sm text-red-600 dark:text-red-400">With MITs</div>
+          </div>
+          <div
+            class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4"
+          >
+            <div class="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300">
+              {{ openTasksMetrics.withoutMits }}
+            </div>
+            <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Regular Tasks</div>
           </div>
           <div
             class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3 sm:p-4"
           >
             <div class="text-xl sm:text-2xl font-bold text-purple-700 dark:text-purple-300">
-              {{ metrics.mits }}
+              {{ openTasksMetrics.byPriority.high }}
             </div>
-            <div class="text-xs sm:text-sm text-purple-600 dark:text-purple-400">
-              MITs Completed
-            </div>
-          </div>
-          <div
-            class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4"
-          >
-            <div class="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-300">
-              {{ metrics.regular }}
-            </div>
-            <div class="text-xs sm:text-sm text-blue-600 dark:text-blue-400">Regular Tasks</div>
-          </div>
-          <div
-            class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 sm:p-4"
-          >
-            <div class="text-xl sm:text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-              {{ metrics.withTheme }}
-            </div>
-            <div class="text-xs sm:text-sm text-yellow-600 dark:text-yellow-400">With Bucket</div>
+            <div class="text-xs sm:text-sm text-purple-600 dark:text-purple-400">High Priority</div>
           </div>
         </div>
-      </div>
 
-      <!-- Archive Statistics -->
-      <div
-        v-if="archiveStats"
-        class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 mb-6"
-      >
-        <h2 class="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          Archive Statistics
-        </h2>
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-4">
-          <div
-            class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3 sm:p-4"
-          >
-            <div class="text-xl sm:text-2xl font-bold text-green-700 dark:text-green-300">
-              {{ archiveMetrics.thisWeek }}
-            </div>
-            <div class="text-xs sm:text-sm text-green-600 dark:text-green-400">This Week</div>
-          </div>
-          <div
-            class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 sm:p-4"
-          >
-            <div class="text-xl sm:text-2xl font-bold text-orange-700 dark:text-orange-300">
-              {{ archiveMetrics.thisMonth }}
-            </div>
-            <div class="text-xs sm:text-sm text-orange-600 dark:text-orange-400">This Month</div>
-          </div>
-          <div
-            class="bg-pink-50 dark:bg-pink-950/20 border border-pink-200 dark:border-pink-800 rounded-lg p-3 sm:p-4"
-          >
-            <div class="text-xl sm:text-2xl font-bold text-pink-700 dark:text-pink-300">
-              {{ archiveMetrics.lastMonth }}
-            </div>
-            <div class="text-xs sm:text-sm text-pink-600 dark:text-pink-400">Last Month</div>
-          </div>
-          <div
-            class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 sm:p-4"
-          >
-            <div class="text-xl sm:text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-              {{ archiveMetrics.last3Months }}
-            </div>
-            <div class="text-xs sm:text-sm text-yellow-600 dark:text-yellow-400">Last 3 Months</div>
-          </div>
-          <div
-            class="bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800 rounded-lg p-3 sm:p-4"
-          >
-            <div class="text-xl sm:text-2xl font-bold text-teal-700 dark:text-teal-300">
-              {{ archiveMetrics.last6Months }}
-            </div>
-            <div class="text-xs sm:text-sm text-teal-600 dark:text-teal-400">Last 6 Months</div>
-          </div>
-          <div
-            class="bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-800 rounded-lg p-3 sm:p-4"
-          >
-            <div class="text-xl sm:text-2xl font-bold text-cyan-700 dark:text-cyan-300">
-              {{ archiveMetrics.lastYear }}
-            </div>
-            <div class="text-xs sm:text-sm text-cyan-600 dark:text-cyan-400">Last Year</div>
-          </div>
-          <div
-            class="bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-3 sm:p-4"
-          >
-            <div class="text-xl sm:text-2xl font-bold text-indigo-700 dark:text-indigo-300">
-              {{ archiveMetrics.total }}
-            </div>
-            <div class="text-xs sm:text-sm text-indigo-600 dark:text-indigo-400">
-              Total Archived
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Top Completed Themes -->
-      <div
-        v-if="tasksByTheme.length > 0"
-        class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 mb-6"
-      >
-        <h2 class="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          Top Completed Themes
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <div
-            v-for="item in tasksByTheme"
-            :key="item.theme"
-            class="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-          >
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-                {{ item.theme }}
-              </h3>
-              <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">{{
-                item.count
-              }}</span>
-            </div>
-            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div
-                class="bg-green-600 dark:bg-green-500 h-2 rounded-full transition-all"
-                :style="{
-                  width: `${doneTasks.length > 0 ? (item.count / doneTasks.length) * 100 : 0}%`,
-                }"
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Archive Loading State -->
-      <div v-if="isLoadingArchive" class="text-center py-8">
-        <div
-          class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 dark:border-gray-100"
-        ></div>
-        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading archive statistics...</p>
-      </div>
-
-      <!-- Completion Trends & Insights -->
-      <div
-        v-else-if="archiveStats"
-        class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 mb-6"
-      >
-        <h2 class="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          Completion Trends & Insights
-        </h2>
-        <div class="space-y-6">
-          <!-- Completion Rate Insight -->
-          <div
-            v-if="archiveMetrics && archiveMetrics.lastMonth > 0"
-            class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 sm:p-6"
-          >
-            <h3 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Month-over-Month Change
-            </h3>
-            <div class="flex items-center gap-4">
-              <div class="flex-1">
-                <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">Change Percentage</div>
-                <div
-                  :class="[
-                    'text-3xl font-bold',
-                    archiveMetrics.completionRate >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400',
-                  ]"
-                >
-                  {{ archiveMetrics.completionRate >= 0 ? '+' : ''
-                  }}{{ archiveMetrics.completionRate }}%
-                </div>
-              </div>
-              <div class="text-right">
-                <div class="text-sm text-gray-600 dark:text-gray-400">This Month</div>
-                <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {{ archiveMetrics.thisMonth }}
-                </div>
-                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  vs {{ archiveMetrics.lastMonth }} last month
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Daily Trend Chart -->
-          <div
-            v-if="archiveStats?.dailyTrend.length"
-            class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 sm:p-6"
-          >
-            <h3 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Daily Completion Trend (Last 30 Days)
-            </h3>
-            <div class="space-y-2">
-              <div
-                v-for="day in archiveStats.dailyTrend.slice().reverse()"
-                :key="day.date"
-                class="flex items-center gap-3"
-              >
-                <div class="w-24 text-xs text-gray-600 dark:text-gray-400 flex-shrink-0">
-                  {{ formatDateToDisplay(day.date) || day.date }}
-                </div>
-                <div class="flex-1 flex items-center gap-2">
-                  <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-6 relative">
-                    <div
-                      class="bg-blue-500 dark:bg-blue-400 h-6 rounded-full flex items-center justify-end pr-2 transition-all"
-                      :style="{ width: `${(day.count / maxDailyCount) * 100}%` }"
-                    >
-                      <span
-                        v-if="day.count > 0"
-                        class="text-xs font-medium text-white dark:text-gray-900"
-                      >
-                        {{ day.count }}
-                      </span>
-                    </div>
-                  </div>
-                  <div
-                    v-if="day.mits > 0"
-                    class="text-xs text-purple-600 dark:text-purple-400 font-medium w-12 text-right"
-                  >
-                    {{ day.mits }} MIT
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Weekly Trend Chart -->
-          <div
-            v-if="archiveStats?.weeklyTrend.length"
-            class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 sm:p-6"
-          >
-            <h3 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Weekly Completion Trend (Last 12 Weeks)
-            </h3>
-            <div class="space-y-2">
-              <div
-                v-for="week in archiveStats.weeklyTrend.slice().reverse()"
-                :key="week.week"
-                class="flex items-center gap-3"
-              >
-                <div class="w-24 text-xs text-gray-600 dark:text-gray-400 flex-shrink-0">
-                  Week of {{ formatDateToDisplay(week.week) || week.week }}
-                </div>
-                <div class="flex-1 flex items-center gap-2">
-                  <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-6 relative">
-                    <div
-                      class="bg-green-500 dark:bg-green-400 h-6 rounded-full flex items-center justify-end pr-2 transition-all"
-                      :style="{ width: `${(week.count / maxWeeklyCount) * 100}%` }"
-                    >
-                      <span
-                        v-if="week.count > 0"
-                        class="text-xs font-medium text-white dark:text-gray-900"
-                      >
-                        {{ week.count }}
-                      </span>
-                    </div>
-                  </div>
-                  <div
-                    v-if="week.mits > 0"
-                    class="text-xs text-purple-600 dark:text-purple-400 font-medium w-12 text-right"
-                  >
-                    {{ week.mits }} MIT
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Monthly Trend Chart -->
-          <div
-            v-if="archiveStats?.monthlyTrend.length"
-            class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 sm:p-6"
-          >
-            <h3 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Monthly Completion Trend (Last 12 Months)
-            </h3>
-            <div class="space-y-2">
-              <div
-                v-for="month in archiveStats.monthlyTrend.slice().reverse()"
-                :key="month.month"
-                class="flex items-center gap-3"
-              >
-                <div class="w-32 text-xs text-gray-600 dark:text-gray-400 flex-shrink-0">
-                  {{ month.month }}
-                </div>
-                <div class="flex-1 flex items-center gap-2">
-                  <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-8 relative">
-                    <div
-                      class="bg-purple-500 dark:bg-purple-400 h-8 rounded-full flex items-center justify-end pr-2 transition-all"
-                      :style="{ width: `${(month.count / maxMonthlyCount) * 100}%` }"
-                    >
-                      <span
-                        v-if="month.count > 0"
-                        class="text-sm font-medium text-white dark:text-gray-900"
-                      >
-                        {{ month.count }}
-                      </span>
-                    </div>
-                  </div>
-                  <div
-                    v-if="month.mits > 0"
-                    class="text-xs text-purple-600 dark:text-purple-400 font-medium w-12 text-right"
-                  >
-                    {{ month.mits }} MIT
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Top Archived Themes -->
-      <div
-        v-if="
-          archiveStats && archiveStats.archivedByTheme && archiveStats.archivedByTheme.length > 0
-        "
-        class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6"
-      >
-        <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Top Archived Themes</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div
-            v-for="item in archiveMetrics.topThemes"
-            :key="item.theme || 'none'"
-            class="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-          >
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-                {{ item.theme || 'No Bucket' }}
-              </h3>
-              <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">{{
-                item.count
-              }}</span>
-            </div>
-            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div
-                class="bg-indigo-600 dark:bg-indigo-500 h-2 rounded-full transition-all"
-                :style="{ width: `${(item.count / archiveMetrics.total) * 100}%` }"
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Completed Tasks Table Section -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-      <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Completed Tasks</h2>
-
-      <!-- Bulk Actions -->
-      <div v-if="doneTasks.length > 0" class="mb-4 flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              :checked="selectedTasks.length === doneTasks.length && doneTasks.length > 0"
-              class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              @change="selectAll"
-            />
-            <span class="text-sm text-gray-700 dark:text-gray-300">Select All</span>
-          </label>
-          <span v-if="selectedTasks.length > 0" class="text-sm text-gray-600 dark:text-gray-400">
-            {{ selectedTasks.length }} selected
-          </span>
-        </div>
-        <button
-          v-if="selectedTasks.length > 0"
-          class="px-4 py-2.5 sm:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0 text-sm sm:text-base"
-          @click="handleBulkDelete"
-        >
-          Delete Selected ({{ selectedTasks.length }})
-        </button>
-      </div>
-
-      <div v-if="isLoading" class="text-center py-12">
-        <div
-          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"
-        ></div>
-      </div>
-
-      <div v-else-if="doneTasks.length === 0" class="text-center py-12">
-        <Icon
-          name="mdi:check-circle-outline"
-          size="64"
-          class="mx-auto mb-4 text-gray-400 dark:text-gray-600"
-        />
-        <p class="text-lg text-gray-500 dark:text-gray-400">No completed tasks found</p>
-      </div>
-
-      <div v-else class="overflow-hidden">
-        <div class="divide-y divide-gray-200 dark:divide-gray-700">
-          <div
-            v-for="task in doneTasks"
-            :key="task.id"
-            class="px-3 sm:px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center gap-3"
-          >
-            <input
-              type="checkbox"
-              :checked="selectedTasks.includes(task.id)"
-              class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 touch-manipulation flex-shrink-0"
-              @change="toggleSelectTask(task.id)"
-            />
-            <div class="flex-1 min-w-0">
-              <div
-                class="font-medium text-base sm:text-sm text-gray-900 dark:text-gray-100 break-words"
-              >
-                {{ task.title }}
-              </div>
-              <div
-                v-if="task.theme"
-                class="text-sm sm:text-xs text-gray-500 dark:text-gray-400 mt-1"
-              >
-                Bucket: {{ task.theme }}
-              </div>
-            </div>
-            <button
-              class="px-4 py-2 sm:px-3 sm:py-1 text-sm sm:text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors touch-manipulation min-h-[44px] sm:min-h-0"
-              @click="handleDelete(task.id)"
+        <!-- Task Aging -->
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Task Aging</h3>
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div
+              class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3"
             >
-              Delete
+              <div class="text-lg font-bold text-green-700 dark:text-green-300">
+                {{ openTasksMetrics.aging['0-7'] }}
+              </div>
+              <div class="text-xs text-green-600 dark:text-green-400">0-7 days</div>
+            </div>
+            <div
+              class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3"
+            >
+              <div class="text-lg font-bold text-yellow-700 dark:text-yellow-300">
+                {{ openTasksMetrics.aging['8-14'] }}
+              </div>
+              <div class="text-xs text-yellow-600 dark:text-yellow-400">8-14 days</div>
+            </div>
+            <div
+              class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3"
+            >
+              <div class="text-lg font-bold text-orange-700 dark:text-orange-300">
+                {{ openTasksMetrics.aging['15-30'] }}
+              </div>
+              <div class="text-xs text-orange-600 dark:text-orange-400">15-30 days</div>
+            </div>
+            <div
+              class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3"
+            >
+              <div class="text-lg font-bold text-red-700 dark:text-red-300">
+                {{ openTasksMetrics.aging['31-60'] }}
+              </div>
+              <div class="text-xs text-red-600 dark:text-red-400">31-60 days</div>
+            </div>
+            <div
+              class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+            >
+              <div class="text-lg font-bold text-gray-700 dark:text-gray-300">
+                {{ openTasksMetrics.aging['60+'] }}
+              </div>
+              <div class="text-xs text-gray-600 dark:text-gray-400">60+ days</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Open Tasks by Bucket -->
+        <div v-if="openTasksMetrics.byBucket.length > 0">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+            Open Tasks by Bucket
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div
+              v-for="item in openTasksMetrics.byBucket"
+              :key="item.bucket"
+              class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+            >
+              <div class="flex items-center justify-between">
+                <div class="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                  {{ item.bucket }}
+                </div>
+                <div class="text-lg font-bold text-gray-700 dark:text-gray-300">
+                  {{ item.count }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== CLOSED TASKS SECTION ========== -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6">
+        <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+          Closed Tasks
+        </h2>
+
+        <!-- Closure Trends -->
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+            Closure Trends
+          </h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <div
+              class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3 sm:p-4"
+            >
+              <div class="text-xl sm:text-2xl font-bold text-green-700 dark:text-green-300">
+                {{ closedTasksMetrics.trends.thisWeek }}
+              </div>
+              <div class="text-xs sm:text-sm text-green-600 dark:text-green-400">This Week</div>
+            </div>
+            <div
+              class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4"
+            >
+              <div class="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-300">
+                {{ closedTasksMetrics.trends.thisMonth }}
+              </div>
+              <div class="text-xs sm:text-sm text-blue-600 dark:text-blue-400">This Month</div>
+            </div>
+            <div
+              class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3 sm:p-4"
+            >
+              <div class="text-xl sm:text-2xl font-bold text-purple-700 dark:text-purple-300">
+                {{ closedTasksMetrics.trends.last3Months }}
+              </div>
+              <div class="text-xs sm:text-sm text-purple-600 dark:text-purple-400">
+                Last 3 Months
+              </div>
+            </div>
+            <div
+              class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 sm:p-4"
+            >
+              <div class="text-xl sm:text-2xl font-bold text-orange-700 dark:text-orange-300">
+                {{ closedTasksMetrics.trends.last6Months }}
+              </div>
+              <div class="text-xs sm:text-sm text-orange-600 dark:text-orange-400">
+                Last 6 Months
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Total Closed Stats -->
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Total Closed</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+            <div
+              class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3 sm:p-4"
+            >
+              <div class="text-xl sm:text-2xl font-bold text-green-700 dark:text-green-300">
+                {{ closedTasksMetrics.totalClosed }}
+              </div>
+              <div class="text-xs sm:text-sm text-green-600 dark:text-green-400">Total Closed</div>
+            </div>
+            <div
+              class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3 sm:p-4"
+            >
+              <div class="text-xl sm:text-2xl font-bold text-red-700 dark:text-red-300">
+                {{ closedTasksMetrics.totalMits }}
+              </div>
+              <div class="text-xs sm:text-sm text-red-600 dark:text-red-400">With MITs</div>
+            </div>
+            <div
+              class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4"
+            >
+              <div class="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300">
+                {{ closedTasksMetrics.totalRegular }}
+              </div>
+              <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Regular Tasks</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Closure Trends by Bucket -->
+        <div v-if="closedTasksMetrics.closedByBucket.length > 0" class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+            Closure Trends by Bucket
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div
+              v-for="item in closedTasksMetrics.closedByBucket"
+              :key="item.bucket"
+              class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+            >
+              <div class="flex items-center justify-between mb-2">
+                <div class="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                  {{ item.bucket }}
+                </div>
+                <div class="text-lg font-bold text-gray-700 dark:text-gray-300">
+                  {{ item.closed }}
+                </div>
+              </div>
+              <div class="text-xs text-gray-600 dark:text-gray-400">
+                {{ item.closed }} of {{ item.total }} tasks ({{ item.percentage }}%)
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completion Trends & Insights (Charts) -->
+        <div v-if="archiveStats" class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            Completion Trends & Insights
+          </h3>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Daily Trend Bar Chart -->
+            <div
+              v-if="archiveStats?.dailyTrend.length"
+              class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 sm:p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+              @click="openChartModal('daily')"
+            >
+              <h4 class="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Daily (Last 30 Days)
+              </h4>
+              <svg viewBox="0 0 400 220" class="w-full h-48" preserveAspectRatio="xMidYMid meet">
+                <!-- Y-axis -->
+                <line
+                  x1="50"
+                  y1="30"
+                  x2="50"
+                  y2="190"
+                  stroke="rgb(156, 163, 175)"
+                  stroke-width="1.5"
+                  class="dark:stroke-gray-500"
+                />
+                <!-- X-axis -->
+                <line
+                  x1="50"
+                  y1="190"
+                  x2="370"
+                  y2="190"
+                  stroke="rgb(156, 163, 175)"
+                  stroke-width="1.5"
+                  class="dark:[stroke:rgb(107,114,128)]"
+                />
+                <!-- Y-axis label -->
+                <text
+                  x="15"
+                  y="110"
+                  fill="rgb(75, 85, 99)"
+                  text-anchor="middle"
+                  transform="rotate(-90 15 110)"
+                  style="font-size: 12px"
+                  class="dark:[fill:rgb(156,163,175)]"
+                >
+                  Tasks
+                </text>
+                <!-- Y-axis ticks and labels -->
+                <g v-for="(tick, index) in 4" :key="`daily-y-tick-${index}`">
+                  <line
+                    x1="48"
+                    :y1="30 + (index * 160) / 3"
+                    x2="50"
+                    :y2="30 + (index * 160) / 3"
+                    stroke="rgb(156, 163, 175)"
+                    stroke-width="1"
+                    class="dark:[stroke:rgb(107,114,128)]"
+                  />
+                  <text
+                    x="45"
+                    :y="35 + (index * 160) / 3"
+                    fill="rgb(75, 85, 99)"
+                    text-anchor="end"
+                    dominant-baseline="middle"
+                    style="font-size: 11px"
+                    class="dark:[fill:rgb(156,163,175)]"
+                  >
+                    {{ Math.round(maxDailyCount - (maxDailyCount / 3) * index) }}
+                  </text>
+                </g>
+                <!-- Bars -->
+                <g v-for="(bar, index) in dailyBarChartData" :key="`daily-bar-${index}`">
+                  <rect
+                    :x="bar.x"
+                    :y="bar.y"
+                    :width="bar.width"
+                    :height="bar.height"
+                    fill="rgb(59, 130, 246)"
+                    class="dark:fill-blue-400 cursor-pointer hover:opacity-80 transition-opacity"
+                    :title="`${bar.date}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
+                  />
+                  <!-- Data label on top of bar -->
+                  <text
+                    v-if="bar.count > 0"
+                    :x="bar.centerX"
+                    :y="bar.y - 5"
+                    fill="rgb(75, 85, 99)"
+                    text-anchor="middle"
+                    dominant-baseline="bottom"
+                    style="font-size: 11px; font-weight: 500"
+                    class="dark:[fill:rgb(209,213,219)]"
+                  >
+                    {{ bar.count }}
+                  </text>
+                </g>
+                <!-- X-axis tick marks and labels -->
+                <g v-for="(bar, index) in dailyBarChartData" :key="`daily-x-tick-${index}`">
+                  <line
+                    :x1="bar.centerX"
+                    y1="190"
+                    :x2="bar.centerX"
+                    y2="193"
+                    stroke="rgb(156, 163, 175)"
+                    stroke-width="1"
+                    class="dark:[stroke:rgb(107,114,128)]"
+                  />
+                  <text
+                    v-if="
+                      index % Math.ceil(dailyBarChartData.length / 6) === 0 ||
+                      index === dailyBarChartData.length - 1
+                    "
+                    :x="bar.centerX"
+                    y="212"
+                    fill="rgb(75, 85, 99)"
+                    text-anchor="middle"
+                    style="font-size: 11px; font-weight: 500"
+                    class="dark:[fill:rgb(156,163,175)]"
+                  >
+                    {{ bar.date }}
+                  </text>
+                </g>
+              </svg>
+            </div>
+
+            <!-- Weekly Trend Bar Chart -->
+            <div
+              v-if="archiveStats?.weeklyTrend.length"
+              class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 sm:p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+              @click="openChartModal('weekly')"
+            >
+              <h4 class="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Weekly (Last 12 Weeks)
+              </h4>
+              <svg viewBox="0 0 400 220" class="w-full h-48" preserveAspectRatio="xMidYMid meet">
+                <!-- Y-axis -->
+                <line
+                  x1="50"
+                  y1="30"
+                  x2="50"
+                  y2="190"
+                  stroke="rgb(156, 163, 175)"
+                  stroke-width="1.5"
+                  class="dark:stroke-gray-500"
+                />
+                <!-- X-axis -->
+                <line
+                  x1="50"
+                  y1="190"
+                  x2="370"
+                  y2="190"
+                  stroke="rgb(156, 163, 175)"
+                  stroke-width="1.5"
+                  class="dark:[stroke:rgb(107,114,128)]"
+                />
+                <!-- Y-axis label -->
+                <text
+                  x="15"
+                  y="110"
+                  fill="rgb(75, 85, 99)"
+                  text-anchor="middle"
+                  transform="rotate(-90 15 110)"
+                  style="font-size: 12px"
+                  class="dark:[fill:rgb(156,163,175)]"
+                >
+                  Tasks
+                </text>
+                <!-- Y-axis ticks and labels -->
+                <g v-for="(tick, index) in 4" :key="`weekly-y-tick-${index}`">
+                  <line
+                    x1="48"
+                    :y1="30 + (index * 160) / 3"
+                    x2="50"
+                    :y2="30 + (index * 160) / 3"
+                    stroke="rgb(156, 163, 175)"
+                    stroke-width="1"
+                    class="dark:[stroke:rgb(107,114,128)]"
+                  />
+                  <text
+                    x="45"
+                    :y="35 + (index * 160) / 3"
+                    fill="rgb(75, 85, 99)"
+                    text-anchor="end"
+                    dominant-baseline="middle"
+                    style="font-size: 11px"
+                    class="dark:[fill:rgb(156,163,175)]"
+                  >
+                    {{ Math.round(maxWeeklyCount - (maxWeeklyCount / 3) * index) }}
+                  </text>
+                </g>
+                <!-- Bars -->
+                <g v-for="(bar, index) in weeklyBarChartData" :key="`weekly-bar-${index}`">
+                  <rect
+                    :x="bar.x"
+                    :y="bar.y"
+                    :width="bar.width"
+                    :height="bar.height"
+                    fill="rgb(34, 197, 94)"
+                    class="dark:fill-green-400 cursor-pointer hover:opacity-80 transition-opacity"
+                    :title="`${bar.label}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
+                  />
+                  <!-- Data label on top of bar -->
+                  <text
+                    v-if="bar.count > 0"
+                    :x="bar.centerX"
+                    :y="bar.y - 5"
+                    fill="rgb(75, 85, 99)"
+                    text-anchor="middle"
+                    dominant-baseline="bottom"
+                    style="font-size: 11px; font-weight: 500"
+                    class="dark:[fill:rgb(209,213,219)]"
+                  >
+                    {{ bar.count }}
+                  </text>
+                </g>
+                <!-- X-axis tick marks and labels -->
+                <g v-for="(bar, index) in weeklyBarChartData" :key="`weekly-x-tick-${index}`">
+                  <line
+                    :x1="bar.centerX"
+                    y1="190"
+                    :x2="bar.centerX"
+                    y2="193"
+                    stroke="rgb(156, 163, 175)"
+                    stroke-width="1"
+                    class="dark:[stroke:rgb(107,114,128)]"
+                  />
+                  <text
+                    :x="bar.centerX"
+                    y="212"
+                    fill="rgb(75, 85, 99)"
+                    text-anchor="middle"
+                    style="font-size: 11px; font-weight: 500"
+                    class="dark:[fill:rgb(156,163,175)]"
+                  >
+                    {{ bar.label }}
+                  </text>
+                </g>
+              </svg>
+            </div>
+
+            <!-- Monthly Trend Bar Chart -->
+            <div
+              v-if="archiveStats?.monthlyTrend.length"
+              class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 sm:p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+              @click="openChartModal('monthly')"
+            >
+              <h4 class="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Monthly (Last 12 Months)
+              </h4>
+              <svg viewBox="0 0 400 220" class="w-full h-48" preserveAspectRatio="xMidYMid meet">
+                <!-- Y-axis -->
+                <line
+                  x1="50"
+                  y1="30"
+                  x2="50"
+                  y2="190"
+                  stroke="rgb(156, 163, 175)"
+                  stroke-width="1.5"
+                  class="dark:stroke-gray-500"
+                />
+                <!-- X-axis -->
+                <line
+                  x1="50"
+                  y1="190"
+                  x2="370"
+                  y2="190"
+                  stroke="rgb(156, 163, 175)"
+                  stroke-width="1.5"
+                  class="dark:[stroke:rgb(107,114,128)]"
+                />
+                <!-- Y-axis label -->
+                <text
+                  x="15"
+                  y="110"
+                  fill="rgb(75, 85, 99)"
+                  text-anchor="middle"
+                  transform="rotate(-90 15 110)"
+                  style="font-size: 12px"
+                  class="dark:[fill:rgb(156,163,175)]"
+                >
+                  Tasks
+                </text>
+                <!-- Y-axis ticks and labels -->
+                <g v-for="(tick, index) in 4" :key="`monthly-y-tick-${index}`">
+                  <line
+                    x1="48"
+                    :y1="30 + (index * 160) / 3"
+                    x2="50"
+                    :y2="30 + (index * 160) / 3"
+                    stroke="rgb(156, 163, 175)"
+                    stroke-width="1"
+                    class="dark:[stroke:rgb(107,114,128)]"
+                  />
+                  <text
+                    x="45"
+                    :y="35 + (index * 160) / 3"
+                    fill="rgb(75, 85, 99)"
+                    text-anchor="end"
+                    dominant-baseline="middle"
+                    style="font-size: 11px"
+                    class="dark:[fill:rgb(156,163,175)]"
+                  >
+                    {{ Math.round(maxMonthlyCount - (maxMonthlyCount / 3) * index) }}
+                  </text>
+                </g>
+                <!-- Bars -->
+                <g v-for="(bar, index) in monthlyBarChartData" :key="`monthly-bar-${index}`">
+                  <rect
+                    :x="bar.x"
+                    :y="bar.y"
+                    :width="bar.width"
+                    :height="bar.height"
+                    fill="rgb(168, 85, 247)"
+                    class="dark:fill-purple-400 cursor-pointer hover:opacity-80 transition-opacity"
+                    :title="`${bar.label}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
+                  />
+                  <!-- Data label on top of bar -->
+                  <text
+                    v-if="bar.count > 0"
+                    :x="bar.centerX"
+                    :y="bar.y - 5"
+                    fill="rgb(75, 85, 99)"
+                    text-anchor="middle"
+                    dominant-baseline="bottom"
+                    style="font-size: 11px; font-weight: 500"
+                    class="dark:[fill:rgb(209,213,219)]"
+                  >
+                    {{ bar.count }}
+                  </text>
+                </g>
+                <!-- X-axis tick marks and labels -->
+                <g v-for="(bar, index) in monthlyBarChartData" :key="`monthly-x-tick-${index}`">
+                  <line
+                    :x1="bar.centerX"
+                    y1="190"
+                    :x2="bar.centerX"
+                    y2="193"
+                    stroke="rgb(156, 163, 175)"
+                    stroke-width="1"
+                    class="dark:[stroke:rgb(107,114,128)]"
+                  />
+                  <text
+                    :x="bar.centerX"
+                    y="212"
+                    fill="rgb(75, 85, 99)"
+                    text-anchor="middle"
+                    style="font-size: 11px; font-weight: 500"
+                    class="dark:[fill:rgb(156,163,175)]"
+                  >
+                    {{ bar.label.split(' ')[0] }}
+                  </text>
+                </g>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Insights -->
+        <div
+          v-if="closedTasksMetrics.avgDaysToClose > 0"
+          class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6"
+        >
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Insights</h3>
+          <div class="text-sm text-gray-700 dark:text-gray-300">
+            <p>
+              Average time to close tasks:
+              <strong>{{ closedTasksMetrics.avgDaysToClose }} days</strong>
+            </p>
+          </div>
+        </div>
+
+        <!-- Closed Tasks List with Bulk Delete -->
+        <div v-if="closedTasks.length > 0" class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+          <div
+            class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4"
+          >
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Closed Tasks</h3>
+            <button
+              v-if="selectedTasks.length > 0"
+              class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+              @click="handleBulkDelete"
+            >
+              <Icon name="mdi:delete" size="20" />
+              <span>Delete Selected ({{ selectedTasks.length }})</span>
             </button>
+          </div>
+
+          <div class="space-y-2 max-h-96 overflow-y-auto">
+            <div
+              v-for="task in closedTasks"
+              :key="task.id"
+              class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+            >
+              <input
+                :id="`task-${task.id}`"
+                v-model="selectedTasks"
+                type="checkbox"
+                :value="task.id"
+                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <label :for="`task-${task.id}`" class="flex-1 cursor-pointer">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span
+                    :class="[
+                      'text-sm',
+                      task.is_mit
+                        ? 'text-red-600 dark:text-red-400 font-semibold'
+                        : 'text-gray-900 dark:text-gray-100',
+                    ]"
+                  >
+                    {{ task.title }}
+                  </span>
+                  <span
+                    v-if="task.theme"
+                    class="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs rounded"
+                  >
+                    {{ task.theme }}
+                  </span>
+                  <span
+                    v-if="task.is_mit"
+                    class="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs rounded font-medium"
+                  >
+                    MIT
+                  </span>
+                  <span v-if="task.planned_date" class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ formatDateToDisplay(task.planned_date) }}
+                  </span>
+                </div>
+                <div v-if="task.notes" class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  {{ task.notes }}
+                </div>
+              </label>
+              <button
+                class="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                @click="handleDelete(task.id)"
+              >
+                <Icon name="mdi:delete" size="20" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart Modal -->
+      <div
+        v-if="selectedChart"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 p-4"
+        @click.self="closeChartModal"
+      >
+        <div
+          class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-auto relative"
+          @click.stop
+        >
+          <!-- Close Button -->
+          <button
+            class="absolute top-4 right-4 z-10 p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            @click="closeChartModal"
+          >
+            <Icon name="mdi:close" size="24" class="text-gray-600 dark:text-gray-300" />
+          </button>
+
+          <!-- Daily Chart Modal -->
+          <div v-if="selectedChart === 'daily' && archiveStats?.dailyTrend.length" class="p-6">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+              Daily Completion Trend (Last 30 Days)
+            </h2>
+            <svg viewBox="0 0 800 400" class="w-full h-96" preserveAspectRatio="xMidYMid meet">
+              <!-- Y-axis -->
+              <line
+                x1="60"
+                y1="40"
+                x2="60"
+                y2="360"
+                stroke="rgb(156, 163, 175)"
+                stroke-width="2"
+                class="dark:[stroke:rgb(107,114,128)]"
+              />
+              <!-- X-axis -->
+              <line
+                x1="60"
+                y1="360"
+                x2="760"
+                y2="360"
+                stroke="rgb(156, 163, 175)"
+                stroke-width="2"
+                class="dark:[stroke:rgb(107,114,128)]"
+              />
+              <!-- Y-axis label -->
+              <text
+                x="30"
+                y="200"
+                fill="rgb(75, 85, 99)"
+                text-anchor="middle"
+                transform="rotate(-90 30 200)"
+                style="font-size: 14px; font-weight: 600"
+                class="dark:[fill:rgb(156,163,175)]"
+              >
+                Tasks
+              </text>
+              <!-- Y-axis ticks and labels -->
+              <g v-for="(tick, index) in 5" :key="`modal-daily-y-tick-${index}`">
+                <line
+                  x1="58"
+                  :y1="40 + (index * 320) / 4"
+                  x2="60"
+                  :y2="40 + (index * 320) / 4"
+                  stroke="rgb(156, 163, 175)"
+                  stroke-width="1.5"
+                  class="dark:[stroke:rgb(107,114,128)]"
+                />
+                <text
+                  x="55"
+                  :y="45 + (index * 320) / 4"
+                  fill="rgb(75, 85, 99)"
+                  text-anchor="end"
+                  dominant-baseline="middle"
+                  style="font-size: 12px"
+                  class="dark:[fill:rgb(156,163,175)]"
+                >
+                  {{ Math.round(maxDailyCount - (maxDailyCount / 4) * index) }}
+                </text>
+              </g>
+              <!-- Bars -->
+              <g v-for="(bar, index) in modalDailyBarChartData" :key="`modal-daily-bar-${index}`">
+                <rect
+                  :x="bar.x"
+                  :y="bar.y"
+                  :width="bar.width"
+                  :height="bar.height"
+                  fill="rgb(59, 130, 246)"
+                  class="dark:fill-blue-400 cursor-pointer hover:opacity-80 transition-opacity"
+                  :title="`${bar.date}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
+                />
+                <!-- Data label -->
+                <text
+                  v-if="bar.count > 0"
+                  :x="bar.centerX"
+                  :y="bar.y - 8"
+                  fill="rgb(75, 85, 99)"
+                  text-anchor="middle"
+                  dominant-baseline="bottom"
+                  style="font-size: 13px; font-weight: 600"
+                  class="dark:[fill:rgb(209,213,219)]"
+                >
+                  {{ bar.count }}
+                </text>
+              </g>
+              <!-- X-axis labels -->
+              <g
+                v-for="(bar, index) in modalDailyBarChartData"
+                :key="`modal-daily-x-tick-${index}`"
+              >
+                <line
+                  :x1="bar.centerX"
+                  y1="360"
+                  :x2="bar.centerX"
+                  y2="365"
+                  stroke="rgb(156, 163, 175)"
+                  stroke-width="1.5"
+                  class="dark:[stroke:rgb(107,114,128)]"
+                />
+                <text
+                  v-if="
+                    index % Math.ceil(modalDailyBarChartData.length / 10) === 0 ||
+                    index === modalDailyBarChartData.length - 1
+                  "
+                  :x="bar.centerX"
+                  y="378"
+                  fill="rgb(75, 85, 99)"
+                  text-anchor="middle"
+                  style="font-size: 12px; font-weight: 500"
+                  class="dark:[fill:rgb(156,163,175)]"
+                >
+                  {{ bar.date }}
+                </text>
+              </g>
+            </svg>
+          </div>
+
+          <!-- Weekly Chart Modal -->
+          <div v-if="selectedChart === 'weekly' && archiveStats?.weeklyTrend.length" class="p-6">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+              Weekly Completion Trend (Last 12 Weeks)
+            </h2>
+            <svg viewBox="0 0 800 400" class="w-full h-96" preserveAspectRatio="xMidYMid meet">
+              <!-- Y-axis -->
+              <line
+                x1="60"
+                y1="40"
+                x2="60"
+                y2="360"
+                stroke="rgb(156, 163, 175)"
+                stroke-width="2"
+                class="dark:[stroke:rgb(107,114,128)]"
+              />
+              <!-- X-axis -->
+              <line
+                x1="60"
+                y1="360"
+                x2="760"
+                y2="360"
+                stroke="rgb(156, 163, 175)"
+                stroke-width="2"
+                class="dark:[stroke:rgb(107,114,128)]"
+              />
+              <!-- Y-axis label -->
+              <text
+                x="30"
+                y="200"
+                fill="rgb(75, 85, 99)"
+                text-anchor="middle"
+                transform="rotate(-90 30 200)"
+                style="font-size: 14px; font-weight: 600"
+                class="dark:[fill:rgb(156,163,175)]"
+              >
+                Tasks
+              </text>
+              <!-- Y-axis ticks and labels -->
+              <g v-for="(tick, index) in 5" :key="`modal-weekly-y-tick-${index}`">
+                <line
+                  x1="58"
+                  :y1="40 + (index * 320) / 4"
+                  x2="60"
+                  :y2="40 + (index * 320) / 4"
+                  stroke="rgb(156, 163, 175)"
+                  stroke-width="1.5"
+                  class="dark:[stroke:rgb(107,114,128)]"
+                />
+                <text
+                  x="55"
+                  :y="45 + (index * 320) / 4"
+                  fill="rgb(75, 85, 99)"
+                  text-anchor="end"
+                  dominant-baseline="middle"
+                  style="font-size: 12px"
+                  class="dark:[fill:rgb(156,163,175)]"
+                >
+                  {{ Math.round(maxWeeklyCount - (maxWeeklyCount / 4) * index) }}
+                </text>
+              </g>
+              <!-- Bars -->
+              <g v-for="(bar, index) in modalWeeklyBarChartData" :key="`modal-weekly-bar-${index}`">
+                <rect
+                  :x="bar.x"
+                  :y="bar.y"
+                  :width="bar.width"
+                  :height="bar.height"
+                  fill="rgb(34, 197, 94)"
+                  class="dark:fill-green-400 cursor-pointer hover:opacity-80 transition-opacity"
+                  :title="`${bar.label}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
+                />
+                <!-- Data label -->
+                <text
+                  v-if="bar.count > 0"
+                  :x="bar.centerX"
+                  :y="bar.y - 8"
+                  fill="rgb(75, 85, 99)"
+                  text-anchor="middle"
+                  dominant-baseline="bottom"
+                  style="font-size: 13px; font-weight: 600"
+                  class="dark:[fill:rgb(209,213,219)]"
+                >
+                  {{ bar.count }}
+                </text>
+              </g>
+              <!-- X-axis labels -->
+              <g
+                v-for="(bar, index) in modalWeeklyBarChartData"
+                :key="`modal-weekly-x-tick-${index}`"
+              >
+                <line
+                  :x1="bar.centerX"
+                  y1="360"
+                  :x2="bar.centerX"
+                  y2="365"
+                  stroke="rgb(156, 163, 175)"
+                  stroke-width="1.5"
+                  class="dark:[stroke:rgb(107,114,128)]"
+                />
+                <text
+                  :x="bar.centerX"
+                  y="378"
+                  fill="rgb(75, 85, 99)"
+                  text-anchor="middle"
+                  style="font-size: 12px; font-weight: 500"
+                  class="dark:[fill:rgb(156,163,175)]"
+                >
+                  {{ bar.label }}
+                </text>
+              </g>
+            </svg>
+          </div>
+
+          <!-- Monthly Chart Modal -->
+          <div v-if="selectedChart === 'monthly' && archiveStats?.monthlyTrend.length" class="p-6">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+              Monthly Completion Trend (Last 12 Months)
+            </h2>
+            <svg viewBox="0 0 800 400" class="w-full h-96" preserveAspectRatio="xMidYMid meet">
+              <!-- Y-axis -->
+              <line
+                x1="60"
+                y1="40"
+                x2="60"
+                y2="360"
+                stroke="rgb(156, 163, 175)"
+                stroke-width="2"
+                class="dark:[stroke:rgb(107,114,128)]"
+              />
+              <!-- X-axis -->
+              <line
+                x1="60"
+                y1="360"
+                x2="760"
+                y2="360"
+                stroke="rgb(156, 163, 175)"
+                stroke-width="2"
+                class="dark:[stroke:rgb(107,114,128)]"
+              />
+              <!-- Y-axis label -->
+              <text
+                x="30"
+                y="200"
+                fill="rgb(75, 85, 99)"
+                text-anchor="middle"
+                transform="rotate(-90 30 200)"
+                style="font-size: 14px; font-weight: 600"
+                class="dark:[fill:rgb(156,163,175)]"
+              >
+                Tasks
+              </text>
+              <!-- Y-axis ticks and labels -->
+              <g v-for="(tick, index) in 5" :key="`modal-monthly-y-tick-${index}`">
+                <line
+                  x1="58"
+                  :y1="40 + (index * 320) / 4"
+                  x2="60"
+                  :y2="40 + (index * 320) / 4"
+                  stroke="rgb(156, 163, 175)"
+                  stroke-width="1.5"
+                  class="dark:[stroke:rgb(107,114,128)]"
+                />
+                <text
+                  x="55"
+                  :y="45 + (index * 320) / 4"
+                  fill="rgb(75, 85, 99)"
+                  text-anchor="end"
+                  dominant-baseline="middle"
+                  style="font-size: 12px"
+                  class="dark:[fill:rgb(156,163,175)]"
+                >
+                  {{ Math.round(maxMonthlyCount - (maxMonthlyCount / 4) * index) }}
+                </text>
+              </g>
+              <!-- Bars -->
+              <g
+                v-for="(bar, index) in modalMonthlyBarChartData"
+                :key="`modal-monthly-bar-${index}`"
+              >
+                <rect
+                  :x="bar.x"
+                  :y="bar.y"
+                  :width="bar.width"
+                  :height="bar.height"
+                  fill="rgb(168, 85, 247)"
+                  class="dark:fill-purple-400 cursor-pointer hover:opacity-80 transition-opacity"
+                  :title="`${bar.label}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
+                />
+                <!-- Data label -->
+                <text
+                  v-if="bar.count > 0"
+                  :x="bar.centerX"
+                  :y="bar.y - 8"
+                  fill="rgb(75, 85, 99)"
+                  text-anchor="middle"
+                  dominant-baseline="bottom"
+                  style="font-size: 13px; font-weight: 600"
+                  class="dark:[fill:rgb(209,213,219)]"
+                >
+                  {{ bar.count }}
+                </text>
+              </g>
+              <!-- X-axis labels -->
+              <g
+                v-for="(bar, index) in modalMonthlyBarChartData"
+                :key="`modal-monthly-x-tick-${index}`"
+              >
+                <line
+                  :x1="bar.centerX"
+                  y1="360"
+                  :x2="bar.centerX"
+                  y2="365"
+                  stroke="rgb(156, 163, 175)"
+                  stroke-width="1.5"
+                  class="dark:[stroke:rgb(107,114,128)]"
+                />
+                <text
+                  :x="bar.centerX"
+                  y="378"
+                  fill="rgb(75, 85, 99)"
+                  text-anchor="middle"
+                  style="font-size: 12px; font-weight: 500"
+                  class="dark:[fill:rgb(156,163,175)]"
+                >
+                  {{ bar.label.split(' ')[0] }}
+                </text>
+              </g>
+            </svg>
           </div>
         </div>
       </div>

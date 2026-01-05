@@ -23,6 +23,7 @@ export type DelegationStatus =
   | 'meeting'
   | 'email'
   | 'admin'
+  | 'idea'
 
 export interface TaskWithQuadrant extends Task {
   quadrant: Quadrant
@@ -86,6 +87,7 @@ export function parseDelegationStatus(notes: string | null): DelegationStatus {
     lowerNotes.includes('@deepwork')
   )
     return 'deep-work'
+  if (lowerNotes.includes('@idea') || lowerNotes.includes('#idea')) return 'idea'
 
   return 'none'
 }
@@ -273,6 +275,13 @@ export function getAvailableTags(): TagInfo[] {
       description: 'Can be done when energy is low',
       quadrant: 'Q4',
       examples: ['@low-energy', '#low-energy', '@lowenergy'],
+      category: 'time-effort',
+    },
+    {
+      tag: '@idea',
+      description: 'Idea or future consideration',
+      quadrant: 'Q4',
+      examples: ['@idea', '#idea'],
       category: 'time-effort',
     },
   ]
