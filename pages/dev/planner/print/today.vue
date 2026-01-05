@@ -169,8 +169,8 @@ onUnmounted(() => {
                     {{ task.title }}
                   </span>
                   <span v-if="task.is_mit" class="matrix-mit-badge">MIT</span>
+                  <span v-if="task.theme" class="matrix-theme-badge">{{ task.theme }}</span>
                 </div>
-                <div v-if="task.theme" class="matrix-task-theme">{{ task.theme }}</div>
               </div>
               <div v-if="quadrant.remainingCount > 0" class="more-tasks">
                 +{{ quadrant.remainingCount }} more
@@ -707,7 +707,6 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   flex-wrap: wrap;
-  margin-bottom: 2px;
 }
 
 .matrix-task-title {
@@ -756,19 +755,25 @@ onUnmounted(() => {
   }
 }
 
-.matrix-task-theme {
-  font-size: 9px;
+.matrix-theme-badge {
+  font-size: 8px;
+  font-weight: normal;
+  padding: 1px 3px;
+  background: #f3e8ff;
   color: #7c3aed;
-  margin-top: 1px;
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 
-.print-page.dark .matrix-task-theme {
+.print-page.dark .matrix-theme-badge {
+  background: #3b1f5f;
   color: #c4b5fd;
 }
 
 @media print {
-  .matrix-task-theme {
-    font-size: 8px;
+  .matrix-theme-badge {
+    font-size: 7px;
+    padding: 0 2px;
   }
 }
 
