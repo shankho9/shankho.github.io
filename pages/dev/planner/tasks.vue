@@ -76,7 +76,6 @@ const taskToDelete = ref<{ id: number; title: string } | null>(null)
 const isPurging = ref(false)
 
 // Menu and dropdown state
-const showMobileMenu = ref(false)
 const showExportMenu = ref(false)
 const datePickerRef = ref<HTMLInputElement | null>(null)
 
@@ -803,7 +802,6 @@ const handlePurge = async () => {
     return
 
   isPurging.value = true
-  showMobileMenu.value = false
   try {
     const result = await purgeDeletedTasks()
     alert(`Successfully purged ${result.deletedCount} task(s)`)
@@ -819,25 +817,12 @@ const handlePurge = async () => {
 
 const handleExportCSV = () => {
   showExportMenu.value = false
-  showMobileMenu.value = false
   exportTasksReport()
 }
 
 const handlePrintReport = () => {
   showExportMenu.value = false
-  showMobileMenu.value = false
   navigateTo(`/dev/planner/print/today?date=${getLocalDateString()}`)
-}
-
-const openDatePicker = () => {
-  if (datePickerRef.value) {
-    // Try showPicker() first (modern browsers), fallback to click()
-    if (typeof datePickerRef.value.showPicker === 'function') {
-      datePickerRef.value.showPicker()
-    } else {
-      datePickerRef.value.click()
-    }
-  }
 }
 
 const downloadBulkTemplate = () => {
@@ -996,14 +981,8 @@ const handleBulkUpload = async (event: Event) => {
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
   if (!target.closest('.menu-container')) {
-    showMobileMenu.value = false
     showExportMenu.value = false
   }
-}
-
-const openBulkUploadModal = () => {
-  isBulkUploadVisible.value = true
-  showMobileMenu.value = false
 }
 
 onMounted(async () => {
@@ -1128,73 +1107,32 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Mobile: Hamburger Menu -->
-        <div class="sm:hidden relative menu-container">
+        <!-- Mobile: Horizontal Button Row -->
+        <div class="sm:hidden flex items-center gap-1.5 flex-wrap">
+          <NuxtLink
+            to="/dev/planner"
+            class="px-2.5 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+            style="touch-action: manipulation; min-height: 32px"
+          >
+            <Icon name="mdi:view-dashboard" size="16" />
+            <span>Dashboard</span>
+          </NuxtLink>
+          <NuxtLink
+            to="/dev/planner/review"
+            class="px-2.5 py-1.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+            style="touch-action: manipulation; min-height: 32px"
+          >
+            <Icon name="mdi:chart-line" size="16" />
+            <span>Review</span>
+          </NuxtLink>
           <button
-            class="p-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
-            @click.stop="showMobileMenu = !showMobileMenu"
+            class="px-2.5 py-1.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+            style="touch-action: manipulation; min-height: 32px"
+            @click="handlePrintReport"
           >
-            <Icon name="mdi:menu" size="24" />
+            <Icon name="mdi:printer" size="16" />
+            <span>Print</span>
           </button>
-          <!-- Mobile Menu Backdrop -->
-          <div
-            v-if="showMobileMenu"
-            class="fixed inset-0 bg-black/20 z-40 sm:hidden"
-            @click="showMobileMenu = false"
-          ></div>
-          <!-- Mobile Menu Dropdown -->
-          <div
-            v-if="showMobileMenu"
-            class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
-            @click.stop
-          >
-            <!-- Dashboard - moved to front -->
-            <NuxtLink
-              to="/dev/planner"
-              class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm border-b border-gray-200 dark:border-gray-700"
-              @click="showMobileMenu = false"
-            >
-              <Icon name="mdi:view-dashboard" size="20" />
-              <span>Dashboard</span>
-            </NuxtLink>
-            <button
-              class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm border-b border-gray-200 dark:border-gray-700"
-              @click="handleExportCSV"
-            >
-              <Icon name="mdi:download" size="20" />
-              <span>Export CSV Report</span>
-            </button>
-            <button
-              class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm border-b border-gray-200 dark:border-gray-700"
-              @click="openBulkUploadModal"
-            >
-              <Icon name="mdi:upload" size="20" />
-              <span>Bulk Upload</span>
-            </button>
-            <NuxtLink
-              to="/dev/planner/review"
-              class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm border-b border-gray-200 dark:border-gray-700"
-              @click="showMobileMenu = false"
-            >
-              <Icon name="mdi:chart-line" size="20" />
-              <span>Review</span>
-            </NuxtLink>
-            <!-- Export/Print - merged and moved to end -->
-            <button
-              class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm border-b border-gray-200 dark:border-gray-700"
-              @click="handleExportCSV"
-            >
-              <Icon name="mdi:download" size="20" />
-              <span>Export CSV Report</span>
-            </button>
-            <button
-              class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm"
-              @click="handlePrintReport"
-            >
-              <Icon name="mdi:printer" size="20" />
-              <span>Print Summary</span>
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -1457,42 +1395,29 @@ onUnmounted(() => {
             v-if="isAddingQuickTask || quickTaskTitle.trim()"
             class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700"
           >
-            <!-- Date Picker - Mobile friendly -->
-            <div class="relative flex-1 sm:flex-initial">
-              <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1 sm:hidden">
-                Date
-              </label>
-              <div class="relative">
-                <input
-                  ref="datePickerRef"
-                  v-model="quickTaskDate"
-                  type="date"
-                  class="w-full px-3 py-2.5 sm:px-2.5 sm:py-2 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 pr-10"
-                  :class="{
-                    'text-gray-400': !quickTaskDate,
-                  }"
-                />
-                <button
-                  v-if="!quickTaskDate"
-                  type="button"
-                  class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 touch-manipulation p-1"
-                  @click="openDatePicker"
-                >
-                  <Icon name="mdi:calendar" size="20" />
-                </button>
-                <button
-                  v-else
-                  type="button"
-                  class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 touch-manipulation p-1"
-                  @click="quickTaskDate = null"
-                >
-                  <Icon name="mdi:close-circle" size="20" />
-                </button>
-              </div>
+            <!-- Date Picker - Compact with + button and MIT on same row -->
+            <div class="relative flex items-center gap-2">
+              <input
+                ref="datePickerRef"
+                v-model="quickTaskDate"
+                type="date"
+                class="w-28 px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 h-9 sm:min-h-0"
+                :class="{
+                  'text-gray-400': !quickTaskDate,
+                }"
+              />
+              <button
+                v-if="quickTaskDate"
+                type="button"
+                class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 touch-manipulation p-1"
+                @click="quickTaskDate = null"
+              >
+                <Icon name="mdi:close-circle" size="14" />
+              </button>
             </div>
             <select
               v-model="quickTaskTheme"
-              class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
+              class="w-28 px-2 py-1.5 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 h-9 sm:min-h-0"
               title="Bucket"
             >
               <option :value="null">Bucket</option>
@@ -1500,13 +1425,27 @@ onUnmounted(() => {
                 {{ theme }}
               </option>
             </select>
-            <button
-              class="p-2 sm:p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
-              title="New bucket"
-              @click="isThemeInputVisible = !isThemeInputVisible"
-            >
-              <Icon name="mdi:plus" size="18" class="sm:w-3.5 sm:h-3.5" />
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                class="p-1.5 sm:p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 touch-manipulation h-9 sm:min-h-0 flex items-center justify-center"
+                title="New bucket"
+                @click="isThemeInputVisible = !isThemeInputVisible"
+              >
+                <Icon name="mdi:plus" size="16" class="sm:w-3.5 sm:h-3.5" />
+              </button>
+              <button
+                :class="[
+                  'px-2.5 py-1 text-xs rounded border transition-colors touch-manipulation h-9 sm:min-h-0 flex items-center justify-center',
+                  quickTaskIsMit
+                    ? 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700'
+                    : 'bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600',
+                ]"
+                title="MIT"
+                @click="quickTaskIsMit = !quickTaskIsMit"
+              >
+                MIT
+              </button>
+            </div>
             <div class="relative">
               <input
                 v-if="isThemeInputVisible"
@@ -1540,18 +1479,6 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
-            <button
-              :class="[
-                'px-3 py-2 sm:px-1.5 sm:py-1 text-sm sm:text-xs rounded border transition-colors touch-manipulation min-h-[44px] sm:min-h-0',
-                quickTaskIsMit
-                  ? 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700'
-                  : 'bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600',
-              ]"
-              title="MIT"
-              @click="quickTaskIsMit = !quickTaskIsMit"
-            >
-              MIT
-            </button>
           </div>
         </div>
       </div>
@@ -1620,12 +1547,12 @@ onUnmounted(() => {
             >
               <div
                 v-if="editingTaskId !== task.id"
-                class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3"
+                class="flex flex-row items-center gap-2 sm:gap-3"
               >
                 <!-- Done/Doing Toggle (square toggle) -->
                 <button
                   :class="[
-                    'relative w-11 h-6 sm:w-8 sm:h-4 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0 mt-0.5 sm:mt-0',
+                    'relative w-11 h-6 sm:w-8 sm:h-4 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0',
                     task.status === 'done'
                       ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
                       : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
@@ -1662,26 +1589,6 @@ onUnmounted(() => {
                         – {{ task.notes }}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      class="text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation py-1 px-1 leading-5 flex-shrink-0"
-                      @click.stop="
-                        (() => {
-                          if (!showTagLegendForTask.value) {
-                            showTagLegendForTask.value = new Set()
-                          }
-                          if (showTagLegendForTask.value.has(task.id)) {
-                            showTagLegendForTask.value.delete(task.id)
-                          } else {
-                            showTagLegendForTask.value.add(task.id)
-                          }
-                          // Trigger reactivity by reassigning
-                          showTagLegendForTask.value = new Set(showTagLegendForTask.value)
-                        })()
-                      "
-                    >
-                      {{ showTagLegendForTask.value?.has(task.id) ? 'Hide' : 'Show' }} Tags
-                    </button>
                   </div>
                 </div>
 
