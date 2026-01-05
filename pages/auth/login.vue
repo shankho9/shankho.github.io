@@ -155,13 +155,6 @@ const errorMessage = ref('')
 const successMessage = ref('')
 const isLoading = ref(false)
 
-// Check for password reset success message
-onMounted(() => {
-  if (route.query.reset === 'success') {
-    successMessage.value = 'Password reset successful! You can now login with your new password.'
-  }
-})
-
 const handleLogin = async () => {
   errorMessage.value = ''
   isLoading.value = true
@@ -187,6 +180,12 @@ const handleLogin = async () => {
 }
 
 onMounted(() => {
+  // Check for password reset success message
+  if (route.query.reset === 'success') {
+    successMessage.value = 'Password reset successful! You can now login with your new password.'
+  }
+
+  // Initialize Google Sign-In
   initializeGoogleSignIn()
 
   // Wait for Google to load, then render button
