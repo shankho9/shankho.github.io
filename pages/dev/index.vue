@@ -1,52 +1,17 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-slate-900 py-6 sm:py-12 px-4 sm:px-6">
     <div class="max-w-7xl mx-auto">
-      <!-- Login Screen -->
+      <!-- Not Authenticated - Redirect to login -->
       <div v-if="!isAuthenticated" class="max-w-md mx-auto">
-        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8">
-          <h1 class="text-3xl font-bold mb-2 text-center">Dev Utilities</h1>
-          <p class="text-gray-600 dark:text-gray-400 text-center mb-6">Admin access required</p>
-          <form class="space-y-4" @submit.prevent="handleLogin">
-            <div>
-              <label class="block text-sm font-medium mb-2">Password</label>
-              <input
-                v-model="password"
-                type="password"
-                required
-                class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter admin password"
-              />
-            </div>
-            <div v-if="requires2FA">
-              <label class="block text-sm font-medium mb-2">
-                2FA Code (Microsoft Authenticator) <span class="text-red-500">*</span>
-              </label>
-              <input
-                v-model="totpCode"
-                type="text"
-                :required="requires2FA"
-                maxlength="6"
-                pattern="[0-9]{6}"
-                class="w-full px-4 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500"
-                placeholder="000000"
-                autocomplete="one-time-code"
-                inputmode="numeric"
-              />
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Enter the 6-digit code from Microsoft Authenticator
-              </p>
-            </div>
-            <button
-              type="submit"
-              :disabled="isLoading"
-              class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {{ isLoading ? 'Logging in...' : 'Login' }}
-            </button>
-            <p v-if="loginError" class="text-red-600 text-sm text-center">
-              {{ loginError }}
-            </p>
-          </form>
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 text-center">
+          <h1 class="text-3xl font-bold mb-2">Dev Utilities</h1>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">Authentication required</p>
+          <NuxtLink
+            to="/auth/login?redirect=/dev"
+            class="inline-block px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Sign In
+          </NuxtLink>
         </div>
       </div>
 
@@ -291,63 +256,21 @@
         </div>
       </div>
     </div>
-
-    <!-- Planner Google Auth Warning Modal -->
-    <div
-      v-if="showPlannerAuthWarning"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      @click.self="closePlannerAuthWarning"
-    >
-      <div
-        class="bg-white dark:bg-slate-800 rounded-xl p-8 text-center border border-gray-200 dark:border-slate-700 shadow-lg max-w-md mx-4"
-      >
-        <Icon name="mdi:lock" class="text-6xl text-orange-600 dark:text-orange-400 mb-4 mx-auto" />
-        <h2 class="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-          Google Authentication Required
-        </h2>
-        <p class="text-gray-600 dark:text-gray-400 mb-6">
-          Personal Planner requires Google authentication in addition to admin authentication.
-          Please sign in with Google to continue.
-        </p>
-        <div id="planner-google-signin-button" class="flex justify-center mb-4"></div>
-        <button
-          class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-          @click="closePlannerAuthWarning"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted } from 'vue'
 import DevVisitors from '~/components/dev/Visitors.vue'
 import DevDatabase from '~/components/dev/Database.vue'
 import DevHealth from '~/components/dev/Health.vue'
 import DevEmails from '~/components/dev/Emails.vue'
 import DevContent from '~/components/dev/Content.vue'
 import DevCache from '~/components/dev/Cache.vue'
-import { useGoogleAuth } from '~/composables/useGoogleAuth'
-import { useAdminAuth } from '~/composables/useAdminAuth'
+import { useAuth } from '~/composables/useAuth'
 
-const isAuthenticated = ref(false)
-const password = ref('')
-const totpCode = ref('')
-const requires2FA = ref(false)
-const isLoading = ref(false)
-const loginError = ref('')
+const { isAuthenticated, checkAuth, signOut } = useAuth()
 const activeUtility = ref<string | null>(null)
-
-// Google authentication for Planner
-const {
-  isAuthenticated: isGoogleAuthenticated,
-  loadStoredUser,
-  initializeGoogleSignIn,
-  user,
-} = useGoogleAuth()
-const showPlannerAuthWarning = ref(false)
 
 const utilityTitles: Record<string, string> = {
   visitors: 'Visitor Analytics',
@@ -358,213 +281,21 @@ const utilityTitles: Record<string, string> = {
   cache: 'Cache Management',
 }
 
-const { setAuthenticated: setAdminAuthenticated, clearAuth: clearAdminAuth } = useAdminAuth()
-
-const checkAuth = async () => {
-  try {
-    const response = await $fetch<{ authenticated: boolean; requires2FA?: boolean }>(
-      '/api/admin/auth',
-    )
-    isAuthenticated.value = response.authenticated
-    // Update the shared admin auth state
-    setAdminAuthenticated(response.authenticated)
-    // Don't set requires2FA here - it should only be set based on login attempt response
-    // The requires2FA from this endpoint indicates global 2FA configuration, not current login state
-  } catch {
-    isAuthenticated.value = false
-    setAdminAuthenticated(false)
-  }
-}
-
-const handleLogin = async () => {
-  isLoading.value = true
-  loginError.value = ''
-
-  try {
-    // Include totpCode if it has a value (user entered it)
-    // Don't reset requires2FA here - it should persist from previous attempt if needed
-    const response = await $fetch<{
-      success: boolean
-      error?: string
-      requires2FA?: boolean
-    }>('/api/admin/auth', {
-      method: 'POST',
-      body: {
-        password: password.value,
-        // Include totpCode if user entered it (has a value)
-        totpCode: totpCode.value.trim() || undefined,
-      },
-    })
-
-    if (response.success) {
-      isAuthenticated.value = true
-      // Update the shared admin auth state
-      setAdminAuthenticated(true)
-      password.value = ''
-      totpCode.value = ''
-      requires2FA.value = false
-    } else {
-      if (response.requires2FA) {
-        requires2FA.value = true
-        loginError.value =
-          'Password correct! Please enter your 2FA code from Microsoft Authenticator.'
-        // Don't clear totpCode if 2FA is required - user can retry with same code
-        // Focus on 2FA input field if it's now visible
-        await nextTick()
-        const totpInput = document.querySelector(
-          'input[type="text"][maxlength="6"]',
-        ) as HTMLInputElement
-        if (totpInput) {
-          totpInput.focus()
-        }
-      } else {
-        // Reset 2FA state on non-2FA errors (wrong password, etc.)
-        requires2FA.value = false
-        totpCode.value = ''
-        // Provide more user-friendly error messages
-        const errorMsg = response.error || 'Invalid password or 2FA code'
-        if (errorMsg.includes('password')) {
-          loginError.value = 'Incorrect password. Please try again.'
-        } else if (errorMsg.includes('2FA') || errorMsg.includes('code')) {
-          loginError.value = 'Invalid 2FA code. Please check your authenticator app and try again.'
-        } else {
-          loginError.value = errorMsg
-        }
-      }
-    }
-  } catch (error: unknown) {
-    // $fetch throws on 401/400, but the response body contains the error details
-    // Extract the response data if available
-    if (error && typeof error === 'object' && 'data' in error) {
-      const response = (
-        error as { data: { success?: boolean; error?: string; requires2FA?: boolean } }
-      ).data
-
-      if (response.requires2FA) {
-        requires2FA.value = true
-        loginError.value =
-          'Password correct! Please enter your 2FA code from Microsoft Authenticator.'
-        // Focus on 2FA input field if it's now visible
-        await nextTick()
-        const totpInput = document.querySelector(
-          'input[type="text"][maxlength="6"]',
-        ) as HTMLInputElement
-        if (totpInput) {
-          totpInput.focus()
-        }
-      } else {
-        requires2FA.value = false
-        totpCode.value = ''
-        // Provide more user-friendly error messages
-        const errorMsg = response.error || 'Invalid password or 2FA code'
-        if (errorMsg.includes('password')) {
-          loginError.value = 'Incorrect password. Please try again.'
-        } else if (errorMsg.includes('2FA') || errorMsg.includes('code')) {
-          loginError.value = 'Invalid 2FA code. Please check your authenticator app and try again.'
-        } else {
-          loginError.value = errorMsg
-        }
-      }
-    } else {
-      // Generic error if we can't extract response data
-      loginError.value = 'Failed to authenticate. Please try again.'
-      requires2FA.value = false
-    }
-  } finally {
-    isLoading.value = false
-  }
-}
-
 const handleLogout = async () => {
-  try {
-    await $fetch('/api/admin/logout', { method: 'POST' })
-    isAuthenticated.value = false
-    // Clear the shared admin auth state
-    clearAdminAuth()
-    activeUtility.value = null
-  } catch (error) {
-    console.error('Logout error:', error)
-  }
+  await signOut()
+  activeUtility.value = null
+  await navigateTo('/auth/login?redirect=/dev')
 }
 
 const handlePlannerClick = async () => {
-  await loadStoredUser()
-  if (!isGoogleAuthenticated.value) {
-    showPlannerAuthWarning.value = true
-    initializeGoogleSignIn()
-    // Render sign-in button after a short delay to ensure Google script is loaded
-    await nextTick()
-    setTimeout(() => {
-      renderGoogleSignInButton()
-    }, 100)
+  if (!isAuthenticated.value) {
+    await navigateTo('/auth/login?redirect=/dev/planner')
   } else {
     await navigateTo('/dev/planner')
   }
 }
 
-const renderGoogleSignInButton = () => {
-  const buttonElement = document.getElementById('planner-google-signin-button')
-  if (!buttonElement || typeof window === 'undefined' || !window.google) {
-    // Retry if Google script not loaded yet
-    setTimeout(() => renderGoogleSignInButton(), 200)
-    return
-  }
-
-  const clientId = useRuntimeConfig().public.googleClientId
-  if (!clientId) {
-    console.error('[Dev Utilities] Google Client ID not configured')
-    return
-  }
-
-  buttonElement.innerHTML = ''
-
-  window.google.accounts.id.initialize({
-    client_id: clientId,
-    callback: async (response: { credential: string }) => {
-      try {
-        const result = await $fetch<{
-          user: { email: string; name: string; picture: string; sub: string }
-        }>('/api/auth/google', {
-          method: 'POST',
-          body: { token: response.credential },
-        })
-        if (result && result.user) {
-          // Update user state and localStorage
-          user.value = result.user
-          localStorage.setItem('google_user', JSON.stringify(result.user))
-
-          // Track login for analytics
-          if (typeof window !== 'undefined') {
-            const { trackLogin } = await import('~/utils/analytics/trackLogin')
-            await trackLogin(result.user.email, result.user.name, window.location.pathname)
-            window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
-          }
-
-          // Sign-in successful, navigate to planner
-          showPlannerAuthWarning.value = false
-          await navigateTo('/dev/planner')
-        }
-      } catch (error) {
-        console.error('[Dev Utilities] Authentication failed:', error)
-      }
-    },
-  })
-
-  window.google.accounts.id.renderButton(buttonElement, {
-    theme: 'outline',
-    size: 'large',
-    text: 'signin_with',
-    width: 250,
-  })
-}
-
-const closePlannerAuthWarning = () => {
-  showPlannerAuthWarning.value = false
-}
-
-onMounted(() => {
-  checkAuth()
-  initializeGoogleSignIn()
-  loadStoredUser()
+onMounted(async () => {
+  await checkAuth()
 })
 </script>

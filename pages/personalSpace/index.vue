@@ -4,11 +4,11 @@ import { extractBlogPostFromMeta } from '~/utils/blog/blogMeta'
 import { pesonalSpace } from '~/data'
 import { parseCustomDate, getDateTimestamp } from '~/utils/common/dateParser'
 import { getTagColorClasses, getTagSelectedColorClasses } from '~/utils/blog/tagColors'
-import { useGoogleAuth } from '~/composables/useGoogleAuth'
+import { useAuth } from '~/composables/useAuth'
 import { ref, onMounted, watch } from 'vue'
 
 // Authentication (optional - for tracking purposes, not required for viewing list)
-const { loadStoredUser } = useGoogleAuth()
+const { loadStoredUser } = useAuth()
 
 // Load all blog posts
 const { data } = await useAsyncData('personal-space-posts', () => queryCollection('content').all())

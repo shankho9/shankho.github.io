@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { navbarData } from '../../data'
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
-import { useGoogleAuth } from '~/composables/useGoogleAuth'
-import { trackLogin } from '~/utils/analytics/trackLogin'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useAuth } from '~/composables/useAuth'
 
 const colorMode = useColorMode()
 function onClick(val: string) {
@@ -15,10 +14,11 @@ function isActive(path: string) {
 }
 
 // Authentication
-const { user, isAuthenticated, signOut, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
+const { user, isAuthenticated, signOut } = useAuth()
 
 // Dropdown state
 const showUserDropdown = ref(false)
+const showLoginModal = ref(false)
 
 const toggleUserDropdown = () => {
   showUserDropdown.value = !showUserDropdown.value
@@ -29,106 +29,12 @@ const handleSignOut = () => {
   showUserDropdown.value = false
 }
 
-const handleGoogleSignIn = async () => {
-  if (!import.meta.client || typeof window === 'undefined') return
+const openLoginModal = () => {
+  showLoginModal.value = true
+}
 
-  // Ensure Google script is loaded
-  if (!window.google) {
-    initializeGoogleSignIn()
-    // Wait for script to load
-    await new Promise<void>((resolve) => {
-      if (import.meta.client) {
-        const checkGoogle = setInterval(() => {
-          if (window.google) {
-            clearInterval(checkGoogle)
-            resolve()
-          }
-        }, 100)
-        setTimeout(() => {
-          clearInterval(checkGoogle)
-          resolve()
-        }, 5000)
-      }
-    })
-  }
-
-  if (!window.google) {
-    console.error('[Header] Google Identity Services failed to load')
-    return
-  }
-
-  const clientId = useRuntimeConfig().public.googleClientId
-  if (!clientId) {
-    console.error('[Header] Google Client ID not configured')
-    return
-  }
-
-  // Create or get hidden button element
-  let buttonElement = document.getElementById('header-hidden-google-signin')
-  if (!buttonElement) {
-    buttonElement = document.createElement('div')
-    buttonElement.id = 'header-hidden-google-signin'
-    buttonElement.style.display = 'none'
-    document.body.appendChild(buttonElement)
-  }
-
-  // Clear any existing button
-  buttonElement.innerHTML = ''
-
-  // Initialize Google Sign-In
-  window.google.accounts.id.initialize({
-    client_id: clientId,
-    callback: async (response: { credential: string }) => {
-      try {
-        const result = await $fetch<{
-          user: { email: string; name: string; picture: string; sub: string }
-        }>('/api/auth/google', {
-          method: 'POST',
-          body: { token: response.credential },
-        })
-        user.value = result.user
-        localStorage.setItem('google_user', JSON.stringify(result.user))
-
-        // Track login event for analytics
-        if (typeof window !== 'undefined') {
-          await trackLogin(result.user.email, result.user.name, window.location.pathname)
-        }
-
-        // Dispatch custom event to notify all components
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
-        }
-
-        // Clean up hidden button after successful login
-        if (buttonElement && buttonElement.parentNode) {
-          buttonElement.parentNode.removeChild(buttonElement)
-        }
-      } catch (error) {
-        console.error('[Header] Authentication failed:', error)
-      }
-    },
-  })
-
-  // Render button in hidden element
-  window.google.accounts.id.renderButton(buttonElement, {
-    theme: 'outline',
-    size: 'large',
-    text: 'signin_with',
-    width: 250,
-  })
-
-  // Programmatically click the rendered button
-  nextTick(() => {
-    const googleButton = buttonElement?.querySelector('div[role="button"]') as HTMLElement
-    if (googleButton) {
-      googleButton.click()
-    } else if (window.google?.accounts?.id) {
-      // Fallback: try prompt if button click doesn't work
-      window.google.accounts.id.prompt(() => {
-        // Callback for prompt notification
-      })
-    }
-  })
+const closeLoginModal = () => {
+  showLoginModal.value = false
 }
 
 // Close dropdown when clicking outside
@@ -169,12 +75,6 @@ onUnmounted(() => {
   if (typeof window !== 'undefined') {
     document.removeEventListener('click', clickHandler)
   }
-})
-
-// Initialize auth on mount
-onMounted(() => {
-  initializeGoogleSignIn()
-  loadStoredUser()
 })
 </script>
 
@@ -278,6 +178,15 @@ onMounted(() => {
                         {{ user.email }}
                       </p>
                     </div>
+                    <NuxtLink
+                      to="/auth/settings"
+                      class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors"
+                      role="menuitem"
+                      @click="showUserDropdown = false"
+                    >
+                      <Icon name="mdi:cog" size="18" />
+                      Settings
+                    </NuxtLink>
                     <button
                       class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors"
                       role="menuitem"
@@ -293,12 +202,12 @@ onMounted(() => {
             <div v-else class="flex items-center">
               <button
                 class="px-3 py-1.5 rounded-md bg-sky-700 dark:bg-sky-600 hover:bg-sky-800 dark:hover:bg-sky-700 text-white text-sm font-semibold transition-colors flex items-center gap-2"
-                title="Sign in with Google"
-                aria-label="Sign in with Google"
-                @click="handleGoogleSignIn"
+                title="Login"
+                aria-label="Login"
+                @click="openLoginModal"
               >
-                <Icon name="mdi:google" size="18" />
-                <span>Sign in</span>
+                <Icon name="mdi:login" size="18" />
+                <span>Login</span>
               </button>
             </div>
             <template #fallback>
@@ -437,6 +346,15 @@ onMounted(() => {
                       {{ user.email }}
                     </p>
                   </div>
+                  <NuxtLink
+                    to="/auth/settings"
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors"
+                    role="menuitem"
+                    @click="showUserDropdown = false"
+                  >
+                    <Icon name="mdi:cog" size="18" />
+                    Settings
+                  </NuxtLink>
                   <button
                     class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors"
                     role="menuitem"
@@ -453,11 +371,11 @@ onMounted(() => {
             v-else
             class="px-2 py-1 rounded-md bg-sky-700 dark:bg-sky-600 hover:bg-sky-800 dark:hover:bg-sky-700 text-white text-xs font-semibold transition-colors touch-manipulation whitespace-nowrap"
             style="touch-action: manipulation; min-height: 32px"
-            title="Sign in with Google"
-            aria-label="Sign in with Google"
-            @click="handleGoogleSignIn"
+            title="Login"
+            aria-label="Login"
+            @click="openLoginModal"
           >
-            Sign in
+            Login
           </button>
           <template #fallback>
             <Icon name="svg-spinners:180-ring" size="18" />
@@ -465,5 +383,8 @@ onMounted(() => {
         </ClientOnly>
       </div>
     </div>
+
+    <!-- Login Modal -->
+    <AuthLoginModal :is-open="showLoginModal" @close="closeLoginModal" />
   </div>
 </template>

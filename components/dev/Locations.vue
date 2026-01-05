@@ -695,7 +695,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { useGoogleAuth } from '~/composables/useGoogleAuth'
+import { useAuth } from '~/composables/useAuth'
 
 interface PlaceForm {
   name: string
@@ -767,7 +767,7 @@ let searchTimeout: NodeJS.Timeout | null = null
 let currentSearchQuery: string | null = null // Track the query for the current search to prevent race conditions
 
 // Google Authentication
-const { user, isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
+const { user, isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useAuth()
 
 const loadGoogleMapsScript = (): Promise<void> => {
   return new Promise((resolve, reject) => {
@@ -1528,14 +1528,22 @@ onMounted(async () => {
         callback: async (response: { credential: string }) => {
           try {
             const result = await $fetch<{
-              user: { email: string; name: string; picture: string; sub: string }
+              success: boolean
+              user: {
+                id: number
+                email: string
+                name: string
+                picture: string
+                auth_provider: string
+                mfa_enabled: boolean
+              }
             }>('/api/auth/google', {
               method: 'POST',
               body: { token: response.credential },
             })
-            if (result && result.user) {
+            if (result.success && result.user) {
               user.value = result.user
-              localStorage.setItem('google_user', JSON.stringify(result.user))
+              localStorage.setItem('auth_user', JSON.stringify(result.user))
 
               if (typeof window !== 'undefined') {
                 const { trackLogin } = await import('~/utils/analytics/trackLogin')
@@ -1611,14 +1619,22 @@ watch(isAuthenticated, async (newValue) => {
         callback: async (response: { credential: string }) => {
           try {
             const result = await $fetch<{
-              user: { email: string; name: string; picture: string; sub: string }
+              success: boolean
+              user: {
+                id: number
+                email: string
+                name: string
+                picture: string
+                auth_provider: string
+                mfa_enabled: boolean
+              }
             }>('/api/auth/google', {
               method: 'POST',
               body: { token: response.credential },
             })
-            if (result && result.user) {
+            if (result.success && result.user) {
               user.value = result.user
-              localStorage.setItem('google_user', JSON.stringify(result.user))
+              localStorage.setItem('auth_user', JSON.stringify(result.user))
 
               if (typeof window !== 'undefined') {
                 const { trackLogin } = await import('~/utils/analytics/trackLogin')

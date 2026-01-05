@@ -8,16 +8,15 @@ import {
   type TaskWithQuadrant,
   type Quadrant,
 } from '~/utils/planner/eisenhower'
-import { useGoogleAuth } from '~/composables/useGoogleAuth'
+import { useAuth } from '~/composables/useAuth'
 
 definePageMeta({
   layout: 'default',
   middleware: 'auth-planner',
 })
 
-// Check both Google and Admin authentication
-const { isAuthenticated: isGoogleAuthenticated, loadStoredUser } = useGoogleAuth()
-const isAdminAuthenticated = ref(false)
+// Check authentication
+const { isAuthenticated, checkAuth } = useAuth()
 
 const { fetchTasks, fetchThemes } = useTasks()
 
@@ -97,15 +96,6 @@ const tasksByBucket = computed(() => {
 
 const showExportMenu = ref(false)
 
-const checkAdminAuth = async () => {
-  try {
-    const response = await $fetch<{ authenticated: boolean }>('/api/admin/auth')
-    isAdminAuthenticated.value = response.authenticated
-  } catch {
-    isAdminAuthenticated.value = false
-  }
-}
-
 const loadData = async () => {
   isLoading.value = true
   try {
@@ -141,12 +131,11 @@ const handleClickOutside = (event: MouseEvent) => {
 }
 
 onMounted(async () => {
-  await loadStoredUser()
-  await checkAdminAuth()
+  await checkAuth()
 
-  // Only load data if both authentications are valid
+  // Only load data if authenticated
   // (Middleware will redirect if not, but we check here for UI state)
-  if (isGoogleAuthenticated.value && isAdminAuthenticated.value) {
+  if (isAuthenticated.value) {
     loadData()
   }
 
@@ -163,7 +152,7 @@ onUnmounted(() => {
 })
 
 watch(selectedDate, () => {
-  if (isGoogleAuthenticated.value && isAdminAuthenticated.value) {
+  if (isAuthenticated.value) {
     // Clear any pending load
     if (loadDataTimeout) {
       clearTimeout(loadDataTimeout)

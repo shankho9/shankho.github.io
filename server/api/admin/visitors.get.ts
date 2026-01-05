@@ -1,10 +1,11 @@
 // server/api/admin/visitors.get.ts
-import { verifyAdminToken } from '~/server/utils/adminAuth'
+import { getCurrentUser } from '~/server/utils/auth'
 import { query } from '~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
-  // Verify admin authentication
-  if (!verifyAdminToken(event)) {
+  // Verify authentication
+  const user = await getCurrentUser(event)
+  if (!user) {
     setResponseStatus(event, 401)
     return { error: 'Unauthorized' }
   }

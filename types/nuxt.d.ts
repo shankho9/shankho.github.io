@@ -13,5 +13,7 @@ declare module 'nuxt/schema' {
 
   interface RuntimeConfig {
     databaseUrl: string
+    notificationEmail?: string
+    resendApiKey?: string
   }
 }

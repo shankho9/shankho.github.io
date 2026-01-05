@@ -76,22 +76,22 @@ const runHealthChecks = async () => {
     })
   }
 
-  // Check admin auth
+  // Check auth
   const authStart = Date.now()
   try {
-    await $fetch<{ authenticated: boolean }>('/api/admin/auth')
+    await $fetch<{ authenticated: boolean }>('/api/auth/me')
     const responseTime = Date.now() - authStart
     checks.push({
-      name: 'Admin Auth',
+      name: 'Auth',
       status: 'healthy',
-      message: 'Admin authentication endpoint is working',
+      message: 'Authentication endpoint is working',
       responseTime,
     })
   } catch {
     checks.push({
-      name: 'Admin Auth',
+      name: 'Auth',
       status: 'degraded',
-      message: 'Admin authentication endpoint error',
+      message: 'Authentication endpoint error',
       responseTime: Date.now() - authStart,
     })
   }

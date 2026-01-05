@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick } from 'vue'
-import { useGoogleAuth } from '~/composables/useGoogleAuth'
+import { useAuth } from '~/composables/useAuth'
 
 interface Comment {
   id: number
@@ -20,7 +20,7 @@ const emit = defineEmits<{
   'comment-added': [itemId: string | number]
 }>()
 
-const { user, isAuthenticated, signIn, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
+const { user, isAuthenticated, signIn, loadStoredUser, initializeGoogleSignIn } = useAuth()
 
 const comments = ref<Comment[]>([])
 const isLoading = ref(false)
@@ -178,14 +178,22 @@ const renderGoogleSignInButton = () => {
       callback: async (response: { credential: string }) => {
         try {
           const result = await $fetch<{
-            user: { email: string; name: string; picture: string; sub: string }
+            success: boolean
+            user: {
+              id: number
+              email: string
+              name: string
+              picture: string
+              auth_provider: string
+              mfa_enabled: boolean
+            }
           }>('/api/auth/google', {
             method: 'POST',
             body: { token: response.credential },
           })
-          if (result && result.user) {
+          if (result.success && result.user) {
             user.value = result.user
-            localStorage.setItem('google_user', JSON.stringify(result.user))
+            localStorage.setItem('auth_user', JSON.stringify(result.user))
 
             // Track login event for analytics
             if (typeof window !== 'undefined') {

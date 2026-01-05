@@ -1,11 +1,12 @@
 // server/api/admin/cache.post.ts
 import { readBody, setResponseStatus } from 'h3'
-import { verifyAdminToken } from '~/server/utils/adminAuth'
+import { getCurrentUser } from '~/server/utils/auth'
 import { clearNuxtCache } from '~/server/utils/cache'
 
 export default defineEventHandler(async (event) => {
-  // Verify admin authentication
-  if (!verifyAdminToken(event)) {
+  // Verify authentication
+  const user = await getCurrentUser(event)
+  if (!user) {
     setResponseStatus(event, 401)
     return { error: 'Unauthorized' }
   }

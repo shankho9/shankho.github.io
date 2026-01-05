@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { extractBlogPostFromMeta } from '~/utils/blog/blogMeta'
-import { useGoogleAuth } from '~/composables/useGoogleAuth'
+import { useAuth } from '~/composables/useAuth'
 import { onMounted, nextTick, computed, watch } from 'vue'
 
 // Authentication
-const { user, isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
+const { user, isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useAuth()
 
 // Load all blog posts
 const { data: allBlogs } = await useAsyncData('sitemap-blogs', () =>
@@ -140,14 +140,22 @@ const renderGoogleSignInButton = () => {
       callback: async (response: { credential: string }) => {
         try {
           const result = await $fetch<{
-            user: { email: string; name: string; picture: string; sub: string }
+            success: boolean
+            user: {
+              id: number
+              email: string
+              name: string
+              picture: string
+              auth_provider: string
+              mfa_enabled: boolean
+            }
           }>('/api/auth/google', {
             method: 'POST',
             body: { token: response.credential },
           })
-          if (result && result.user) {
+          if (result.success && result.user) {
             user.value = result.user
-            localStorage.setItem('google_user', JSON.stringify(result.user))
+            localStorage.setItem('auth_user', JSON.stringify(result.user))
 
             if (typeof window !== 'undefined') {
               const { trackLogin } = await import('~/utils/analytics/trackLogin')
