@@ -95,7 +95,6 @@ const tasksByBucket = computed(() => {
     .sort((a, b) => b.count - a.count)
 })
 
-const showMobileMenu = ref(false)
 const showExportMenu = ref(false)
 
 const checkAdminAuth = async () => {
@@ -137,7 +136,6 @@ let loadDataTimeout: ReturnType<typeof setTimeout> | null = null
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
   if (!target.closest('.menu-container')) {
-    showMobileMenu.value = false
     showExportMenu.value = false
   }
 }
@@ -277,51 +275,32 @@ watch(selectedDate, () => {
           </div>
         </div>
 
-        <!-- Mobile: Hamburger Menu -->
-        <div class="sm:hidden relative menu-container">
-          <button
-            class="p-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
-            @click.stop="showMobileMenu = !showMobileMenu"
+        <!-- Mobile: Horizontal Button Row -->
+        <div class="sm:hidden flex items-center gap-1.5 flex-wrap">
+          <NuxtLink
+            to="/dev/planner/tasks"
+            class="px-2.5 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+            style="touch-action: manipulation; min-height: 32px"
           >
-            <Icon name="mdi:menu" size="24" />
-          </button>
-          <!-- Mobile Menu Backdrop -->
-          <div
-            v-if="showMobileMenu"
-            class="fixed inset-0 bg-black/20 z-40 sm:hidden"
-            @click="showMobileMenu = false"
-          ></div>
-          <!-- Mobile Menu Dropdown -->
-          <div
-            v-if="showMobileMenu"
-            class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
-            @click.stop
+            <Icon name="mdi:format-list-checkbox" size="16" />
+            <span>Tasks</span>
+          </NuxtLink>
+          <NuxtLink
+            to="/dev/planner/review"
+            class="px-2.5 py-1.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+            style="touch-action: manipulation; min-height: 32px"
           >
-            <NuxtLink
-              to="/dev/planner/tasks"
-              class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm border-b border-gray-200 dark:border-gray-700"
-              @click="showMobileMenu = false"
-            >
-              <Icon name="mdi:format-list-checkbox" size="20" />
-              <span>Manage Tasks</span>
-            </NuxtLink>
-            <NuxtLink
-              to="/dev/planner/review"
-              class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm border-b border-gray-200 dark:border-gray-700"
-              @click="showMobileMenu = false"
-            >
-              <Icon name="mdi:chart-line" size="20" />
-              <span>Review</span>
-            </NuxtLink>
-            <NuxtLink
-              :to="`/dev/planner/print/today?date=${selectedDate}`"
-              class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-sm"
-              @click="showMobileMenu = false"
-            >
-              <Icon name="mdi:printer" size="20" />
-              <span>Print Summary</span>
-            </NuxtLink>
-          </div>
+            <Icon name="mdi:chart-line" size="16" />
+            <span>Review</span>
+          </NuxtLink>
+          <NuxtLink
+            :to="`/dev/planner/print/today?date=${selectedDate}`"
+            class="px-2.5 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+            style="touch-action: manipulation; min-height: 32px"
+          >
+            <Icon name="mdi:printer" size="16" />
+            <span>Print</span>
+          </NuxtLink>
         </div>
       </div>
     </div>
@@ -360,7 +339,7 @@ watch(selectedDate, () => {
           <div class="text-xs text-purple-600 dark:text-purple-400">MITs</div>
         </div>
         <div
-          class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3"
+          class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 hidden md:block"
         >
           <div class="text-xl font-bold text-orange-700 dark:text-orange-300">
             {{ stats.todayMits }}
@@ -368,7 +347,7 @@ watch(selectedDate, () => {
           <div class="text-xs text-orange-600 dark:text-orange-400">Today MITs</div>
         </div>
         <div
-          class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3"
+          class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 hidden md:block"
         >
           <div class="text-xl font-bold text-yellow-700 dark:text-yellow-300">
             {{ stats.doing }}
@@ -376,7 +355,7 @@ watch(selectedDate, () => {
           <div class="text-xs text-yellow-600 dark:text-yellow-400">Doing</div>
         </div>
         <div
-          class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+          class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 hidden md:block"
         >
           <div class="text-xl font-bold text-gray-700 dark:text-gray-300">{{ stats.done }}</div>
           <div class="text-xs text-gray-600 dark:text-gray-400">Done</div>
