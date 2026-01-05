@@ -1,103 +1,70 @@
 <script setup lang="ts">
 import type { Task } from '~/server/api/planner/tasks.get'
-import {
-  getLocalDateString,
-  formatDateToDisplay,
-  parseDisplayDate,
-} from '~/utils/common/dateParser'
-import {
-  groupTasksByQuadrant,
-  parseDelegationStatus,
-  enrichTaskWithQuadrant,
-} from '~/utils/planner/eisenhower'
+import { getLocalDateString, formatDateToDisplay } from '~/utils/common/dateParser'
+import { groupTasksByQuadrant, enrichTaskWithQuadrant } from '~/utils/planner/eisenhower'
 
 definePageMeta({
-  layout: 'default',
+  layout: false, // No layout for print page
   middleware: 'auth-planner',
 })
 
-const route = useRoute()
 const { fetchTasks } = useTasks()
+const colorMode = useColorMode()
 
-// Accept date in either format, but convert to YYYY-MM-DD for filtering
-const inputDate = (route.query.date as string) || getLocalDateString()
-const date = ref(parseDisplayDate(inputDate) || inputDate)
 const tasks = ref<Task[]>([])
 const isLoading = ref(true)
 
-const formattedDate = computed(() => {
-  return formatDateToDisplay(date.value) || date.value
-})
+// Filter out closed tasks
+const openTasks = computed(() => tasks.value.filter((t) => t.status !== 'done'))
 
-// Filter done tasks once for reuse
-const activeTasks = computed(() => tasks.value.filter((t) => t.status !== 'done'))
+// Top 15 tasks prioritized by MITs and tasks open since long time
+const top15Tasks = computed(() => {
+  const now = new Date()
+  const enriched = openTasks.value.map((t) => enrichTaskWithQuadrant(t, getLocalDateString()))
 
-// Eisenhower Matrix data
-const quadrantData = computed(() => {
-  return groupTasksByQuadrant(activeTasks.value, date.value)
-})
-
-// Administrative tasks (meeting, email, admin tags) - Top 10
-const administrativeTasks = computed(() => {
-  const adminTags = new Set(['meeting', 'email', 'admin'])
-  return activeTasks.value
-    .map((t) => enrichTaskWithQuadrant(t, date.value))
-    .filter((t) => adminTags.has(parseDelegationStatus(t.notes)))
-    .sort((a, b) => b.priorityScore - a.priorityScore)
-    .slice(0, 10)
-})
-
-// Top 10 priority tasks
-const top10Tasks = computed(() => {
-  const quadrantOrder: Record<string, number> = { Q1: 4, Q2: 3, Q3: 2, Q4: 1 }
-  return activeTasks.value
-    .map((t) => enrichTaskWithQuadrant(t, date.value))
-    .filter((t) => t.delegationStatus !== 'delegate')
-    .sort((a, b) => {
-      const quadrantDiff = quadrantOrder[b.quadrant] - quadrantOrder[a.quadrant]
-      return quadrantDiff !== 0 ? quadrantDiff : b.priorityScore - a.priorityScore
-    })
-    .slice(0, 10)
-})
-
-// Top 10 MITs
-const top10Mits = computed(() => {
-  return activeTasks.value
-    .filter((t) => t.is_mit)
-    .map((t) => enrichTaskWithQuadrant(t, date.value))
-    .sort((a, b) => {
-      const quadrantOrder: Record<string, number> = { Q1: 4, Q2: 3, Q3: 2, Q4: 1 }
-      const quadrantDiff = quadrantOrder[b.quadrant] - quadrantOrder[a.quadrant]
-      return quadrantDiff !== 0 ? quadrantDiff : b.priorityScore - a.priorityScore
-    })
-    .slice(0, 10)
-})
-
-// Tasks by theme/bucket - Top 10 themes with their top tasks
-const tasksByTheme = computed(() => {
-  const themeMap = new Map<string, Task[]>()
-  activeTasks.value.forEach((task) => {
-    const theme = task.theme || 'No Bucket'
-    if (!themeMap.has(theme)) {
-      themeMap.set(theme, [])
-    }
-    themeMap.get(theme)!.push(task)
+  // Calculate days open for each task
+  const tasksWithDaysOpen = enriched.map((task) => {
+    const created = task.created_at ? new Date(task.created_at) : new Date()
+    const daysOpen = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
+    return { task, daysOpen }
   })
 
-  return Array.from(themeMap.entries())
-    .map(([theme, themeTasks]) => ({
-      theme,
-      count: themeTasks.length,
-      tasks: themeTasks
-        .map((t) => enrichTaskWithQuadrant(t, date.value))
-        .sort((a, b) => b.priorityScore - a.priorityScore)
-        .slice(0, 10), // Top 10 tasks per theme
-    }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10) // Top 10 themes
+  // Sort: MITs first, then by days open (oldest first), then by priority score
+  return tasksWithDaysOpen
+    .sort((a, b) => {
+      // MITs come first
+      if (a.task.is_mit !== b.task.is_mit) {
+        return b.task.is_mit ? 1 : -1
+      }
+      // Then by days open (oldest first)
+      if (a.daysOpen !== b.daysOpen) {
+        return b.daysOpen - a.daysOpen
+      }
+      // Then by priority score
+      return b.task.priorityScore - a.task.priorityScore
+    })
+    .slice(0, 15)
+    .map((item) => item.task)
+})
+
+// Eisenhower Matrix data - limit to top 10 per quadrant
+const quadrantData = computed(() => {
+  const quadrants = groupTasksByQuadrant(openTasks.value, getLocalDateString())
+
+  return quadrants.map((quadrant) => {
+    const top10 = quadrant.tasks.slice(0, 10)
+    const remaining = quadrant.tasks.length - 10
+
+    return {
+      ...quadrant,
+      tasks: top10,
+      remainingCount: remaining > 0 ? remaining : 0,
+    }
+  })
 })
 
 const loadTasks = async () => {
+  isLoading.value = true
   try {
     const allTasks = await fetchTasks()
     tasks.value = allTasks
@@ -108,362 +75,753 @@ const loadTasks = async () => {
   }
 }
 
+const closePage = () => {
+  navigateTo('/dev/planner')
+}
+
 const handlePrint = () => {
   window.print()
 }
 
-const handleBack = (event?: Event) => {
-  if (!import.meta.client) return
-
-  // Prevent default behavior and stop propagation
-  if (event) {
-    event.preventDefault()
-    event.stopPropagation()
-  }
-
-  // Use window.location.href for reliable navigation
-  // This ensures a full page load and avoids blank page issues
-  // that can occur with SPA navigation in modal contexts
-  window.location.href = '/dev/planner'
-}
-
-// Close on Escape key
-const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') {
-    handleBack(e) // Pass event to allow preventDefault() to be called
+const handleEscapeKey = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') {
+    closePage()
   }
 }
 
 onMounted(() => {
   loadTasks()
-  window.addEventListener('keydown', handleKeydown)
+  document.addEventListener('keydown', handleEscapeKey)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('keydown', handleEscapeKey)
 })
 </script>
 
 <template>
-  <!-- Modal Overlay -->
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-    @click.self="handleBack"
-  >
-    <!-- Modal Content -->
-    <div
-      class="print-modal bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-4xl w-full mx-2 sm:mx-4 max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
-    >
-      <!-- Header with Back Button -->
-      <div
-        class="no-print sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10"
-      >
-        <button
-          class="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm sm:text-base"
-          @click="handleBack"
-        >
-          <Icon name="mdi:arrow-left" size="18" class="sm:w-5 sm:h-5" />
-          <span class="hidden sm:inline">Back</span>
-        </button>
-        <div class="flex items-center gap-2 sm:gap-4">
-          <h1 class="text-base sm:text-xl font-bold text-gray-900 dark:text-gray-100">
-            {{ formattedDate }}
-          </h1>
-          <button
-            class="px-2 sm:px-4 py-1.5 sm:py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1 sm:gap-2 text-sm sm:text-base"
-            @click="handlePrint"
-          >
-            <Icon name="mdi:printer" size="18" class="sm:w-5 sm:h-5" />
-            <span class="hidden sm:inline">Print</span>
-          </button>
+  <div class="print-page" :class="colorMode.value === 'dark' ? 'dark' : ''">
+    <!-- Control Buttons -->
+    <div class="controls print:hidden">
+      <button class="close-button" @click="closePage">
+        <Icon name="mdi:close" size="20" />
+      </button>
+      <button class="print-button" @click="handlePrint">
+        <Icon name="mdi:printer" size="20" />
+        <span>Print</span>
+      </button>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="isLoading" class="loading">
+      <div>Loading...</div>
+    </div>
+
+    <!-- Main Content -->
+    <div v-else class="content">
+      <!-- Header -->
+      <div class="header">
+        <h1 class="title">Task Summary</h1>
+        <div class="date">{{ formatDateToDisplay(getLocalDateString()) }}</div>
+      </div>
+
+      <!-- Top 15 Tasks -->
+      <div class="section">
+        <h2 class="section-title">Top 15 Priority Tasks</h2>
+        <div class="task-list">
+          <div v-for="(task, index) in top15Tasks" :key="task.id" class="task-item">
+            <div class="task-number">{{ index + 1 }}</div>
+            <div class="task-content">
+              <div class="task-title-row">
+                <span :class="['task-title', task.is_mit ? 'task-title-mit' : '']">
+                  {{ task.title }}
+                </span>
+                <span v-if="task.planned_date" class="task-date-inline">
+                  {{ formatDateToDisplay(task.planned_date) }}
+                </span>
+                <span v-if="task.is_mit" class="mit-badge">MIT</span>
+                <span v-if="task.theme" class="theme-badge">{{ task.theme }}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Print Content -->
-      <div class="p-4 sm:p-8">
-        <div v-if="isLoading" class="text-center py-12">
+      <!-- Eisenhower Matrix -->
+      <div class="section">
+        <h2 class="section-title">Eisenhower Matrix</h2>
+        <div class="matrix-grid">
           <div
-            class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"
-          ></div>
+            v-for="quadrant in quadrantData"
+            :key="quadrant.quadrant"
+            class="quadrant"
+            :class="`quadrant-${quadrant.quadrant.toLowerCase()}`"
+          >
+            <div class="quadrant-header">
+              <div class="quadrant-label">{{ quadrant.quadrant }}</div>
+              <div class="quadrant-title">{{ quadrant.label }}</div>
+              <div class="quadrant-description">{{ quadrant.description }}</div>
+            </div>
+            <div class="quadrant-tasks">
+              <div v-for="task in quadrant.tasks" :key="task.id" class="matrix-task-item">
+                <div class="matrix-task-title-row">
+                  <span :class="['matrix-task-title', task.is_mit ? 'matrix-task-title-mit' : '']">
+                    {{ task.title }}
+                  </span>
+                  <span v-if="task.is_mit" class="matrix-mit-badge">MIT</span>
+                </div>
+                <div v-if="task.theme" class="matrix-task-theme">{{ task.theme }}</div>
+              </div>
+              <div v-if="quadrant.remainingCount > 0" class="more-tasks">
+                +{{ quadrant.remainingCount }} more
+              </div>
+            </div>
+          </div>
         </div>
-
-        <!-- Print Content -->
-        <section v-else class="print-content">
-          <!-- Top 10 Priority Tasks -->
-          <div class="mb-3 print-section">
-            <h2 class="text-sm font-bold mb-1 print-heading">Top 10 Priority Tasks</h2>
-            <ul class="space-y-0.5 text-xs print-list">
-              <li v-for="(task, index) in top10Tasks" :key="task.id" class="flex items-start gap-1">
-                <span class="font-bold">{{ index + 1 }}.</span>
-                <span class="flex-1">{{ task.title }}</span>
-                <span class="text-gray-500 text-[8pt]">{{ task.quadrant }}</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- Top 10 MITs -->
-          <div v-if="top10Mits.length > 0" class="mb-3 print-section">
-            <h2 class="text-sm font-bold mb-1 print-heading">Top 10 MITs (Most Important Tasks)</h2>
-            <ul class="space-y-0.5 text-xs print-list">
-              <li v-for="task in top10Mits" :key="task.id" class="flex items-start gap-1">
-                <span class="font-bold">★</span>
-                <span class="flex-1">{{ task.title }}</span>
-                <span class="text-gray-500 text-[8pt]">{{ task.quadrant }}</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- Administrative Tasks -->
-          <div v-if="administrativeTasks.length > 0" class="mb-3 print-section">
-            <h2 class="text-sm font-bold mb-1 print-heading">
-              Administrative Tasks ({{ administrativeTasks.length }})
-            </h2>
-            <ul class="space-y-0.5 text-xs print-list">
-              <li v-for="task in administrativeTasks" :key="task.id" class="flex items-start gap-1">
-                <span>☐</span>
-                <span class="flex-1">{{ task.title }}</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- Tasks by Theme/Bucket -->
-          <div v-if="tasksByTheme.length > 0" class="mb-3 print-section">
-            <h2 class="text-sm font-bold mb-1 print-heading">Tasks by Bucket (Top 10)</h2>
-            <div class="space-y-2">
-              <div
-                v-for="themeGroup in tasksByTheme"
-                :key="themeGroup.theme"
-                class="print-theme-group"
-              >
-                <h3 class="text-xs font-semibold mb-0.5">
-                  {{ themeGroup.theme }} ({{ themeGroup.count }})
-                </h3>
-                <ul class="space-y-0.5 text-[9pt] print-list ml-2">
-                  <li
-                    v-for="task in themeGroup.tasks.slice(0, 5)"
-                    :key="task.id"
-                    class="flex items-start gap-1"
-                  >
-                    <span>☐</span>
-                    <span class="flex-1">{{ task.title }}</span>
-                  </li>
-                  <li v-if="themeGroup.tasks.length > 5" class="text-[8pt] text-gray-500 italic">
-                    +{{ themeGroup.tasks.length - 5 }} more
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <!-- Eisenhower Matrix -->
-          <div class="print-matrix">
-            <h2 class="text-sm font-bold mb-1 print-heading">Eisenhower Matrix</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 print-grid">
-              <!-- Q1: Do Now -->
-              <div class="border border-red-400 rounded p-1.5 print-quadrant print-q1">
-                <h3 class="font-bold text-xs text-red-700 mb-0.5">
-                  Q1: Urgent & Important ({{ quadrantData[0].tasks.length }})
-                </h3>
-                <ul class="space-y-0.5 text-xs print-quadrant-list">
-                  <li
-                    v-for="task in quadrantData[0].tasks.slice(0, 10)"
-                    :key="task.id"
-                    class="flex items-start gap-1"
-                  >
-                    <span>☐</span>
-                    <span class="flex-1">{{ task.title }}</span>
-                  </li>
-                </ul>
-              </div>
-
-              <!-- Q2: Schedule -->
-              <div class="border border-blue-400 rounded p-1.5 print-quadrant print-q2">
-                <h3 class="font-bold text-xs text-blue-700 mb-0.5">
-                  Q2: Important & Not Urgent ({{ quadrantData[1].tasks.length }})
-                </h3>
-                <ul class="space-y-0.5 text-xs print-quadrant-list">
-                  <li
-                    v-for="task in quadrantData[1].tasks.slice(0, 10)"
-                    :key="task.id"
-                    class="flex items-start gap-1"
-                  >
-                    <span>☐</span>
-                    <span class="flex-1">{{ task.title }}</span>
-                  </li>
-                </ul>
-              </div>
-
-              <!-- Q3: Defer/Batch -->
-              <div class="border border-yellow-400 rounded p-1.5 print-quadrant print-q3">
-                <h3 class="font-bold text-xs text-yellow-700 mb-0.5">
-                  Q3: Urgent & Not Important ({{ quadrantData[2].tasks.length }})
-                </h3>
-                <ul class="space-y-0.5 text-xs print-quadrant-list">
-                  <li
-                    v-for="task in quadrantData[2].tasks.slice(0, 10)"
-                    :key="task.id"
-                    class="flex items-start gap-1"
-                  >
-                    <span>☐</span>
-                    <span class="flex-1">{{ task.title }}</span>
-                  </li>
-                </ul>
-              </div>
-
-              <!-- Q4: Later / Parking Lot -->
-              <div class="border border-gray-400 rounded p-1.5 print-quadrant print-q4">
-                <h3 class="font-bold text-xs text-gray-600 mb-0.5">
-                  Q4: Not Urgent & Not Important ({{ quadrantData[3].tasks.length }})
-                </h3>
-                <ul class="space-y-0.5 text-xs print-quadrant-list">
-                  <li
-                    v-for="task in quadrantData[3].tasks.slice(0, 10)"
-                    :key="task.id"
-                    class="flex items-start gap-1"
-                  >
-                    <span>☐</span>
-                    <span class="flex-1">{{ task.title }}</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+/* Print Page Container - A4 size optimized */
+.print-page {
+  min-height: 100vh;
+  background: white;
+  padding: 20px;
+  position: relative;
+}
+
+.print-page.dark {
+  background: #1a1a1a;
+  color: #e5e5e5;
+}
+
 @media print {
-  /* Hide overlay and modal styling when printing */
-  .print-modal {
-    position: static;
-    max-width: 100%;
-    max-height: 100%;
-    margin: 0;
+  .print-page {
     padding: 0;
-    box-shadow: none;
-    background: white;
-  }
-
-  /* Hide header with buttons when printing */
-  .no-print {
-    display: none;
-  }
-
-  /* Print styling - compact */
-  .print-content {
-    padding: 0.25in;
-    font-size: 10pt;
-    line-height: 1.2;
-  }
-
-  @page {
-    margin: 0.25in;
-    size: letter;
-  }
-
-  /* Ensure text is black for printing */
-  .print-content {
-    color: black;
-  }
-
-  .print-content h2,
-  .print-content h3,
-  .print-content span,
-  .print-content li {
-    color: black;
-  }
-
-  /* Compact sections */
-  .print-heading {
-    font-size: 10pt;
-    margin-bottom: 2pt;
-    color: black;
-  }
-
-  .print-list {
-    font-size: 9pt;
-    line-height: 1.3;
     margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .print-list li {
-    margin: 0;
-    padding: 1pt 0;
-  }
-
-  .print-section {
-    margin-bottom: 8pt;
-    page-break-inside: avoid;
-  }
-
-  .print-theme-group {
-    margin-bottom: 4pt;
-    padding-bottom: 2pt;
-    border-bottom: 0.5pt solid #ccc;
-  }
-
-  .print-theme-group:last-child {
-    border-bottom: none;
-  }
-
-  /* Compact matrix */
-  .print-matrix {
-    page-break-inside: avoid;
-  }
-
-  .print-grid {
-    gap: 4pt;
-  }
-
-  .print-quadrant {
-    padding: 4pt;
-    page-break-inside: avoid;
-    min-height: auto;
-  }
-
-  .print-quadrant h3 {
-    font-size: 9pt;
-    margin-bottom: 2pt;
-    padding-bottom: 1pt;
-    border-bottom: 1pt solid currentColor;
-  }
-
-  .print-quadrant-list {
-    font-size: 8pt;
-    line-height: 1.25;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .print-quadrant-list li {
-    margin: 0;
-    padding: 1pt 0;
-    page-break-inside: avoid;
-  }
-
-  /* Remove backgrounds for print */
-  .print-q1,
-  .print-q2,
-  .print-q3,
-  .print-q4 {
     background: white !important;
   }
 
-  /* Limit items to top 10 - handled in template with .slice(0, 10) */
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
 }
 
-/* Screen styling */
-.print-heading {
-  @apply text-gray-900 dark:text-gray-100;
+/* Control Buttons */
+.controls {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+  display: flex;
+  gap: 10px;
 }
 
-.print-list {
-  @apply text-gray-900 dark:text-gray-100;
+.close-button,
+.print-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  gap: 6px;
+  padding: 0 12px;
+}
+
+.print-button {
+  width: auto;
+}
+
+.close-button:hover,
+.print-button:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.print-page.dark .close-button,
+.print-page.dark .print-button {
+  background: rgba(255, 255, 255, 0.2);
+  color: #e5e5e5;
+}
+
+.print-page.dark .close-button:hover,
+.print-page.dark .print-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 18px;
+  color: #666;
+}
+
+.print-page.dark .loading {
+  color: #999;
+}
+
+/* Content */
+.content {
+  max-width: 210mm; /* A4 width */
+  margin: 0 auto;
+}
+
+@media print {
+  .content {
+    max-width: 100%;
+  }
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #333;
+}
+
+.print-page.dark .header {
+  border-bottom-color: #666;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0 0 6px 0;
+  color: #1a1a1a;
+}
+
+.print-page.dark .title {
+  color: #e5e5e5;
+}
+
+.date {
+  font-size: 14px;
+  color: #666;
+}
+
+.print-page.dark .date {
+  color: #999;
+}
+
+@media print {
+  .header {
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+  }
+
+  .title {
+    font-size: 18px;
+    margin-bottom: 4px;
+  }
+
+  .date {
+    font-size: 12px;
+  }
+}
+
+/* Section */
+.section {
+  margin-bottom: 15px;
+  page-break-inside: avoid;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 0 0 8px 0;
+  color: #1a1a1a;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 6px;
+}
+
+.print-page.dark .section-title {
+  color: #e5e5e5;
+  border-bottom-color: #444;
+}
+
+@media print {
+  .section {
+    margin-bottom: 10px;
+  }
+
+  .section-title {
+    font-size: 14px;
+    margin-bottom: 6px;
+    padding-bottom: 3px;
+  }
+}
+
+/* Task List */
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+@media print {
+  .task-list {
+    gap: 3px;
+  }
+}
+
+.task-item {
+  display: flex;
+  gap: 8px;
+  padding: 4px 6px;
+  border: 1px solid #e0e0e0;
+  border-radius: 3px;
+  page-break-inside: avoid;
+}
+
+.print-page.dark .task-item {
+  border-color: #444;
+  background: #2a2a2a;
+}
+
+@media print {
+  .task-item {
+    padding: 2px 4px;
+    border-width: 0.5px;
+    gap: 6px;
+  }
+}
+
+.task-number {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0f0;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 11px;
+  color: #333;
+}
+
+.print-page.dark .task-number {
+  background: #3a3a3a;
+  color: #e5e5e5;
+}
+
+@media print {
+  .task-number {
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
+  }
+}
+
+.task-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.task-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.print-page.dark .task-title {
+  color: #e5e5e5;
+}
+
+.task-title-mit {
+  font-weight: bold;
+  color: #dc2626;
+}
+
+.print-page.dark .task-title-mit {
+  color: #ef4444;
+}
+
+@media print {
+  .task-title {
+    font-size: 10px;
+  }
+}
+
+.task-date-inline {
+  font-size: 10px;
+  color: #666;
+  font-weight: normal;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.print-page.dark .task-date-inline {
+  color: #999;
+}
+
+@media print {
+  .task-date-inline {
+    font-size: 9px;
+  }
+}
+
+.mit-badge {
+  font-size: 9px;
+  font-weight: bold;
+  padding: 1px 4px;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.print-page.dark .mit-badge {
+  background: #7f1d1d;
+  color: #fca5a5;
+}
+
+@media print {
+  .mit-badge {
+    font-size: 7px;
+    padding: 1px 3px;
+  }
+}
+
+.theme-badge {
+  font-size: 9px;
+  padding: 1px 4px;
+  background: #f3e8ff;
+  color: #7c3aed;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.print-page.dark .theme-badge {
+  background: #3b1f5f;
+  color: #c4b5fd;
+}
+
+@media print {
+  .theme-badge {
+    font-size: 7px;
+    padding: 1px 3px;
+  }
+}
+
+/* Matrix Grid */
+.matrix-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 12px;
+  page-break-inside: avoid;
+}
+
+@media print {
+  .matrix-grid {
+    gap: 6px;
+  }
+}
+
+/* Quadrant */
+.quadrant {
+  border: 2px solid #333;
+  border-radius: 4px;
+  padding: 10px;
+  page-break-inside: avoid;
+  min-height: 250px;
+}
+
+.quadrant-q1 {
+  border-color: #dc2626;
+  background: white;
+}
+
+.print-page.dark .quadrant-q1 {
+  border-color: #ef4444;
+  background: #1a1a1a;
+}
+
+.quadrant-q2 {
+  border-color: #2563eb;
+  background: white;
+}
+
+.print-page.dark .quadrant-q2 {
+  border-color: #3b82f6;
+  background: #1a1a1a;
+}
+
+.quadrant-q3 {
+  border-color: #f59e0b;
+  background: white;
+}
+
+.print-page.dark .quadrant-q3 {
+  border-color: #fbbf24;
+  background: #1a1a1a;
+}
+
+.quadrant-q4 {
+  border-color: #6b7280;
+  background: white;
+}
+
+.print-page.dark .quadrant-q4 {
+  border-color: #9ca3af;
+  background: #1a1a1a;
+}
+
+@media print {
+  .quadrant {
+    border-width: 1px;
+    padding: 6px;
+    min-height: auto;
+  }
+
+  .quadrant-q1,
+  .quadrant-q2,
+  .quadrant-q3,
+  .quadrant-q4 {
+    background: white !important;
+    border-color: #333 !important;
+  }
+}
+
+.quadrant-header {
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.print-page.dark .quadrant-header {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+@media print {
+  .quadrant-header {
+    margin-bottom: 6px;
+    padding-bottom: 3px;
+  }
+}
+
+.quadrant-label {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 2px;
+  color: #1a1a1a;
+}
+
+.print-page.dark .quadrant-label {
+  color: #e5e5e5;
+}
+
+@media print {
+  .quadrant-label {
+    font-size: 12px;
+  }
+}
+
+.quadrant-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  color: #333;
+}
+
+.print-page.dark .quadrant-title {
+  color: #d4d4d4;
+}
+
+@media print {
+  .quadrant-title {
+    font-size: 10px;
+  }
+}
+
+.quadrant-description {
+  font-size: 10px;
+  color: #666;
+}
+
+.print-page.dark .quadrant-description {
+  color: #999;
+}
+
+@media print {
+  .quadrant-description {
+    font-size: 8px;
+  }
+}
+
+.quadrant-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@media print {
+  .quadrant-tasks {
+    gap: 3px;
+  }
+}
+
+.matrix-task-item {
+  padding: 5px;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  page-break-inside: avoid;
+}
+
+.print-page.dark .matrix-task-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+@media print {
+  .matrix-task-item {
+    padding: 2px 4px;
+    border-width: 0.5px;
+    background: white !important;
+  }
+}
+
+.matrix-task-title-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.matrix-task-title {
+  font-size: 11px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.print-page.dark .matrix-task-title {
+  color: #e5e5e5;
+}
+
+.matrix-task-title-mit {
+  font-weight: bold;
+  color: #dc2626;
+}
+
+.print-page.dark .matrix-task-title-mit {
+  color: #ef4444;
+}
+
+@media print {
+  .matrix-task-title {
+    font-size: 9px;
+  }
+}
+
+.matrix-mit-badge {
+  font-size: 8px;
+  font-weight: bold;
+  padding: 1px 3px;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 2px;
+}
+
+.print-page.dark .matrix-mit-badge {
+  background: #7f1d1d;
+  color: #fca5a5;
+}
+
+@media print {
+  .matrix-mit-badge {
+    font-size: 7px;
+    padding: 0 2px;
+  }
+}
+
+.matrix-task-theme {
+  font-size: 9px;
+  color: #7c3aed;
+  margin-top: 1px;
+}
+
+.print-page.dark .matrix-task-theme {
+  color: #c4b5fd;
+}
+
+@media print {
+  .matrix-task-theme {
+    font-size: 8px;
+  }
+}
+
+.more-tasks {
+  font-size: 10px;
+  font-style: italic;
+  color: #666;
+  text-align: center;
+  padding: 4px;
+  margin-top: 2px;
+}
+
+.print-page.dark .more-tasks {
+  color: #999;
+}
+
+@media print {
+  .more-tasks {
+    font-size: 8px;
+    padding: 2px;
+  }
+}
+
+/* Print Specific Styles */
+@media print {
+  .print-page {
+    background: white !important;
+    color: black !important;
+  }
+
+  .controls {
+    display: none;
+  }
+
+  .task-item,
+  .matrix-task-item {
+    page-break-inside: avoid;
+  }
+
+  .section {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure good spacing for printing */
+  .content {
+    max-width: 100%;
+  }
+
+  /* Remove dark mode styling for print */
+  .print-page.dark * {
+    background: white !important;
+    color: black !important;
+    border-color: #333 !important;
+  }
 }
 </style>
