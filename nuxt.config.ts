@@ -118,10 +118,6 @@ export default defineNuxtConfig({
     appManifest: false,
   },
 
-  experimental: {
-    appManifest: false,
-  },
-
   nitro: {
     // Prerender specific routes for better performance
     prerender: {

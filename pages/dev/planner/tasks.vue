@@ -1547,12 +1547,12 @@ onUnmounted(() => {
             >
               <div
                 v-if="editingTaskId !== task.id"
-                class="flex flex-row items-center gap-2 sm:gap-3"
+                class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3"
               >
                 <!-- Done/Doing Toggle (square toggle) -->
                 <button
                   :class="[
-                    'relative w-11 h-6 sm:w-8 sm:h-4 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0',
+                    'relative w-11 h-6 sm:w-8 sm:h-4 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0 mt-0.5 sm:mt-0',
                     task.status === 'done'
                       ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
                       : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
