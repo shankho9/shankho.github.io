@@ -118,20 +118,48 @@ const closedTasksMetrics = computed(() => {
   const totalMits = currentMits + archived.totalArchivedMits
   const totalRegular = totalClosed - totalMits
 
-  // Trends
+  // Trends - combine archived and recently closed tasks for all periods
+  // Use midnight boundaries to match SQL CURRENT_DATE behavior
+  const now = new Date()
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+  const weekAgo = new Date(todayMidnight)
+  weekAgo.setDate(weekAgo.getDate() - 7)
+  const monthAgo = new Date(todayMidnight)
+  monthAgo.setDate(monthAgo.getDate() - 30)
+  const threeMonthsAgo = new Date(todayMidnight)
+  threeMonthsAgo.setDate(threeMonthsAgo.getDate() - 90)
+  const sixMonthsAgo = new Date(todayMidnight)
+  sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180)
+
   const trends = {
     thisWeek:
       archived.archivedByPeriod.thisWeek +
       closed.filter((task) => {
         if (!task.updated_at) return false
         const taskDate = new Date(task.updated_at)
-        const weekAgo = new Date()
-        weekAgo.setDate(weekAgo.getDate() - 7)
         return taskDate >= weekAgo
       }).length,
-    thisMonth: archived.archivedByPeriod.thisMonth,
-    last3Months: archived.archivedByPeriod.last3Months,
-    last6Months: archived.archivedByPeriod.last6Months,
+    thisMonth:
+      archived.archivedByPeriod.thisMonth +
+      closed.filter((task) => {
+        if (!task.updated_at) return false
+        const taskDate = new Date(task.updated_at)
+        return taskDate >= monthAgo
+      }).length,
+    last3Months:
+      archived.archivedByPeriod.last3Months +
+      closed.filter((task) => {
+        if (!task.updated_at) return false
+        const taskDate = new Date(task.updated_at)
+        return taskDate >= threeMonthsAgo
+      }).length,
+    last6Months:
+      archived.archivedByPeriod.last6Months +
+      closed.filter((task) => {
+        if (!task.updated_at) return false
+        const taskDate = new Date(task.updated_at)
+        return taskDate >= sixMonthsAgo
+      }).length,
   }
 
   // Closed by bucket (current + archived)
