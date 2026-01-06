@@ -44,17 +44,21 @@
                   Login
                 </h3>
 
+                <!-- Error Message -->
+                <div v-if="errorMessage" class="mb-4 rounded-md bg-red-50 dark:bg-red-900/20 p-3">
+                  <div class="flex">
+                    <Icon name="mdi:alert-circle" class="h-5 w-5 text-red-400 flex-shrink-0" />
+                    <div class="ml-3">
+                      <p class="text-sm font-medium text-red-800 dark:text-red-200">
+                        {{ errorMessage }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="space-y-3">
-                  <!-- Google Login Button -->
-                  <button
-                    type="button"
-                    class="w-full inline-flex justify-center items-center gap-3 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                    :disabled="isLoading"
-                    @click="handleGoogleLogin"
-                  >
-                    <Icon name="mdi:google" size="20" />
-                    <span>Continue with Google</span>
-                  </button>
+                  <!-- Google Sign-In Button Container -->
+                  <div id="google-signin-button-fallback"></div>
 
                   <!-- Divider -->
                   <div class="relative">
@@ -111,7 +115,8 @@
 </template>
 
 <script setup lang="ts">
-import { watch, onUnmounted } from 'vue'
+import { ref, watch, onUnmounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
 
 interface Props {
@@ -125,19 +130,20 @@ const emit = defineEmits<{
 
 const { initializeGoogleSignIn, handleGoogleCredential } = useAuth()
 const isLoading = ref(false)
+const errorMessage = ref('')
 const router = useRouter()
 
 const close = () => {
+  errorMessage.value = ''
   emit('close')
 }
 
-const handleGoogleLogin = async () => {
+// Initialize Google Sign-In when modal opens
+const initializeGoogleSignInButton = async () => {
   if (typeof window === 'undefined') return
 
-  isLoading.value = true
-
   try {
-    // Initialize Google Sign-In
+    // Initialize Google Sign-In script
     initializeGoogleSignIn()
 
     // Wait for Google to load
@@ -163,33 +169,86 @@ const handleGoogleLogin = async () => {
       throw new Error('Google Client ID not configured')
     }
 
-    // Initialize and prompt Google Sign-In
+    // Initialize Google Sign-In with comprehensive error handling
     window.google.accounts.id.initialize({
       client_id: clientId,
       callback: async (response: { credential: string }) => {
+        errorMessage.value = ''
+        isLoading.value = true
         try {
+          console.log('[LoginModal] Google credential received, processing...')
           const result = await handleGoogleCredential(response)
           if (result.success) {
+            console.log('[LoginModal] Google login successful')
             close()
             // Redirect to intended page or home
             const redirect = router.currentRoute.value.query.redirect as string
             await router.push(redirect || '/')
           } else {
+            errorMessage.value =
+              result.error || 'Google login failed. Please try again or use email login.'
             console.error('[LoginModal] Google login failed:', result.error)
           }
-        } catch (error) {
+        } catch (error: unknown) {
+          const errorMsg =
+            error instanceof Error
+              ? error.message
+              : 'An unexpected error occurred. Please try again.'
+          errorMessage.value = errorMsg
           console.error('[LoginModal] Google login error:', error)
         } finally {
           isLoading.value = false
         }
       },
+      error_callback: (error: { type: string; message?: string }) => {
+        console.error('[LoginModal] Google Identity Services error:', error)
+        let userMessage = 'Google sign-in encountered an error.'
+
+        // Provide more specific error messages based on error type
+        if (error.type === 'popup_closed_by_user') {
+          userMessage = 'Sign-in popup was closed. Please try again.'
+        } else if (error.type === 'popup_blocked') {
+          userMessage = 'Popup was blocked by your browser. Please allow popups and try again.'
+        } else if (error.type === 'access_denied') {
+          userMessage = 'Access was denied. Please try again or use email login.'
+        } else if (error.message) {
+          userMessage = error.message
+        } else {
+          userMessage =
+            'Google sign-in encountered an error. Please check your browser settings or try email login.'
+        }
+
+        errorMessage.value = userMessage
+        isLoading.value = false
+      },
     })
 
-    // Prompt the user to sign in
-    window.google.accounts.id.prompt()
-  } catch (error) {
+    // Disable One Tap prompt to avoid showing popup in top right
+    window.google.accounts.id.disableAutoSelect()
+
+    // Render Google Sign-In button
+    await nextTick()
+    const buttonContainer = document.getElementById('google-signin-button-fallback')
+    if (buttonContainer) {
+      try {
+        window.google.accounts.id.renderButton(buttonContainer, {
+          theme: 'outline',
+          size: 'large',
+          text: 'signin_with',
+          width: '100%',
+        })
+      } catch (renderError) {
+        console.error('[LoginModal] Error rendering Google button:', renderError)
+        errorMessage.value = 'Failed to load Google sign-in. Please try refreshing the page.'
+      }
+    }
+  } catch (error: unknown) {
+    const errorMsg =
+      error instanceof Error
+        ? error.message
+        : 'Failed to initialize Google login. Please check your configuration.'
+    errorMessage.value = errorMsg
     console.error('[LoginModal] Failed to initialize Google login:', error)
-    isLoading.value = false
   }
 }
 
@@ -198,8 +257,11 @@ let escapeHandler: ((e: KeyboardEvent) => void) | null = null
 
 watch(
   () => props.isOpen,
-  (isOpen) => {
+  async (isOpen) => {
     if (isOpen) {
+      // Initialize Google Sign-In when modal opens
+      await initializeGoogleSignInButton()
+
       escapeHandler = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
           close()

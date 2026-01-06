@@ -158,6 +158,12 @@ export async function sendPasswordResetEmail(
   userName: string | null,
   resetUrl: string,
 ): Promise<void> {
+  if (!RESEND_API_KEY) {
+    const error = new Error('RESEND_API_KEY not configured')
+    console.error('[Email] Password reset email failed:', error)
+    throw error
+  }
+
   const html = `
     <h2>Password Reset Request</h2>
     <p>Hello ${escapeHtml(userName || 'there')},</p>
@@ -174,5 +180,84 @@ export async function sendPasswordResetEmail(
     <p>Best regards,<br>Sid's Blog</p>
   `
 
-  await sendEmailNotification(userEmail, "Reset Your Password - Sid's Blog", html)
+  try {
+    const { Resend } = await import('resend')
+    const resend = new Resend(RESEND_API_KEY)
+
+    console.log('[Email] Sending password reset email to:', userEmail)
+    const result = await resend.emails.send({
+      from: "Sid's Blog <notifications@shankho-blogsite.vercel.app>",
+      to: userEmail,
+      subject: "Reset Your Password - Sid's Blog",
+      html,
+    })
+
+    // Check if Resend returned an error in the response
+    if (result.error) {
+      const errorMessage = result.error.message || 'Failed to send password reset email'
+      console.error('[Email] Resend API error:', result.error)
+      throw new Error(errorMessage)
+    }
+
+    console.log('[Email] Password reset email sent successfully:', result.data)
+  } catch (error) {
+    console.error('[Email] Failed to send password reset email:', error)
+    throw error
+  }
+}
+
+/**
+ * Send utility passcode reset email
+ */
+export async function sendPasscodeResetEmail(
+  userEmail: string,
+  userName: string | null,
+  resetUrl: string,
+): Promise<void> {
+  if (!RESEND_API_KEY) {
+    const error = new Error('RESEND_API_KEY not configured')
+    console.error('[Email] Utility passcode reset email failed:', error)
+    throw error
+  }
+
+  const html = `
+    <h2>Utility Passcode Reset Request</h2>
+    <p>Hello ${escapeHtml(userName || 'there')},</p>
+    <p>You requested to reset your utility passcode for Sid's Blog. Click the link below to set a new passcode:</p>
+    <p>
+      <a href="${escapeHtml(resetUrl)}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 5px;">
+        Set New Utility Passcode
+      </a>
+    </p>
+    <p>Or copy and paste this link into your browser:</p>
+    <p style="word-break: break-all;">${escapeHtml(resetUrl)}</p>
+    <p><strong>This link will expire in 24 hours.</strong></p>
+    <p>If you didn't request this passcode reset, please ignore this email.</p>
+    <p>Best regards,<br>Sid's Blog</p>
+  `
+
+  try {
+    const { Resend } = await import('resend')
+    const resend = new Resend(RESEND_API_KEY)
+
+    console.log('[Email] Sending utility passcode reset email to:', userEmail)
+    const result = await resend.emails.send({
+      from: "Sid's Blog <notifications@shankho-blogsite.vercel.app>",
+      to: userEmail,
+      subject: "Reset Your Utility Passcode - Sid's Blog",
+      html,
+    })
+
+    // Check if Resend returned an error in the response
+    if (result.error) {
+      const errorMessage = result.error.message || 'Failed to send utility passcode reset email'
+      console.error('[Email] Resend API error:', result.error)
+      throw new Error(errorMessage)
+    }
+
+    console.log('[Email] Utility passcode reset email sent successfully:', result.data)
+  } catch (error) {
+    console.error('[Email] Failed to send utility passcode reset email:', error)
+    throw error
+  }
 }

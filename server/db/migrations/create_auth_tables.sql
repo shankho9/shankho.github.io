@@ -278,12 +278,15 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 
 -- Add foreign key to password_reset_tokens table if it doesn't exist
 DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'password_reset_tokens'::regclass AND conname = 'password_reset_tokens_user_id_fkey') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'password_reset_tokens_user_id_fkey') THEN
         -- Clean up orphaned tokens before adding FK
         DELETE FROM password_reset_tokens WHERE user_id NOT IN (SELECT id FROM users);
-        ALTER TABLE password_reset_tokens ADD CONSTRAINT password_reset_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE NOT VALID;
-        EXECUTE 'ALTER TABLE password_reset_tokens VALIDATE CONSTRAINT password_reset_tokens_user_id_fkey';
+        ALTER TABLE password_reset_tokens ADD CONSTRAINT password_reset_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
     END IF;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Could not add password_reset_tokens_user_id_fkey constraint: %', SQLERRM;
 END $$;
 
 -- Create indexes for password_reset_tokens
@@ -308,6 +311,37 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Create utility_passcode_reset_tokens table for utility passcode reset functionality
+CREATE TABLE IF NOT EXISTS utility_passcode_reset_tokens (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  token VARCHAR(255) NOT NULL UNIQUE,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id)
+);
+
+-- Add foreign key to utility_passcode_reset_tokens table if it doesn't exist
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'utility_passcode_reset_tokens_user_id_fkey') THEN
+        -- Clean up orphaned tokens before adding FK
+        DELETE FROM utility_passcode_reset_tokens WHERE user_id NOT IN (SELECT id FROM users);
+        ALTER TABLE utility_passcode_reset_tokens ADD CONSTRAINT utility_passcode_reset_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Could not add utility_passcode_reset_tokens_user_id_fkey constraint: %', SQLERRM;
+END $$;
+
+-- Create indexes for utility_passcode_reset_tokens
+DROP INDEX IF EXISTS idx_utility_passcode_reset_tokens_user_id;
+CREATE INDEX IF NOT EXISTS idx_utility_passcode_reset_tokens_user_id ON utility_passcode_reset_tokens(user_id);
+DROP INDEX IF EXISTS idx_utility_passcode_reset_tokens_token;
+CREATE INDEX IF NOT EXISTS idx_utility_passcode_reset_tokens_token ON utility_passcode_reset_tokens(token);
+DROP INDEX IF EXISTS idx_utility_passcode_reset_tokens_expires_at;
+CREATE INDEX IF NOT EXISTS idx_utility_passcode_reset_tokens_expires_at ON utility_passcode_reset_tokens(expires_at);
+
 -- Create function to clean up expired password reset tokens (can be called periodically)
 CREATE OR REPLACE FUNCTION cleanup_expired_reset_tokens()
 RETURNS INTEGER AS $$
@@ -315,6 +349,20 @@ DECLARE
   deleted_count INTEGER;
 BEGIN
   DELETE FROM password_reset_tokens
+  WHERE expires_at < CURRENT_TIMESTAMP;
+
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create function to clean up expired utility passcode reset tokens (can be called periodically)
+CREATE OR REPLACE FUNCTION cleanup_expired_utility_passcode_reset_tokens()
+RETURNS INTEGER AS $$
+DECLARE
+  deleted_count INTEGER;
+BEGIN
+  DELETE FROM utility_passcode_reset_tokens
   WHERE expires_at < CURRENT_TIMESTAMP;
 
   GET DIAGNOSTICS deleted_count = ROW_COUNT;

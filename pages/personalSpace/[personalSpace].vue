@@ -5,6 +5,8 @@ import { computed, onMounted, onUnmounted, nextTick, ref } from 'vue'
 import LikeButton from '@/components/blog/LikeButton.vue'
 import Comments from '@/components/blog/Comments.vue'
 import ReadingProgress from '@/components/blog/ReadingProgress.vue'
+import FocusMode from '@/components/blog/FocusMode.vue'
+import TextToSpeech from '@/components/blog/TextToSpeech.vue'
 import { calculateReadingTime } from '~/utils/blog/readingTime'
 import { useAuth } from '~/composables/useAuth'
 
@@ -224,15 +226,14 @@ try {
             <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Share</h3>
             <div class="flex flex-wrap gap-2">
               <div
-                v-for="network in ['twitter', 'facebook', 'linkedin', 'whatsapp', 'email']"
+                v-for="network in ['facebook', 'twitter', 'linkedin', 'whatsapp', 'email']"
                 :key="network"
-                :class="`social-share-${network}`"
+                :class="`social-share-wrapper social-share-${network === 'twitter' ? 'x' : network}`"
+                :data-network="network === 'twitter' ? 'x' : network"
+                :title="`Share with ${network === 'twitter' ? 'X' : network.charAt(0).toUpperCase() + network.slice(1)}`"
               >
-                <SocialShareButton
-                  :url="`${seoData.mySite}${path}`"
-                  :title="data.title"
-                  :description="data.description"
-                  :network="network"
+                <SocialShare
+                  :network="network === 'twitter' ? 'x' : network"
                   :styled="false"
                   :label="false"
                   class="social-share-button"
@@ -251,22 +252,27 @@ try {
 </template>
 
 <style scoped>
+/* Wrapper for share buttons */
+.social-share-wrapper {
+  @apply relative flex items-center;
+}
+
 /* Social Share Button Styles */
-.social-share-button {
+:deep(.social-share-button) {
   @apply w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200;
 }
 
-/* Twitter - bright vibrant blue */
-.social-share-twitter :deep(.social-share-button),
-.social-share-wrapper[data-network='twitter'] :deep(.social-share-button) {
-  @apply bg-blue-500 dark:bg-blue-600 text-white border-blue-600 dark:border-blue-700;
-  box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.4);
+/* X (formerly Twitter) - bright vibrant sky blue */
+.social-share-x :deep(.social-share-button),
+.social-share-wrapper[data-network='x'] :deep(.social-share-button) {
+  @apply bg-sky-500 dark:bg-sky-600 text-white border-sky-600 dark:border-sky-500;
+  box-shadow: 0 4px 14px 0 rgba(14, 165, 233, 0.4);
 }
 
-.social-share-twitter:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='twitter']:hover :deep(.social-share-button) {
-  @apply bg-blue-600 dark:bg-blue-700 border-blue-700 dark:border-blue-800;
-  box-shadow: 0 6px 20px 0 rgba(59, 130, 246, 0.6);
+.social-share-x:hover :deep(.social-share-button),
+.social-share-wrapper[data-network='x']:hover :deep(.social-share-button) {
+  @apply bg-sky-600 dark:bg-sky-500 border-sky-700 dark:border-sky-400;
+  box-shadow: 0 6px 20px 0 rgba(14, 165, 233, 0.6);
 }
 
 /* Facebook - bright vibrant blue */

@@ -163,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { useRouter } from 'vue-router'
 
@@ -216,13 +216,18 @@ const handleRegister = async () => {
   }
 }
 
+let checkGoogleInterval: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   initializeGoogleSignIn()
 
   // Wait for Google to load, then render button
-  const checkGoogle = setInterval(() => {
+  checkGoogleInterval = setInterval(() => {
     if (window.google && window.google.accounts) {
-      clearInterval(checkGoogle)
+      if (checkGoogleInterval) {
+        clearInterval(checkGoogleInterval)
+        checkGoogleInterval = null
+      }
       const clientId = useRuntimeConfig().public.googleClientId
       if (clientId) {
         window.google.accounts.id.initialize({
@@ -258,5 +263,13 @@ onMounted(() => {
       }
     }
   }, 100)
+})
+
+onUnmounted(() => {
+  // Clean up the interval if the component unmounts before Google loads
+  if (checkGoogleInterval) {
+    clearInterval(checkGoogleInterval)
+    checkGoogleInterval = null
+  }
 })
 </script>

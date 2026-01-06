@@ -58,7 +58,9 @@ async function runMigration() {
     try {
       await client.query(migrationSQL)
       console.log('✅ Migration completed successfully!')
-      console.log('✅ Created tables: users, sessions, devices, utility_passcodes')
+      console.log(
+        '✅ Created tables: users, sessions, devices, utility_passcodes, password_reset_tokens, utility_passcode_reset_tokens',
+      )
     } finally {
       client.release()
     }
@@ -66,7 +68,14 @@ async function runMigration() {
     // Verify the tables were created
     const verifyClient = await pool.connect()
     try {
-      const tables = ['users', 'sessions', 'devices', 'utility_passcodes']
+      const tables = [
+        'users',
+        'sessions',
+        'devices',
+        'utility_passcodes',
+        'password_reset_tokens',
+        'utility_passcode_reset_tokens',
+      ]
       for (const table of tables) {
         const result = await verifyClient.query(
           `

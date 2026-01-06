@@ -48,15 +48,42 @@ export default defineEventHandler(async (event) => {
         'https://shankho-blogsite.vercel.app'
       const resetUrl = `${siteUrl}/auth/reset-password?token=${resetToken}`
 
-      await sendPasswordResetEmail(user.email, user.name, resetUrl)
+      console.log('[Auth] Sending password reset email to:', user.email)
+      try {
+        await sendPasswordResetEmail(user.email, user.name, resetUrl)
+        console.log('[Auth] Password reset email sent successfully')
+      } catch (emailError) {
+        // Log detailed error information for debugging
+        console.error('[Auth] Failed to send password reset email:', {
+          error: emailError,
+          message: emailError instanceof Error ? emailError.message : String(emailError),
+          userEmail: user.email,
+          stack: emailError instanceof Error ? emailError.stack : undefined,
+        })
+        // Re-throw to be caught by outer catch block
+        throw emailError
+      }
+    } else {
+      console.log(
+        '[Auth] Password reset requested for email that does not exist or uses OAuth:',
+        email,
+      )
     }
 
     // Always return success to prevent email enumeration
     // If user doesn't exist or uses OAuth, we still return success
     return { success: true }
   } catch (error) {
-    console.error('[Auth] Password reset request error:', error)
-    // Still return success to prevent email enumeration
+    // Log detailed error information for debugging
+    console.error('[Auth] Password reset request error:', {
+      error,
+      message: error instanceof Error ? error.message : String(error),
+      email,
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+    // Log the error but still return success to prevent email enumeration
+    // The error is logged for debugging, but we don't reveal to the user
+    // whether the email was sent or not for security reasons
     return { success: true }
   }
 })

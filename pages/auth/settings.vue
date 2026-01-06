@@ -264,28 +264,52 @@
             </div>
           </div>
           <div
-            v-if="passcodeStatus.needsRotation"
+            v-if="passcodeStatus.needsRotation && passcodeStatus.isSet"
             class="rounded-md bg-yellow-50 dark:bg-yellow-900/20 p-4 mb-4"
           >
             <div class="flex">
               <Icon name="mdi:alert" class="h-5 w-5 text-yellow-400" />
-              <div class="ml-3">
+              <div class="ml-3 flex-1">
                 <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
                   Your utility passcode needs to be rotated
                   <span v-if="passcodeStatus.expiresAt">
                     (expires {{ formatDate(passcodeStatus.expiresAt) }})
                   </span>
                 </p>
+                <NuxtLink
+                  to="/auth/passcode-rotate"
+                  class="mt-2 inline-block text-sm font-medium text-yellow-800 hover:text-yellow-900 dark:text-yellow-200 dark:hover:text-yellow-100 underline"
+                >
+                  Rotate Passcode →
+                </NuxtLink>
               </div>
             </div>
           </div>
-          <form class="space-y-4" @submit.prevent="handleSetPasscode">
+          <div v-if="passcodeStatus.isSet && !passcodeStatus.needsRotation" class="mb-4">
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              Your utility passcode is set and active.
+              <span v-if="passcodeStatus.expiresAt">
+                It expires on {{ formatDate(passcodeStatus.expiresAt) }}.
+              </span>
+            </p>
+            <NuxtLink
+              to="/auth/passcode-rotate"
+              class="mt-2 inline-block text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+            >
+              Rotate Passcode →
+            </NuxtLink>
+          </div>
+          <form
+            v-if="!passcodeStatus.isSet || passcodeStatus.needsRotation"
+            class="space-y-4"
+            @submit.prevent="handleSetPasscode"
+          >
             <div>
               <label
                 for="passcode"
                 class="block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
-                {{ passcodeStatus.expiresAt ? 'New Passcode' : 'Set Passcode' }}
+                {{ passcodeStatus.isSet ? 'New Passcode' : 'Set Passcode' }}
               </label>
               <input
                 id="passcode"
@@ -401,23 +425,17 @@ const handleChangePassword = async () => {
   isChangingPassword.value = true
 
   try {
-    // First verify current password by attempting login
-    const { login } = useAuth()
-    const loginResult = await login(user.value!.email, passwordForm.value.currentPassword)
-
-    if (!loginResult.success) {
-      passwordError.value = 'Current password is incorrect'
-      return
-    }
-
-    // Update password via API (we'll need to create this endpoint)
-    const response = await $fetch('/api/auth/password/change', {
-      method: 'POST',
-      body: {
-        currentPassword: passwordForm.value.currentPassword,
-        newPassword: passwordForm.value.newPassword,
+    // Update password via API (endpoint verifies current password internally)
+    const response = await $fetch<{ success: boolean; error?: string; message?: string }>(
+      '/api/auth/password/change',
+      {
+        method: 'POST',
+        body: {
+          currentPassword: passwordForm.value.currentPassword,
+          newPassword: passwordForm.value.newPassword,
+        },
       },
-    })
+    )
 
     if (response.success) {
       passwordSuccess.value = 'Password updated successfully'
@@ -458,10 +476,13 @@ const handleSetPasscode = async () => {
   isSettingPasscode.value = true
 
   try {
-    const response = await $fetch('/api/auth/utility-passcode/set', {
-      method: 'POST',
-      body: { passcode: passcodeForm.value.passcode },
-    })
+    const response = await $fetch<{ success: boolean; error?: string; message?: string }>(
+      '/api/auth/utility-passcode/set',
+      {
+        method: 'POST',
+        body: { passcode: passcodeForm.value.passcode },
+      },
+    )
 
     if (response.success) {
       passcodeSuccess.value = 'Utility passcode set successfully'
@@ -493,14 +514,20 @@ const handleSetPasscode = async () => {
 const setupMFA = async () => {
   isSettingUpMFA.value = true
   try {
-    const response = await $fetch('/api/auth/mfa/setup', {
+    const response = await $fetch<{
+      success: boolean
+      secret?: string
+      qrCode?: string
+      message?: string
+      error?: string
+    }>('/api/auth/mfa/setup', {
       method: 'POST',
       body: { action: 'generate' },
     })
 
     if (response.success) {
-      mfaSecret.value = response.secret
-      mfaQRCode.value = response.qrCode
+      mfaSecret.value = response.secret || ''
+      mfaQRCode.value = response.qrCode || ''
       showMFAQR.value = true
     }
   } catch (error) {
@@ -512,14 +539,17 @@ const setupMFA = async () => {
 
 const verifyMFA = async () => {
   try {
-    const response = await $fetch('/api/auth/mfa/setup', {
-      method: 'POST',
-      body: {
-        action: 'verify',
-        secret: mfaSecret.value,
-        code: mfaVerificationCode.value,
+    const response = await $fetch<{ success: boolean; error?: string; message?: string }>(
+      '/api/auth/mfa/setup',
+      {
+        method: 'POST',
+        body: {
+          action: 'verify',
+          secret: mfaSecret.value,
+          code: mfaVerificationCode.value,
+        },
       },
-    })
+    )
 
     if (response.success) {
       showMFAQR.value = false
@@ -545,10 +575,13 @@ const disableMFA = async () => {
 
   isDisablingMFA.value = true
   try {
-    const response = await $fetch('/api/auth/mfa/setup', {
-      method: 'POST',
-      body: { action: 'disable' },
-    })
+    const response = await $fetch<{ success: boolean; error?: string; message?: string }>(
+      '/api/auth/mfa/setup',
+      {
+        method: 'POST',
+        body: { action: 'disable' },
+      },
+    )
 
     if (response.success) {
       await checkAuth(true)

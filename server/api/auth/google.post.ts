@@ -34,14 +34,39 @@ export default defineEventHandler(async (event) => {
 
   try {
     // Verify the Google ID token
-    const response = await $fetch<GoogleTokenPayload>(
-      `https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${token}`,
-    )
+    // Note: tokeninfo endpoint is deprecated but still functional
+    // Consider migrating to JWT verification in the future
+    let response: GoogleTokenPayload
+    try {
+      response = await $fetch<GoogleTokenPayload>(
+        `https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${token}`,
+      )
+    } catch (fetchError: unknown) {
+      console.error('[Auth] Google tokeninfo API error:', fetchError)
+      const errorMessage =
+        fetchError && typeof fetchError === 'object' && 'data' in fetchError
+          ? (fetchError.data as { error_description?: string; error?: string })
+              ?.error_description || (fetchError.data as { error?: string })?.error
+          : fetchError instanceof Error
+            ? fetchError.message
+            : 'Failed to verify Google token'
+      throw createError({
+        statusCode: 401,
+        message: errorMessage || 'Invalid Google token. Please try again.',
+      })
+    }
 
     if (!response.email_verified) {
       throw createError({
         statusCode: 401,
         message: 'Email not verified',
+      })
+    }
+
+    if (!response.email || !response.sub) {
+      throw createError({
+        statusCode: 401,
+        message: 'Invalid token response: missing required fields',
       })
     }
 
@@ -145,9 +170,23 @@ export default defineEventHandler(async (event) => {
     }
   } catch (error: unknown) {
     console.error('[Auth] Google OAuth error:', error)
+
+    // If it's already a createError, re-throw it with its original message
+    if (error && typeof error === 'object' && 'statusCode' in error && 'message' in error) {
+      throw error
+    }
+
+    // Otherwise, create a user-friendly error
+    const errorMessage =
+      error && typeof error === 'object' && 'message' in error
+        ? String(error.message)
+        : error instanceof Error
+          ? error.message
+          : 'Authentication failed. Please try again.'
+
     throw createError({
       statusCode: 401,
-      message: 'Invalid token',
+      message: errorMessage,
     })
   }
 })

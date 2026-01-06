@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import LoginModal from '~/components/auth/LoginModal.vue'
 
 interface Comment {
   id: number
@@ -20,7 +21,7 @@ const emit = defineEmits<{
   'comment-added': [itemId: string | number]
 }>()
 
-const { user, isAuthenticated, signIn, loadStoredUser, initializeGoogleSignIn } = useAuth()
+const { user, isAuthenticated, loadStoredUser } = useAuth()
 
 const comments = ref<Comment[]>([])
 const isLoading = ref(false)
@@ -29,6 +30,7 @@ const commentText = ref('')
 const error = ref<string | null>(null)
 const imageErrors = ref<Set<number>>(new Set())
 const userImageError = ref(false)
+const showLoginModal = ref(false)
 
 // Pagination state
 const currentPage = ref(1)
@@ -110,9 +112,17 @@ const goToPage = (page: number) => {
   }
 }
 
+const openLoginModal = () => {
+  showLoginModal.value = true
+}
+
+const closeLoginModal = () => {
+  showLoginModal.value = false
+}
+
 const submitComment = async () => {
   if (!isAuthenticated.value || !user.value) {
-    signIn()
+    openLoginModal()
     return
   }
 
@@ -159,74 +169,15 @@ const handleUserImageError = () => {
   userImageError.value = true
 }
 
-// Render Google Sign-In button
-const renderGoogleSignInButton = () => {
-  nextTick(() => {
-    const buttonElement = document.getElementById('gallery-comments-signin-button')
-    if (!buttonElement || !window.google) return
-
-    const clientId = useRuntimeConfig().public.googleClientId
-    if (!clientId) {
-      console.error('[GalleryComments] Google Client ID not configured')
-      return
-    }
-
-    buttonElement.innerHTML = ''
-
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: async (response: { credential: string }) => {
-        try {
-          const result = await $fetch<{
-            success: boolean
-            user: {
-              id: number
-              email: string
-              name: string
-              picture: string
-              auth_provider: string
-              mfa_enabled: boolean
-            }
-          }>('/api/auth/google', {
-            method: 'POST',
-            body: { token: response.credential },
-          })
-          if (result.success && result.user) {
-            user.value = result.user
-            localStorage.setItem('auth_user', JSON.stringify(result.user))
-
-            // Track login event for analytics
-            if (typeof window !== 'undefined') {
-              const { trackLogin } = await import('~/utils/analytics/trackLogin')
-              await trackLogin(result.user.email, result.user.name, window.location.pathname)
-              window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
-            }
-          }
-        } catch (error) {
-          console.error('[GalleryComments] Authentication failed:', error)
-        }
-      },
-    })
-
-    window.google.accounts.id.renderButton(buttonElement, {
-      theme: 'outline',
-      size: 'large',
-      text: 'signin_with',
-      width: 250,
-    })
-  })
-}
-
+// Watch for authentication state changes to close modal and reload comments
 watch(isAuthenticated, (newValue) => {
-  if (!newValue) {
-    nextTick(() => {
-      renderGoogleSignInButton()
-    })
+  if (newValue) {
+    showLoginModal.value = false
+    loadComments()
   }
 })
 
 onMounted(() => {
-  initializeGoogleSignIn()
   loadStoredUser()
   loadComments()
 })
@@ -276,8 +227,16 @@ onMounted(() => {
     <!-- Sign In Prompt -->
     <div v-else class="mb-6 p-4 bg-white/10 rounded-lg border border-white/20">
       <p class="text-white mb-3">Sign in to add a comment</p>
-      <div id="gallery-comments-signin-button" class="flex justify-center"></div>
+      <button
+        class="w-full px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors"
+        @click="openLoginModal"
+      >
+        Login
+      </button>
     </div>
+
+    <!-- Login Modal -->
+    <LoginModal :is-open="showLoginModal" @close="closeLoginModal" />
 
     <!-- Comments List -->
     <div v-if="isLoading" class="text-center py-8 text-gray-400">Loading comments...</div>
