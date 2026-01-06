@@ -22,7 +22,9 @@
     "migrate:page-visits:prod": "NODE_ENV=production node scripts/migrations/run-page-visits-migration.js",
     "migrate:planner:prod": "node scripts/migrations/run-planner-setup-prod.js",
     "migrate:auth": "node scripts/migrations/run-auth-migration.js",
-    "migrate:auth:prod": "NODE_ENV=production node scripts/migrations/run-auth-migration.js"
+    "migrate:auth:prod": "NODE_ENV=production node scripts/migrations/run-auth-migration.js",
+    "check:db:structure": "node scripts/check-table-structure.js",
+    "check:db:structure:prod": "NODE_ENV=production node scripts/check-table-structure.js"
   },
   "devDependencies": {
     "@formkit/auto-animate": "^0.8.2",

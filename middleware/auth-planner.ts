@@ -48,13 +48,18 @@ export default defineNuxtRouteMiddleware(async (_to, _from) => {
 
   // If API call failed, use fail-open approach:
   // - If passcode was previously verified (sessionStorage flag exists), allow access
-  // - If not verified, redirect to verification (not setup) to avoid blocking users
+  // - If not verified, redirect to settings (not verification) to avoid dead-end
+  //   Settings page can handle both setup and verification flows
   if (apiCallFailed) {
     if (!passcodeVerified) {
       console.warn(
-        '[Auth Planner] API call failed and passcode not verified, redirecting to verification',
+        '[Auth Planner] API call failed and passcode not verified, redirecting to settings',
       )
-      return navigateTo('/auth/utility-passcode?redirect=' + encodeURIComponent(_to.fullPath))
+      // Redirect to settings which can handle both setup and verification
+      // This prevents dead-end where user is sent to verification page without a passcode set
+      return navigateTo(
+        '/auth/settings?passcode=setup&redirect=' + encodeURIComponent(_to.fullPath),
+      )
     }
     // If passcode was verified before, allow access even if API is down
     console.warn('[Auth Planner] API call failed but passcode previously verified, allowing access')
