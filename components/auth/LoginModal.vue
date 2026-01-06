@@ -182,20 +182,49 @@ const initializeGoogleSignInButton = async () => {
             console.log('[LoginModal] Google login successful')
             close()
             // Redirect to intended page or home
+            // Prevent redirecting to login/auth pages after successful login
             const redirect = router.currentRoute.value.query.redirect as string
-            await router.push(redirect || '/')
+            const redirectPath = redirect || '/'
+
+            // Don't redirect to login/auth pages after successful login
+            if (redirectPath.startsWith('/auth/')) {
+              // If redirect was to an auth page, go to home instead
+              await router.push('/')
+            } else {
+              await router.push(redirectPath)
+            }
           } else {
             errorMessage.value =
               result.error || 'Google login failed. Please try again or use email login.'
             console.error('[LoginModal] Google login failed:', result.error)
           }
         } catch (error: unknown) {
-          const errorMsg =
-            error instanceof Error
-              ? error.message
-              : 'An unexpected error occurred. Please try again.'
-          errorMessage.value = errorMsg
           console.error('[LoginModal] Google login error:', error)
+
+          // Extract error message with better type handling
+          let errorMsg = 'An unexpected error occurred. Please try again.'
+
+          if (error && typeof error === 'object' && 'data' in error) {
+            const errorData = error.data as { error?: string | boolean; message?: string }
+            // Handle both string and boolean error values
+            if (typeof errorData?.error === 'string') {
+              errorMsg = errorData.error
+            } else if (errorData?.message) {
+              errorMsg = errorData.message
+            } else if (errorData?.error === true) {
+              // If error is boolean true, use a generic message
+              errorMsg =
+                'Google authentication failed. Please check your configuration or try again.'
+            }
+          } else if (error instanceof Error) {
+            errorMsg = error.message
+          }
+
+          // Ensure we always set a string, never a boolean
+          errorMessage.value =
+            typeof errorMsg === 'string'
+              ? errorMsg
+              : 'An unexpected error occurred. Please try again.'
         } finally {
           isLoading.value = false
         }
@@ -223,8 +252,13 @@ const initializeGoogleSignInButton = async () => {
       },
     })
 
-    // Disable One Tap prompt to avoid showing popup in top right
-    window.google.accounts.id.disableAutoSelect()
+    // Disable One Tap prompt aggressively to avoid showing popup in top right
+    // This must be called after initialize but before any prompts
+    try {
+      window.google.accounts.id.disableAutoSelect()
+    } catch (disableError) {
+      console.warn('[LoginModal] Error disabling One Tap:', disableError)
+    }
 
     // Render Google Sign-In button
     await nextTick()

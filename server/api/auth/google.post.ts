@@ -170,20 +170,31 @@ export default defineEventHandler(async (event) => {
     }
   } catch (error: unknown) {
     console.error('[Auth] Google OAuth error:', error)
+    console.error('[Auth] Google OAuth error type:', typeof error)
+    console.error('[Auth] Google OAuth error details:', JSON.stringify(error, null, 2))
 
     // If it's already a createError, re-throw it with its original message
     if (error && typeof error === 'object' && 'statusCode' in error && 'message' in error) {
+      const createErr = error as { statusCode: number; message: string }
+      console.error('[Auth] Re-throwing createError:', createErr.message)
       throw error
     }
 
     // Otherwise, create a user-friendly error
-    const errorMessage =
-      error && typeof error === 'object' && 'message' in error
-        ? String(error.message)
-        : error instanceof Error
-          ? error.message
-          : 'Authentication failed. Please try again.'
+    let errorMessage = 'Authentication failed. Please try again.'
 
+    if (error && typeof error === 'object' && 'message' in error) {
+      errorMessage = String(error.message)
+    } else if (error instanceof Error) {
+      errorMessage = error.message
+    }
+
+    // Ensure error message is never empty or just "true"
+    if (!errorMessage || errorMessage === 'true' || errorMessage === 'false') {
+      errorMessage = 'Google authentication failed. Please check your configuration or try again.'
+    }
+
+    console.error('[Auth] Throwing error with message:', errorMessage)
     throw createError({
       statusCode: 401,
       message: errorMessage,
