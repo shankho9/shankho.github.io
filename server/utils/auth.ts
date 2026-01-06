@@ -338,22 +338,60 @@ export async function createUser(data: {
   authProvider: 'email' | 'google'
   googleSub?: string
 }): Promise<User> {
-  const result = await query<User>(
-    `INSERT INTO users (email, name, picture, password_hash, auth_provider, google_sub, email_verified)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING *`,
-    [
-      data.email.toLowerCase(),
-      data.name || null,
-      data.picture || null,
-      data.passwordHash || null,
-      data.authProvider,
-      data.googleSub || null,
-      data.authProvider === 'google' ? true : false, // Google emails are pre-verified
-    ],
-  )
+  try {
+    // Note: Sequence should be properly set up during migration.
+    // PostgreSQL's SERIAL type with nextval() handles concurrent inserts atomically.
+    // We don't fix the sequence here to avoid race conditions where concurrent
+    // requests read the same MAX(id) and set the sequence to the same value.
+    const result = await query<User>(
+      `INSERT INTO users (email, name, picture, password_hash, auth_provider, google_sub, email_verified)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, mfa_enabled, email_verified, created_at, last_login_at`,
+      [
+        data.email.toLowerCase(),
+        data.name || null,
+        data.picture || null,
+        data.passwordHash || null,
+        data.authProvider,
+        data.googleSub || null,
+        data.authProvider === 'google' ? true : false, // Google emails are pre-verified
+      ],
+    )
 
-  return result[0]
+    if (!result || result.length === 0) {
+      throw new Error('Failed to create user: no data returned from INSERT')
+    }
+
+    const user = result[0]
+    if (!user || !user.id) {
+      console.error('[Auth] User creation failed - result:', result)
+      throw new Error('Failed to create user: invalid data returned from INSERT (missing id)')
+    }
+
+    return user
+  } catch (error) {
+    console.error('[Auth] Error creating user:', error)
+    console.error('[Auth] User data:', {
+      email: data.email,
+      authProvider: data.authProvider,
+      hasName: !!data.name,
+      hasPicture: !!data.picture,
+      hasPasswordHash: !!data.passwordHash,
+      hasGoogleSub: !!data.googleSub,
+    })
+
+    // Re-throw with more context if it's a database constraint error
+    if (error && typeof error === 'object' && 'message' in error) {
+      const errorMessage = String(error.message)
+      if (errorMessage.includes('null value in column "id"')) {
+        throw new Error(
+          'Database configuration error: User ID sequence is not properly set up. Please run the database migration.',
+        )
+      }
+    }
+
+    throw error
+  }
 }
 
 /**

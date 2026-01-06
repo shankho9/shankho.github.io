@@ -77,6 +77,52 @@ BEGIN
   END IF;
 END $$;
 
+-- Ensure the id column uses SERIAL and sequence is properly set up
+-- This fixes issues where the table might have been created without SERIAL or sequence is out of sync
+DO $$
+DECLARE
+  seq_name TEXT;
+  max_id INTEGER;
+BEGIN
+  -- Check if id column exists and get its data type
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'id') THEN
+    -- Get the sequence name for the id column
+    SELECT pg_get_serial_sequence('users', 'id') INTO seq_name;
+    
+    -- If sequence doesn't exist, we need to create it
+    IF seq_name IS NULL THEN
+      -- Check current data type
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'users' 
+        AND column_name = 'id' 
+        AND data_type = 'integer'
+      ) THEN
+        -- Create sequence and set it as default for id column
+        CREATE SEQUENCE IF NOT EXISTS users_id_seq;
+        ALTER TABLE users ALTER COLUMN id SET DEFAULT nextval('users_id_seq');
+        ALTER SEQUENCE users_id_seq OWNED BY users.id;
+        
+        -- Set sequence to current max + 1
+        SELECT COALESCE(MAX(id), 0) INTO max_id FROM users;
+        PERFORM setval('users_id_seq', max_id + 1, false);
+        
+        RAISE NOTICE 'Created sequence users_id_seq and set default for id column';
+      END IF;
+    ELSE
+      -- Sequence exists, ensure it's in sync with max id
+      SELECT COALESCE(MAX(id), 0) INTO max_id FROM users;
+      IF max_id > 0 THEN
+        PERFORM setval(seq_name, max_id, true);
+        RAISE NOTICE 'Synchronized sequence % with max id %', seq_name, max_id;
+      END IF;
+    END IF;
+  END IF;
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE WARNING 'Error fixing sequence: %', SQLERRM;
+END $$;
+
 -- Create devices table for device tracking (must be created before sessions)
 -- Create without foreign key first, then add it separately
 CREATE TABLE IF NOT EXISTS devices (
