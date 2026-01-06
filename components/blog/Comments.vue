@@ -29,7 +29,7 @@ const props = defineProps<{
   postId: string
 }>()
 
-const { user, isAuthenticated, signIn, signOut, loadStoredUser } = useAuth()
+const { user, isAuthenticated, signOut, loadStoredUser } = useAuth()
 
 const comments = ref<Comment[]>([])
 const isLoading = ref(false)
@@ -91,7 +91,7 @@ const loadCommentReactions = async (commentIds: number[]) => {
 
 const toggleReaction = async (commentId: number, reactionType: ReactionType) => {
   if (!isAuthenticated.value || !user.value) {
-    signIn()
+    openLoginModal()
     return
   }
 
@@ -278,7 +278,7 @@ const goToPage = (page: number) => {
 
 const submitComment = async () => {
   if (!isAuthenticated.value || !user.value) {
-    signIn()
+    openLoginModal()
     return
   }
 
