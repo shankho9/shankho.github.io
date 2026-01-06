@@ -2,6 +2,11 @@
 
 This document outlines the optimized structure of the codebase after reorganization.
 
+> **Related Documentation:**
+>
+> - [Authorization System Documentation](./authorization.md) - Complete guide to authentication and authorization
+> - [Dev Utilities Guide](./DEV_UTILITIES.md) - Development tools documentation
+
 ## 📁 Directory Structure
 
 ### `/server/api/` - API Endpoints
@@ -14,7 +19,19 @@ server/api/
 │   ├── track-login.post.ts
 │   └── track-visit.post.ts
 ├── auth/              # Authentication endpoints
-│   └── google.post.ts
+│   ├── google.post.ts           # Google OAuth authentication
+│   ├── login.post.ts            # Email/password login
+│   ├── register.post.ts         # User registration
+│   ├── logout.post.ts           # Logout
+│   ├── me.get.ts                # Get current user
+│   ├── password/
+│   │   └── change.post.ts       # Change password
+│   ├── mfa/
+│   │   └── setup.post.ts        # MFA setup/verify/disable
+│   └── utility-passcode/
+│       ├── verify.post.ts       # Verify utility passcode
+│       ├── set.post.ts          # Set utility passcode
+│       └── status.get.ts        # Check passcode status
 ├── blog/              # Blog-related endpoints
 │   ├── [slug].get.ts  # Dynamic route for blog posts
 │   ├── comments.get.ts
@@ -56,6 +73,7 @@ utils/
 
 ```
 server/utils/
+├── auth.ts        # Authentication utilities (users, sessions, devices, MFA, passcodes)
 ├── db.ts          # Database connection & query utilities
 ├── email.ts       # Email sending utilities (Resend)
 └── getClientIP.ts # IP address extraction utility
@@ -66,6 +84,7 @@ server/utils/
 ```
 scripts/
 └── migrations/     # Database migration scripts
+    ├── run-auth-migration.js      # Authentication tables migration
     ├── run-login-migration.js
     ├── run-migration.js
     └── run-migration.ts
@@ -95,6 +114,15 @@ Well-organized by feature:
 
 ```
 pages/
+├── auth/              # Authentication pages
+│   ├── login.vue              # Login page
+│   ├── register.vue           # Registration page
+│   ├── settings.vue            # User settings (password, MFA, passcode)
+│   └── utility-passcode.vue   # Utility passcode verification
+```
+
+```
+pages/
 ├── admin/         # Admin pages
 ├── blogs/         # Blog pages
 ├── categories/    # Category pages
@@ -110,7 +138,7 @@ pages/
 
 ```
 composables/
-├── useGoogleAuth.ts  # Google authentication composable
+├── useAuth.ts        # Unified authentication composable (replaces useGoogleAuth and useAdminAuth)
 └── useLikeStore.ts   # Like state management composable
 ```
 

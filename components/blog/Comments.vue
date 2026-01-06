@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue'
-import { useGoogleAuth } from '~/composables/useGoogleAuth'
+import { ref, onMounted, watch } from 'vue'
+import { useAuth } from '~/composables/useAuth'
+import LoginModal from '~/components/auth/LoginModal.vue'
 
 interface Comment {
   id: number
@@ -28,8 +29,7 @@ const props = defineProps<{
   postId: string
 }>()
 
-const { user, isAuthenticated, signIn, signOut, loadStoredUser, initializeGoogleSignIn } =
-  useGoogleAuth()
+const { user, isAuthenticated, signOut, loadStoredUser } = useAuth()
 
 const comments = ref<Comment[]>([])
 const isLoading = ref(false)
@@ -38,6 +38,7 @@ const commentText = ref('')
 const error = ref<string | null>(null)
 const imageErrors = ref<Set<number>>(new Set())
 const userImageError = ref(false)
+const showLoginModal = ref(false)
 
 // Comment reactions state
 const commentReactions = ref<CommentReactions>({})
@@ -90,7 +91,7 @@ const loadCommentReactions = async (commentIds: number[]) => {
 
 const toggleReaction = async (commentId: number, reactionType: ReactionType) => {
   if (!isAuthenticated.value || !user.value) {
-    signIn()
+    openLoginModal()
     return
   }
 
@@ -277,7 +278,7 @@ const goToPage = (page: number) => {
 
 const submitComment = async () => {
   if (!isAuthenticated.value || !user.value) {
-    signIn()
+    openLoginModal()
     return
   }
 
@@ -357,99 +358,29 @@ const submitComment = async () => {
   }
 }
 
-const renderGoogleSignInButton = () => {
-  if (typeof window === 'undefined' || !window.google || isAuthenticated.value) {
-    return
-  }
-
-  const clientId = useRuntimeConfig().public.googleClientId
-  if (!clientId) {
-    console.error('[Comments] Google Client ID not configured')
-    return
-  }
-
-  // Clear any existing button first
-  const buttonElement = document.getElementById(`google-signin-${props.postId}`)
-  if (buttonElement) {
-    buttonElement.innerHTML = ''
-  }
-
-  window.google.accounts.id.initialize({
-    client_id: clientId,
-    callback: async (response: { credential: string }) => {
-      try {
-        const result = await $fetch<{
-          user: { email: string; name: string; picture: string; sub: string }
-        }>('/api/auth/google', {
-          method: 'POST',
-          body: { token: response.credential },
-        })
-        user.value = result.user
-        userImageError.value = false // Reset image error when user changes
-        localStorage.setItem('google_user', JSON.stringify(result.user))
-        await loadComments()
-      } catch (err) {
-        console.error('Authentication failed:', err)
-      }
-    },
-  })
-
-  if (buttonElement && window.google) {
-    window.google.accounts.id.renderButton(buttonElement, {
-      theme: 'outline',
-      size: 'large',
-      text: 'signin_with',
-      width: 250,
-    })
-  }
+const openLoginModal = () => {
+  showLoginModal.value = true
 }
 
+const closeLoginModal = () => {
+  showLoginModal.value = false
+}
+
+// Watch for authentication state changes to close modal
+watch(isAuthenticated, (newValue) => {
+  if (newValue) {
+    showLoginModal.value = false
+    loadComments()
+  }
+})
+
 onMounted(async () => {
-  initializeGoogleSignIn()
   loadStoredUser()
   // Reset image error when component mounts
   if (user.value) {
     userImageError.value = false
   }
   await loadComments()
-
-  // Initialize Google Sign In button after component mounts
-  if (import.meta.client && typeof window !== 'undefined') {
-    if (window.google) {
-      setTimeout(renderGoogleSignInButton, 500)
-    } else {
-      // Wait for Google script to load
-      const checkGoogle = setInterval(() => {
-        if (window.google) {
-          clearInterval(checkGoogle)
-          setTimeout(renderGoogleSignInButton, 100)
-        }
-      }, 100)
-
-      // Clear interval after 10 seconds
-      setTimeout(() => clearInterval(checkGoogle), 10000)
-    }
-  }
-})
-
-// Watch for authentication state changes to re-render button
-watch(isAuthenticated, async (newValue) => {
-  if (!newValue && import.meta.client && typeof window !== 'undefined') {
-    // User signed out, wait for DOM to update then re-render the sign-in button
-    await nextTick()
-    if (window.google) {
-      setTimeout(renderGoogleSignInButton, 100)
-    } else {
-      // Wait for Google script if not loaded yet
-      const checkGoogle = setInterval(() => {
-        if (window.google) {
-          clearInterval(checkGoogle)
-          setTimeout(renderGoogleSignInButton, 100)
-        }
-      }, 100)
-      setTimeout(() => clearInterval(checkGoogle), 5000)
-    }
-  }
 })
 </script>
 
@@ -459,11 +390,17 @@ watch(isAuthenticated, async (newValue) => {
 
     <!-- Login Section -->
     <div v-if="!isAuthenticated" class="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-      <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-        Sign in with Google to leave a comment
-      </p>
-      <div :id="`google-signin-${postId}`" class="flex justify-center"></div>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Sign in to leave a comment</p>
+      <button
+        class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+        @click="openLoginModal"
+      >
+        Login
+      </button>
     </div>
+
+    <!-- Login Modal -->
+    <LoginModal :is-open="showLoginModal" @close="closeLoginModal" />
 
     <!-- Comment Form -->
     <div v-if="isAuthenticated" class="mb-6">

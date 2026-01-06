@@ -5,29 +5,52 @@ export default defineNuxtRouteMiddleware(async (_to, _from) => {
     return
   }
 
-  // Check admin authentication using cached state (non-blocking if cached)
-  const { checkAuth } = useAdminAuth()
+  const { isAuthenticated, checkAuth, loadStoredUser } = useAuth()
 
-  // Start auth check (will use cache if available, won't block)
-  const authCheckPromise = checkAuth()
+  // Load stored user
+  loadStoredUser()
 
-  // Check Google authentication (synchronous - just loads from storage)
-  const { isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
-  initializeGoogleSignIn()
-  await loadStoredUser()
+  // Check authentication
+  const isAuth = await checkAuth()
 
-  // Wait for admin auth check to complete (should be fast if cached)
-  const isAdminAuth = await authCheckPromise
+  // Require authentication
+  if (!isAuth || !isAuthenticated.value) {
+    console.warn('[Auth Planner] Authentication required')
+    return navigateTo('/auth/login?redirect=' + encodeURIComponent(_to.fullPath))
+  }
 
-  // Require BOTH Google auth AND admin auth
-  if (!isAuthenticated.value || !isAdminAuth) {
-    // Log which authentication is missing for debugging
-    if (!isAuthenticated.value) {
-      console.warn('[Auth Planner] Google authentication required')
-    }
-    if (!isAdminAuth) {
-      console.warn('[Auth Planner] Admin authentication required')
-    }
-    return navigateTo('/dev')
+  // Check utility passcode status
+  let passcodeStatus
+  try {
+    passcodeStatus = await $fetch<{
+      authenticated: boolean
+      isSet: boolean
+      needsRotation: boolean
+      expiresAt: string | null
+    }>('/api/auth/utility-passcode/status')
+  } catch (error) {
+    // If API call fails, log and continue (don't block navigation)
+    // User will be prompted for passcode if needed
+    console.warn('[Auth Planner] Failed to check passcode status:', error)
+    passcodeStatus = { authenticated: false, isSet: false, needsRotation: false, expiresAt: null }
+  }
+
+  // If passcode is not set, redirect to settings to set it up
+  if (!passcodeStatus.isSet) {
+    return navigateTo('/auth/settings?passcode=setup')
+  }
+
+  // If passcode needs rotation, redirect to settings
+  if (passcodeStatus.needsRotation) {
+    return navigateTo('/auth/settings?passcode=rotate')
+  }
+
+  // Check if utility passcode is verified in session
+  // This flag is set in pages/auth/utility-passcode.vue after successful verification
+  const passcodeVerified = sessionStorage.getItem('utility_passcode_verified')
+
+  if (!passcodeVerified) {
+    // Redirect to passcode verification page
+    return navigateTo('/auth/utility-passcode?redirect=' + encodeURIComponent(_to.fullPath))
   }
 })

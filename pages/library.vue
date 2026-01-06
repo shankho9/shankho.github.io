@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
-import { useGoogleAuth } from '~/composables/useGoogleAuth'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useAuth } from '~/composables/useAuth'
 import { resourcesPage, seoData } from '~/data'
 import GalleryLightbox from '~/components/gallery/Lightbox.vue'
 import GoogleMap from '~/components/blog/GoogleMap.vue'
@@ -15,7 +15,16 @@ const videosRootFolder = config.public.imageKitVideosRootFolder || 'Library/Vide
 type TabType = 'photos' | 'videos' | 'musical-notes' | 'travel-map' | 'resources'
 
 // Authentication
-const { user, isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useGoogleAuth()
+const { user, isAuthenticated, loadStoredUser } = useAuth()
+const showLoginModal = ref(false)
+
+const openLoginModal = () => {
+  showLoginModal.value = true
+}
+
+const closeLoginModal = () => {
+  showLoginModal.value = false
+}
 
 // Active tab state - default to resources (requires auth)
 const activeTab = ref<TabType>('resources')
@@ -827,63 +836,6 @@ watch(isAuthenticated, (newValue) => {
   }
 })
 
-// Render Google Sign-In button
-const renderGoogleSignInButton = () => {
-  nextTick(() => {
-    const buttonElement = document.getElementById('google-signin-button')
-    if (!buttonElement || !window.google) return
-
-    const clientId = useRuntimeConfig().public.googleClientId
-    if (!clientId) {
-      console.error('[Library] Google Client ID not configured')
-      return
-    }
-
-    buttonElement.innerHTML = ''
-
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: async (response: { credential: string }) => {
-        try {
-          const result = await $fetch<{
-            user: { email: string; name: string; picture: string; sub: string }
-          }>('/api/auth/google', {
-            method: 'POST',
-            body: { token: response.credential },
-          })
-          if (result && result.user) {
-            user.value = result.user
-            localStorage.setItem('google_user', JSON.stringify(result.user))
-
-            if (typeof window !== 'undefined') {
-              const { trackLogin } = await import('~/utils/analytics/trackLogin')
-              await trackLogin(result.user.email, result.user.name, window.location.pathname)
-              window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
-            }
-          }
-        } catch (error) {
-          console.error('[Library] Authentication failed:', error)
-        }
-      },
-    })
-
-    window.google.accounts.id.renderButton(buttonElement, {
-      theme: 'outline',
-      size: 'large',
-      text: 'signin_with',
-      width: 250,
-    })
-  })
-}
-
-watch(isAuthenticated, (newValue) => {
-  if (!newValue) {
-    nextTick(() => {
-      renderGoogleSignInButton()
-    })
-  }
-})
-
 // Check if current tab requires auth
 const currentTabRequiresAuth = computed(() => {
   return tabs.find((tab) => tab.id === activeTab.value)?.requiresAuth ?? false
@@ -987,7 +939,7 @@ try {
             Authentication Required
           </h2>
           <p class="text-zinc-600 dark:text-zinc-400 mb-6">
-            Please sign in with Google to access
+            Please sign in to access
             {{
               activeTab === 'photos'
                 ? 'photos'
@@ -998,7 +950,13 @@ try {
                     : 'this content'
             }}.
           </p>
-          <div id="google-signin-button" class="flex justify-center"></div>
+          <button
+            class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
+            @click="openLoginModal"
+          >
+            <Icon name="mdi:login" size="20" />
+            Login
+          </button>
         </div>
       </div>
 
@@ -2186,6 +2144,9 @@ try {
         />
       </Transition>
     </div>
+
+    <!-- Login Modal -->
+    <AuthLoginModal :is-open="showLoginModal" @close="closeLoginModal" />
   </div>
 </template>
 
