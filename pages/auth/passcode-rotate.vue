@@ -207,7 +207,8 @@ const isLoading = ref(false)
 onMounted(async () => {
   await checkAuth()
   if (!isAuthenticated.value) {
-    router.push('/auth/login?redirect=' + encodeURIComponent('/auth/passcode-rotate'))
+    await router.push('/auth/login?redirect=' + encodeURIComponent('/auth/passcode-rotate'))
+    return
   }
 })
 

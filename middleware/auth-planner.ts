@@ -20,7 +20,14 @@ export default defineNuxtRouteMiddleware(async (_to, _from) => {
   }
 
   // Check utility passcode status
-  let passcodeStatus
+  let passcodeStatus: {
+    authenticated: boolean
+    isSet: boolean
+    needsRotation: boolean
+    expiresAt: string | null
+  } | null = null
+  let apiCallFailed = false
+
   try {
     passcodeStatus = await $fetch<{
       authenticated: boolean
@@ -29,26 +36,45 @@ export default defineNuxtRouteMiddleware(async (_to, _from) => {
       expiresAt: string | null
     }>('/api/auth/utility-passcode/status')
   } catch (error) {
-    // If API call fails, log and continue (don't block navigation)
-    // User will be prompted for passcode if needed
+    // If API call fails, log but don't assume passcode is not set
+    // This prevents false redirects when the API is temporarily unavailable
     console.warn('[Auth Planner] Failed to check passcode status:', error)
-    passcodeStatus = { authenticated: false, isSet: false, needsRotation: false, expiresAt: null }
-  }
-
-  // If passcode is not set, redirect to settings to set it up
-  if (!passcodeStatus.isSet) {
-    return navigateTo('/auth/settings?passcode=setup')
-  }
-
-  // If passcode needs rotation, redirect to settings
-  if (passcodeStatus.needsRotation) {
-    return navigateTo('/auth/settings?passcode=rotate')
+    apiCallFailed = true
   }
 
   // Check if utility passcode is verified in session
   // This flag is set in pages/auth/utility-passcode.vue after successful verification
   const passcodeVerified = sessionStorage.getItem('utility_passcode_verified')
 
+  // If API call failed, use fail-open approach:
+  // - If passcode was previously verified (sessionStorage flag exists), allow access
+  // - If not verified, redirect to verification (not setup) to avoid blocking users
+  if (apiCallFailed) {
+    if (!passcodeVerified) {
+      console.warn(
+        '[Auth Planner] API call failed and passcode not verified, redirecting to verification',
+      )
+      return navigateTo('/auth/utility-passcode?redirect=' + encodeURIComponent(_to.fullPath))
+    }
+    // If passcode was verified before, allow access even if API is down
+    console.warn('[Auth Planner] API call failed but passcode previously verified, allowing access')
+    return
+  }
+
+  // API call succeeded - check passcode requirements
+  if (passcodeStatus) {
+    // If passcode is not set, redirect to settings to set it up
+    if (!passcodeStatus.isSet) {
+      return navigateTo('/auth/settings?passcode=setup')
+    }
+
+    // If passcode needs rotation, redirect to settings
+    if (passcodeStatus.needsRotation) {
+      return navigateTo('/auth/settings?passcode=rotate')
+    }
+  }
+
+  // If passcode is set and doesn't need rotation, check if it's verified
   if (!passcodeVerified) {
     // Redirect to passcode verification page
     return navigateTo('/auth/utility-passcode?redirect=' + encodeURIComponent(_to.fullPath))

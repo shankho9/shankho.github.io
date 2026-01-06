@@ -242,15 +242,30 @@ export const useAuth = () => {
       }
     } catch (error: unknown) {
       console.error('[Auth] Google login error:', error)
-      const errorMessage =
-        error && typeof error === 'object' && 'data' in error
-          ? (error.data as { error?: string })?.error
-          : error instanceof Error
-            ? error.message
-            : 'Google login failed'
+
+      // Extract error message with better type handling
+      let errorMessage = 'Google login failed'
+
+      if (error && typeof error === 'object' && 'data' in error) {
+        const errorData = error.data as { error?: string | boolean; message?: string }
+        // Handle both string and boolean error values
+        if (typeof errorData?.error === 'string') {
+          errorMessage = errorData.error
+        } else if (errorData?.message) {
+          errorMessage = errorData.message
+        } else if (errorData?.error === true) {
+          // If error is boolean true, use a generic message
+          errorMessage =
+            'Google authentication failed. Please check your configuration or try again.'
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message
+      }
+
+      // Ensure we always return a string, never a boolean
       return {
         success: false,
-        error: errorMessage || 'Google login failed',
+        error: typeof errorMessage === 'string' ? errorMessage : 'Google login failed',
       }
     } finally {
       isLoading.value = false
@@ -268,7 +283,24 @@ export const useAuth = () => {
       script.src = 'https://accounts.google.com/gsi/client'
       script.async = true
       script.defer = true
+      script.onload = () => {
+        // Disable One Tap globally as soon as Google loads
+        if (window.google?.accounts?.id) {
+          try {
+            window.google.accounts.id.disableAutoSelect()
+          } catch (error) {
+            console.warn('[Auth] Error disabling One Tap on script load:', error)
+          }
+        }
+      }
       document.head.appendChild(script)
+    } else if (window.google?.accounts?.id) {
+      // If Google is already loaded, disable One Tap immediately
+      try {
+        window.google.accounts.id.disableAutoSelect()
+      } catch (error) {
+        console.warn('[Auth] Error disabling One Tap:', error)
+      }
     }
   }
 
