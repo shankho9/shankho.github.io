@@ -46,8 +46,9 @@ export default defineEventHandler(async (event) => {
       id: number
       status: string
       depends_on_task_id: number | null
+      theme: string | null
     }>(
-      "SELECT id, status, depends_on_task_id FROM tasks WHERE id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+      "SELECT id, status, depends_on_task_id, theme FROM tasks WHERE id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
       [depends_on_task_id],
     )
     if (parentTask.length === 0) {
@@ -60,6 +61,16 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         message: 'Cannot create dependency on a completed task',
+      })
+    }
+    // Ensure parent task is in the same bucket (theme) as the new task
+    const parentTheme = parentTask[0].theme?.trim() || null
+    const newTaskTheme = theme?.trim() || null
+    if (parentTheme !== newTaskTheme) {
+      throw createError({
+        statusCode: 400,
+        message:
+          'Cannot create dependency: parent task must be in the same bucket (theme) as the dependent task',
       })
     }
 

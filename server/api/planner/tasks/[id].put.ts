@@ -96,8 +96,8 @@ export default defineEventHandler(async (event) => {
         })
       }
       // Check if parent task exists and is not completed
-      const parentTask = await query<{ id: number; status: string }>(
-        "SELECT id, status FROM tasks WHERE id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+      const parentTask = await query<{ id: number; status: string; theme: string | null }>(
+        "SELECT id, status, theme FROM tasks WHERE id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
         [body.depends_on_task_id],
       )
       if (parentTask.length === 0) {
@@ -113,10 +113,33 @@ export default defineEventHandler(async (event) => {
           message: 'Cannot create dependency on a completed task',
         })
       }
+      // Ensure parent task is in the same bucket (theme) as the current task
+      // Get the current task's theme (or the new theme if it's being updated)
+      const currentTaskId = parseInt(id, 10)
+      const currentTask = await query<{ theme: string | null }>(
+        "SELECT theme FROM tasks WHERE id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+        [currentTaskId],
+      )
+      if (currentTask.length === 0) {
+        throw createError({
+          statusCode: 404,
+          message: 'Task not found',
+        })
+      }
+      // Use the new theme if provided, otherwise use the current task's theme
+      const taskTheme =
+        body.theme !== undefined ? body.theme?.trim() || null : currentTask[0].theme?.trim() || null
+      const parentTheme = parentTask[0].theme?.trim() || null
+      if (parentTheme !== taskTheme) {
+        throw createError({
+          statusCode: 400,
+          message:
+            'Cannot create dependency: parent task must be in the same bucket (theme) as the dependent task',
+        })
+      }
 
       // Prevent circular dependencies and check depth
       // Check if the parent task (or any of its ancestors) depends on this task
-      const currentTaskId = parseInt(id, 10)
       const visitedTaskIds = new Set<number>([currentTaskId])
       let checkTaskId = body.depends_on_task_id
       let parentDepth = 0
