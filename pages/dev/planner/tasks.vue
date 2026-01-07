@@ -1111,6 +1111,31 @@ const scrollToTask = async (taskId: number) => {
   }
 }
 
+// Helper methods for click handlers to avoid formatter issues with inline JS
+const clearQuickTaskDependency = () => {
+  quickTaskDependsOn.value = null
+  showQuickTaskDependencyDropdown.value = false
+}
+
+const setQuickTaskDependency = (taskId: number) => {
+  quickTaskDependsOn.value = taskId
+  showQuickTaskDependencyDropdown.value = false
+}
+
+const clearEditTaskDependency = () => {
+  editForm.value.depends_on_task_id = null
+  showEditTaskDependencyDropdown.value = false
+}
+
+const setEditTaskDependency = (taskId: number) => {
+  editForm.value.depends_on_task_id = taskId
+  showEditTaskDependencyDropdown.value = false
+}
+
+const toggleTaskStatus = async (taskId: number, currentStatus: TaskStatus) => {
+  await updateTaskStatus(taskId, currentStatus === 'done' ? 'doing' : 'done')
+}
+
 const saveEdit = async () => {
   if (!editingTaskId.value || !editForm.value.title.trim()) return
 
@@ -2053,10 +2078,7 @@ onUnmounted(() => {
                   :class="{
                     'bg-blue-100 dark:bg-blue-900/40': !quickTaskDependsOn,
                   }"
-                  @click="
-                    quickTaskDependsOn = null
-                    showQuickTaskDependencyDropdown = false
-                  "
+                  @click="clearQuickTaskDependency"
                 >
                   <div class="font-medium text-gray-900 dark:text-gray-100">No Dependency</div>
                 </div>
@@ -2067,10 +2089,7 @@ onUnmounted(() => {
                   :class="{
                     'bg-blue-100 dark:bg-blue-900/40': quickTaskDependsOn === task.id,
                   }"
-                  @click="
-                    quickTaskDependsOn = task.id
-                    showQuickTaskDependencyDropdown = false
-                  "
+                  @click="setQuickTaskDependency(task.id)"
                 >
                   <div class="font-medium text-gray-900 dark:text-gray-100 truncate">
                     {{ task.title }}
@@ -2203,11 +2222,7 @@ onUnmounted(() => {
                       ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
                       : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
                   ]"
-                  @click="
-                    async () => {
-                      await updateTaskStatus(task.id, task.status === 'done' ? 'doing' : 'done')
-                    }
-                  "
+                  @click="toggleTaskStatus(task.id, task.status)"
                 >
                   <span
                     :class="[
@@ -2691,10 +2706,7 @@ onUnmounted(() => {
                         :class="{
                           'bg-blue-100 dark:bg-blue-900/40': !editForm.depends_on_task_id,
                         }"
-                        @click="
-                          editForm.depends_on_task_id = null
-                          showEditTaskDependencyDropdown = false
-                        "
+                        @click="clearEditTaskDependency"
                       >
                         <div class="font-medium text-gray-900 dark:text-gray-100">
                           No Dependency
@@ -2708,10 +2720,7 @@ onUnmounted(() => {
                           'bg-blue-100 dark:bg-blue-900/40':
                             editForm.depends_on_task_id === depTask.id,
                         }"
-                        @click="
-                          editForm.depends_on_task_id = depTask.id
-                          showEditTaskDependencyDropdown = false
-                        "
+                        @click="setEditTaskDependency(depTask.id)"
                       >
                         <div class="font-medium text-gray-900 dark:text-gray-100 truncate">
                           {{ depTask.title }}
@@ -2916,14 +2925,7 @@ onUnmounted(() => {
                           ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
                           : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
                       ]"
-                      @click="
-                        async () => {
-                          await updateTaskStatus(
-                            dependentTask.id,
-                            dependentTask.status === 'done' ? 'doing' : 'done',
-                          )
-                        }
-                      "
+                      @click="toggleTaskStatus(dependentTask.id, dependentTask.status)"
                     >
                       <span
                         :class="[
@@ -3244,10 +3246,7 @@ onUnmounted(() => {
                             :class="{
                               'bg-blue-100 dark:bg-blue-900/40': !editForm.depends_on_task_id,
                             }"
-                            @click="
-                              editForm.depends_on_task_id = null
-                              showEditTaskDependencyDropdown = false
-                            "
+                            @click="clearEditTaskDependency"
                           >
                             <div class="font-medium text-gray-900 dark:text-gray-100">
                               No Dependency
@@ -3261,10 +3260,7 @@ onUnmounted(() => {
                               'bg-blue-100 dark:bg-blue-900/40':
                                 editForm.depends_on_task_id === depTask.id,
                             }"
-                            @click="
-                              editForm.depends_on_task_id = depTask.id
-                              showEditTaskDependencyDropdown = false
-                            "
+                            @click="setEditTaskDependency(depTask.id)"
                           >
                             <div class="font-medium text-gray-900 dark:text-gray-100 truncate">
                               {{ depTask.title }}
@@ -3474,14 +3470,7 @@ onUnmounted(() => {
                               ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
                               : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
                           ]"
-                          @click="
-                            async () => {
-                              await updateTaskStatus(
-                                grandchildTask.id,
-                                grandchildTask.status === 'done' ? 'doing' : 'done',
-                              )
-                            }
-                          "
+                          @click="toggleTaskStatus(grandchildTask.id, grandchildTask.status)"
                         >
                           <span
                             :class="[
@@ -3654,10 +3643,7 @@ onUnmounted(() => {
                                   :class="{
                                     'bg-blue-100 dark:bg-blue-900/40': !editForm.depends_on_task_id,
                                   }"
-                                  @click="
-                                    editForm.depends_on_task_id = null
-                                    showEditTaskDependencyDropdown = false
-                                  "
+                                  @click="clearEditTaskDependency"
                                 >
                                   <div class="font-medium text-gray-900 dark:text-gray-100">
                                     No Dependency
@@ -3671,10 +3657,7 @@ onUnmounted(() => {
                                     'bg-blue-100 dark:bg-blue-900/40':
                                       editForm.depends_on_task_id === depTask.id,
                                   }"
-                                  @click="
-                                    editForm.depends_on_task_id = depTask.id
-                                    showEditTaskDependencyDropdown = false
-                                  "
+                                  @click="setEditTaskDependency(depTask.id)"
                                 >
                                   <div
                                     class="font-medium text-gray-900 dark:text-gray-100 truncate"
