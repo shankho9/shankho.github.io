@@ -616,6 +616,28 @@ const availableTasksForDependency = computed(() => {
     // Allow if new depth would be <= 2
     if (newDepth > 2) return false
 
+    // If editing a task that has dependents, check if changing its dependency would cause
+    // any of its dependents to exceed depth 2 (matching backend validation)
+    if (currentTaskId !== null) {
+      const currentTaskDependents = getDependentTasks(currentTaskId)
+      if (currentTaskDependents.length > 0) {
+        // Current task has dependents - check if any would exceed depth 2
+        // Calculate depth of current task with new dependency
+        const currentTaskNewDepth = newDepth
+
+        // Check each dependent's depth would be currentTaskNewDepth + 1
+        // If any dependent would be at depth > 2, reject this candidate
+        for (const _dependent of currentTaskDependents) {
+          // Calculate dependent's depth: currentTaskNewDepth + 1
+          const dependentDepth = currentTaskNewDepth + 1
+          if (dependentDepth > 2) {
+            // This candidate would cause a dependent to exceed max depth
+            return false
+          }
+        }
+      }
+    }
+
     // Also check for circular dependency: candidate task (or its ancestors) shouldn't depend on current task
     if (currentTaskId !== null) {
       let checkTaskId = task.id
