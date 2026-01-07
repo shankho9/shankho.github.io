@@ -31,11 +31,21 @@ const quickTaskTheme = ref<string | null>(null)
 const quickTaskDate = ref<string | null>(null)
 const quickTaskIsMit = ref(false)
 const quickTaskNotes = ref<string | null>(null)
+const quickTaskDependsOn = ref<number | null>(null)
+const showQuickTaskDependencyDropdown = ref(false)
 const isAddingQuickTask = ref(false)
 const isThemeInputVisible = ref(false)
 const newThemeName = ref('')
+const selectedThemeSuggestionIndex = ref(-1)
 const quickTaskInput = ref<HTMLInputElement | null>(null)
 const quickTaskNotesInputRef = ref<HTMLTextAreaElement | null>(null)
+const themeSuggestionsRef = ref<HTMLDivElement | null>(null)
+
+// Edit form theme input
+const isEditThemeInputVisible = ref(false)
+const newEditThemeName = ref('')
+const selectedEditThemeSuggestionIndex = ref(-1)
+const editThemeSuggestionsRef = ref<HTMLDivElement | null>(null)
 
 // Tag suggestions and legend
 const availableTags = getAvailableTags()
@@ -61,6 +71,7 @@ const editForm = ref<{
   theme: string | null
   planned_date: string | null
   notes: string | null
+  depends_on_task_id: number | null
 }>({
   title: '',
   status: 'doing',
@@ -68,7 +79,10 @@ const editForm = ref<{
   theme: null,
   planned_date: null,
   notes: null,
+  depends_on_task_id: null,
 })
+
+const showEditTaskDependencyDropdown = ref(false)
 
 // Delete confirmation modal state
 const showDeleteModal = ref(false)
@@ -79,6 +93,16 @@ const isPurging = ref(false)
 const showExportMenu = ref(false)
 const datePickerRef = ref<HTMLInputElement | null>(null)
 const showThemeDropdown = ref(false)
+
+// Collapsible dependent tasks state
+const expandedParentTasks = ref<Set<number>>(new Set())
+const toggleDependents = (taskId: number) => {
+  if (expandedParentTasks.value.has(taskId)) {
+    expandedParentTasks.value.delete(taskId)
+  } else {
+    expandedParentTasks.value.add(taskId)
+  }
+}
 
 const filteredAndSortedTasks = computed(() => {
   let filtered = tasks.value
@@ -142,10 +166,64 @@ const filteredAndSortedTasks = computed(() => {
   return filtered
 })
 
+// Helper to calculate dependency depth of a task (how many levels deep in the chain)
+// Depth 0 = no parent, Depth 1 = has parent, Depth 2 = has grandparent
+// If ignoreCurrentDependency is true, calculate depth as if the current task has no dependency (for editing)
+const getDependencyDepth = (
+  taskId: number,
+  visited = new Set<number>(),
+  ignoreCurrentDependency = false,
+): number => {
+  if (visited.has(taskId)) {
+    // Circular dependency detected
+    return 0
+  }
+  visited.add(taskId)
+
+  const task = tasks.value.find((t) => t.id === taskId)
+  if (!task) {
+    return 0
+  }
+
+  // If we're ignoring the current dependency (for editing scenarios), return 0
+  if (ignoreCurrentDependency) {
+    return 0
+  }
+
+  if (!task.depends_on_task_id) {
+    return 0
+  }
+
+  return 1 + getDependencyDepth(task.depends_on_task_id, visited, false)
+}
+
+// Helper to get dependent tasks for a parent task (sorted by date)
+const getDependentTasks = (parentId: number): Task[] => {
+  // Use tasks.value to include all tasks, not just filtered ones
+  const dependents = tasks.value.filter((task) => task.depends_on_task_id === parentId)
+  return dependents.sort((a, b) => {
+    // Sort by date (earliest first)
+    if (!a.planned_date && !b.planned_date) return 0
+    if (!a.planned_date) return 1
+    if (!b.planned_date) return -1
+    return a.planned_date.localeCompare(b.planned_date)
+  })
+}
+
+// Helper to check if a task has dependents
+const hasDependents = (taskId: number): boolean => {
+  // Use tasks.value to include all tasks, not just filtered ones
+  return tasks.value.some((task) => task.depends_on_task_id === taskId)
+}
+
 const tasksGroupedByTheme = computed(() => {
   const grouped = new Map<string, Task[]>()
 
-  filteredAndSortedTasks.value.forEach((task) => {
+  // Filter out dependent tasks - they will be shown under their parents
+  const parentTasks = filteredAndSortedTasks.value.filter((task) => !task.depends_on_task_id)
+
+  // Group by theme
+  parentTasks.forEach((task) => {
     const theme = task.theme || 'No Bucket'
     if (!grouped.has(theme)) {
       grouped.set(theme, [])
@@ -153,16 +231,21 @@ const tasksGroupedByTheme = computed(() => {
     grouped.get(theme)!.push(task)
   })
 
-  // Convert to array, sort by bucket name (No Bucket comes last), and sort tasks within each group by date (earliest first)
+  // Convert to array, sort by bucket name (No Bucket comes last), and sort tasks within each group
   return Array.from(grouped.entries())
     .map(([theme, tasks]) => ({
       theme,
       tasks: tasks.sort((a, b) => {
-        // Handle null dates - put them at the end
+        // First, prioritize tasks with dependents (parent tasks)
+        const aHasDeps = hasDependents(a.id)
+        const bHasDeps = hasDependents(b.id)
+        if (aHasDeps && !bHasDeps) return -1
+        if (!aHasDeps && bHasDeps) return 1
+
+        // Then sort by date (earliest first)
         if (!a.planned_date && !b.planned_date) return 0
         if (!a.planned_date) return 1
         if (!b.planned_date) return -1
-        // Sort by date ascending (earliest first)
         return a.planned_date.localeCompare(b.planned_date)
       }),
     }))
@@ -282,6 +365,25 @@ const loadData = async () => {
     // Update connection status on successful load
     dbConnectionStatus.value = 'connected'
 
+    // Auto-expand all parent tasks with dependents (after tasks are set)
+    await nextTick()
+    // Check all tasks (including those that might be filtered) to find parents
+    allTasks.forEach((task) => {
+      // Check if this task has any dependents in the full task list
+      const hasDeps = allTasks.some((t) => t.depends_on_task_id === task.id)
+      if (hasDeps) {
+        expandedParentTasks.value.add(task.id)
+        // Also auto-expand level 1 dependents that have their own dependents (level 2)
+        const level1Dependents = allTasks.filter((t) => t.depends_on_task_id === task.id)
+        level1Dependents.forEach((level1Task) => {
+          const hasLevel2Deps = allTasks.some((t) => t.depends_on_task_id === level1Task.id)
+          if (hasLevel2Deps) {
+            expandedParentTasks.value.add(level1Task.id)
+          }
+        })
+      }
+    })
+
     // Roll over past dates asynchronously (non-blocking)
     // This runs in the background and doesn't block the UI or exhaust connections
     // Store snapshots: one for rollover comparison (unsorted), one for user change detection (sorted)
@@ -380,9 +482,11 @@ const handleQuickTaskEsc = () => {
   quickTaskTheme.value = null
   quickTaskDate.value = null
   quickTaskIsMit.value = false
+  quickTaskDependsOn.value = null
   newThemeName.value = ''
   isAddingQuickTask.value = false
   isThemeInputVisible.value = false
+  showQuickTaskDependencyDropdown.value = false
   tagSuggestions.value = []
   showTagLegendQuickAdd.value = false
 }
@@ -409,6 +513,7 @@ const handleQuickAddTask = async () => {
       planned_date: quickTaskDate.value || null,
       theme: theme,
       notes: quickTaskNotes.value?.trim() || null,
+      depends_on_task_id: quickTaskDependsOn.value,
     })
 
     // Add to tasks list immediately (optimistic update)
@@ -419,15 +524,27 @@ const handleQuickAddTask = async () => {
       availableThemes.value.push(newThemeName.value.trim())
     }
 
+    // If this is a dependent task, expand the parent task
+    if (newTask.depends_on_task_id) {
+      expandedParentTasks.value.add(newTask.depends_on_task_id)
+      // Also check if the parent is a level 1 dependent and expand its parent too
+      const parentTask = tasks.value.find((t) => t.id === newTask.depends_on_task_id)
+      if (parentTask?.depends_on_task_id) {
+        expandedParentTasks.value.add(parentTask.depends_on_task_id)
+      }
+    }
+
     // Reset form
     quickTaskTitle.value = ''
     quickTaskTheme.value = null
     quickTaskDate.value = null
     quickTaskIsMit.value = false
     quickTaskNotes.value = null
+    quickTaskDependsOn.value = null
     newThemeName.value = ''
     isAddingQuickTask.value = false
     isThemeInputVisible.value = false
+    showQuickTaskDependencyDropdown.value = false
   } catch (error) {
     console.error('Failed to create task:', error)
     // On error, reload data to ensure consistency
@@ -437,12 +554,99 @@ const handleQuickAddTask = async () => {
 
 // Theme suggestions based on input
 const themeSuggestions = computed(() => {
-  if (!newThemeName.value.trim() || !isThemeInputVisible.value) return []
-  return findSimilarStrings(newThemeName.value, availableThemes.value, {
+  if (!isThemeInputVisible.value) return []
+  const input = newThemeName.value.trim().toLowerCase()
+  if (!input) {
+    return availableThemes.value.slice(0, 10)
+  }
+  const exactMatches = availableThemes.value.filter(
+    (theme) => theme.toLowerCase() === input || theme.toLowerCase().startsWith(input),
+  )
+  const similarMatches = findSimilarStrings(newThemeName.value, availableThemes.value, {
     threshold: 0.3,
-    maxResults: 5,
+    maxResults: 10,
+  })
+  const combined = [...exactMatches]
+  const exactMatchLower = exactMatches.map((t) => t.toLowerCase())
+  for (const match of similarMatches) {
+    if (!exactMatchLower.includes(match.toLowerCase())) {
+      combined.push(match)
+    }
+  }
+  return combined.slice(0, 10)
+})
+
+// Available tasks for dependency selection (only from same bucket, exclude done tasks, current task, and tasks that would create depth > 2)
+const availableTasksForDependency = computed(() => {
+  // For quick add: use quickTaskTheme (selected theme) or newThemeName if creating new theme
+  // For edit: use editForm.theme, but if user is typing a new theme name, use that instead
+  let currentTheme: string | null = null
+  if (editingTaskId.value !== null) {
+    // Editing mode: if user is typing a new theme, use that; otherwise use editForm.theme
+    if (isEditThemeInputVisible.value && newEditThemeName.value.trim()) {
+      currentTheme = newEditThemeName.value.trim()
+    } else {
+      currentTheme = editForm.value.theme
+    }
+  } else {
+    // Quick add mode: use quickTaskTheme or newThemeName if creating new theme
+    currentTheme = quickTaskTheme.value || newThemeName.value.trim() || null
+  }
+
+  // Only show dependency options if a bucket is chosen
+  if (!currentTheme) return []
+
+  // Get the current task being edited/created (if any)
+  const currentTaskId = editingTaskId.value
+
+  return tasks.value.filter((task) => {
+    if (task.status === 'done') return false
+    if (currentTaskId !== null && task.id === currentTaskId) return false
+    // Only show tasks from the same bucket
+    if (task.theme !== currentTheme) return false
+
+    // Check if selecting this task as a dependency would create a chain deeper than 2 levels
+    // Max depth is 2: Level 0 (no parent) -> Level 1 (has parent) -> Level 2 (has grandparent)
+    // When editing, calculate depth as if current dependency is removed (we're changing it)
+    const candidateTaskDepth = getDependencyDepth(task.id)
+
+    // Calculate what the new depth would be: candidate depth + 1 (for the new link)
+    const newDepth = candidateTaskDepth + 1
+
+    // Allow if new depth would be <= 2
+    if (newDepth > 2) return false
+
+    // Also check for circular dependency: candidate task (or its ancestors) shouldn't depend on current task
+    if (currentTaskId !== null) {
+      let checkTaskId = task.id
+      const visited = new Set<number>([currentTaskId])
+      while (checkTaskId !== null) {
+        if (visited.has(checkTaskId)) {
+          // Circular dependency detected
+          return false
+        }
+        visited.add(checkTaskId)
+
+        const checkTask = tasks.value.find((t) => t.id === checkTaskId)
+        if (!checkTask || !checkTask.depends_on_task_id) {
+          break
+        }
+        if (checkTask.depends_on_task_id === currentTaskId) {
+          // Would create circular dependency
+          return false
+        }
+        checkTaskId = checkTask.depends_on_task_id
+      }
+    }
+
+    return true
   })
 })
+
+const getTaskById = (id: number | null): Task | undefined => {
+  if (id === null) return undefined
+  return tasks.value.find((t) => t.id === id)
+}
 
 const selectThemeSuggestion = (theme: string) => {
   quickTaskTheme.value = theme
@@ -485,6 +689,17 @@ const addNewTheme = () => {
   }
 }
 
+const scrollThemeSuggestionIntoView = () => {
+  if (selectedThemeSuggestionIndex.value >= 0 && themeSuggestionsRef.value) {
+    const selectedElement = themeSuggestionsRef.value.querySelector(
+      `[data-theme-suggestion-index="${selectedThemeSuggestionIndex.value}"]`,
+    ) as HTMLElement
+    if (selectedElement) {
+      selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+  }
+}
+
 const handleThemeInputKeydown = (event: KeyboardEvent) => {
   if (themeSuggestions.value.length === 0) return
 
@@ -494,15 +709,109 @@ const handleThemeInputKeydown = (event: KeyboardEvent) => {
       selectedThemeSuggestionIndex.value + 1,
       themeSuggestions.value.length - 1,
     )
+    scrollThemeSuggestionIntoView()
   } else if (event.key === 'ArrowUp') {
     event.preventDefault()
     selectedThemeSuggestionIndex.value = Math.max(selectedThemeSuggestionIndex.value - 1, -1)
+    scrollThemeSuggestionIntoView()
   } else if (event.key === 'Enter' && selectedThemeSuggestionIndex.value >= 0) {
     event.preventDefault()
     selectThemeSuggestion(themeSuggestions.value[selectedThemeSuggestionIndex.value])
   } else if (event.key === 'Escape') {
     selectedThemeSuggestionIndex.value = -1
   }
+}
+
+// Edit form theme suggestions and handlers
+const editThemeSuggestions = computed(() => {
+  if (!isEditThemeInputVisible.value) return []
+  const input = newEditThemeName.value.trim().toLowerCase()
+  if (!input) {
+    return availableThemes.value.slice(0, 10)
+  }
+  const exactMatches = availableThemes.value.filter(
+    (theme) => theme.toLowerCase() === input || theme.toLowerCase().startsWith(input),
+  )
+  const similarMatches = findSimilarStrings(newEditThemeName.value, availableThemes.value, {
+    threshold: 0.3,
+    maxResults: 10,
+  })
+  const combined = [...exactMatches]
+  const exactMatchLower = exactMatches.map((t) => t.toLowerCase())
+  for (const match of similarMatches) {
+    if (!exactMatchLower.includes(match.toLowerCase())) {
+      combined.push(match)
+    }
+  }
+  return combined.slice(0, 10)
+})
+
+const selectEditThemeSuggestion = (theme: string) => {
+  editForm.value.theme = theme
+  newEditThemeName.value = ''
+  isEditThemeInputVisible.value = false
+  selectedEditThemeSuggestionIndex.value = -1
+}
+
+const addNewEditTheme = () => {
+  if (newEditThemeName.value.trim()) {
+    const theme = newEditThemeName.value.trim()
+    const exactMatch = availableThemes.value.find(
+      (t) => t.toLowerCase().trim() === theme.toLowerCase().trim(),
+    )
+    if (exactMatch) {
+      editForm.value.theme = exactMatch
+    } else {
+      editForm.value.theme = theme
+      if (!availableThemes.value.includes(theme)) {
+        availableThemes.value.push(theme)
+      }
+    }
+    newEditThemeName.value = ''
+    isEditThemeInputVisible.value = false
+  }
+}
+
+const scrollEditThemeSuggestionIntoView = () => {
+  if (selectedEditThemeSuggestionIndex.value >= 0 && editThemeSuggestionsRef.value) {
+    const selectedElement = editThemeSuggestionsRef.value.querySelector(
+      `[data-theme-suggestion-index="${selectedEditThemeSuggestionIndex.value}"]`,
+    ) as HTMLElement
+    if (selectedElement) {
+      selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+  }
+}
+
+const handleEditThemeInputKeydown = (event: KeyboardEvent) => {
+  if (editThemeSuggestions.value.length === 0) return
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    selectedEditThemeSuggestionIndex.value = Math.min(
+      selectedEditThemeSuggestionIndex.value + 1,
+      editThemeSuggestions.value.length - 1,
+    )
+    scrollEditThemeSuggestionIntoView()
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    selectedEditThemeSuggestionIndex.value = Math.max(
+      selectedEditThemeSuggestionIndex.value - 1,
+      -1,
+    )
+    scrollEditThemeSuggestionIntoView()
+  } else if (event.key === 'Enter' && selectedEditThemeSuggestionIndex.value >= 0) {
+    event.preventDefault()
+    selectEditThemeSuggestion(editThemeSuggestions.value[selectedEditThemeSuggestionIndex.value])
+  } else if (event.key === 'Escape') {
+    selectedEditThemeSuggestionIndex.value = -1
+  }
+}
+
+const handleEditThemeInputEsc = () => {
+  newEditThemeName.value = ''
+  isEditThemeInputVisible.value = false
+  selectedEditThemeSuggestionIndex.value = -1
 }
 
 const startEdit = (task: Task) => {
@@ -521,7 +830,14 @@ const startEdit = (task: Task) => {
     theme: task.theme || null,
     planned_date: plannedDate,
     notes: task.notes || null,
+    depends_on_task_id: task.depends_on_task_id || null,
   }
+  newEditThemeName.value = ''
+  isEditThemeInputVisible.value = false
+  selectedEditThemeSuggestionIndex.value = -1
+  // Show dependency dropdown if task has a dependency (so user can see the linked task)
+  showEditTaskDependencyDropdown.value =
+    task.depends_on_task_id !== null && task.depends_on_task_id !== undefined
 }
 
 const cancelEdit = () => {
@@ -533,10 +849,15 @@ const cancelEdit = () => {
     theme: null,
     planned_date: null,
     notes: null,
+    depends_on_task_id: null,
   }
   tagSuggestions.value = []
   suggestionIndex.value = -1
   showTagLegendEdit.value = false
+  newEditThemeName.value = ''
+  isEditThemeInputVisible.value = false
+  selectedEditThemeSuggestionIndex.value = -1
+  showEditTaskDependencyDropdown.value = false
 }
 
 // Handle notes input for tag suggestions (edit form)
@@ -740,8 +1061,64 @@ const insertTag = (tag: string) => {
   suggestionIndex.value = -1
 }
 
+// Helper function to update a single task in local state and maintain sorting
+const updateTaskInState = (updatedTask: Task) => {
+  const index = tasks.value.findIndex((t) => t.id === updatedTask.id)
+  if (index !== -1) {
+    // Update the task
+    tasks.value[index] = updatedTask
+    // Re-sort to maintain order (done tasks to end, then by planned_date)
+    tasks.value.sort((a, b) => {
+      if (a.status === 'done' && b.status !== 'done') return 1
+      if (a.status !== 'done' && b.status === 'done') return -1
+      const aDate = a.planned_date || ''
+      const bDate = b.planned_date || ''
+      return aDate.localeCompare(bDate)
+    })
+  } else {
+    // Task not found - might have moved to a different bucket or been filtered
+    // Add it if it matches current filters, otherwise it will appear on next full load
+    const shouldShow =
+      !updatedTask.deleted_at &&
+      (updatedTask.status !== 'done' ||
+        (updatedTask.planned_date &&
+          new Date(updatedTask.planned_date + 'T00:00:00') >= new Date(Date.now() - 86400000)))
+    if (shouldShow) {
+      tasks.value.push(updatedTask)
+      tasks.value.sort((a, b) => {
+        if (a.status === 'done' && b.status !== 'done') return 1
+        if (a.status !== 'done' && b.status === 'done') return -1
+        const aDate = a.planned_date || ''
+        const bDate = b.planned_date || ''
+        return aDate.localeCompare(bDate)
+      })
+    }
+  }
+}
+
+// Helper function to scroll to a task element
+const scrollToTask = async (taskId: number) => {
+  await nextTick()
+  // Try to find the task element by data attribute or ID
+  const taskElement = document.querySelector(`[data-task-id="${taskId}"]`) as HTMLElement
+  if (taskElement) {
+    taskElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    // Add a brief highlight effect
+    taskElement.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2')
+    setTimeout(() => {
+      taskElement.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2')
+    }, 2000)
+  }
+}
+
 const saveEdit = async () => {
   if (!editingTaskId.value || !editForm.value.title.trim()) return
+
+  // Get the original task to check if dependency or bucket changed
+  const originalTask = tasks.value.find((t) => t.id === editingTaskId.value)
+  const dependencyChanged = originalTask?.depends_on_task_id !== editForm.value.depends_on_task_id
+  const bucketChanged = originalTask?.theme !== editForm.value.theme
+  const hasDependents = originalTask ? getDependentTasks(originalTask.id).length > 0 : false
 
   try {
     const updated = await updateTask(editingTaskId.value, {
@@ -751,22 +1128,70 @@ const saveEdit = async () => {
       theme: editForm.value.theme || null,
       planned_date: editForm.value.planned_date || null, // Already in YYYY-MM-DD format from date picker
       notes: editForm.value.notes || null,
+      depends_on_task_id: editForm.value.depends_on_task_id,
     })
-
-    // Update the task in local state immediately
-    const index = tasks.value.findIndex((t) => t.id === updated.id)
-    if (index !== -1) {
-      tasks.value[index] = updated
-    }
 
     // Update themes list if a new theme was added
     if (updated.theme && !availableThemes.value.includes(updated.theme)) {
       availableThemes.value.push(updated.theme)
     }
 
+    // If dependency or bucket changed significantly, we need to reload to get all affected tasks
+    // Otherwise, use partial update
+    if (dependencyChanged || bucketChanged) {
+      // When dependency or bucket changes, affected tasks (dependents, parents) may need updates
+      // Fetch all tasks to get updated relationships (this is still better than full page reload)
+      const allTasks = await fetchTasks()
+
+      // Update local state with all tasks (filtered view will update automatically)
+      tasks.value = allTasks.sort((a, b) => {
+        if (a.status === 'done' && b.status !== 'done') return 1
+        if (a.status !== 'done' && b.status === 'done') return -1
+        const aDate = a.planned_date || ''
+        const bDate = b.planned_date || ''
+        return aDate.localeCompare(bDate)
+      })
+
+      // Expand relevant parents
+      if (updated.depends_on_task_id) {
+        expandedParentTasks.value.add(updated.depends_on_task_id)
+        const parentTask = tasks.value.find((t) => t.id === updated.depends_on_task_id)
+        if (parentTask?.depends_on_task_id) {
+          expandedParentTasks.value.add(parentTask.depends_on_task_id)
+        }
+      }
+      if (hasDependents) {
+        expandedParentTasks.value.add(updated.id)
+      }
+    } else {
+      // Simple update - just update the task in place
+      updateTaskInState(updated)
+
+      // If this task now has a dependency, expand the parent task
+      if (updated.depends_on_task_id) {
+        expandedParentTasks.value.add(updated.depends_on_task_id)
+        const parentTask = tasks.value.find((t) => t.id === updated.depends_on_task_id)
+        if (parentTask?.depends_on_task_id) {
+          expandedParentTasks.value.add(parentTask.depends_on_task_id)
+        }
+      }
+      if (hasDependents) {
+        expandedParentTasks.value.add(updated.id)
+      }
+    }
+
     cancelEdit()
-  } catch (error) {
+
+    // Scroll to the updated task
+    await scrollToTask(updated.id)
+  } catch (error: unknown) {
     console.error('Failed to update task:', error)
+    // Show user-friendly error message
+    const errorMessage =
+      (error as { data?: { message?: string }; message?: string })?.data?.message ||
+      (error as { message?: string })?.message ||
+      'Failed to update task. Please try again.'
+    alert(errorMessage)
     // On error, reload data to ensure consistency
     await loadData()
   }
@@ -780,28 +1205,62 @@ const updateTaskStatus = async (id: number, newStatus: TaskStatus) => {
     // Normalize status to 'doing' or 'done'
     const normalizedStatus: TaskStatus = newStatus === 'done' ? 'done' : 'doing'
 
+    // Check if this is a transition from 'doing' to 'done' (which may activate dependent tasks)
+    const wasTransitioningToDone = task.status === 'doing' && normalizedStatus === 'done'
+
     const updated = await updateTask(id, {
       status: normalizedStatus,
     })
 
-    const index = tasks.value.findIndex((t) => t.id === updated.id)
-    if (index !== -1) {
-      tasks.value[index] = updated
+    // Update the task in local state
+    updateTaskInState(updated)
+
+    // If task was just marked as done, dependent tasks may have been auto-activated
+    // Fetch only the dependent tasks that might have been affected
+    if (wasTransitioningToDone) {
+      const dependentTasks = getDependentTasks(id)
+      if (dependentTasks.length > 0) {
+        // Fetch all tasks to get updated dependent tasks (they may have status changes)
+        const allTasks = await fetchTasks()
+        const dependentTaskIds = dependentTasks.map((t) => t.id)
+        const updatedDependents = allTasks.filter((t) => dependentTaskIds.includes(t.id))
+
+        // Update dependent tasks in local state
+        updatedDependents.forEach((depTask) => {
+          updateTaskInState(depTask)
+        })
+      }
     }
+
+    // Scroll to the updated task
+    await scrollToTask(updated.id)
   } catch (error) {
     console.error('Failed to update task status:', error)
   }
 }
 
 const openDeleteModal = async (task: Task) => {
+  // Check if task has dependents before allowing deletion
+  if (hasDependents(task.id)) {
+    const dependentCount = getDependentTasks(task.id).length
+    alert(
+      `Cannot delete task: ${dependentCount} dependent task(s) exist. Please delete or reassign dependent tasks first.`,
+    )
+    return
+  }
+
   // If task is done, delete directly with archival
   if (task.status === 'done') {
     try {
       await deleteTask(task.id, true) // archive=true for archival record
       tasks.value = tasks.value.filter((t) => t.id !== task.id)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to delete task:', error)
-      alert('Failed to delete task. Please try again.')
+      const errorMessage =
+        (error as { data?: { message?: string }; message?: string })?.data?.message ||
+        (error as { message?: string })?.message ||
+        'Failed to delete task. Please try again.'
+      alert(errorMessage)
     }
     return
   }
@@ -827,13 +1286,28 @@ const handleDelete = async (archive: boolean = false) => {
 
   const id = taskToDelete.value.id
 
+  // Double-check for dependents before deletion (in case state changed)
+  const task = tasks.value.find((t) => t.id === id)
+  if (task && hasDependents(task.id)) {
+    const dependentCount = getDependentTasks(task.id).length
+    alert(
+      `Cannot delete task: ${dependentCount} dependent task(s) exist. Please delete or reassign dependent tasks first.`,
+    )
+    closeDeleteModal()
+    return
+  }
+
   try {
     await deleteTask(id, archive)
     tasks.value = tasks.value.filter((t) => t.id !== id)
     closeDeleteModal()
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to delete task:', error)
-    alert('Failed to delete task. Please try again.')
+    const errorMessage =
+      (error as { data?: { message?: string }; message?: string })?.data?.message ||
+      (error as { message?: string })?.message ||
+      'Failed to delete task. Please try again.'
+    alert(errorMessage)
   }
 }
 
@@ -1028,6 +1502,8 @@ const handleClickOutside = (event: MouseEvent) => {
     showExportMenu.value = false
     showThemeDropdown.value = false
     isThemeInputVisible.value = false
+    showQuickTaskDependencyDropdown.value = false
+    showEditTaskDependencyDropdown.value = false
   }
 }
 
@@ -1239,6 +1715,7 @@ onUnmounted(() => {
                   style="box-sizing: border-box; vertical-align: top"
                   rows="2"
                   placeholder="Add notes... Use @ or # for tags (e.g., @delegate, @quick-win)"
+                  @focus="isAddingQuickTask = true"
                   @input="handleQuickNotesInput"
                   @keydown="handleQuickNotesKeydown"
                 />
@@ -1275,7 +1752,7 @@ onUnmounted(() => {
           <div
             v-if="
               showTagLegendQuickAdd &&
-              (isAddingQuickTask || quickTaskTitle.trim() || quickTaskNotes)
+              (isAddingQuickTask || quickTaskTitle?.trim() || quickTaskNotes?.trim())
             "
             class="mb-1.5 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
           >
@@ -1427,7 +1904,7 @@ onUnmounted(() => {
 
           <!-- Options row (shown when focused or typing) -->
           <div
-            v-if="isAddingQuickTask || quickTaskTitle.trim()"
+            v-show="isAddingQuickTask || quickTaskTitle?.trim() || quickTaskNotes?.trim()"
             class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700 relative"
           >
             <!-- Date Input overlaid on button (for browser compatibility) -->
@@ -1513,7 +1990,7 @@ onUnmounted(() => {
               type="button"
               class="p-2 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center"
               title="New bucket"
-              @click="isThemeInputVisible = !isThemeInputVisible"
+              @click.stop="isThemeInputVisible = !isThemeInputVisible"
             >
               <Icon name="mdi:plus" size="18" />
             </button>
@@ -1533,6 +2010,75 @@ onUnmounted(() => {
               <Icon name="mdi:flag" size="18" />
             </button>
 
+            <!-- Dependency Dropdown (only shown when bucket is chosen and there are active tasks) -->
+            <div
+              v-if="
+                (quickTaskTheme || newThemeName.value?.trim()) &&
+                availableTasksForDependency.length > 0
+              "
+              class="relative menu-container"
+            >
+              <button
+                type="button"
+                :class="[
+                  'px-1.5 py-1 sm:px-1 sm:py-0.5 rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-0.5',
+                  quickTaskDependsOn
+                    ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                ]"
+                :title="
+                  quickTaskDependsOn
+                    ? `Depends on: ${getTaskById(quickTaskDependsOn)?.title || 'Task'}`
+                    : 'Link to another task in this bucket'
+                "
+                @click.stop="showQuickTaskDependencyDropdown = !showQuickTaskDependencyDropdown"
+              >
+                <Icon name="mdi:link-variant" size="14" class="sm:w-3 sm:h-3" />
+                <span
+                  v-if="quickTaskDependsOn"
+                  class="text-xs font-medium max-w-[60px] truncate leading-tight"
+                >
+                  {{ getTaskById(quickTaskDependsOn)?.title || 'Task' }}
+                </span>
+              </button>
+              <!-- Dependency Dropdown -->
+              <div
+                v-if="showQuickTaskDependencyDropdown"
+                class="absolute z-[60] mt-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto min-w-[160px] max-w-[200px]"
+                style="left: 0; top: 100%"
+                @click.stop
+              >
+                <div
+                  class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-200 dark:border-gray-700"
+                  :class="{
+                    'bg-blue-100 dark:bg-blue-900/40': !quickTaskDependsOn,
+                  }"
+                  @click="
+                    quickTaskDependsOn = null
+                    showQuickTaskDependencyDropdown = false
+                  "
+                >
+                  <div class="font-medium text-gray-900 dark:text-gray-100">No Dependency</div>
+                </div>
+                <div
+                  v-for="task in availableTasksForDependency"
+                  :key="task.id"
+                  class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
+                  :class="{
+                    'bg-blue-100 dark:bg-blue-900/40': quickTaskDependsOn === task.id,
+                  }"
+                  @click="
+                    quickTaskDependsOn = task.id
+                    showQuickTaskDependencyDropdown = false
+                  "
+                >
+                  <div class="font-medium text-gray-900 dark:text-gray-100 truncate">
+                    {{ task.title }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- New Theme Input (when + button is clicked) -->
             <div class="relative menu-container">
               <input
@@ -1548,30 +2094,30 @@ onUnmounted(() => {
               />
               <!-- Theme Suggestions Dropdown -->
               <div
-                v-if="isThemeInputVisible && themeSuggestions.length > 0 && newThemeName.trim()"
+                v-if="isThemeInputVisible && themeSuggestions.length > 0"
                 ref="themeSuggestionsRef"
-                class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[120px]"
+                class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[120px] max-w-[200px]"
                 style="left: 0; top: 100%"
                 @click.stop
               >
                 <div
                   v-for="(suggestion, index) in themeSuggestions"
                   :key="suggestion"
+                  :data-theme-suggestion-index="index"
                   :class="[
-                    'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm',
+                    'px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs',
                     index === selectedThemeSuggestionIndex ? 'bg-blue-100 dark:bg-blue-900/40' : '',
                   ]"
                   @click="selectThemeSuggestion(suggestion)"
                 >
-                  <div class="font-medium text-gray-900 dark:text-gray-100">{{ suggestion }}</div>
-                  <div class="text-xs text-gray-500 dark:text-gray-400">Existing category</div>
+                  <div class="text-gray-900 dark:text-gray-100 truncate">{{ suggestion }}</div>
                 </div>
               </div>
             </div>
 
             <!-- Add Button (moved to end of options row) -->
             <button
-              v-if="quickTaskTitle.trim()"
+              v-if="quickTaskTitle?.trim()"
               class="px-3 py-2 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center justify-center gap-1.5 ml-auto"
               @click="handleQuickAddTask"
             >
@@ -1632,6 +2178,7 @@ onUnmounted(() => {
             <div
               v-for="task in themeGroup.tasks"
               :key="task.id"
+              :data-task-id="task.id"
               :class="[
                 'px-3 sm:px-4 py-3 sm:py-2.5 border-l-4 transition-all',
                 editingTaskId === task.id &&
@@ -1681,9 +2228,45 @@ onUnmounted(() => {
                           : 'text-gray-900 dark:text-gray-100',
                       ]"
                       title="Click to edit"
-                      @click="startEdit(task)"
+                      @click.stop="startEdit(task)"
                     >
-                      <span class="font-medium">{{ task.title }}</span>
+                      <div class="flex items-center gap-2">
+                        <!-- Expand/Collapse Button for Parent Tasks -->
+                        <button
+                          v-if="hasDependents(task.id)"
+                          type="button"
+                          class="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                          @click.stop="toggleDependents(task.id)"
+                        >
+                          <Icon
+                            :name="
+                              expandedParentTasks.has(task.id)
+                                ? 'mdi:chevron-down'
+                                : 'mdi:chevron-right'
+                            "
+                            size="16"
+                          />
+                        </button>
+                        <span v-else class="w-4"></span>
+                        <span class="font-medium">{{ task.title }}</span>
+                        <!-- Dependency Indicator (for child tasks) -->
+                        <span
+                          v-if="task.depends_on_task_id"
+                          class="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded border border-blue-200 dark:border-blue-800"
+                        >
+                          <Icon name="mdi:link-variant" size="12" />
+                          <span class="truncate max-w-[100px]">{{
+                            getTaskById(task.depends_on_task_id)?.title || 'Task'
+                          }}</span>
+                        </span>
+                        <!-- Dependent Count Badge -->
+                        <span
+                          v-if="hasDependents(task.id)"
+                          class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
+                        >
+                          {{ getDependentTasks(task.id).length }}
+                        </span>
+                      </div>
                       <span v-if="task.notes" class="text-gray-600 dark:text-gray-400 ml-2">
                         – {{ task.notes }}
                       </span>
@@ -1698,7 +2281,7 @@ onUnmounted(() => {
                     v-if="task.planned_date && task.status !== 'done'"
                     class="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation whitespace-nowrap"
                     title="Click to edit"
-                    @click="startEdit(task)"
+                    @click.stop="startEdit(task)"
                   >
                     {{
                       formatDateRelative(task.planned_date) ||
@@ -1709,8 +2292,18 @@ onUnmounted(() => {
 
                   <!-- Delete Icon -->
                   <button
-                    class="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors touch-manipulation"
-                    title="Delete"
+                    :class="[
+                      'p-2 transition-colors touch-manipulation',
+                      hasDependents(task.id)
+                        ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                        : 'text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300',
+                    ]"
+                    :title="
+                      hasDependents(task.id)
+                        ? `Cannot delete: ${getDependentTasks(task.id).length} dependent task(s) exist`
+                        : 'Delete'
+                    "
+                    :disabled="hasDependents(task.id)"
                     @click.stop="handleDeleteTaskClick(task)"
                   >
                     <Icon name="mdi:delete-outline" size="20" />
@@ -1929,9 +2522,10 @@ onUnmounted(() => {
                       />
                       <div class="flex items-center gap-1.5 flex-shrink-0">
                         <button
+                          type="button"
                           class="p-2 sm:p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors rounded hover:bg-green-50 dark:hover:bg-green-900/20 touch-manipulation"
                           title="Save changes"
-                          @click="saveEdit"
+                          @click.stop="saveEdit"
                         >
                           <Icon name="mdi:check" size="20" class="sm:w-[18px] sm:h-[18px]" />
                         </button>
@@ -1981,15 +2575,67 @@ onUnmounted(() => {
                     type="date"
                     class="px-3 py-2.5 sm:px-2.5 sm:py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
                   />
-                  <select
-                    v-model="editForm.theme"
-                    class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
-                  >
-                    <option :value="null">Bucket</option>
-                    <option v-for="theme in availableThemes" :key="theme" :value="theme">
-                      {{ theme }}
-                    </option>
-                  </select>
+                  <!-- Theme Dropdown with New Bucket Button on Same Row -->
+                  <div class="flex items-center gap-1.5">
+                    <div class="relative menu-container flex-1">
+                      <select
+                        v-if="!isEditThemeInputVisible"
+                        v-model="editForm.theme"
+                        class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 w-full"
+                      >
+                        <option :value="null">Bucket</option>
+                        <option v-for="theme in availableThemes" :key="theme" :value="theme">
+                          {{ theme }}
+                        </option>
+                      </select>
+                      <!-- New Theme Input (when + button is clicked) -->
+                      <input
+                        v-if="isEditThemeInputVisible"
+                        v-model="newEditThemeName"
+                        type="text"
+                        placeholder="Bucket"
+                        class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 w-full"
+                        @keyup.enter="addNewEditTheme"
+                        @keyup.esc="handleEditThemeInputEsc"
+                        @keydown="handleEditThemeInputKeydown"
+                        @input="selectedEditThemeSuggestionIndex = -1"
+                      />
+                      <!-- Edit Theme Suggestions Dropdown -->
+                      <div
+                        v-if="isEditThemeInputVisible && editThemeSuggestions.length > 0"
+                        ref="editThemeSuggestionsRef"
+                        class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[120px] max-w-[200px]"
+                        style="left: 0; top: 100%"
+                        @click.stop
+                      >
+                        <div
+                          v-for="(suggestion, index) in editThemeSuggestions"
+                          :key="suggestion"
+                          :data-theme-suggestion-index="index"
+                          :class="[
+                            'px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs',
+                            index === selectedEditThemeSuggestionIndex
+                              ? 'bg-blue-100 dark:bg-blue-900/40'
+                              : '',
+                          ]"
+                          @click="selectEditThemeSuggestion(suggestion)"
+                        >
+                          <div class="text-gray-900 dark:text-gray-100 truncate">
+                            {{ suggestion }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- New Bucket Icon Button -->
+                    <button
+                      type="button"
+                      class="p-2 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center min-h-[44px] sm:min-h-0"
+                      title="New bucket"
+                      @click.stop="isEditThemeInputVisible = !isEditThemeInputVisible"
+                    >
+                      <Icon name="mdi:plus" size="18" />
+                    </button>
+                  </div>
                   <label
                     class="flex items-center gap-2 px-3 py-2 sm:px-1.5 sm:py-1 text-xs text-gray-700 dark:text-gray-300 touch-manipulation min-h-[44px] sm:min-h-0 cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
                   >
@@ -2000,6 +2646,79 @@ onUnmounted(() => {
                     />
                     <span>MIT</span>
                   </label>
+
+                  <!-- Dependency Dropdown (only shown when bucket is chosen and there are active tasks OR task has a dependency) -->
+                  <div
+                    v-if="
+                      (editForm.theme ||
+                        (isEditThemeInputVisible && newEditThemeName.value?.trim())) &&
+                      (availableTasksForDependency.length > 0 || editForm.depends_on_task_id)
+                    "
+                    class="relative menu-container"
+                  >
+                    <button
+                      type="button"
+                      :class="[
+                        'px-1.5 py-1 sm:px-1 sm:py-0.5 rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-0.5',
+                        editForm.depends_on_task_id
+                          ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                          : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                      ]"
+                      :title="
+                        editForm.depends_on_task_id
+                          ? `Depends on: ${getTaskById(editForm.depends_on_task_id)?.title || 'Task'}`
+                          : 'Link to another task in this bucket'
+                      "
+                      @click.stop="showEditTaskDependencyDropdown = !showEditTaskDependencyDropdown"
+                    >
+                      <Icon name="mdi:link-variant" size="14" class="sm:w-3 sm:h-3" />
+                      <span
+                        v-if="editForm.depends_on_task_id"
+                        class="text-xs font-medium max-w-[60px] truncate leading-tight"
+                      >
+                        {{ getTaskById(editForm.depends_on_task_id)?.title || 'Task' }}
+                      </span>
+                    </button>
+                    <!-- Dependency Dropdown -->
+                    <div
+                      v-if="showEditTaskDependencyDropdown"
+                      class="absolute z-[60] mt-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto min-w-[160px] max-w-[200px]"
+                      style="left: 0; top: 100%"
+                      @click.stop
+                    >
+                      <div
+                        class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-200 dark:border-gray-700"
+                        :class="{
+                          'bg-blue-100 dark:bg-blue-900/40': !editForm.depends_on_task_id,
+                        }"
+                        @click="
+                          editForm.depends_on_task_id = null
+                          showEditTaskDependencyDropdown = false
+                        "
+                      >
+                        <div class="font-medium text-gray-900 dark:text-gray-100">
+                          No Dependency
+                        </div>
+                      </div>
+                      <div
+                        v-for="depTask in availableTasksForDependency"
+                        :key="depTask.id"
+                        class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
+                        :class="{
+                          'bg-blue-100 dark:bg-blue-900/40':
+                            editForm.depends_on_task_id === depTask.id,
+                        }"
+                        @click="
+                          editForm.depends_on_task_id = depTask.id
+                          showEditTaskDependencyDropdown = false
+                        "
+                      >
+                        <div class="font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {{ depTask.title }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Tag Legend -->
@@ -2158,6 +2877,831 @@ onUnmounted(() => {
                         >
                           {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
                         </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Collapsible Dependent Tasks (Level 1) -->
+              <div
+                v-if="hasDependents(task.id) && expandedParentTasks.has(task.id)"
+                class="ml-8 mt-2 space-y-1 border-l-2 border-gray-300 dark:border-gray-600 pl-3"
+              >
+                <div
+                  v-for="dependentTask in getDependentTasks(task.id)"
+                  :key="dependentTask.id"
+                  :data-task-id="dependentTask.id"
+                  :class="[
+                    'px-2 py-1.5 border-l-2 border-blue-300 dark:border-blue-600 bg-blue-50/50 dark:bg-blue-950/20 rounded-r transition-all',
+                    editingTaskId === dependentTask.id &&
+                      'bg-blue-100 dark:bg-blue-950/40 border-blue-400 dark:border-blue-600',
+                    dependentTask.is_mit &&
+                      editingTaskId !== dependentTask.id &&
+                      'bg-red-50 dark:bg-red-950/40 border-red-400 dark:border-red-600',
+                    !dependentTask.is_mit &&
+                      editingTaskId !== dependentTask.id &&
+                      'border-blue-300 dark:border-blue-600',
+                  ]"
+                >
+                  <div
+                    v-if="editingTaskId !== dependentTask.id"
+                    class="flex flex-row items-center gap-2 sm:gap-3"
+                  >
+                    <!-- Done/Doing Toggle -->
+                    <button
+                      :class="[
+                        'relative w-8 h-4 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0',
+                        dependentTask.status === 'done'
+                          ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
+                          : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
+                      ]"
+                      @click="
+                        async () => {
+                          await updateTaskStatus(
+                            dependentTask.id,
+                            dependentTask.status === 'done' ? 'doing' : 'done',
+                          )
+                        }
+                      "
+                    >
+                      <span
+                        :class="[
+                          'absolute top-0.5 left-0.5 h-3 w-3 bg-white shadow-sm transform transition-transform duration-200 rounded-sm',
+                          dependentTask.status === 'done' ? 'translate-x-3.5' : 'translate-x-0',
+                        ]"
+                      ></span>
+                    </button>
+
+                    <!-- Task Title -->
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-1.5">
+                        <!-- Expand/Collapse Button for Level 2 Dependents -->
+                        <button
+                          v-if="hasDependents(dependentTask.id)"
+                          type="button"
+                          class="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                          @click.stop="toggleDependents(dependentTask.id)"
+                        >
+                          <Icon
+                            :name="
+                              expandedParentTasks.has(dependentTask.id)
+                                ? 'mdi:chevron-down'
+                                : 'mdi:chevron-right'
+                            "
+                            size="14"
+                          />
+                        </button>
+                        <span v-else class="w-4"></span>
+                        <span
+                          :class="[
+                            'text-xs font-medium cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors',
+                            dependentTask.status === 'done'
+                              ? 'text-gray-500 dark:text-gray-500 line-through'
+                              : 'text-gray-900 dark:text-gray-100',
+                          ]"
+                          title="Click to edit"
+                          @click.stop="startEdit(dependentTask)"
+                        >
+                          {{ dependentTask.title }}
+                        </span>
+                        <!-- Dependent Count Badge for Level 2 -->
+                        <span
+                          v-if="hasDependents(dependentTask.id)"
+                          class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
+                        >
+                          {{ getDependentTasks(dependentTask.id).length }}
+                        </span>
+                      </div>
+                      <span
+                        v-if="dependentTask.notes"
+                        :class="[
+                          'text-xs text-gray-600 dark:text-gray-400 ml-5',
+                          dependentTask.status === 'done' && 'line-through',
+                        ]"
+                      >
+                        – {{ dependentTask.notes }}
+                      </span>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex items-center gap-1 flex-shrink-0">
+                      <!-- Date Tag -->
+                      <span
+                        v-if="dependentTask.planned_date && dependentTask.status !== 'done'"
+                        class="px-1.5 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation whitespace-nowrap"
+                        title="Click to edit"
+                        @click.stop="startEdit(dependentTask)"
+                      >
+                        {{
+                          formatDateRelative(dependentTask.planned_date) ||
+                          formatDateToDisplay(dependentTask.planned_date) ||
+                          dependentTask.planned_date
+                        }}
+                      </span>
+
+                      <!-- Delete Icon -->
+                      <button
+                        :class="[
+                          'p-1 transition-colors touch-manipulation',
+                          hasDependents(dependentTask.id)
+                            ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                            : 'text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300',
+                        ]"
+                        :title="
+                          hasDependents(dependentTask.id)
+                            ? `Cannot delete: ${getDependentTasks(dependentTask.id).length} dependent task(s) exist`
+                            : 'Delete'
+                        "
+                        :disabled="hasDependents(dependentTask.id)"
+                        @click.stop="handleDeleteTaskClick(dependentTask)"
+                      >
+                        <Icon name="mdi:delete-outline" size="16" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Edit Mode for Dependent Task (Full Edit Form) -->
+                  <div v-else class="space-y-2 sm:space-y-1.5 py-2 sm:py-1.5 relative">
+                    <!-- Task and Notes row (aligned layout - same as parent tasks) -->
+                    <div class="flex flex-col sm:flex-row gap-2 mb-1.5 items-start">
+                      <!-- Task input -->
+                      <div class="flex-1 flex flex-col w-full">
+                        <div class="flex items-center justify-between mb-1.5 h-5">
+                          <label
+                            class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
+                          >
+                            Task
+                          </label>
+                          <span class="text-xs text-transparent leading-5">Placeholder</span>
+                        </div>
+                        <input
+                          v-model="editForm.title"
+                          type="text"
+                          class="w-full px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
+                          style="box-sizing: border-box"
+                          @keyup.enter="saveEdit"
+                          @keyup.esc="cancelEdit"
+                        />
+                      </div>
+
+                      <!-- Notes field -->
+                      <div class="flex-1 flex flex-col w-full">
+                        <div class="flex items-center justify-between mb-1.5 h-5">
+                          <label
+                            class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
+                            >Notes</label
+                          >
+                          <button
+                            type="button"
+                            class="text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation py-1 px-1 leading-5"
+                            @click="showTagLegendEdit = !showTagLegendEdit"
+                          >
+                            {{ showTagLegendEdit ? 'Hide' : 'Show' }} Tags
+                          </button>
+                        </div>
+                        <div class="relative flex items-stretch gap-1.5">
+                          <textarea
+                            ref="notesInputRef"
+                            v-model="editForm.notes"
+                            class="flex-1 px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
+                            style="box-sizing: border-box; vertical-align: top"
+                            rows="2"
+                            placeholder="Add notes... Use @ or # for tags (e.g., @delegate, @quick-win)"
+                            @input="handleNotesInput"
+                            @keydown="handleNotesKeydown"
+                          />
+                          <div class="flex items-center gap-1.5 flex-shrink-0">
+                            <button
+                              type="button"
+                              class="p-2 sm:p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors rounded hover:bg-green-50 dark:hover:bg-green-900/20 touch-manipulation"
+                              title="Save changes"
+                              @click.stop="saveEdit"
+                            >
+                              <Icon name="mdi:check" size="20" class="sm:w-[18px] sm:h-[18px]" />
+                            </button>
+                            <button
+                              class="p-2 sm:p-1.5 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors rounded hover:bg-gray-50 dark:hover:bg-gray-900/20 touch-manipulation"
+                              title="Cancel editing"
+                              @click="cancelEdit"
+                            >
+                              <Icon name="mdi:close" size="20" class="sm:w-[18px] sm:h-[18px]" />
+                            </button>
+                          </div>
+                          <!-- Tag Suggestions Dropdown -->
+                          <div
+                            v-if="tagSuggestions.length > 0"
+                            ref="tagSuggestionsRef"
+                            class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[200px]"
+                            style="left: 0; top: 100%"
+                          >
+                            <div
+                              v-for="(tagInfo, index) in tagSuggestions"
+                              :key="tagInfo.tag"
+                              :data-suggestion-index="index"
+                              :class="[
+                                'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm',
+                                index === suggestionIndex ? 'bg-blue-100 dark:bg-blue-900/40' : '',
+                              ]"
+                              @click="insertTag(tagInfo.tag)"
+                            >
+                              <div class="font-medium text-gray-900 dark:text-gray-100">
+                                {{ tagInfo.tag }}
+                              </div>
+                              <div class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ tagInfo.description }}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Options row (Date, Bucket, MIT, Dependency) -->
+                    <div
+                      class="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-gray-200 dark:border-gray-700"
+                    >
+                      <input
+                        v-model="editForm.planned_date"
+                        type="date"
+                        class="px-3 py-2.5 sm:px-2.5 sm:py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
+                      />
+                      <!-- Theme Dropdown with New Bucket Button on Same Row -->
+                      <div class="flex items-center gap-1.5">
+                        <div class="relative menu-container flex-1">
+                          <select
+                            v-if="!isEditThemeInputVisible"
+                            v-model="editForm.theme"
+                            class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 w-full"
+                          >
+                            <option :value="null">Bucket</option>
+                            <option v-for="theme in availableThemes" :key="theme" :value="theme">
+                              {{ theme }}
+                            </option>
+                          </select>
+                          <!-- New Theme Input (when + button is clicked) -->
+                          <input
+                            v-if="isEditThemeInputVisible"
+                            v-model="newEditThemeName"
+                            type="text"
+                            placeholder="Bucket"
+                            class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 w-full"
+                            @keyup.enter="addNewEditTheme"
+                            @keyup.esc="handleEditThemeInputEsc"
+                            @keydown="handleEditThemeInputKeydown"
+                            @input="selectedEditThemeSuggestionIndex = -1"
+                          />
+                          <!-- Edit Theme Suggestions Dropdown -->
+                          <div
+                            v-if="isEditThemeInputVisible && editThemeSuggestions.length > 0"
+                            ref="editThemeSuggestionsRef"
+                            class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[120px] max-w-[200px]"
+                            style="left: 0; top: 100%"
+                            @click.stop
+                          >
+                            <div
+                              v-for="(suggestion, index) in editThemeSuggestions"
+                              :key="suggestion"
+                              :data-theme-suggestion-index="index"
+                              :class="[
+                                'px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs',
+                                index === selectedEditThemeSuggestionIndex
+                                  ? 'bg-blue-100 dark:bg-blue-900/40'
+                                  : '',
+                              ]"
+                              @click="selectEditThemeSuggestion(suggestion)"
+                            >
+                              <div class="text-gray-900 dark:text-gray-100 truncate">
+                                {{ suggestion }}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- New Bucket Icon Button -->
+                        <button
+                          type="button"
+                          class="p-2 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center min-h-[44px] sm:min-h-0"
+                          title="New bucket"
+                          @click.stop="isEditThemeInputVisible = !isEditThemeInputVisible"
+                        >
+                          <Icon name="mdi:plus" size="18" />
+                        </button>
+                      </div>
+                      <label
+                        class="flex items-center gap-2 px-3 py-2 sm:px-1.5 sm:py-1 text-xs text-gray-700 dark:text-gray-300 touch-manipulation min-h-[44px] sm:min-h-0 cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
+                      >
+                        <input
+                          v-model="editForm.is_mit"
+                          type="checkbox"
+                          class="w-4 h-4 sm:w-3 sm:h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
+                        />
+                        <span>MIT</span>
+                      </label>
+
+                      <!-- Dependency Dropdown (only shown when bucket is chosen and there are active tasks OR task has a dependency) -->
+                      <div
+                        v-if="
+                          (editForm.theme ||
+                            (isEditThemeInputVisible && newEditThemeName.value?.trim())) &&
+                          (availableTasksForDependency.length > 0 || editForm.depends_on_task_id)
+                        "
+                        class="relative menu-container"
+                      >
+                        <button
+                          type="button"
+                          :class="[
+                            'px-1.5 py-1 sm:px-1 sm:py-0.5 rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-0.5',
+                            editForm.depends_on_task_id
+                              ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                          ]"
+                          :title="
+                            editForm.depends_on_task_id
+                              ? `Depends on: ${getTaskById(editForm.depends_on_task_id)?.title || 'Task'}`
+                              : 'Link to another task in this bucket'
+                          "
+                          @click.stop="
+                            showEditTaskDependencyDropdown = !showEditTaskDependencyDropdown
+                          "
+                        >
+                          <Icon name="mdi:link-variant" size="14" class="sm:w-3 sm:h-3" />
+                          <span
+                            v-if="editForm.depends_on_task_id"
+                            class="text-xs font-medium max-w-[60px] truncate leading-tight"
+                          >
+                            {{ getTaskById(editForm.depends_on_task_id)?.title || 'Task' }}
+                          </span>
+                        </button>
+                        <!-- Dependency Dropdown -->
+                        <div
+                          v-if="showEditTaskDependencyDropdown"
+                          class="absolute z-[60] mt-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto min-w-[160px] max-w-[200px]"
+                          style="left: 0; top: 100%"
+                          @click.stop
+                        >
+                          <div
+                            class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-200 dark:border-gray-700"
+                            :class="{
+                              'bg-blue-100 dark:bg-blue-900/40': !editForm.depends_on_task_id,
+                            }"
+                            @click="
+                              editForm.depends_on_task_id = null
+                              showEditTaskDependencyDropdown = false
+                            "
+                          >
+                            <div class="font-medium text-gray-900 dark:text-gray-100">
+                              No Dependency
+                            </div>
+                          </div>
+                          <div
+                            v-for="depTask in availableTasksForDependency"
+                            :key="depTask.id"
+                            class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
+                            :class="{
+                              'bg-blue-100 dark:bg-blue-900/40':
+                                editForm.depends_on_task_id === depTask.id,
+                            }"
+                            @click="
+                              editForm.depends_on_task_id = depTask.id
+                              showEditTaskDependencyDropdown = false
+                            "
+                          >
+                            <div class="font-medium text-gray-900 dark:text-gray-100 truncate">
+                              {{ depTask.title }}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Tag Legend -->
+                    <div
+                      v-if="showTagLegendEdit"
+                      class="mt-1.5 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+                    >
+                      <!-- Same tag legend as parent tasks - copy from parent edit form -->
+                      <!-- Quadrant Reference Guide -->
+                      <div class="mb-3 pb-2 border-b border-gray-300 dark:border-gray-600">
+                        <div class="font-semibold mb-1.5 text-gray-900 dark:text-gray-100 text-xs">
+                          Quadrant Guide:
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                          <div class="flex items-center gap-1">
+                            <span
+                              class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 shrink-0"
+                              >Q1</span
+                            >
+                            <span class="text-gray-600 dark:text-gray-400 text-xs">Do Now</span>
+                          </div>
+                          <div class="flex items-center gap-1">
+                            <span
+                              class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0"
+                              >Q2</span
+                            >
+                            <span class="text-gray-600 dark:text-gray-400 text-xs">Schedule</span>
+                          </div>
+                          <div class="flex items-center gap-1">
+                            <span
+                              class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 shrink-0"
+                              >Q3</span
+                            >
+                            <span class="text-gray-600 dark:text-gray-400 text-xs">Defer</span>
+                          </div>
+                          <div class="flex items-center gap-1">
+                            <span
+                              class="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shrink-0"
+                              >Q4</span
+                            >
+                            <span class="text-gray-600 dark:text-gray-400 text-xs">Later</span>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- Support Needed Tasks -->
+                      <div class="mb-2">
+                        <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                          Support Needed:
+                        </div>
+                        <div class="flex flex-wrap gap-1">
+                          <div
+                            v-for="tagInfo in availableTags.filter(
+                              (t) => t.category === 'support-needed',
+                            )"
+                            :key="tagInfo.tag"
+                            class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                          >
+                            <span
+                              class="font-mono font-semibold text-blue-600 dark:text-blue-400"
+                              >{{ tagInfo.tag }}</span
+                            >
+                            <span class="text-gray-500 dark:text-gray-500">•</span>
+                            <span class="text-gray-700 dark:text-gray-300">{{
+                              tagInfo.description
+                            }}</span>
+                            <span
+                              :class="[
+                                'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                                tagInfo.quadrant === 'Q1'
+                                  ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                                  : tagInfo.quadrant === 'Q2'
+                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                    : tagInfo.quadrant === 'Q3'
+                                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                      : tagInfo.quadrant === 'Q4'
+                                        ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                        : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                              ]"
+                            >
+                              {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- Time/Effort Related Tasks -->
+                      <div class="mb-2">
+                        <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                          Time/Effort:
+                        </div>
+                        <div class="flex flex-wrap gap-1">
+                          <div
+                            v-for="tagInfo in availableTags.filter(
+                              (t) => t.category === 'time-effort',
+                            )"
+                            :key="tagInfo.tag"
+                            class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                          >
+                            <span
+                              class="font-mono font-semibold text-blue-600 dark:text-blue-400"
+                              >{{ tagInfo.tag }}</span
+                            >
+                            <span class="text-gray-500 dark:text-gray-500">•</span>
+                            <span class="text-gray-700 dark:text-gray-300">{{
+                              tagInfo.description
+                            }}</span>
+                            <span
+                              :class="[
+                                'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                                tagInfo.quadrant === 'Q1'
+                                  ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                                  : tagInfo.quadrant === 'Q2'
+                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                    : tagInfo.quadrant === 'Q3'
+                                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                      : tagInfo.quadrant === 'Q4'
+                                        ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                        : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                              ]"
+                            >
+                              {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- Administrative Tasks -->
+                      <div class="mb-0">
+                        <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                          Administrative:
+                        </div>
+                        <div class="flex flex-wrap gap-1">
+                          <div
+                            v-for="tagInfo in availableTags.filter(
+                              (t) => t.category === 'administrative',
+                            )"
+                            :key="tagInfo.tag"
+                            class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                          >
+                            <span
+                              class="font-mono font-semibold text-blue-600 dark:text-blue-400"
+                              >{{ tagInfo.tag }}</span
+                            >
+                            <span class="text-gray-500 dark:text-gray-500">•</span>
+                            <span class="text-gray-700 dark:text-gray-300">{{
+                              tagInfo.description
+                            }}</span>
+                            <span
+                              :class="[
+                                'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                                tagInfo.quadrant === 'Q1'
+                                  ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                                  : tagInfo.quadrant === 'Q2'
+                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                    : tagInfo.quadrant === 'Q3'
+                                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                      : tagInfo.quadrant === 'Q4'
+                                        ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                        : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                              ]"
+                            >
+                              {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Collapsible Level 2 Dependent Tasks (Grandchildren) -->
+                  <div
+                    v-if="
+                      hasDependents(dependentTask.id) && expandedParentTasks.has(dependentTask.id)
+                    "
+                    class="ml-6 mt-1.5 space-y-1 border-l-2 border-green-300 dark:border-green-600 pl-2"
+                  >
+                    <div
+                      v-for="grandchildTask in getDependentTasks(dependentTask.id)"
+                      :key="grandchildTask.id"
+                      :data-task-id="grandchildTask.id"
+                      :class="[
+                        'px-1.5 py-1 border-l-2 border-green-400 dark:border-green-500 bg-green-50/50 dark:bg-green-950/20 rounded-r transition-all',
+                        editingTaskId === grandchildTask.id &&
+                          'bg-green-100 dark:bg-green-950/40 border-green-500 dark:border-green-400',
+                        grandchildTask.is_mit &&
+                          editingTaskId !== grandchildTask.id &&
+                          'bg-red-50 dark:bg-red-950/40 border-red-400 dark:border-red-600',
+                        !grandchildTask.is_mit &&
+                          editingTaskId !== grandchildTask.id &&
+                          'border-green-400 dark:border-green-500',
+                      ]"
+                    >
+                      <div
+                        v-if="editingTaskId !== grandchildTask.id"
+                        class="flex flex-row items-center gap-1.5 sm:gap-2"
+                      >
+                        <!-- Done/Doing Toggle -->
+                        <button
+                          :class="[
+                            'relative w-7 h-3.5 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0',
+                            grandchildTask.status === 'done'
+                              ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
+                              : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
+                          ]"
+                          @click="
+                            async () => {
+                              await updateTaskStatus(
+                                grandchildTask.id,
+                                grandchildTask.status === 'done' ? 'doing' : 'done',
+                              )
+                            }
+                          "
+                        >
+                          <span
+                            :class="[
+                              'absolute top-0.5 left-0.5 h-2.5 w-2.5 bg-white shadow-sm transform transition-transform duration-200 rounded-sm',
+                              grandchildTask.status === 'done' ? 'translate-x-3' : 'translate-x-0',
+                            ]"
+                          ></span>
+                        </button>
+
+                        <!-- Task Title -->
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center gap-1.5">
+                            <span
+                              :class="[
+                                'text-xs font-medium cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors',
+                                grandchildTask.status === 'done'
+                                  ? 'text-gray-500 dark:text-gray-500 line-through'
+                                  : 'text-gray-900 dark:text-gray-100',
+                              ]"
+                              title="Click to edit"
+                              @click.stop="startEdit(grandchildTask)"
+                            >
+                              {{ grandchildTask.title }}
+                            </span>
+                            <!-- Dependent Count Badge for Level 2 (if it had dependents, but max depth is 2, so this won't show) -->
+                            <span
+                              v-if="hasDependents(grandchildTask.id)"
+                              class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
+                            >
+                              {{ getDependentTasks(grandchildTask.id).length }}
+                            </span>
+                          </div>
+                          <span
+                            v-if="grandchildTask.notes"
+                            :class="[
+                              'text-xs text-gray-600 dark:text-gray-400 ml-5',
+                              grandchildTask.status === 'done' && 'line-through',
+                            ]"
+                          >
+                            – {{ grandchildTask.notes }}
+                          </span>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex items-center gap-1 flex-shrink-0">
+                          <!-- Date Tag -->
+                          <span
+                            v-if="grandchildTask.planned_date && grandchildTask.status !== 'done'"
+                            class="px-1 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation whitespace-nowrap"
+                            title="Click to edit"
+                            @click.stop="startEdit(grandchildTask)"
+                          >
+                            {{
+                              formatDateRelative(grandchildTask.planned_date) ||
+                              formatDateToDisplay(grandchildTask.planned_date) ||
+                              grandchildTask.planned_date
+                            }}
+                          </span>
+
+                          <!-- Delete Icon -->
+                          <button
+                            :class="[
+                              'p-0.5 transition-colors touch-manipulation',
+                              hasDependents(grandchildTask.id)
+                                ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                                : 'text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300',
+                            ]"
+                            :title="
+                              hasDependents(grandchildTask.id)
+                                ? `Cannot delete: ${getDependentTasks(grandchildTask.id).length} dependent task(s) exist`
+                                : 'Delete'
+                            "
+                            :disabled="hasDependents(grandchildTask.id)"
+                            @click.stop="handleDeleteTaskClick(grandchildTask)"
+                          >
+                            <Icon name="mdi:delete-outline" size="14" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Edit Mode for Level 2 Dependent Task (Full Edit Form) -->
+                      <div v-else class="space-y-1.5 py-1.5 relative">
+                        <!-- Same full edit form as level 1 dependents -->
+                        <div class="flex flex-col gap-1.5">
+                          <input
+                            v-model="editForm.title"
+                            type="text"
+                            class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                            @keyup.enter="saveEdit"
+                            @keyup.esc="cancelEdit"
+                          />
+                          <textarea
+                            ref="notesInputRef"
+                            v-model="editForm.notes"
+                            class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 resize-none"
+                            rows="2"
+                            placeholder="Add notes..."
+                            @input="handleNotesInput"
+                            @keydown="handleNotesKeydown"
+                          />
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              v-model="editForm.planned_date"
+                              type="date"
+                              class="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                            />
+                            <select
+                              v-model="editForm.theme"
+                              class="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                            >
+                              <option :value="null">Bucket</option>
+                              <option v-for="theme in availableThemes" :key="theme" :value="theme">
+                                {{ theme }}
+                              </option>
+                            </select>
+                            <label
+                              class="flex items-center gap-1 px-2 py-1 text-xs text-gray-700 dark:text-gray-300 cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
+                            >
+                              <input
+                                v-model="editForm.is_mit"
+                                type="checkbox"
+                                class="w-3 h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
+                              />
+                              <span>MIT</span>
+                            </label>
+                            <!-- Dependency Dropdown (only shown when bucket is chosen and there are active tasks OR task has a dependency) -->
+                            <div
+                              v-if="
+                                (editForm.theme ||
+                                  (isEditThemeInputVisible && newEditThemeName.value?.trim())) &&
+                                (availableTasksForDependency.length > 0 ||
+                                  editForm.depends_on_task_id)
+                              "
+                              class="relative menu-container"
+                            >
+                              <button
+                                type="button"
+                                :class="[
+                                  'px-1.5 py-1 sm:px-1 sm:py-0.5 rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-0.5',
+                                  editForm.depends_on_task_id
+                                    ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                                ]"
+                                :title="
+                                  editForm.depends_on_task_id
+                                    ? `Depends on: ${getTaskById(editForm.depends_on_task_id)?.title || 'Task'}`
+                                    : 'Link to another task in this bucket'
+                                "
+                                @click.stop="
+                                  showEditTaskDependencyDropdown = !showEditTaskDependencyDropdown
+                                "
+                              >
+                                <Icon name="mdi:link-variant" size="14" class="sm:w-3 sm:h-3" />
+                                <span
+                                  v-if="editForm.depends_on_task_id"
+                                  class="text-xs font-medium max-w-[60px] truncate leading-tight"
+                                >
+                                  {{ getTaskById(editForm.depends_on_task_id)?.title || 'Task' }}
+                                </span>
+                              </button>
+                              <!-- Dependency Dropdown -->
+                              <div
+                                v-if="showEditTaskDependencyDropdown"
+                                class="absolute z-[60] mt-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto min-w-[160px] max-w-[200px]"
+                                style="left: 0; top: 100%"
+                                @click.stop
+                              >
+                                <div
+                                  class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-200 dark:border-gray-700"
+                                  :class="{
+                                    'bg-blue-100 dark:bg-blue-900/40': !editForm.depends_on_task_id,
+                                  }"
+                                  @click="
+                                    editForm.depends_on_task_id = null
+                                    showEditTaskDependencyDropdown = false
+                                  "
+                                >
+                                  <div class="font-medium text-gray-900 dark:text-gray-100">
+                                    No Dependency
+                                  </div>
+                                </div>
+                                <div
+                                  v-for="depTask in availableTasksForDependency"
+                                  :key="depTask.id"
+                                  class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
+                                  :class="{
+                                    'bg-blue-100 dark:bg-blue-900/40':
+                                      editForm.depends_on_task_id === depTask.id,
+                                  }"
+                                  @click="
+                                    editForm.depends_on_task_id = depTask.id
+                                    showEditTaskDependencyDropdown = false
+                                  "
+                                >
+                                  <div
+                                    class="font-medium text-gray-900 dark:text-gray-100 truncate"
+                                  >
+                                    {{ depTask.title }}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              class="p-1 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors rounded"
+                              title="Save"
+                              @click.stop="saveEdit"
+                            >
+                              <Icon name="mdi:check" size="14" />
+                            </button>
+                            <button
+                              type="button"
+                              class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors rounded"
+                              title="Cancel"
+                              @click.stop="cancelEdit"
+                            >
+                              <Icon name="mdi:close" size="14" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

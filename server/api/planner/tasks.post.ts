@@ -10,6 +10,7 @@ interface TaskBody {
   planned_date?: string | null
   notes?: string | null
   theme?: string | null
+  depends_on_task_id?: number | null
 }
 
 export default defineEventHandler(async (event) => {
@@ -22,6 +23,7 @@ export default defineEventHandler(async (event) => {
     planned_date = null,
     notes = null,
     theme = null,
+    depends_on_task_id = null,
   } = body
 
   if (!title || typeof title !== 'string' || title.trim().length === 0) {
@@ -38,6 +40,68 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Validate depends_on_task_id if provided
+  if (depends_on_task_id !== null && depends_on_task_id !== undefined) {
+    const parentTask = await query<{
+      id: number
+      status: string
+      depends_on_task_id: number | null
+    }>(
+      "SELECT id, status, depends_on_task_id FROM tasks WHERE id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+      [depends_on_task_id],
+    )
+    if (parentTask.length === 0) {
+      throw createError({
+        statusCode: 400,
+        message: 'Parent task not found',
+      })
+    }
+    if (parentTask[0].status === 'done') {
+      throw createError({
+        statusCode: 400,
+        message: 'Cannot create dependency on a completed task',
+      })
+    }
+
+    // Check dependency depth - allow max 2 levels (0 -> 1 -> 2)
+    // Calculate depth of parent task (how many ancestors it has)
+    let parentDepth = 0
+    let currentTaskId = depends_on_task_id
+    const visited = new Set<number>()
+
+    while (currentTaskId !== null && parentDepth < 3) {
+      if (visited.has(currentTaskId)) {
+        // Circular dependency - will be caught by other validation
+        break
+      }
+      visited.add(currentTaskId)
+
+      const task = await query<{ depends_on_task_id: number | null }>(
+        "SELECT depends_on_task_id FROM tasks WHERE id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+        [currentTaskId],
+      )
+
+      if (task.length === 0 || !task[0].depends_on_task_id) {
+        break
+      }
+
+      currentTaskId = task[0].depends_on_task_id
+      parentDepth++
+    }
+
+    // New task depth = parent depth + 1
+    // Max allowed depth is 2, so parent depth must be <= 1
+    // If parent is at depth 0, new task will be at depth 1 (allowed)
+    // If parent is at depth 1, new task will be at depth 2 (allowed)
+    // If parent is at depth 2, new task would be at depth 3 (not allowed)
+    if (parentDepth >= 2) {
+      throw createError({
+        statusCode: 400,
+        message: 'Cannot create dependency: maximum dependency depth of 2 levels exceeded',
+      })
+    }
+  }
+
   try {
     const result = await query<{
       id: number
@@ -48,13 +112,23 @@ export default defineEventHandler(async (event) => {
       planned_date: string | null
       notes: string | null
       theme: string | null
+      depends_on_task_id: number | null
       created_at: string
       updated_at: string
     }>(
-      `INSERT INTO tasks (title, status, is_mit, priority, planned_date, notes, theme)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, title, status, is_mit, priority, TO_CHAR(planned_date, 'YYYY-MM-DD') as planned_date, notes, theme, created_at, updated_at`,
-      [title.trim(), status, is_mit, priority, planned_date, notes, theme?.trim() || null],
+      `INSERT INTO tasks (title, status, is_mit, priority, planned_date, notes, theme, depends_on_task_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, title, status, is_mit, priority, TO_CHAR(planned_date, 'YYYY-MM-DD') as planned_date, notes, theme, depends_on_task_id, created_at, updated_at`,
+      [
+        title.trim(),
+        status,
+        is_mit,
+        priority,
+        planned_date,
+        notes,
+        theme?.trim() || null,
+        depends_on_task_id,
+      ],
     )
 
     // Invalidate cache when task is created

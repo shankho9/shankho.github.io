@@ -38,6 +38,7 @@ export const useTasks = () => {
     planned_date?: string | null
     notes?: string | null
     theme?: string | null
+    depends_on_task_id?: number | null
   }): Promise<Task> => {
     const response = await $fetch<{ success: boolean; task: Task }>(`${apiBase}/planner/tasks`, {
       method: 'POST',
@@ -56,6 +57,7 @@ export const useTasks = () => {
       planned_date?: string | null
       notes?: string | null
       theme?: string | null
+      depends_on_task_id?: number | null
     },
   ): Promise<Task> => {
     const response = await $fetch<{ success: boolean; task: Task }>(

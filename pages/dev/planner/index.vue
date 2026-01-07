@@ -223,13 +223,14 @@ watch(selectedDate, () => {
         </div>
         <!-- Desktop: Large buttons with labels -->
         <div class="hidden sm:flex items-center gap-2 flex-wrap">
-          <NuxtLink
-            to="/dev/planner/tasks"
+          <button
+            type="button"
             class="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
+            @click="navigateTo('/dev/planner/tasks')"
           >
             <Icon name="mdi:format-list-checkbox" size="20" />
             <span>Manage Tasks</span>
-          </NuxtLink>
+          </button>
           <NuxtLink
             to="/dev/planner/review"
             class="px-4 py-2.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
@@ -266,14 +267,15 @@ watch(selectedDate, () => {
 
         <!-- Mobile: Horizontal Button Row -->
         <div class="sm:hidden flex items-center gap-1.5 flex-wrap">
-          <NuxtLink
-            to="/dev/planner/tasks"
+          <button
+            type="button"
             class="px-2.5 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
             style="touch-action: manipulation; min-height: 32px"
+            @click="navigateTo('/dev/planner/tasks')"
           >
             <Icon name="mdi:format-list-checkbox" size="16" />
             <span>Tasks</span>
-          </NuxtLink>
+          </button>
           <NuxtLink
             to="/dev/planner/review"
             class="px-2.5 py-1.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
@@ -384,12 +386,13 @@ watch(selectedDate, () => {
       >
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100">Eisenhower Matrix</h2>
-          <NuxtLink
-            to="/dev/planner/tasks"
+          <button
+            type="button"
             class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
+            @click="navigateTo('/dev/planner/tasks')"
           >
             View All →
-          </NuxtLink>
+          </button>
         </div>
         <!-- Mobile: Sequential card layout, Desktop: 2x2 grid -->
         <div class="flex flex-col sm:grid sm:grid-cols-2 gap-3">
