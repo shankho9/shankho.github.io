@@ -24,7 +24,9 @@
     "migrate:auth": "node scripts/migrations/run-auth-migration.js",
     "migrate:auth:prod": "NODE_ENV=production node scripts/migrations/run-auth-migration.js",
     "check:db:structure": "node scripts/check-table-structure.js",
-    "check:db:structure:prod": "NODE_ENV=production node scripts/check-table-structure.js"
+    "check:db:structure:prod": "NODE_ENV=production node scripts/check-table-structure.js",
+    "test:tasks": "node scripts/tests/task-management.test.js",
+    "test:tasks:prod": "NODE_ENV=production node scripts/tests/task-management.test.js"
   },
   "devDependencies": {
     "@formkit/auto-animate": "^0.8.2",

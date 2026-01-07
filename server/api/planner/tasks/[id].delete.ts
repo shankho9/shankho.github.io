@@ -20,6 +20,20 @@ export default defineEventHandler(async (event) => {
   const shouldArchive = queryParams.archive === 'true' || queryParams.archive === true
 
   try {
+    // Check if task has dependent tasks before allowing deletion
+    const dependentTasks = await query<{ id: number; title: string }>(
+      `SELECT id, title FROM tasks 
+       WHERE depends_on_task_id = $1 
+       AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')`,
+      [taskId],
+    )
+
+    if (dependentTasks.length > 0) {
+      throw createError({
+        statusCode: 400,
+        message: `Cannot delete task: ${dependentTasks.length} dependent task(s) exist. Please delete or reassign dependent tasks first.`,
+      })
+    }
     if (shouldArchive) {
       // Close and archive: Mark as done, archive it, then mark for deletion
       // First, get the task data
