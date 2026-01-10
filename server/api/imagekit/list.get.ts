@@ -1,4 +1,4 @@
-import { defineEventHandler, getQuery } from 'h3'
+import { defineEventHandler, getQuery, setHeader } from 'h3'
 import { useRuntimeConfig } from '#imports'
 
 interface ImageKitFile {
@@ -57,6 +57,7 @@ export default defineEventHandler(async (event) => {
   const fileType = (query.fileType as string) || 'image' // 'image' or 'video'
   const limit = parseInt((query.limit as string) || '100', 10)
   const skip = parseInt((query.skip as string) || '0', 10)
+  const noCache = query.noCache === 'true' // Allow bypassing cache when explicitly requested
 
   try {
     // ImageKit API endpoint for listing files
@@ -295,8 +296,10 @@ export default defineEventHandler(async (event) => {
           },
         }
       } else {
-        // For images, generate optimized thumbnail URLs
-        const thumbnailUrl = `${file.url}?tr=w-250,h-250,c-at_max,q-auto,f-auto` // Optimized 250x250 thumbnail
+        // For images, generate optimized thumbnail URL
+        // Base thumbnail will be used and transformed on the client side for responsive loading
+        // This allows Nuxt Image to handle responsive transformations more efficiently
+        const thumbnailUrl = `${file.url}?tr=w-500,h-500,c-at_max,q-80,f-webp` // Base thumbnail, client will request appropriate size
 
         // Use fileId if available, otherwise generate stable ID from filePath or URL
         // filePath/URL are unique and stable across API calls, unlike array index
@@ -346,6 +349,18 @@ export default defineEventHandler(async (event) => {
         }
       }
     })
+
+    // Set cache headers for better performance while ensuring content freshness
+    // Reduced from 1 hour to 5 minutes to ensure new gallery content appears within reasonable time
+    // 5 minutes (300 seconds) still provides significant performance benefits while maintaining acceptable freshness
+    if (noCache) {
+      // Bypass cache when explicitly requested (for manual refresh scenarios)
+      setHeader(event, 'Cache-Control', 'no-cache, no-store, must-revalidate')
+      setHeader(event, 'CDN-Cache-Control', 'no-cache')
+    } else {
+      setHeader(event, 'Cache-Control', 'public, max-age=300, s-maxage=300') // Cache for 5 minutes
+      setHeader(event, 'CDN-Cache-Control', 'public, max-age=300')
+    }
 
     return {
       success: true,
