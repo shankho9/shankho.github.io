@@ -1,7 +1,8 @@
 export default defineNuxtRouteMiddleware(async (to, _from) => {
   // Only check auth on client-side
   // Server-side will be handled by API endpoints
-  if (import.meta.server) {
+  // Use import.meta.env.SSR to detect server-side rendering (Vite-compatible)
+  if (import.meta.env.SSR) {
     return
   }
 
