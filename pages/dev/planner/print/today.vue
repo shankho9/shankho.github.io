@@ -322,12 +322,12 @@ onUnmounted(() => {
   }
 
   .title {
-    font-size: 18px;
+    font-size: 20px;
     margin-bottom: 4px;
   }
 
   .date {
-    font-size: 12px;
+    font-size: 14px;
   }
 }
 
@@ -357,7 +357,7 @@ onUnmounted(() => {
   }
 
   .section-title {
-    font-size: 14px;
+    font-size: 16px;
     margin-bottom: 6px;
     padding-bottom: 3px;
   }
@@ -419,9 +419,9 @@ onUnmounted(() => {
 
 @media print {
   .task-number {
-    width: 16px;
-    height: 16px;
-    font-size: 9px;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
   }
 }
 
@@ -458,7 +458,7 @@ onUnmounted(() => {
 
 @media print {
   .task-title {
-    font-size: 10px;
+    font-size: 11px;
   }
 }
 
@@ -497,8 +497,8 @@ onUnmounted(() => {
 
 @media print {
   .mit-badge {
-    font-size: 7px;
-    padding: 1px 3px;
+    font-size: 8px;
+    padding: 1px 4px;
   }
 }
 
@@ -518,8 +518,8 @@ onUnmounted(() => {
 
 @media print {
   .theme-badge {
-    font-size: 7px;
-    padding: 1px 3px;
+    font-size: 8px;
+    padding: 1px 4px;
   }
 }
 
@@ -633,7 +633,7 @@ onUnmounted(() => {
 
 @media print {
   .quadrant-label {
-    font-size: 12px;
+    font-size: 14px;
   }
 }
 
@@ -650,7 +650,7 @@ onUnmounted(() => {
 
 @media print {
   .quadrant-title {
-    font-size: 10px;
+    font-size: 11px;
   }
 }
 
@@ -665,7 +665,7 @@ onUnmounted(() => {
 
 @media print {
   .quadrant-description {
-    font-size: 8px;
+    font-size: 9px;
   }
 }
 
@@ -730,7 +730,7 @@ onUnmounted(() => {
 
 @media print {
   .matrix-task-title {
-    font-size: 9px;
+    font-size: 10px;
   }
 }
 
@@ -750,7 +750,7 @@ onUnmounted(() => {
 
 @media print {
   .matrix-mit-badge {
-    font-size: 7px;
+    font-size: 8px;
     padding: 0 2px;
   }
 }
@@ -772,7 +772,7 @@ onUnmounted(() => {
 
 @media print {
   .matrix-theme-badge {
-    font-size: 7px;
+    font-size: 8px;
     padding: 0 2px;
   }
 }
@@ -792,7 +792,7 @@ onUnmounted(() => {
 
 @media print {
   .more-tasks {
-    font-size: 8px;
+    font-size: 9px;
     padding: 2px;
   }
 }

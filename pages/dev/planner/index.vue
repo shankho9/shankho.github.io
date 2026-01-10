@@ -167,7 +167,7 @@ watch(selectedDate, () => {
 </script>
 
 <template>
-  <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+  <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-full overflow-x-hidden w-full">
     <!-- Header -->
     <div class="mb-4 sm:mb-6">
       <div
@@ -221,8 +221,15 @@ watch(selectedDate, () => {
             Overview of your tasks and progress
           </p>
         </div>
-        <!-- Desktop: Large buttons with labels -->
+        <!-- Desktop: Large buttons with labels and back button -->
         <div class="hidden sm:flex items-center gap-2 flex-wrap">
+          <NuxtLink
+            to="/dev"
+            class="px-4 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
+          >
+            <Icon name="mdi:arrow-left" size="20" />
+            <span>Back to Dev Tools</span>
+          </NuxtLink>
           <button
             type="button"
             class="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
@@ -267,6 +274,14 @@ watch(selectedDate, () => {
 
         <!-- Mobile: Horizontal Button Row -->
         <div class="sm:hidden flex items-center gap-1.5 flex-wrap">
+          <NuxtLink
+            to="/dev"
+            class="px-2.5 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+            style="touch-action: manipulation; min-height: 32px"
+          >
+            <Icon name="mdi:arrow-left" size="16" />
+            <span>Back</span>
+          </NuxtLink>
           <button
             type="button"
             class="px-2.5 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
@@ -306,50 +321,57 @@ watch(selectedDate, () => {
     <!-- Dashboard Content -->
     <div v-else class="space-y-6">
       <!-- Statistics Cards -->
-      <div class="grid grid-cols-3 md:grid-cols-6 gap-3">
+      <div
+        class="flex flex-row flex-nowrap md:grid md:grid-cols-6 justify-around sm:justify-around gap-2 sm:gap-3 overflow-x-auto scrollbar-hide"
+        style="scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch"
+      >
         <div
-          class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3"
+          class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
         >
-          <div class="text-xl font-bold text-blue-700 dark:text-blue-300">{{ stats.total }}</div>
-          <div class="text-xs text-blue-600 dark:text-blue-400">Total</div>
+          <div class="text-lg sm:text-xl font-bold text-blue-700 dark:text-blue-300">
+            {{ stats.total }}
+          </div>
+          <div class="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400">Total</div>
         </div>
         <div
-          class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3"
+          class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
         >
-          <div class="text-xl font-bold text-green-700 dark:text-green-300">
+          <div class="text-lg sm:text-xl font-bold text-green-700 dark:text-green-300">
             {{ stats.today }}
           </div>
-          <div class="text-xs text-green-600 dark:text-blue-400">Today</div>
+          <div class="text-[10px] sm:text-xs text-green-600 dark:text-green-400">Today</div>
         </div>
         <div
-          class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3"
+          class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
         >
-          <div class="text-xl font-bold text-purple-700 dark:text-purple-300">
+          <div class="text-lg sm:text-xl font-bold text-purple-700 dark:text-purple-300">
             {{ stats.mits }}
           </div>
-          <div class="text-xs text-purple-600 dark:text-purple-400">MITs</div>
+          <div class="text-[10px] sm:text-xs text-purple-600 dark:text-purple-400">MITs</div>
         </div>
         <div
-          class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 hidden md:block"
+          class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
         >
-          <div class="text-xl font-bold text-orange-700 dark:text-orange-300">
+          <div class="text-lg sm:text-xl font-bold text-orange-700 dark:text-orange-300">
             {{ stats.todayMits }}
           </div>
-          <div class="text-xs text-orange-600 dark:text-orange-400">Today MITs</div>
+          <div class="text-[10px] sm:text-xs text-orange-600 dark:text-orange-400">Today MITs</div>
         </div>
         <div
-          class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 hidden md:block"
+          class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
         >
-          <div class="text-xl font-bold text-yellow-700 dark:text-yellow-300">
+          <div class="text-lg sm:text-xl font-bold text-yellow-700 dark:text-yellow-300">
             {{ stats.doing }}
           </div>
-          <div class="text-xs text-yellow-600 dark:text-yellow-400">Doing</div>
+          <div class="text-[10px] sm:text-xs text-yellow-600 dark:text-yellow-400">Doing</div>
         </div>
         <div
-          class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 hidden md:block"
+          class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
         >
-          <div class="text-xl font-bold text-gray-700 dark:text-gray-300">{{ stats.done }}</div>
-          <div class="text-xs text-gray-600 dark:text-gray-400">Done</div>
+          <div class="text-lg sm:text-xl font-bold text-gray-700 dark:text-gray-300">
+            {{ stats.done }}
+          </div>
+          <div class="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400">Done</div>
         </div>
       </div>
 

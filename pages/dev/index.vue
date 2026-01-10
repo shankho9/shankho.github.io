@@ -1,6 +1,8 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-slate-900 py-6 sm:py-12 px-4 sm:px-6">
-    <div class="max-w-7xl mx-auto">
+  <div
+    class="min-h-screen bg-gray-50 dark:bg-slate-900 py-6 sm:py-12 px-4 sm:px-6 overflow-x-hidden"
+  >
+    <div class="max-w-7xl mx-auto w-full">
       <!-- Not Authenticated - Redirect to login -->
       <div v-if="!isAuthenticated" class="max-w-md mx-auto">
         <div class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 text-center">
@@ -37,9 +39,9 @@
         <!-- Utilities Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <!-- Visitor Analytics Utility -->
-          <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
-            @click="activeUtility = 'visitors'"
+          <NuxtLink
+            to="/dev/utilities/visitors"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation block"
           >
             <div class="flex items-center gap-4 mb-4">
               <div
@@ -55,7 +57,7 @@
             <p class="text-gray-600 dark:text-gray-400 text-sm">
               View unique visitors signing in to various pages with detailed analytics
             </p>
-          </div>
+          </NuxtLink>
 
           <!-- Location Manager Utility -->
           <NuxtLink
@@ -79,9 +81,9 @@
           </NuxtLink>
 
           <!-- Database Stats Utility -->
-          <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
-            @click="activeUtility = 'database'"
+          <NuxtLink
+            to="/dev/utilities/database"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation block"
           >
             <div class="flex items-center gap-4 mb-4">
               <div
@@ -97,12 +99,12 @@
             <p class="text-gray-600 dark:text-gray-400 text-sm">
               View database table statistics and row counts
             </p>
-          </div>
+          </NuxtLink>
 
           <!-- API Health Check Utility -->
-          <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
-            @click="activeUtility = 'health'"
+          <NuxtLink
+            to="/dev/utilities/health"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation block"
           >
             <div class="flex items-center gap-4 mb-4">
               <div
@@ -122,12 +124,12 @@
             <p class="text-gray-600 dark:text-gray-400 text-sm">
               Check API endpoints and database connectivity status
             </p>
-          </div>
+          </NuxtLink>
 
           <!-- Email Logs Utility -->
-          <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
-            @click="activeUtility = 'emails'"
+          <NuxtLink
+            to="/dev/utilities/emails"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation block"
           >
             <div class="flex items-center gap-4 mb-4">
               <div
@@ -143,12 +145,12 @@
             <p class="text-gray-600 dark:text-gray-400 text-sm">
               View email alert history and new user notifications
             </p>
-          </div>
+          </NuxtLink>
 
           <!-- Content Manager Utility -->
-          <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
-            @click="activeUtility = 'content'"
+          <NuxtLink
+            to="/dev/utilities/content"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation block"
           >
             <div class="flex items-center gap-4 mb-4">
               <div
@@ -168,12 +170,12 @@
             <p class="text-gray-600 dark:text-gray-400 text-sm">
               Quick links to manage blog posts, gallery items, and resources
             </p>
-          </div>
+          </NuxtLink>
 
           <!-- Cache Management Utility -->
-          <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation"
-            @click="activeUtility = 'cache'"
+          <NuxtLink
+            to="/dev/utilities/cache"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation block"
           >
             <div class="flex items-center gap-4 mb-4">
               <div
@@ -189,12 +191,12 @@
             <p class="text-gray-600 dark:text-gray-400 text-sm">
               Clear application cache and manage cache settings
             </p>
-          </div>
+          </NuxtLink>
 
           <!-- Personal Planner Utility -->
-          <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow active:scale-[0.98] touch-manipulation cursor-pointer"
-            @click="handlePlannerClick"
+          <NuxtLink
+            to="/dev/planner"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow active:scale-[0.98] touch-manipulation cursor-pointer block"
           >
             <div class="flex items-center gap-4 mb-4">
               <div
@@ -214,45 +216,7 @@
             <p class="text-gray-600 dark:text-gray-400 text-sm">
               Daily planner with Kanban board, weekly reviews, and printable plans
             </p>
-          </div>
-        </div>
-
-        <!-- Active Utility View -->
-        <div v-if="activeUtility" class="mt-6 md:mt-8">
-          <div
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 overflow-x-auto max-w-full"
-          >
-            <div class="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 class="text-xl sm:text-2xl font-bold">
-                {{ utilityTitles[activeUtility] }}
-              </h2>
-              <button
-                class="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
-                aria-label="Close utility"
-                @click="activeUtility = null"
-              >
-                <Icon name="mdi:close" size="24" />
-              </button>
-            </div>
-
-            <!-- Visitor Analytics Component -->
-            <DevVisitors v-if="activeUtility === 'visitors'" />
-
-            <!-- Database Stats Component -->
-            <DevDatabase v-else-if="activeUtility === 'database'" />
-
-            <!-- API Health Component -->
-            <DevHealth v-else-if="activeUtility === 'health'" />
-
-            <!-- Email Logs Component -->
-            <DevEmails v-else-if="activeUtility === 'emails'" />
-
-            <!-- Content Manager Component -->
-            <DevContent v-else-if="activeUtility === 'content'" />
-
-            <!-- Cache Management Component -->
-            <DevCache v-else-if="activeUtility === 'cache'" />
-          </div>
+          </NuxtLink>
         </div>
       </div>
     </div>
@@ -260,39 +224,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import DevVisitors from '~/components/dev/Visitors.vue'
-import DevDatabase from '~/components/dev/Database.vue'
-import DevHealth from '~/components/dev/Health.vue'
-import DevEmails from '~/components/dev/Emails.vue'
-import DevContent from '~/components/dev/Content.vue'
-import DevCache from '~/components/dev/Cache.vue'
+import { onMounted } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 
 const { isAuthenticated, checkAuth, signOut } = useAuth()
-const activeUtility = ref<string | null>(null)
-
-const utilityTitles: Record<string, string> = {
-  visitors: 'Visitor Analytics',
-  database: 'Database Statistics',
-  health: 'API Health Check',
-  emails: 'Email Logs',
-  content: 'Content Manager',
-  cache: 'Cache Management',
-}
 
 const handleLogout = async () => {
   await signOut()
-  activeUtility.value = null
   await navigateTo('/auth/login?redirect=/dev')
-}
-
-const handlePlannerClick = async () => {
-  if (!isAuthenticated.value) {
-    await navigateTo('/auth/login?redirect=/dev/planner')
-  } else {
-    await navigateTo('/dev/planner')
-  }
 }
 
 onMounted(async () => {

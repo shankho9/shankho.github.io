@@ -26,22 +26,35 @@
 
     <div v-else class="space-y-6">
       <!-- Summary -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
-          <div class="text-sm text-indigo-600 dark:text-indigo-400 mb-1">Total New Users</div>
-          <div class="text-2xl font-bold text-indigo-900 dark:text-indigo-100">
+      <div
+        class="flex flex-row flex-nowrap md:grid md:grid-cols-3 justify-around sm:justify-around gap-2 sm:gap-4 overflow-x-auto scrollbar-hide"
+        style="scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch"
+      >
+        <div
+          class="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3 sm:p-4 flex-1 min-w-0 text-center flex-shrink-0"
+        >
+          <div class="text-xs sm:text-sm text-indigo-600 dark:text-indigo-400 mb-1">
+            Total New Users
+          </div>
+          <div class="text-xl sm:text-2xl font-bold text-indigo-900 dark:text-indigo-100">
             {{ newUsers.length }}
           </div>
         </div>
-        <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-          <div class="text-sm text-green-600 dark:text-green-400 mb-1">Recent (Last 7 Days)</div>
-          <div class="text-2xl font-bold text-green-900 dark:text-green-100">
+        <div
+          class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 sm:p-4 flex-1 min-w-0 text-center flex-shrink-0"
+        >
+          <div class="text-xs sm:text-sm text-green-600 dark:text-green-400 mb-1">
+            Recent (Last 7 Days)
+          </div>
+          <div class="text-xl sm:text-2xl font-bold text-green-900 dark:text-green-100">
             {{ recentUsers.length }}
           </div>
         </div>
-        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-          <div class="text-sm text-blue-600 dark:text-blue-400 mb-1">This Month</div>
-          <div class="text-2xl font-bold text-blue-900 dark:text-blue-100">
+        <div
+          class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 sm:p-4 flex-1 min-w-0 text-center flex-shrink-0"
+        >
+          <div class="text-xs sm:text-sm text-blue-600 dark:text-blue-400 mb-1">This Month</div>
+          <div class="text-xl sm:text-2xl font-bold text-blue-900 dark:text-blue-100">
             {{ thisMonthUsers.length }}
           </div>
         </div>
@@ -50,59 +63,74 @@
       <!-- New Users Table -->
       <div>
         <h3 class="text-lg font-semibold mb-3">New User Alerts</h3>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-            <thead class="bg-gray-50 dark:bg-slate-700">
-              <tr>
-                <th
-                  class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                >
-                  Email
-                </th>
-                <th
-                  class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                >
-                  Name
-                </th>
-                <th
-                  class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                >
-                  Location
-                </th>
-                <th
-                  class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                >
-                  Country
-                </th>
-                <th
-                  class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                >
-                  First Login
-                </th>
-              </tr>
-            </thead>
-            <tbody
-              class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700"
-            >
-              <tr v-for="user in newUsers" :key="user.user_email">
-                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                  {{ user.user_email }}
-                </td>
-                <td class="px-4 py-3 whitespace-nowrap text-sm">
-                  {{ user.user_name }}
-                </td>
-                <td class="px-4 py-3 whitespace-nowrap text-sm">
-                  {{ user.login_location }}
-                </td>
-                <td class="px-4 py-3 whitespace-nowrap text-sm">
-                  {{ user.country || 'N/A' }}
-                </td>
-                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {{ formatDate(user.first_login) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div
+          class="overflow-x-auto -mx-3 sm:mx-0 scrollbar-hide"
+          style="scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch"
+        >
+          <div class="inline-block min-w-full align-middle px-3 sm:px-0">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+              <thead class="bg-gray-50 dark:bg-slate-700">
+                <tr>
+                  <th
+                    class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                  >
+                    Email
+                  </th>
+                  <th
+                    class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell"
+                  >
+                    Name
+                  </th>
+                  <th
+                    class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell"
+                  >
+                    Location
+                  </th>
+                  <th
+                    class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell"
+                  >
+                    Country
+                  </th>
+                  <th
+                    class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                  >
+                    First Login
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700"
+              >
+                <tr v-for="user in newUsers" :key="user.user_email">
+                  <td
+                    class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium break-all max-w-[150px] sm:max-w-none sm:break-words"
+                  >
+                    {{ user.user_email }}
+                  </td>
+                  <td
+                    class="px-2 sm:px-4 py-2 sm:py-3 text-sm whitespace-nowrap hidden md:table-cell"
+                  >
+                    {{ user.user_name }}
+                  </td>
+                  <td
+                    class="px-2 sm:px-4 py-2 sm:py-3 text-sm break-words max-w-[100px] lg:max-w-none lg:whitespace-nowrap hidden lg:table-cell"
+                  >
+                    {{ user.login_location }}
+                  </td>
+                  <td
+                    class="px-2 sm:px-4 py-2 sm:py-3 text-sm whitespace-nowrap hidden lg:table-cell"
+                  >
+                    {{ user.country || 'N/A' }}
+                  </td>
+                  <td
+                    class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap"
+                  >
+                    {{ formatDate(user.first_login) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

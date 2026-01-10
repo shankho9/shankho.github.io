@@ -165,22 +165,27 @@ onMounted(() => {
     <div v-else>
       <!-- Tabs -->
       <div class="mb-6 border-b border-gray-200 dark:border-slate-700">
-        <nav class="flex space-x-8" aria-label="Resource Tabs">
+        <nav
+          class="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-8 overflow-x-auto scrollbar-hide -mx-1 px-1"
+          aria-label="Resource Tabs"
+          style="scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch"
+        >
           <button
             :class="[
-              'py-4 px-1 border-b-2 font-semibold text-sm transition-colors',
+              'py-3 sm:py-4 px-3 sm:px-1 border-b-2 font-semibold text-xs sm:text-sm transition-colors whitespace-nowrap flex-shrink-0',
               activeResourceTab === 'books'
                 ? 'border-sky-700 dark:border-sky-400 text-sky-700 dark:text-sky-400'
                 : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600',
             ]"
             @click="activeResourceTab = 'books'"
           >
-            <div class="flex items-center gap-2">
-              <Icon name="mdi:book-open-variant" size="20" />
-              <span>Recommended Books</span>
+            <div class="flex items-center gap-1.5 sm:gap-2">
+              <Icon name="mdi:book-open-variant" size="18" class="sm:w-5 sm:h-5" />
+              <span class="hidden sm:inline">Recommended Books</span>
+              <span class="sm:hidden">Books</span>
               <span
                 v-if="books.length > 0"
-                class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
+                class="ml-1 sm:ml-2 px-1.5 sm:px-2 py-0.5 text-xs font-semibold rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
               >
                 {{ books.length }}
               </span>
@@ -188,19 +193,20 @@ onMounted(() => {
           </button>
           <button
             :class="[
-              'py-4 px-1 border-b-2 font-semibold text-sm transition-colors',
+              'py-3 sm:py-4 px-3 sm:px-1 border-b-2 font-semibold text-xs sm:text-sm transition-colors whitespace-nowrap flex-shrink-0',
               activeResourceTab === 'tools'
                 ? 'border-sky-700 dark:border-sky-400 text-sky-700 dark:text-sky-400'
                 : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600',
             ]"
             @click="activeResourceTab = 'tools'"
           >
-            <div class="flex items-center gap-2">
-              <Icon name="mdi:tools" size="20" />
-              <span>Tools I Use</span>
+            <div class="flex items-center gap-1.5 sm:gap-2">
+              <Icon name="mdi:tools" size="18" class="sm:w-5 sm:h-5" />
+              <span class="hidden sm:inline">Tools I Use</span>
+              <span class="sm:hidden">Tools</span>
               <span
                 v-if="tools.length > 0"
-                class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
+                class="ml-1 sm:ml-2 px-1.5 sm:px-2 py-0.5 text-xs font-semibold rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
               >
                 {{ tools.length }}
               </span>
@@ -208,19 +214,20 @@ onMounted(() => {
           </button>
           <button
             :class="[
-              'py-4 px-1 border-b-2 font-semibold text-sm transition-colors',
+              'py-3 sm:py-4 px-3 sm:px-1 border-b-2 font-semibold text-xs sm:text-sm transition-colors whitespace-nowrap flex-shrink-0',
               activeResourceTab === 'learning'
                 ? 'border-sky-700 dark:border-sky-400 text-sky-700 dark:text-sky-400'
                 : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600',
             ]"
             @click="activeResourceTab = 'learning'"
           >
-            <div class="flex items-center gap-2">
-              <Icon name="mdi:school" size="20" />
-              <span>Learning Resources</span>
+            <div class="flex items-center gap-1.5 sm:gap-2">
+              <Icon name="mdi:school" size="18" class="sm:w-5 sm:h-5" />
+              <span class="hidden sm:inline">Learning Resources</span>
+              <span class="sm:hidden">Learning</span>
               <span
                 v-if="learningResources.length > 0"
-                class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
+                class="ml-1 sm:ml-2 px-1.5 sm:px-2 py-0.5 text-xs font-semibold rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
               >
                 {{ learningResources.length }}
               </span>
@@ -318,3 +325,15 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Hide scrollbar for mobile navigation */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+</style>

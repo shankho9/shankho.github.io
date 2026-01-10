@@ -270,19 +270,21 @@ try {
       <!-- Stats Section -->
       <div class="px-6 mb-6">
         <div
-          class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-[#F1F2F4] dark:bg-slate-900 rounded-2xl"
+          class="flex flex-row justify-around sm:justify-around gap-2 sm:gap-4 p-3 sm:p-4 bg-[#F1F2F4] dark:bg-slate-900 rounded-2xl"
         >
-          <div class="text-center">
-            <div class="text-3xl font-bold text-sky-700 dark:text-sky-400">
+          <div class="text-center flex-1">
+            <div class="text-2xl sm:text-3xl font-bold text-sky-700 dark:text-sky-400">
               {{ stats.totalPosts }}
             </div>
-            <div class="text-sm text-zinc-600 dark:text-zinc-400 mt-1">Total Lifelines</div>
+            <div class="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+              Total Lifelines
+            </div>
           </div>
-          <div class="text-center">
-            <div class="text-3xl font-bold text-sky-700 dark:text-sky-400">
+          <div class="text-center flex-1">
+            <div class="text-2xl sm:text-3xl font-bold text-sky-700 dark:text-sky-400">
               {{ stats.totalTags }}
             </div>
-            <div class="text-sm text-zinc-600 dark:text-zinc-400 mt-1">Tags</div>
+            <div class="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mt-1">Tags</div>
           </div>
         </div>
       </div>

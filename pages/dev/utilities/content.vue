@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import DevLocations from '~/components/dev/Locations.vue'
+import DevContent from '~/components/dev/Content.vue'
 import { useAuth } from '~/composables/useAuth'
 
 definePageMeta({
@@ -22,10 +22,10 @@ onMounted(async () => {
   <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-full overflow-x-hidden">
     <div v-if="!isAuthenticated" class="max-w-md mx-auto">
       <div class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 text-center">
-        <h1 class="text-3xl font-bold mb-2">Location Manager</h1>
+        <h1 class="text-3xl font-bold mb-2">Content Manager</h1>
         <p class="text-gray-600 dark:text-gray-400 mb-6">Authentication required</p>
         <NuxtLink
-          to="/auth/login?redirect=/dev/locations"
+          to="/auth/login?redirect=/dev/utilities/content"
           class="inline-block px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
         >
           Sign In
@@ -41,10 +41,10 @@ onMounted(async () => {
         >
           <div>
             <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-              Location Manager
+              Content Manager
             </h1>
             <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
-              Add and manage locations on your travel map
+              Quick links to manage blog posts, gallery items, and resources
             </p>
           </div>
           <NuxtLink
@@ -56,8 +56,8 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Location Manager Component -->
-      <DevLocations />
+      <!-- Content Manager Component -->
+      <DevContent />
     </div>
   </div>
 </template>

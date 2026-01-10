@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-6 w-full">
     <div
       class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4"
     >
@@ -11,7 +11,7 @@
     </div>
 
     <!-- Cache Actions -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
       <div
         class="bg-white dark:bg-slate-700 rounded-lg p-6 border border-gray-200 dark:border-slate-600"
       >

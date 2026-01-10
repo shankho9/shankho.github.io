@@ -579,7 +579,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-6xl">
+  <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-6xl w-full overflow-x-hidden">
     <!-- Header -->
     <div class="mb-4 sm:mb-6">
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
@@ -672,84 +672,108 @@ onUnmounted(() => {
         </h2>
 
         <!-- Overview Stats -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        <div
+          class="flex flex-row flex-nowrap md:grid md:grid-cols-4 justify-around sm:justify-around gap-2 sm:gap-3 md:gap-4 mb-6 overflow-x-auto scrollbar-hide"
+          style="scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch"
+        >
           <div
-            class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4"
+            class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
           >
-            <div class="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-300">
+            <div class="text-lg sm:text-xl md:text-2xl font-bold text-blue-700 dark:text-blue-300">
               {{ openTasksMetrics.total }}
             </div>
-            <div class="text-xs sm:text-sm text-blue-600 dark:text-blue-400">Total Open</div>
+            <div class="text-[10px] sm:text-xs md:text-sm text-blue-600 dark:text-blue-400">
+              Total Open
+            </div>
           </div>
           <div
-            class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3 sm:p-4"
+            class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
           >
-            <div class="text-xl sm:text-2xl font-bold text-red-700 dark:text-red-300">
+            <div class="text-lg sm:text-xl md:text-2xl font-bold text-red-700 dark:text-red-300">
               {{ openTasksMetrics.withMits }}
             </div>
-            <div class="text-xs sm:text-sm text-red-600 dark:text-red-400">With MITs</div>
+            <div class="text-[10px] sm:text-xs md:text-sm text-red-600 dark:text-red-400">
+              With MITs
+            </div>
           </div>
           <div
-            class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4"
+            class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
           >
-            <div class="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300">
+            <div class="text-lg sm:text-xl md:text-2xl font-bold text-gray-700 dark:text-gray-300">
               {{ openTasksMetrics.withoutMits }}
             </div>
-            <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Regular Tasks</div>
+            <div class="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400">
+              Regular Tasks
+            </div>
           </div>
           <div
-            class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3 sm:p-4"
+            class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
           >
-            <div class="text-xl sm:text-2xl font-bold text-purple-700 dark:text-purple-300">
+            <div
+              class="text-lg sm:text-xl md:text-2xl font-bold text-purple-700 dark:text-purple-300"
+            >
               {{ openTasksMetrics.byPriority.high }}
             </div>
-            <div class="text-xs sm:text-sm text-purple-600 dark:text-purple-400">High Priority</div>
+            <div class="text-[10px] sm:text-xs md:text-sm text-purple-600 dark:text-purple-400">
+              High Priority
+            </div>
           </div>
         </div>
 
         <!-- Task Aging -->
         <div class="mb-6">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Task Aging</h3>
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div
+            class="flex flex-row flex-nowrap md:grid md:grid-cols-5 justify-around sm:justify-around gap-2 sm:gap-3 overflow-x-auto scrollbar-hide"
+            style="
+              scrollbar-width: none;
+              -ms-overflow-style: none;
+              -webkit-overflow-scrolling: touch;
+            "
+          >
             <div
-              class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3"
+              class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
             >
-              <div class="text-lg font-bold text-green-700 dark:text-green-300">
+              <div class="text-base sm:text-lg font-bold text-green-700 dark:text-green-300">
                 {{ openTasksMetrics.aging['0-7'] }}
               </div>
-              <div class="text-xs text-green-600 dark:text-green-400">0-7 days</div>
+              <div class="text-[10px] sm:text-xs text-green-600 dark:text-green-400">0-7 days</div>
             </div>
             <div
-              class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3"
+              class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
             >
-              <div class="text-lg font-bold text-yellow-700 dark:text-yellow-300">
+              <div class="text-base sm:text-lg font-bold text-yellow-700 dark:text-yellow-300">
                 {{ openTasksMetrics.aging['8-14'] }}
               </div>
-              <div class="text-xs text-yellow-600 dark:text-yellow-400">8-14 days</div>
+              <div class="text-[10px] sm:text-xs text-yellow-600 dark:text-yellow-400">
+                8-14 days
+              </div>
             </div>
             <div
-              class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3"
+              class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
             >
-              <div class="text-lg font-bold text-orange-700 dark:text-orange-300">
+              <div class="text-base sm:text-lg font-bold text-orange-700 dark:text-orange-300">
                 {{ openTasksMetrics.aging['15-30'] }}
               </div>
-              <div class="text-xs text-orange-600 dark:text-orange-400">15-30 days</div>
+              <div class="text-[10px] sm:text-xs text-orange-600 dark:text-orange-400">
+                15-30 days
+              </div>
             </div>
             <div
-              class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3"
+              class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
             >
-              <div class="text-lg font-bold text-red-700 dark:text-red-300">
+              <div class="text-base sm:text-lg font-bold text-red-700 dark:text-red-300">
                 {{ openTasksMetrics.aging['31-60'] }}
               </div>
-              <div class="text-xs text-red-600 dark:text-red-400">31-60 days</div>
+              <div class="text-[10px] sm:text-xs text-red-600 dark:text-red-400">31-60 days</div>
             </div>
             <div
-              class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+              class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
             >
-              <div class="text-lg font-bold text-gray-700 dark:text-gray-300">
+              <div class="text-base sm:text-lg font-bold text-gray-700 dark:text-gray-300">
                 {{ openTasksMetrics.aging['60+'] }}
               </div>
-              <div class="text-xs text-gray-600 dark:text-gray-400">60+ days</div>
+              <div class="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400">60+ days</div>
             </div>
           </div>
         </div>
@@ -789,40 +813,59 @@ onUnmounted(() => {
           <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
             Closure Trends
           </h3>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div
+            class="flex flex-row flex-nowrap md:grid md:grid-cols-4 justify-around sm:justify-around gap-2 sm:gap-3 md:gap-4 overflow-x-auto scrollbar-hide"
+            style="
+              scrollbar-width: none;
+              -ms-overflow-style: none;
+              -webkit-overflow-scrolling: touch;
+            "
+          >
             <div
-              class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3 sm:p-4"
+              class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
             >
-              <div class="text-xl sm:text-2xl font-bold text-green-700 dark:text-green-300">
+              <div
+                class="text-lg sm:text-xl md:text-2xl font-bold text-green-700 dark:text-green-300"
+              >
                 {{ closedTasksMetrics.trends.thisWeek }}
               </div>
-              <div class="text-xs sm:text-sm text-green-600 dark:text-green-400">This Week</div>
+              <div class="text-[10px] sm:text-xs md:text-sm text-green-600 dark:text-green-400">
+                This Week
+              </div>
             </div>
             <div
-              class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4"
+              class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
             >
-              <div class="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-300">
+              <div
+                class="text-lg sm:text-xl md:text-2xl font-bold text-blue-700 dark:text-blue-300"
+              >
                 {{ closedTasksMetrics.trends.thisMonth }}
               </div>
-              <div class="text-xs sm:text-sm text-blue-600 dark:text-blue-400">This Month</div>
+              <div class="text-[10px] sm:text-xs md:text-sm text-blue-600 dark:text-blue-400">
+                This Month
+              </div>
             </div>
             <div
-              class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3 sm:p-4"
+              class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
             >
-              <div class="text-xl sm:text-2xl font-bold text-purple-700 dark:text-purple-300">
+              <div
+                class="text-lg sm:text-xl md:text-2xl font-bold text-purple-700 dark:text-purple-300"
+              >
                 {{ closedTasksMetrics.trends.last3Months }}
               </div>
-              <div class="text-xs sm:text-sm text-purple-600 dark:text-purple-400">
+              <div class="text-[10px] sm:text-xs md:text-sm text-purple-600 dark:text-purple-400">
                 Last 3 Months
               </div>
             </div>
             <div
-              class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 sm:p-4"
+              class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
             >
-              <div class="text-xl sm:text-2xl font-bold text-orange-700 dark:text-orange-300">
+              <div
+                class="text-lg sm:text-xl md:text-2xl font-bold text-orange-700 dark:text-orange-300"
+              >
                 {{ closedTasksMetrics.trends.last6Months }}
               </div>
-              <div class="text-xs sm:text-sm text-orange-600 dark:text-orange-400">
+              <div class="text-[10px] sm:text-xs md:text-sm text-orange-600 dark:text-orange-400">
                 Last 6 Months
               </div>
             </div>
@@ -832,30 +875,47 @@ onUnmounted(() => {
         <!-- Total Closed Stats -->
         <div class="mb-6">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Total Closed</h3>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+          <div
+            class="flex flex-row flex-nowrap md:grid md:grid-cols-3 justify-around sm:justify-around gap-2 sm:gap-3 md:gap-4 overflow-x-auto scrollbar-hide"
+            style="
+              scrollbar-width: none;
+              -ms-overflow-style: none;
+              -webkit-overflow-scrolling: touch;
+            "
+          >
             <div
-              class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3 sm:p-4"
+              class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
             >
-              <div class="text-xl sm:text-2xl font-bold text-green-700 dark:text-green-300">
+              <div
+                class="text-lg sm:text-xl md:text-2xl font-bold text-green-700 dark:text-green-300"
+              >
                 {{ closedTasksMetrics.totalClosed }}
               </div>
-              <div class="text-xs sm:text-sm text-green-600 dark:text-green-400">Total Closed</div>
+              <div class="text-[10px] sm:text-xs md:text-sm text-green-600 dark:text-green-400">
+                Total Closed
+              </div>
             </div>
             <div
-              class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3 sm:p-4"
+              class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
             >
-              <div class="text-xl sm:text-2xl font-bold text-red-700 dark:text-red-300">
+              <div class="text-lg sm:text-xl md:text-2xl font-bold text-red-700 dark:text-red-300">
                 {{ closedTasksMetrics.totalMits }}
               </div>
-              <div class="text-xs sm:text-sm text-red-600 dark:text-red-400">With MITs</div>
+              <div class="text-[10px] sm:text-xs md:text-sm text-red-600 dark:text-red-400">
+                With MITs
+              </div>
             </div>
             <div
-              class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4"
+              class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
             >
-              <div class="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300">
+              <div
+                class="text-lg sm:text-xl md:text-2xl font-bold text-gray-700 dark:text-gray-300"
+              >
                 {{ closedTasksMetrics.totalRegular }}
               </div>
-              <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Regular Tasks</div>
+              <div class="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400">
+                Regular Tasks
+              </div>
             </div>
           </div>
         </div>
