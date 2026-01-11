@@ -15,6 +15,7 @@ export interface Task {
   notes: string | null
   theme: string | null
   depends_on_task_id: number | null
+  rollover_count: number
   created_at: string
   updated_at: string
 }
@@ -54,7 +55,9 @@ export default defineEventHandler(async (event) => {
     // Use efficient WHERE clause with index-friendly conditions
     let sql = `SELECT id, title, status, is_mit, priority, 
                TO_CHAR(planned_date, 'YYYY-MM-DD') as planned_date,
-               notes, theme, depends_on_task_id, created_at, updated_at 
+               notes, theme, depends_on_task_id, 
+               COALESCE(rollover_count, 0) as rollover_count,
+               created_at, updated_at 
                FROM tasks 
                WHERE (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')
                AND (is_archived IS NULL OR is_archived = false)`

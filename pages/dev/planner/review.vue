@@ -2,7 +2,11 @@
 import { onUnmounted, onMounted } from 'vue'
 import type { Task } from '~/server/api/planner/tasks.get'
 import type { ArchiveStats } from '~/server/api/planner/archive-stats.get'
-import { getLocalDateString, formatDateToDisplay } from '~/utils/common/dateParser'
+import {
+  getLocalDateString,
+  formatDateToDisplay,
+  calculateDaysOverdue,
+} from '~/utils/common/dateParser'
 
 definePageMeta({
   layout: 'default',
@@ -72,6 +76,22 @@ const openTasksMetrics = computed(() => {
     low: open.filter((t) => t.priority === 'low').length,
   }
 
+  // Tasks that slip due date (planned_date is in the past and task is not done)
+  const today = getLocalDateString()
+  const tasksSlippedDueDate = open.filter((task) => {
+    if (!task.planned_date) return false
+    return calculateDaysOverdue(task.planned_date, task.status, today) > 0
+  })
+  const tasksSlippedCount = tasksSlippedDueDate.length
+
+  // Average days overdue for tasks that slipped
+  let totalDaysOverdue = 0
+  tasksSlippedDueDate.forEach((task) => {
+    totalDaysOverdue += calculateDaysOverdue(task.planned_date, task.status, today)
+  })
+  const avgDaysOverdue =
+    tasksSlippedCount > 0 ? Math.round(totalDaysOverdue / tasksSlippedCount) : 0
+
   return {
     total,
     withMits,
@@ -79,6 +99,8 @@ const openTasksMetrics = computed(() => {
     byBucket: byBucketArray,
     aging,
     byPriority,
+    tasksSlippedCount,
+    avgDaysOverdue,
   }
 })
 
@@ -211,6 +233,10 @@ const closedTasksMetrics = computed(() => {
   let totalDaysToClose = 0
   let tasksWithTimeData = 0
 
+  // Also calculate average days overdue when task was closed (if it had a planned_date)
+  let totalDaysOverdueWhenClosed = 0
+  let tasksWithOverdueData = 0
+
   closed.forEach((task) => {
     if (task.created_at && task.updated_at) {
       const created = new Date(task.created_at)
@@ -221,10 +247,56 @@ const closedTasksMetrics = computed(() => {
         tasksWithTimeData++
       }
     }
+
+    // Calculate days overdue when task was closed (if it had a planned_date)
+    if (task.planned_date && task.updated_at) {
+      // Use consistent date parsing (same as calculateDaysOverdue) to avoid timezone issues
+      // Parse planned_date components to create local date (avoids UTC parsing issues)
+      if (/^\d{4}-\d{2}-\d{2}$/.test(task.planned_date)) {
+        const [year, month, day] = task.planned_date.split('-').map(Number)
+        const plannedDate = new Date(year, month - 1, day)
+        plannedDate.setHours(0, 0, 0, 0)
+
+        // Validate the date
+        if (
+          plannedDate.getFullYear() === year &&
+          plannedDate.getMonth() === month - 1 &&
+          plannedDate.getDate() === day
+        ) {
+          // Parse updated_at (when task was closed) - it's an ISO datetime string
+          // Extract just the date portion (YYYY-MM-DD) to avoid timezone issues
+          // Parse it as a local date to match planned_date parsing
+          const updatedAtDateOnly = task.updated_at.split('T')[0] // Extract YYYY-MM-DD from ISO string
+          if (/^\d{4}-\d{2}-\d{2}$/.test(updatedAtDateOnly)) {
+            const [closedYear, closedMonth, closedDay] = updatedAtDateOnly.split('-').map(Number)
+            const closedDate = new Date(closedYear, closedMonth - 1, closedDay)
+            closedDate.setHours(0, 0, 0, 0)
+
+            // Validate the date
+            if (
+              closedDate.getFullYear() === closedYear &&
+              closedDate.getMonth() === closedMonth - 1 &&
+              closedDate.getDate() === closedDay
+            ) {
+              const diffTime = closedDate.getTime() - plannedDate.getTime()
+              const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+              // Only count if task was closed after due date (overdue)
+              if (diffDays > 0) {
+                totalDaysOverdueWhenClosed += diffDays
+                tasksWithOverdueData++
+              }
+            }
+          }
+        }
+      }
+    }
   })
 
   const avgDaysToClose =
     tasksWithTimeData > 0 ? Math.round(totalDaysToClose / tasksWithTimeData) : 0
+  const avgDaysOverdueWhenClosed =
+    tasksWithOverdueData > 0 ? Math.round(totalDaysOverdueWhenClosed / tasksWithOverdueData) : 0
 
   return {
     totalClosed,
@@ -233,6 +305,8 @@ const closedTasksMetrics = computed(() => {
     trends,
     closedByBucket: closedByBucketArray,
     avgDaysToClose,
+    avgDaysOverdueWhenClosed,
+    tasksClosedOverdue: tasksWithOverdueData,
   }
 })
 
@@ -716,6 +790,42 @@ onUnmounted(() => {
             </div>
             <div class="text-[10px] sm:text-xs md:text-sm text-purple-600 dark:text-purple-400">
               High Priority
+            </div>
+          </div>
+        </div>
+
+        <!-- Tasks Slipped Due Date -->
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+            Tasks Slipped Due Date
+          </h3>
+          <div
+            class="flex flex-row flex-nowrap md:grid md:grid-cols-2 justify-around sm:justify-around gap-2 sm:gap-3 overflow-x-auto scrollbar-hide"
+            style="
+              scrollbar-width: none;
+              -ms-overflow-style: none;
+              -webkit-overflow-scrolling: touch;
+            "
+          >
+            <div
+              class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
+            >
+              <div class="text-base sm:text-lg font-bold text-orange-700 dark:text-orange-300">
+                {{ openTasksMetrics.tasksSlippedCount }}
+              </div>
+              <div class="text-[10px] sm:text-xs text-orange-600 dark:text-orange-400">
+                Tasks Overdue
+              </div>
+            </div>
+            <div
+              class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
+            >
+              <div class="text-base sm:text-lg font-bold text-red-700 dark:text-red-300">
+                {{ openTasksMetrics.avgDaysOverdue }}
+              </div>
+              <div class="text-[10px] sm:text-xs text-red-600 dark:text-red-400">
+                Avg Days Overdue
+              </div>
             </div>
           </div>
         </div>
@@ -1305,14 +1415,24 @@ onUnmounted(() => {
 
         <!-- Insights -->
         <div
-          v-if="closedTasksMetrics.avgDaysToClose > 0"
+          v-if="
+            closedTasksMetrics.avgDaysToClose > 0 || closedTasksMetrics.avgDaysOverdueWhenClosed > 0
+          "
           class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6"
         >
           <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Insights</h3>
-          <div class="text-sm text-gray-700 dark:text-gray-300">
-            <p>
+          <div class="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+            <p v-if="closedTasksMetrics.avgDaysToClose > 0">
               Average time to close tasks:
               <strong>{{ closedTasksMetrics.avgDaysToClose }} days</strong>
+            </p>
+            <p v-if="closedTasksMetrics.tasksClosedOverdue > 0">
+              Tasks closed after due date:
+              <strong>{{ closedTasksMetrics.tasksClosedOverdue }}</strong>
+            </p>
+            <p v-if="closedTasksMetrics.avgDaysOverdueWhenClosed > 0">
+              Average days overdue when closed:
+              <strong>{{ closedTasksMetrics.avgDaysOverdueWhenClosed }} days</strong>
             </p>
           </div>
         </div>
@@ -1357,6 +1477,12 @@ onUnmounted(() => {
                     ]"
                   >
                     {{ task.title }}
+                  </span>
+                  <span
+                    v-if="task.rollover_count && task.rollover_count > 0"
+                    class="font-bold text-red-600 dark:text-red-400 ml-1"
+                  >
+                    +{{ task.rollover_count }}
                   </span>
                   <span
                     v-if="task.theme"
