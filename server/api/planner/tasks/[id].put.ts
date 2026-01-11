@@ -260,7 +260,7 @@ export default defineEventHandler(async (event) => {
 
     params.push(id)
     const sql = `UPDATE tasks SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${paramIndex} 
-                 RETURNING id, title, status, is_mit, priority, TO_CHAR(planned_date, 'YYYY-MM-DD') as planned_date, notes, theme, depends_on_task_id, created_at, updated_at`
+                 RETURNING id, title, status, is_mit, priority, TO_CHAR(planned_date, 'YYYY-MM-DD') as planned_date, notes, theme, depends_on_task_id, COALESCE(rollover_count, 0) as rollover_count, created_at, updated_at`
 
     const result = await query<{
       id: number
@@ -272,6 +272,7 @@ export default defineEventHandler(async (event) => {
       notes: string | null
       theme: string | null
       depends_on_task_id: number | null
+      rollover_count: number
       created_at: string
       updated_at: string
     }>(sql, params)

@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { reactive, onMounted, onUnmounted, watch } from 'vue'
 import type { Task } from '~/server/api/planner/tasks.get'
-import { getLocalDateString, formatDateToDisplay } from '~/utils/common/dateParser'
+import {
+  getLocalDateString,
+  formatDateToDisplay,
+  formatDateRelative,
+} from '~/utils/common/dateParser'
 import {
   groupTasksByQuadrant,
   enrichTaskWithQuadrant,
@@ -434,9 +438,16 @@ watch(selectedDate, () => {
                   ? quadrantData[0].tasks
                   : quadrantData[0].tasks.slice(0, 10)"
                 :key="task.id"
-                class="text-xs text-gray-900 dark:text-gray-100 py-0.5"
+                class="text-xs text-gray-900 dark:text-gray-100 py-0.5 flex items-center gap-1"
               >
                 <span class="font-medium">{{ task.title }}</span>
+                <span
+                  v-if="task.rollover_count && task.rollover_count > 0"
+                  class="font-bold whitespace-nowrap flex-shrink-0"
+                  style="color: rgb(220, 38, 38) !important; font-weight: bold !important"
+                >
+                  +{{ task.rollover_count }}
+                </span>
                 <span class="inline-flex items-center gap-1 ml-2">
                   <span
                     v-if="task.theme"
@@ -448,7 +459,11 @@ watch(selectedDate, () => {
                     v-if="task.planned_date"
                     class="px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded"
                   >
-                    {{ formatDateToDisplay(task.planned_date) || task.planned_date }}
+                    {{
+                      formatDateRelative(task.planned_date) ||
+                      formatDateToDisplay(task.planned_date) ||
+                      task.planned_date
+                    }}
                   </span>
                 </span>
               </div>
@@ -484,9 +499,16 @@ watch(selectedDate, () => {
                   ? quadrantData[1].tasks
                   : quadrantData[1].tasks.slice(0, 10)"
                 :key="task.id"
-                class="text-xs text-gray-900 dark:text-gray-100 py-0.5"
+                class="text-xs text-gray-900 dark:text-gray-100 py-0.5 flex items-center gap-1"
               >
                 <span class="font-medium">{{ task.title }}</span>
+                <span
+                  v-if="task.rollover_count && task.rollover_count > 0"
+                  class="font-bold whitespace-nowrap flex-shrink-0"
+                  style="color: rgb(220, 38, 38) !important; font-weight: bold !important"
+                >
+                  +{{ task.rollover_count }}
+                </span>
                 <span class="inline-flex items-center gap-1 ml-2">
                   <span
                     v-if="task.theme"
@@ -498,7 +520,11 @@ watch(selectedDate, () => {
                     v-if="task.planned_date"
                     class="px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded"
                   >
-                    {{ formatDateToDisplay(task.planned_date) || task.planned_date }}
+                    {{
+                      formatDateRelative(task.planned_date) ||
+                      formatDateToDisplay(task.planned_date) ||
+                      task.planned_date
+                    }}
                   </span>
                 </span>
               </div>
@@ -536,9 +562,16 @@ watch(selectedDate, () => {
                   ? quadrantData[2].tasks
                   : quadrantData[2].tasks.slice(0, 10)"
                 :key="task.id"
-                class="text-xs text-gray-900 dark:text-gray-100 py-0.5"
+                class="text-xs text-gray-900 dark:text-gray-100 py-0.5 flex items-center gap-1"
               >
                 <span class="font-medium">{{ task.title }}</span>
+                <span
+                  v-if="task.rollover_count && task.rollover_count > 0"
+                  class="font-bold whitespace-nowrap flex-shrink-0"
+                  style="color: rgb(220, 38, 38) !important; font-weight: bold !important"
+                >
+                  +{{ task.rollover_count }}
+                </span>
                 <span class="inline-flex items-center gap-1 ml-2">
                   <span
                     v-if="task.theme"
@@ -550,7 +583,11 @@ watch(selectedDate, () => {
                     v-if="task.planned_date"
                     class="px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded"
                   >
-                    {{ formatDateToDisplay(task.planned_date) || task.planned_date }}
+                    {{
+                      formatDateRelative(task.planned_date) ||
+                      formatDateToDisplay(task.planned_date) ||
+                      task.planned_date
+                    }}
                   </span>
                 </span>
               </div>
@@ -590,9 +627,16 @@ watch(selectedDate, () => {
                   ? quadrantData[3].tasks
                   : quadrantData[3].tasks.slice(0, 10)"
                 :key="task.id"
-                class="text-xs text-gray-600 dark:text-gray-400 py-0.5"
+                class="text-xs text-gray-600 dark:text-gray-400 py-0.5 flex items-center gap-1"
               >
                 <span class="font-medium">{{ task.title }}</span>
+                <span
+                  v-if="task.rollover_count && task.rollover_count > 0"
+                  class="font-bold text-red-600 dark:text-red-400 ml-1 whitespace-nowrap flex-shrink-0"
+                  style="color: rgb(220, 38, 38) !important; font-weight: bold !important"
+                >
+                  +{{ task.rollover_count }}
+                </span>
                 <span class="inline-flex items-center gap-1 ml-2">
                   <span
                     v-if="task.theme"
@@ -604,7 +648,11 @@ watch(selectedDate, () => {
                     v-if="task.planned_date"
                     class="px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded"
                   >
-                    {{ formatDateToDisplay(task.planned_date) || task.planned_date }}
+                    {{
+                      formatDateRelative(task.planned_date) ||
+                      formatDateToDisplay(task.planned_date) ||
+                      task.planned_date
+                    }}
                   </span>
                 </span>
               </div>
@@ -657,7 +705,14 @@ watch(selectedDate, () => {
                 :key="task.id"
                 class="text-xs text-gray-600 dark:text-gray-400 truncate"
               >
-                {{ task.title }}
+                <span>{{ task.title }}</span>
+                <span
+                  v-if="task.rollover_count && task.rollover_count > 0"
+                  class="font-bold text-red-600 dark:text-red-400 ml-1"
+                  style="color: rgb(220, 38, 38) !important; font-weight: bold !important"
+                >
+                  +{{ task.rollover_count }}
+                </span>
               </div>
               <div v-if="item.tasks.length > 5" class="text-xs text-gray-500 dark:text-gray-400">
                 +{{ item.tasks.length - 5 }} more

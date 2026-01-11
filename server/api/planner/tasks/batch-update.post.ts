@@ -30,11 +30,13 @@ export default defineEventHandler(async (event) => {
 
     // Use a single UPDATE with WHERE IN clause
     // This uses only ONE database connection instead of N connections
+    // Increment rollover_count when rolling over dates
     const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ')
     const dateParamIndex = ids.length + 1
     const result = await query<{ id: number }>(
       `UPDATE tasks 
        SET planned_date = $${dateParamIndex}::date, 
+           rollover_count = COALESCE(rollover_count, 0) + 1,
            updated_at = CURRENT_TIMESTAMP 
        WHERE id IN (${placeholders}) 
          AND status = 'doing'

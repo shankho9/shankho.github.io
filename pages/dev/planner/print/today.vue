@@ -17,34 +17,26 @@ const isLoading = ref(true)
 // Filter out closed tasks
 const openTasks = computed(() => tasks.value.filter((t) => t.status !== 'done'))
 
-// Top 15 tasks prioritized by MITs and tasks open since long time
+// Top 15 tasks prioritized by MITs and then by date (earliest date first)
 const top15Tasks = computed(() => {
-  const now = new Date()
   const enriched = openTasks.value.map((t) => enrichTaskWithQuadrant(t, getLocalDateString()))
 
-  // Calculate days open for each task
-  const tasksWithDaysOpen = enriched.map((task) => {
-    const created = task.created_at ? new Date(task.created_at) : new Date()
-    const daysOpen = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
-    return { task, daysOpen }
-  })
-
-  // Sort: MITs first, then by days open (oldest first), then by priority score
-  return tasksWithDaysOpen
+  // Sort: MITs first, then by planned_date (earliest date first)
+  return enriched
     .sort((a, b) => {
       // MITs come first
-      if (a.task.is_mit !== b.task.is_mit) {
-        return b.task.is_mit ? 1 : -1
+      if (a.is_mit !== b.is_mit) {
+        return b.is_mit ? 1 : -1
       }
-      // Then by days open (oldest first)
-      if (a.daysOpen !== b.daysOpen) {
-        return b.daysOpen - a.daysOpen
-      }
-      // Then by priority score
-      return b.task.priorityScore - a.task.priorityScore
+      // Then by planned_date (earliest date first)
+      // Tasks without dates go to the end
+      if (!a.planned_date && !b.planned_date) return 0
+      if (!a.planned_date) return 1
+      if (!b.planned_date) return -1
+      // Compare dates - earlier dates come first
+      return a.planned_date.localeCompare(b.planned_date)
     })
     .slice(0, 15)
-    .map((item) => item.task)
 })
 
 // Eisenhower Matrix data - limit to top 10 per quadrant
@@ -136,6 +128,13 @@ onUnmounted(() => {
                 <span :class="['task-title', task.is_mit ? 'task-title-mit' : '']">
                   {{ task.title }}
                 </span>
+                <span
+                  v-if="task.rollover_count && task.rollover_count > 0"
+                  class="font-bold text-red-600 dark:text-red-400 ml-1"
+                  style="font-weight: bold; color: rgb(220, 38, 38)"
+                >
+                  +{{ task.rollover_count }}
+                </span>
                 <span v-if="task.planned_date" class="task-date-inline">
                   {{ formatDateToDisplay(task.planned_date) }}
                 </span>
@@ -167,6 +166,13 @@ onUnmounted(() => {
                 <div class="matrix-task-title-row">
                   <span :class="['matrix-task-title', task.is_mit ? 'matrix-task-title-mit' : '']">
                     {{ task.title }}
+                  </span>
+                  <span
+                    v-if="task.rollover_count && task.rollover_count > 0"
+                    class="font-bold text-red-600 dark:text-red-400 ml-1"
+                    style="font-weight: bold; color: rgb(220, 38, 38)"
+                  >
+                    +{{ task.rollover_count }}
                   </span>
                   <span v-if="task.is_mit" class="matrix-mit-badge">MIT</span>
                   <span v-if="task.theme" class="matrix-theme-badge">{{ task.theme }}</span>
@@ -528,13 +534,14 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 12px;
+  gap: 8px;
   page-break-inside: avoid;
+  align-items: stretch;
 }
 
 @media print {
   .matrix-grid {
-    gap: 6px;
+    gap: 4px;
   }
 }
 
@@ -542,9 +549,12 @@ onUnmounted(() => {
 .quadrant {
   border: 2px solid #333;
   border-radius: 4px;
-  padding: 10px;
+  padding: 8px;
   page-break-inside: avoid;
-  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 200px;
 }
 
 .quadrant-q1 {
@@ -590,8 +600,9 @@ onUnmounted(() => {
 @media print {
   .quadrant {
     border-width: 1px;
-    padding: 6px;
-    min-height: auto;
+    padding: 4px;
+    min-height: 0;
+    height: 100%;
   }
 
   .quadrant-q1,
@@ -604,9 +615,10 @@ onUnmounted(() => {
 }
 
 .quadrant-header {
-  margin-bottom: 10px;
-  padding-bottom: 6px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 }
 
 .print-page.dark .quadrant-header {
@@ -615,8 +627,8 @@ onUnmounted(() => {
 
 @media print {
   .quadrant-header {
-    margin-bottom: 6px;
-    padding-bottom: 3px;
+    margin-bottom: 4px;
+    padding-bottom: 2px;
   }
 }
 
@@ -672,21 +684,24 @@ onUnmounted(() => {
 .quadrant-tasks {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
 }
 
 @media print {
   .quadrant-tasks {
-    gap: 3px;
+    gap: 2px;
   }
 }
 
 .matrix-task-item {
-  padding: 5px;
+  padding: 3px 4px;
   background: white;
   border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 3px;
+  border-radius: 2px;
   page-break-inside: avoid;
+  flex-shrink: 0;
 }
 
 .print-page.dark .matrix-task-item {
@@ -696,7 +711,7 @@ onUnmounted(() => {
 
 @media print {
   .matrix-task-item {
-    padding: 2px 4px;
+    padding: 1px 3px;
     border-width: 0.5px;
     background: white !important;
   }

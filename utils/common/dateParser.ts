@@ -210,3 +210,67 @@ export function formatDateRelative(dateStr: string | null | undefined): string |
     return null
   }
 }
+
+/**
+ * Calculate days overdue for a task
+ * Returns the number of days a task is overdue (planned_date is in the past and task is not done)
+ * @param plannedDate Date string in YYYY-MM-DD format or null
+ * @param status Task status ('doing' or 'done')
+ * @param today Optional today's date string in YYYY-MM-DD format, defaults to current date
+ * @returns Number of days overdue (0 if not overdue, task is done, or no planned_date)
+ */
+export function calculateDaysOverdue(
+  plannedDate: string | null | undefined,
+  status: string,
+  today?: string,
+): number {
+  // If task is done, not overdue
+  if (status === 'done') return 0
+
+  // If no planned date, not overdue
+  if (!plannedDate) return 0
+
+  try {
+    // Validate it's in YYYY-MM-DD format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(plannedDate)) {
+      return 0
+    }
+
+    // Parse date components to create local date (avoids UTC parsing issues)
+    const [year, month, day] = plannedDate.split('-').map(Number)
+    const dueDate = new Date(year, month - 1, day)
+    dueDate.setHours(0, 0, 0, 0)
+
+    // Validate the date
+    if (
+      dueDate.getFullYear() !== year ||
+      dueDate.getMonth() !== month - 1 ||
+      dueDate.getDate() !== day
+    ) {
+      return 0 // Invalid date
+    }
+
+    // Get today's date
+    const todayDate = today
+      ? (() => {
+          const [y, m, d] = today.split('-').map(Number)
+          const date = new Date(y, m - 1, d)
+          date.setHours(0, 0, 0, 0)
+          return date
+        })()
+      : (() => {
+          const now = new Date()
+          now.setHours(0, 0, 0, 0)
+          return now
+        })()
+
+    // Calculate difference in days
+    const diffTime = todayDate.getTime() - dueDate.getTime()
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+    // Return 0 if not overdue (due date is today or in the future)
+    return diffDays > 0 ? diffDays : 0
+  } catch {
+    return 0
+  }
+}

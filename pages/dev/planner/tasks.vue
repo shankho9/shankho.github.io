@@ -2286,6 +2286,14 @@ onUnmounted(() => {
                         </button>
                         <span v-else class="w-4"></span>
                         <span class="font-medium">{{ task.title }}</span>
+                        <!-- Rollover Counter -->
+                        <span
+                          v-if="task.rollover_count && task.rollover_count > 0"
+                          class="font-bold whitespace-nowrap flex-shrink-0"
+                          style="color: rgb(220, 38, 38) !important; font-weight: bold !important"
+                        >
+                          +{{ task.rollover_count }}
+                        </span>
                         <!-- Dependency Indicator (for child tasks) -->
                         <span
                           v-if="task.depends_on_task_id"
@@ -2989,6 +2997,14 @@ onUnmounted(() => {
                         >
                           {{ dependentTask.title }}
                         </span>
+                        <!-- Rollover Counter for Dependent Tasks -->
+                        <span
+                          v-if="dependentTask.rollover_count && dependentTask.rollover_count > 0"
+                          class="text-xs font-bold text-red-600 dark:text-red-400 ml-1 whitespace-nowrap flex-shrink-0"
+                          style="color: rgb(220, 38, 38) !important; font-weight: bold !important"
+                        >
+                          +{{ dependentTask.rollover_count }}
+                        </span>
                         <!-- Dependent Count Badge for Level 2 -->
                         <span
                           v-if="hasDependents(dependentTask.id)"
@@ -3516,6 +3532,19 @@ onUnmounted(() => {
                               @click.stop="startEdit(grandchildTask)"
                             >
                               {{ grandchildTask.title }}
+                            </span>
+                            <!-- Rollover Counter for Grandchild Tasks -->
+                            <span
+                              v-if="
+                                grandchildTask.rollover_count && grandchildTask.rollover_count > 0
+                              "
+                              class="text-xs font-bold text-red-600 dark:text-red-400 ml-1 whitespace-nowrap flex-shrink-0"
+                              style="
+                                color: rgb(220, 38, 38) !important;
+                                font-weight: bold !important;
+                              "
+                            >
+                              +{{ grandchildTask.rollover_count }}
                             </span>
                             <!-- Dependent Count Badge for Level 2 (if it had dependents, but max depth is 2, so this won't show) -->
                             <span

@@ -124,12 +124,13 @@ export default defineEventHandler(async (event) => {
       notes: string | null
       theme: string | null
       depends_on_task_id: number | null
+      rollover_count: number
       created_at: string
       updated_at: string
     }>(
       `INSERT INTO tasks (title, status, is_mit, priority, planned_date, notes, theme, depends_on_task_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, title, status, is_mit, priority, TO_CHAR(planned_date, 'YYYY-MM-DD') as planned_date, notes, theme, depends_on_task_id, created_at, updated_at`,
+       RETURNING id, title, status, is_mit, priority, TO_CHAR(planned_date, 'YYYY-MM-DD') as planned_date, notes, theme, depends_on_task_id, COALESCE(rollover_count, 0) as rollover_count, created_at, updated_at`,
       [
         title.trim(),
         status,
