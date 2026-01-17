@@ -83,11 +83,15 @@ server/utils/
 
 ```
 scripts/
-└── migrations/     # Database migration scripts
-    ├── run-auth-migration.js      # Authentication tables migration
-    ├── run-login-migration.js
-    ├── run-migration.js
-    └── run-migration.ts
+├── migrations/     # Database migration scripts
+│   ├── run-auth-migration.js      # Authentication tables migration
+│   ├── run-login-migration.js
+│   ├── run-migration.js
+│   └── ... # Other active migration scripts
+└── tests/          # Test scripts and SQL
+    ├── README.md
+    ├── task-management.test.js
+    └── test-rollover-manual.sql   # Manual SQL test scripts
 ```
 
 ### `/components/` - Vue Components

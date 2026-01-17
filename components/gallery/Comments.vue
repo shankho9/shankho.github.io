@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import { formatDateForDisplay } from '~/utils/common/dateParser'
 import LoginModal from '~/components/auth/LoginModal.vue'
 
 interface Comment {
@@ -38,16 +39,7 @@ const commentsPerPage = ref(10)
 const totalComments = ref(0)
 const totalPages = ref(0)
 
-const formatDate = (date: string | Date) => {
-  const d = new Date(date)
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+const formatDate = formatDateForDisplay
 
 const loadComments = async (page: number = currentPage.value, retryCount = 0) => {
   isLoading.value = true

@@ -696,6 +696,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import { useGoogleMaps } from '~/composables/useGoogleMaps'
 
 interface PlaceForm {
   name: string
@@ -769,114 +770,23 @@ let currentSearchQuery: string | null = null // Track the query for the current 
 // Google Authentication
 const { user, isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useAuth()
 
-const loadGoogleMapsScript = (): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    // Check if Google Maps is already loaded
-    if (window.google && window.google.maps && window.google.maps.places) {
-      resolve()
-      return
-    }
-
-    // Check if script is already being loaded
-    const existing = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]')
-    if (existing) {
-      const script = existing as HTMLScriptElement
-      // Check if it includes places library
-      if (script.src.includes('libraries=places')) {
-        // Wait for it to load
-        if (script.readyState === 'complete' || script.readyState === 'loaded') {
-          if (window.google && window.google.maps && window.google.maps.places) {
-            resolve()
-            return
-          }
-          // Poll for API availability
-          const checkInterval = setInterval(() => {
-            if (window.google && window.google.maps && window.google.maps.places) {
-              clearInterval(checkInterval)
-              resolve()
-            }
-          }, 100)
-          setTimeout(() => {
-            clearInterval(checkInterval)
-            reject(new Error('Google Maps Places API failed to load'))
-          }, 10000)
-          return
-        }
-        // Script is loading, wait for it
-        existing.addEventListener('load', () => {
-          const checkInterval = setInterval(() => {
-            if (window.google && window.google.maps && window.google.maps.places) {
-              clearInterval(checkInterval)
-              resolve()
-            }
-          }, 100)
-          setTimeout(() => {
-            clearInterval(checkInterval)
-            reject(new Error('Google Maps Places API failed to load'))
-          }, 10000)
-        })
-        existing.addEventListener('error', () => {
-          reject(new Error('Failed to load Google Maps script'))
-        })
-        return
-      } else {
-        // Script exists but doesn't have places library - need to load new one
-        existing.remove()
-      }
-    }
-
-    // Load Google Maps script with Places library
-    const config = useRuntimeConfig()
-    const apiKey = config.public.googleMapsApiKey
-    if (!apiKey) {
-      reject(
-        new Error(
-          'Google Maps API key is not configured. Please set NUXT_PUBLIC_GOOGLE_MAPS_API_KEY environment variable.',
-        ),
-      )
-      return
-    }
-
-    const script = document.createElement('script')
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
-    script.async = true
-    script.defer = true
-
-    script.onload = () => {
-      // Wait a bit for the API to initialize
-      const checkInterval = setInterval(() => {
-        if (window.google && window.google.maps && window.google.maps.places) {
-          clearInterval(checkInterval)
-          resolve()
-        }
-      }, 100)
-      setTimeout(() => {
-        clearInterval(checkInterval)
-        if (window.google && window.google.maps && window.google.maps.places) {
-          resolve()
-        } else {
-          reject(new Error('Google Maps Places API not available after script load'))
-        }
-      }, 5000)
-    }
-
-    script.onerror = () => {
-      reject(new Error('Failed to load Google Maps script'))
-    }
-
-    document.head.appendChild(script)
-  })
-}
+// Use Google Maps composable for script loading
+const { loadGoogleMapsScript: loadGoogleMaps, createMap, setMapError } = useGoogleMaps()
 
 const loadMap = async () => {
   if (!mapContainer.value) return
 
-  // Load Google Maps script with Places library
+  // Load Google Maps script with Places library using composable
   try {
-    await loadGoogleMapsScript()
+    await loadGoogleMaps({ requirePlaces: true })
   } catch (error) {
     console.error('[Locations] Failed to load Google Maps API:', error)
-    errorMessage.value = 'Failed to load Google Maps. Please refresh the page.'
+    const errorMsg =
+      error instanceof Error
+        ? error.message
+        : 'Failed to load Google Maps. Please refresh the page.'
+    errorMessage.value = errorMsg
+    setMapError(errorMsg)
     return
   }
 
@@ -885,12 +795,14 @@ const loadMap = async () => {
     console.error('[Locations] Google Maps API is not available')
     errorMessage.value =
       'Google Maps API is not available. Please check your API key configuration.'
+    setMapError(errorMessage.value)
     return
   }
 
   if (!map) {
     try {
-      map = new window.google.maps.Map(mapContainer.value, {
+      // Use composable to create map
+      map = createMap(mapContainer.value, {
         center: { lat: 0, lng: 0 },
         zoom: 2,
       })
@@ -904,10 +816,12 @@ const loadMap = async () => {
         console.error('[Locations] Google Maps Places API not available')
         errorMessage.value =
           'Google Maps Places API is not available. Please check your API key includes Places API.'
+        setMapError(errorMessage.value)
       }
     } catch (error) {
       console.error('[Locations] Failed to initialize map:', error)
       errorMessage.value = 'Failed to initialize map. Please check your Google Maps API key.'
+      setMapError(errorMessage.value)
       return
     }
   } else {

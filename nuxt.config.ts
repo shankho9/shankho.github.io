@@ -104,13 +104,39 @@ export default defineNuxtConfig({
           href: 'https://ik.imagekit.io',
           crossorigin: 'anonymous',
         },
+        {
+          rel: 'manifest',
+          href: '/manifest.json',
+        },
+        {
+          rel: 'apple-touch-icon',
+          href: '/Nomadic Notion-logo-2.png',
+        },
+      ],
+      meta: [
+        {
+          name: 'theme-color',
+          content: '#0284c7',
+        },
+        {
+          name: 'apple-mobile-web-app-capable',
+          content: 'yes',
+        },
+        {
+          name: 'apple-mobile-web-app-status-bar-style',
+          content: 'default',
+        },
+        {
+          name: 'apple-mobile-web-app-title',
+          content: 'Nomadic Notions',
+        },
       ],
     },
     pageTransition: { name: 'page', mode: 'out-in' },
     layoutTransition: { name: 'layout', mode: 'out-in' },
   },
 
-  css: ['~/assets/css/tailwind.css'],
+  css: ['~/assets/css/tailwind.css', '~/assets/css/image-protection.css'],
 
   devtools: { enabled: true },
 

@@ -25,7 +25,7 @@ const { isAuthenticated, checkAuth } = useAuth()
 const { fetchTasks, fetchThemes } = useTasks()
 
 const tasks = ref<Task[]>([])
-const isLoading = ref(false)
+const isLoading = ref(true) // Start as true to show loading state immediately
 const availableThemes = ref<string[]>([])
 const selectedDate = ref(getLocalDateString())
 const dbConnectionStatus = ref<'connected' | 'disconnected' | 'checking'>('checking')

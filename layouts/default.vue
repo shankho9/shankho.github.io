@@ -23,6 +23,8 @@ useHead({
     <footer>
       <MainFooter />
     </footer>
+    <!-- PWA Install Prompt -->
+    <PwaInstallPrompt />
   </div>
 </template>
 
