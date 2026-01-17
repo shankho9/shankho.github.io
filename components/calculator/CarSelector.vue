@@ -119,6 +119,10 @@ const performSearch = async (query: string) => {
     if (response.success) {
       searchResults.value = response.results
       showDropdown.value = response.results.length > 0
+    } else {
+      // Clear results if API returns success: false
+      searchResults.value = []
+      showDropdown.value = false
     }
   } catch (error) {
     if (!isMounted.value) {
@@ -170,6 +174,12 @@ const selectResult = async (result: SearchResult) => {
         const modelResponse = await $fetch<{ success: boolean; models: CarModel[] }>(
           `/api/cars/models?manufacturer_id=${result.manufacturer_id}`,
         )
+
+        if (!modelResponse.success || !modelResponse.models) {
+          console.error('Failed to fetch model data')
+          return
+        }
+
         const model = modelResponse.models.find((m) => m.id === result.id)
 
         if (model && result.manufacturer_id) {
@@ -177,6 +187,12 @@ const selectResult = async (result: SearchResult) => {
             success: boolean
             manufacturers: Manufacturer[]
           }>('/api/cars/manufacturers')
+
+          if (!manufacturerResponse.success || !manufacturerResponse.manufacturers) {
+            console.error('Failed to fetch manufacturer data')
+            return
+          }
+
           const manufacturer = manufacturerResponse.manufacturers.find(
             (m) => m.id === result.manufacturer_id,
           )
