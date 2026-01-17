@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onUnmounted } from 'vue'
 
 interface Manufacturer {
   id: number
@@ -98,23 +98,39 @@ watch(searchQuery, (newQuery) => {
   }, 300)
 })
 
+// Track if component is mounted to prevent state updates after unmount
+const isMounted = ref(true)
+
 const performSearch = async (query: string) => {
+  if (!isMounted.value) {
+    return // Component unmounted, don't update state
+  }
+
   isLoading.value = true
   try {
     const response = await $fetch<{ success: boolean; results: SearchResult[] }>(
       `/api/cars/search?q=${encodeURIComponent(query)}`,
     )
 
+    if (!isMounted.value) {
+      return // Component unmounted during API call
+    }
+
     if (response.success) {
       searchResults.value = response.results
       showDropdown.value = response.results.length > 0
     }
   } catch (error) {
+    if (!isMounted.value) {
+      return // Component unmounted during error handling
+    }
     console.error('Error searching cars:', error)
     searchResults.value = []
     showDropdown.value = false
   } finally {
-    isLoading.value = false
+    if (isMounted.value) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -143,7 +159,7 @@ const selectResult = async (result: SearchResult) => {
     } catch (error) {
       console.error('Error fetching variant details:', error)
     }
-  } else if (result.type === 'model' && result.model_id === null && result.manufacturer_id) {
+  } else if (result.type === 'model' && result.manufacturer_id) {
     // Model selected - load all variants and auto-select first one
     try {
       const response = await $fetch<{ success: boolean; variants: CarVariant[] }>(
@@ -219,6 +235,15 @@ const clearSelection = () => {
 defineExpose({
   selectedVariant: computed(() => selectedVariant.value),
   clearSelection,
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  isMounted.value = false
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+    searchTimeout = null
+  }
 })
 </script>
 
