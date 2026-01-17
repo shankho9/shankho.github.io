@@ -108,12 +108,12 @@ function clearAllFilters() {
 
       <!-- Active Date Filter Display -->
       <div
-        v-if="(minDate || maxDate) && !showDateFilter"
+        v-if="(props.minDate || props.maxDate) && !showDateFilter"
         class="text-xs text-zinc-600 dark:text-zinc-400"
       >
-        <span v-if="minDate">From: {{ minDate }}</span>
-        <span v-if="minDate && maxDate"> | </span>
-        <span v-if="maxDate">To: {{ maxDate }}</span>
+        <span v-if="props.minDate">From: {{ props.minDate }}</span>
+        <span v-if="props.minDate && props.maxDate"> | </span>
+        <span v-if="props.maxDate">To: {{ props.maxDate }}</span>
       </div>
     </div>
 
@@ -133,7 +133,7 @@ function clearAllFilters() {
         {{ selectedCategories.length }} category(s)
       </span>
       <span
-        v-if="minDate || maxDate"
+        v-if="props.minDate || props.maxDate"
         class="text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-2 py-1 rounded"
       >
         Date range
