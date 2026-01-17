@@ -252,6 +252,16 @@ const clearSelection = () => {
   emit('update:modelValue', '')
 }
 
+const handleFocus = () => {
+  showDropdown.value = searchResults.value.length > 0
+}
+
+const handleBlur = () => {
+  setTimeout(() => {
+    showDropdown.value = false
+  }, 200)
+}
+
 // Expose selected variant for parent component
 defineExpose({
   selectedVariant: computed(() => selectedVariant.value),
@@ -296,8 +306,8 @@ onUnmounted(() => {
             searchQuery.value = inputValue
           }
         "
-        @focus="showDropdown.value = searchResults.length > 0"
-        @blur="setTimeout(() => (showDropdown.value = false), 200)"
+        @focus="handleFocus"
+        @blur="handleBlur"
       />
       <button
         v-if="selectedVariant"
