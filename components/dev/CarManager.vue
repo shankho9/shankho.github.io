@@ -1732,6 +1732,8 @@ const createManufacturer = async () => {
       showToast('Manufacturer created successfully', 'success')
       await loadManufacturers()
       addForm.value.manufacturer_id = response.manufacturer.id
+      // Clear model selection since it belongs to the old manufacturer
+      onManufacturerChange()
       newManufacturer.value = { name: '', country: 'India' }
     }
   } catch (error) {

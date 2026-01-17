@@ -136,8 +136,10 @@ const performSearch = async (query: string) => {
     searchResults.value = []
     showDropdown.value = false
   } finally {
-    // Always reset loading state to ensure proper cleanup, even if component unmounted
-    isLoading.value = false
+    // Only reset loading state if component is still mounted to avoid state updates after unmount
+    if (isMounted.value) {
+      isLoading.value = false
+    }
   }
 }
 
