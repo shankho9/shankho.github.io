@@ -47,16 +47,22 @@ onMounted(() => {
       if (proseElement) {
         const textContent = proseElement.textContent || ''
         if (textContent.trim().length > 0) {
+          // Calculate reading time (which also calculates word count internally)
           const calculatedTime = calculateReadingTime(textContent)
           readingTime.value = calculatedTime
 
-          // Track analytics
-          const wordCount = textContent.split(/\s+/).length
+          // Calculate word count using the same method as calculateReadingTime
+          // to ensure consistency (split by whitespace and filter empty strings)
+          const wordCount = textContent
+            .trim()
+            .split(/\s+/)
+            .filter((word) => word.length > 0).length
 
+          // Track analytics after ensuring content is fully loaded
           // Track scroll depth
           trackScroll(path)
 
-          // Track reading time
+          // Track reading time with consistent word count and reading time
           trackReading(path, wordCount, calculatedTime)
 
           // Track exit intent

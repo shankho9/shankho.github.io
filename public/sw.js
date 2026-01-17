@@ -81,10 +81,12 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Strategy: Cache First for static assets and images
+  // Check if hostname is imagekit.io or a subdomain of it (e.g., ik.imagekit.io)
+  const isImageKitHost = url.hostname === 'imagekit.io' || url.hostname.endsWith('.imagekit.io')
   if (
     url.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg|ico|woff|woff2|ttf|eot)$/) ||
     url.pathname.startsWith('/blogs-img/') ||
-    url.pathname.includes('imagekit.io')
+    isImageKitHost
   ) {
     event.respondWith(cacheFirstStrategy(request, DYNAMIC_CACHE_NAME))
     return

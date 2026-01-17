@@ -10,16 +10,9 @@ export const usePWA = () => {
   const isOnline = ref(true)
   const isInstallable = ref(false)
 
-  // Check if app is already installed
+  // Initialize state only on client side and after component mounts
+  // This prevents SSR issues with window, navigator, and sessionStorage
   if (import.meta.client) {
-    const navigator = window.navigator as Navigator & { standalone?: boolean }
-    isInstalled.value =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      navigator.standalone === true ||
-      document.referrer.includes('android-app://')
-
-    isOnline.value = navigator.onLine
-
     // Listen for install prompt availability
     const handleInstallAvailable = (e: CustomEvent) => {
       installPrompt.value = e.detail
@@ -42,15 +35,25 @@ export const usePWA = () => {
     }
 
     onMounted(() => {
-      window.addEventListener('pwa-install-available', handleInstallAvailable as EventListener)
-      window.addEventListener('pwa-installed', handleInstalled as EventListener)
-      window.addEventListener('online', handleOnline)
-      window.addEventListener('offline', handleOffline)
+      // Initialize state after component mounts to ensure window, navigator, and sessionStorage are available
+      const navigator = window.navigator as Navigator & { standalone?: boolean }
+      isInstalled.value =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        navigator.standalone === true ||
+        document.referrer.includes('android-app://')
+
+      isOnline.value = navigator.onLine
 
       // Check if install is available from sessionStorage
       if (sessionStorage.getItem('pwa-install-available') === 'true') {
         isInstallable.value = true
       }
+
+      // Set up event listeners
+      window.addEventListener('pwa-install-available', handleInstallAvailable as EventListener)
+      window.addEventListener('pwa-installed', handleInstalled as EventListener)
+      window.addEventListener('online', handleOnline)
+      window.addEventListener('offline', handleOffline)
     })
 
     onUnmounted(() => {

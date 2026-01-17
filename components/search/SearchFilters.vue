@@ -97,7 +97,7 @@ function clearAllFilters() {
             Apply
           </button>
           <button
-            v-if="minDate || maxDate"
+            v-if="localMinDate || localMaxDate"
             class="px-3 py-1.5 text-sm bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors"
             @click="clearDateFilter"
           >

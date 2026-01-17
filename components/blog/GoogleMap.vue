@@ -79,7 +79,6 @@ watch(
       }
     }
   },
-  { immediate: true },
 )
 </script>
 
