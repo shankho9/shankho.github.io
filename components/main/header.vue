@@ -120,6 +120,15 @@ onUnmounted(() => {
           Library
         </NuxtLink>
         <NuxtLink
+          to="/dev"
+          class="hover:opacity-80 transition-opacity flex items-center gap-1"
+          :class="{ underline: isActive('/dev') }"
+          title="Utilities"
+          aria-label="Utilities"
+        >
+          <Icon name="mdi:tools" size="18" />
+        </NuxtLink>
+        <NuxtLink
           to="/about"
           class="hover:opacity-80 transition-opacity"
           :class="{ underline: $route.path === '/about' }"
@@ -269,6 +278,16 @@ onUnmounted(() => {
             :class="{ 'bg-gray-200 dark:bg-slate-800 font-semibold': isActive('/library') }"
           >
             Library
+          </NuxtLink>
+          <NuxtLink
+            to="/dev"
+            class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors touch-manipulation flex items-center justify-center"
+            style="touch-action: manipulation; min-width: 32px; min-height: 32px"
+            :class="{ 'bg-gray-200 dark:bg-slate-800': isActive('/dev') }"
+            title="Utilities"
+            aria-label="Utilities"
+          >
+            <Icon name="mdi:tools" size="18" />
           </NuxtLink>
           <NuxtLink
             to="/about"

@@ -101,6 +101,18 @@
       </NuxtLink>
       <span class="text-gray-400 dark:text-gray-600">|</span>
       <NuxtLink
+        to="/dev/utilities/car-lease-calculator"
+        class="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap group"
+      >
+        <Icon
+          name="mdi:car"
+          size="14"
+          class="text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
+        />
+        <span>Car Calculator</span>
+      </NuxtLink>
+      <span class="text-gray-400 dark:text-gray-600">|</span>
+      <NuxtLink
         to="/sitemap"
         class="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap group"
       >

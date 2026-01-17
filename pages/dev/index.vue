@@ -80,6 +80,31 @@
             </p>
           </NuxtLink>
 
+          <!-- Car Database Manager Utility -->
+          <NuxtLink
+            to="/dev/utilities/car-manager"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation block"
+          >
+            <div class="flex items-center gap-4 mb-4">
+              <div
+                class="w-12 h-12 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center"
+              >
+                <Icon
+                  name="mdi:car-multiple"
+                  size="24"
+                  class="text-orange-600 dark:text-orange-400"
+                />
+              </div>
+              <div>
+                <h3 class="text-xl font-semibold">Car Database Manager</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Manage car data</p>
+              </div>
+            </div>
+            <p class="text-gray-600 dark:text-gray-400 text-sm">
+              View, edit, and manage car manufacturers, models, and variants with CSV import/export
+            </p>
+          </NuxtLink>
+
           <!-- Database Stats Utility -->
           <NuxtLink
             to="/dev/utilities/database"
@@ -236,6 +261,32 @@
             </div>
             <p class="text-gray-600 dark:text-gray-400 text-sm">
               Daily planner with Kanban board, weekly reviews, and printable plans
+            </p>
+          </NuxtLink>
+
+          <!-- Car Lease Calculator Utility -->
+          <NuxtLink
+            to="/dev/utilities/car-lease-calculator"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow active:scale-[0.98] touch-manipulation cursor-pointer block"
+          >
+            <div class="flex items-center gap-4 mb-4">
+              <div
+                class="w-12 h-12 bg-cyan-100 dark:bg-cyan-900 rounded-lg flex items-center justify-center"
+              >
+                <Icon
+                  name="mdi:calculator-variant"
+                  size="24"
+                  class="text-cyan-600 dark:text-cyan-400"
+                />
+              </div>
+              <div>
+                <h3 class="text-xl font-semibold">Car Lease Calculator</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Ownership vs lease analysis</p>
+              </div>
+            </div>
+            <p class="text-gray-600 dark:text-gray-400 text-sm">
+              Compare car ownership vs leasing with tax savings, reimbursements, and investment
+              returns. Save and manage templates.
             </p>
           </NuxtLink>
         </div>
