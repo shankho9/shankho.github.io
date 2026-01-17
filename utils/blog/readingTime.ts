@@ -23,9 +23,11 @@ function stripHtml(html: string): string {
       text = text.replace(/<script[\s\S]*?>/gi, '')
       text = text.replace(/<style[\s\S]*?>/gi, '')
       // Remove incomplete script/style tags without closing bracket (e.g., <script, <style)
-      // Match until whitespace, >, or end of string to catch all incomplete tags
-      text = text.replace(/<script[^\s>]*/gi, '')
-      text = text.replace(/<style[^\s>]*/gi, '')
+      // Use word boundary to match exact tag names, then match any characters except >
+      // The \b ensures we match <script or <style as complete words, not partial matches
+      // This pattern matches the tag name and everything after it until > or end of string
+      text = text.replace(/<script\b[^>]*/gi, '')
+      text = text.replace(/<style\b[^>]*/gi, '')
     } while (text !== previous)
   }
 
