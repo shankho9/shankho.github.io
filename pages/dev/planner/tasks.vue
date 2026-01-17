@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onUnmounted } from 'vue'
+import { nextTick, onUnmounted, onMounted } from 'vue'
 import { useRuntimeConfig } from '#imports'
 import type { Task, TaskStatus } from '~/server/api/planner/tasks.get'
 import {
@@ -16,9 +16,10 @@ definePageMeta({
 })
 
 const { fetchTasks, fetchThemes, updateTask, deleteTask, createTask } = useTasks()
+const { showToast } = useToast()
 
 const tasks = ref<Task[]>([])
-const isLoading = ref(false)
+const isLoading = ref(true) // Start as true to show loading state immediately
 const availableThemes = ref<string[]>([])
 const sortBy = ref<'title' | 'status' | 'planned_date' | 'theme'>('planned_date')
 const sortOrder = ref<'asc' | 'desc'>('desc')
@@ -325,8 +326,10 @@ const rollOverPastDates = async (tasksList: Task[]) => {
 
 // Connection status is updated based on data load success/failure, not periodic health checks
 
-const loadData = async () => {
-  isLoading.value = true
+const loadData = async (silent: boolean = false) => {
+  if (!silent) {
+    isLoading.value = true
+  }
   dbConnectionStatus.value = 'checking'
 
   // Add timeout to prevent hanging indefinitely
@@ -471,6 +474,9 @@ const loadData = async () => {
       clearTimeout(timeoutId)
       timeoutId = null
     }
+    // Always reset loading state, even for silent refreshes
+    // This ensures the UI doesn't get stuck in a loading state
+    // (isLoading might have been true from initialization or previous calls)
     isLoading.value = false
   }
 }
@@ -1237,9 +1243,9 @@ const saveEdit = async () => {
       (error as { data?: { message?: string }; message?: string })?.data?.message ||
       (error as { message?: string })?.message ||
       'Failed to update task. Please try again.'
-    alert(errorMessage)
-    // On error, reload data to ensure consistency
-    await loadData()
+    showToast(errorMessage, 'error')
+    // On error, reload data silently to ensure consistency
+    await loadData(true)
   }
 }
 
@@ -1286,27 +1292,34 @@ const updateTaskStatus = async (id: number, newStatus: TaskStatus) => {
 }
 
 const openDeleteModal = async (task: Task) => {
-  // Check if task has dependents before allowing deletion
-  if (hasDependents(task.id)) {
-    const dependentCount = getDependentTasks(task.id).length
-    alert(
-      `Cannot delete task: ${dependentCount} dependent task(s) exist. Please delete or reassign dependent tasks first.`,
-    )
-    return
-  }
-
   // If task is done, delete directly with archival
+  // Backend will automatically handle dependency reassignment (children to grandfather)
   if (task.status === 'done') {
+    if (!confirm('Are you sure you want to delete this task?')) return
+
     try {
+      const dependentCount = hasDependents(task.id) ? getDependentTasks(task.id).length : 0
       await deleteTask(task.id, true) // archive=true for archival record
-      tasks.value = tasks.value.filter((t) => t.id !== task.id)
+
+      // Reload tasks silently to reflect updated dependencies (children may have been reassigned to grandfather)
+      await loadData(true)
+
+      if (dependentCount > 0) {
+        // Inform user that dependencies were handled automatically
+        showToast(
+          `Task deleted. ${dependentCount} dependent task(s) were automatically reassigned.`,
+          'success',
+        )
+      } else {
+        showToast('Task deleted successfully', 'success')
+      }
     } catch (error: unknown) {
       console.error('Failed to delete task:', error)
       const errorMessage =
         (error as { data?: { message?: string }; message?: string })?.data?.message ||
         (error as { message?: string })?.message ||
         'Failed to delete task. Please try again.'
-      alert(errorMessage)
+      showToast(errorMessage, 'error')
     }
     return
   }
@@ -1332,20 +1345,26 @@ const handleDelete = async (archive: boolean = false) => {
 
   const id = taskToDelete.value.id
 
-  // Double-check for dependents before deletion (in case state changed)
+  // Backend will automatically handle dependency reassignment (children to grandfather)
   const task = tasks.value.find((t) => t.id === id)
-  if (task && hasDependents(task.id)) {
-    const dependentCount = getDependentTasks(task.id).length
-    alert(
-      `Cannot delete task: ${dependentCount} dependent task(s) exist. Please delete or reassign dependent tasks first.`,
-    )
-    closeDeleteModal()
-    return
-  }
+  const dependentCount = task && hasDependents(task.id) ? getDependentTasks(task.id).length : 0
 
   try {
     await deleteTask(id, archive)
-    tasks.value = tasks.value.filter((t) => t.id !== id)
+
+    // Reload tasks silently to reflect updated dependencies (children may have been reassigned to grandfather)
+    await loadData(true)
+
+    if (dependentCount > 0) {
+      // Inform user that dependencies were handled automatically
+      showToast(
+        `Task deleted. ${dependentCount} dependent task(s) were automatically reassigned.`,
+        'success',
+      )
+    } else {
+      showToast('Task deleted successfully', 'success')
+    }
+
     closeDeleteModal()
   } catch (error: unknown) {
     console.error('Failed to delete task:', error)
@@ -1353,16 +1372,17 @@ const handleDelete = async (archive: boolean = false) => {
       (error as { data?: { message?: string }; message?: string })?.data?.message ||
       (error as { message?: string })?.message ||
       'Failed to delete task. Please try again.'
-    alert(errorMessage)
+    showToast(errorMessage, 'error')
   }
 }
 
 const handlePurge = async () => {
   // Find all completed tasks (status === 'done')
+  // Backend will automatically handle dependency reassignment (children to grandfather)
   const completedTasks = tasks.value.filter((t) => t.status === 'done')
 
   if (completedTasks.length === 0) {
-    alert('No completed tasks to delete.')
+    showToast('No completed tasks to delete.', 'info')
     return
   }
 
@@ -1370,14 +1390,16 @@ const handlePurge = async () => {
     !confirm(
       `Are you sure you want to delete ${completedTasks.length} completed task(s)? This action cannot be undone.`,
     )
-  )
+  ) {
     return
+  }
 
   isPurging.value = true
   const taskIdsToDelete = completedTasks.map((t) => t.id)
 
   try {
     // Use Promise.allSettled to handle partial successes/failures
+    // Backend automatically handles dependency reassignment for each task
     const results = await Promise.allSettled(
       taskIdsToDelete.map((id) => deleteTask(id, true)), // archive=true for archival record
     )
@@ -1385,26 +1407,21 @@ const handlePurge = async () => {
     const successful = results.filter((r) => r.status === 'fulfilled').length
     const failed = results.filter((r) => r.status === 'rejected').length
 
+    // Always reload data silently to reflect updated dependencies (children may have been reassigned to grandfather)
+    await loadData(true)
+
     if (failed > 0) {
-      // Some deletions failed - reload from server to ensure UI state is accurate
-      // This handles cases where some tasks were deleted before a failure occurred
-      console.error(
-        `Failed to delete ${failed} task(s). Some tasks may have been deleted. Reloading from server...`,
-      )
-      await loadData()
-      alert(
-        `Deleted ${successful} task(s). ${failed} task(s) failed to delete. The list has been refreshed.`,
-      )
+      // Some deletions failed
+      showToast(`Deleted ${successful} task(s). ${failed} task(s) failed to delete.`, 'warning')
     } else {
-      // All deletions succeeded - update UI optimistically
-      tasks.value = tasks.value.filter((t) => !taskIdsToDelete.includes(t.id))
-      alert(`Successfully deleted ${successful} completed task(s).`)
+      // All deletions succeeded
+      showToast(`Successfully deleted ${successful} completed task(s).`, 'success')
     }
   } catch (error) {
     // Unexpected error - reload from server to ensure UI state is accurate
     console.error('Failed to delete tasks:', error)
-    await loadData()
-    alert('Failed to delete some tasks. The list has been refreshed from the server.')
+    await loadData(true)
+    showToast('Failed to delete some tasks. Please try again.', 'error')
   } finally {
     isPurging.value = false
   }
@@ -1495,9 +1512,10 @@ const exportTasksReport = async () => {
     a.download = `tasks_report_${dateStr}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
+    showToast('Tasks exported successfully', 'success')
   } catch (error) {
     console.error('Failed to export tasks:', error)
-    alert('Failed to export tasks. Please try again.')
+    showToast('Failed to export tasks. Please try again.', 'error')
   }
 }
 
@@ -1509,7 +1527,7 @@ const handleBulkUpload = async (event: Event) => {
     const text = await file.text()
     const lines = text.split('\n').filter((line) => line.trim())
     if (lines.length < 2) {
-      alert('CSV file must have a header row and at least one task')
+      showToast('CSV file must have a header row and at least one task', 'error')
       return
     }
 
@@ -1520,7 +1538,7 @@ const handleBulkUpload = async (event: Event) => {
     const mitIdx = headers.indexOf('mit')
 
     if (titleIdx === -1) {
-      alert('CSV file must have a "title" column')
+      showToast('CSV file must have a "title" column', 'error')
       return
     }
 
@@ -1559,16 +1577,16 @@ const handleBulkUpload = async (event: Event) => {
       })
     }
 
-    // Reload data
-    await loadData()
+    // Reload data silently
+    await loadData(true)
     isBulkUploadVisible.value = false
     bulkUploadFile.value = null
     if (bulkUploadInput.value) bulkUploadInput.value.value = ''
 
-    alert(`Successfully created ${tasksToCreate.length} task(s)`)
+    showToast(`Successfully created ${tasksToCreate.length} task(s)`, 'success')
   } catch (error) {
     console.error('Failed to upload tasks:', error)
-    alert('Failed to upload tasks. Please check the file format.')
+    showToast('Failed to upload tasks. Please check the file format.', 'error')
   }
 }
 
@@ -1584,6 +1602,7 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 }
 
+// Load data on mount
 onMounted(async () => {
   await loadData()
   // Focus quick input on mount for better UX
@@ -1599,2171 +1618,2188 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-full overflow-x-hidden w-full">
-    <!-- Header -->
-    <div class="mb-4 sm:mb-6">
-      <div
-        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4"
-      >
-        <div class="flex-1">
-          <div class="flex items-center gap-3">
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-              Manage Tasks
-            </h1>
-            <!-- Database Connection Status Indicator -->
-            <div
-              :class="[
-                'flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium',
-                dbConnectionStatus === 'connected'
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                  : dbConnectionStatus === 'disconnected'
-                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-              ]"
-              :title="
-                dbConnectionStatus === 'connected'
-                  ? 'Database connected'
-                  : dbConnectionStatus === 'disconnected'
-                    ? 'Database disconnected - check console for errors and verify DATABASE_URL is set correctly'
-                    : 'Checking database connection...'
-              "
-            >
-              <Icon
-                :name="
-                  dbConnectionStatus === 'connected'
-                    ? 'mdi:database-check'
-                    : dbConnectionStatus === 'disconnected'
-                      ? 'mdi:database-off'
-                      : 'mdi:database-sync'
-                "
-                size="14"
-              />
-              <span class="hidden sm:inline">
-                {{
-                  dbConnectionStatus === 'connected'
-                    ? 'Connected'
-                    : dbConnectionStatus === 'disconnected'
-                      ? 'Reconnecting...'
-                      : 'Checking...'
-                }}
-              </span>
-            </div>
-          </div>
-          <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
-            View and edit all your tasks
-          </p>
-        </div>
-        <!-- Desktop: Large buttons with labels -->
-        <div class="hidden sm:flex items-center gap-2 flex-wrap">
-          <!-- Dashboard - moved to front -->
-          <NuxtLink
-            to="/dev/planner"
-            class="px-4 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
-          >
-            <Icon name="mdi:view-dashboard" size="20" />
-            <span>Dashboard</span>
-          </NuxtLink>
-          <NuxtLink
-            to="/dev/planner/review"
-            class="px-4 py-2.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
-          >
-            <Icon name="mdi:chart-line" size="20" />
-            <span>Review</span>
-          </NuxtLink>
-          <!-- Export/Print - merged and moved to end -->
-          <div class="relative menu-container">
-            <button
-              class="px-4 py-2.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
-              @click.stop="showExportMenu = !showExportMenu"
-            >
-              <Icon name="mdi:file-export" size="20" />
-              <span>Export/Print</span>
-              <Icon name="mdi:chevron-down" size="16" />
-            </button>
-            <!-- Export/Print Dropdown -->
-            <div
-              v-if="showExportMenu"
-              class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
-              @click.stop
-            >
-              <button
-                class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
-                @click="handleExportCSV"
-              >
-                <Icon name="mdi:download" size="20" />
-                <span>Export CSV Report</span>
-              </button>
-              <button
-                class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-sm border-t border-gray-200 dark:border-gray-700"
-                @click="handlePrintReport"
-              >
-                <Icon name="mdi:printer" size="20" />
-                <span>Print Summary</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Mobile: Horizontal Button Row -->
-        <div class="sm:hidden flex items-center gap-1.5 flex-wrap">
-          <NuxtLink
-            to="/dev/planner"
-            class="px-2.5 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
-            style="touch-action: manipulation; min-height: 32px"
-          >
-            <Icon name="mdi:view-dashboard" size="16" />
-            <span>Dashboard</span>
-          </NuxtLink>
-          <NuxtLink
-            to="/dev/planner/review"
-            class="px-2.5 py-1.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
-            style="touch-action: manipulation; min-height: 32px"
-          >
-            <Icon name="mdi:chart-line" size="16" />
-            <span>Review</span>
-          </NuxtLink>
-          <button
-            class="px-2.5 py-1.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
-            style="touch-action: manipulation; min-height: 32px"
-            @click="handlePrintReport"
-          >
-            <Icon name="mdi:printer" size="16" />
-            <span>Print</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Loading State -->
-    <div v-if="isLoading" class="text-center py-12">
-      <div
-        class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"
-      ></div>
-    </div>
-
-    <div v-else>
-      <!-- Quick Add Task Section -->
-      <div class="mb-3">
+  <div>
+    <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-full overflow-x-hidden w-full">
+      <!-- Header -->
+      <div class="mb-4 sm:mb-6">
         <div
-          class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 sm:p-2.5"
+          class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4"
         >
-          <!-- Task and Notes row (aligned layout) -->
-          <div class="flex flex-col sm:flex-row gap-2 mb-1.5 items-start">
-            <!-- Task input -->
-            <div class="flex-1 flex flex-col w-full">
-              <div class="flex items-center justify-between mb-1.5 h-5">
-                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5">
-                  Task
-                </label>
-                <span class="text-xs text-transparent leading-5">Placeholder</span>
-              </div>
-              <input
-                ref="quickTaskInput"
-                v-model="quickTaskTitle"
-                type="text"
-                placeholder="Add task..."
-                class="w-full px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
-                style="box-sizing: border-box"
-                @keyup.enter="handleQuickAddTask"
-                @keyup.esc="handleQuickTaskEsc"
-                @focus="isAddingQuickTask = true"
-              />
-            </div>
-
-            <!-- Notes field -->
-            <div class="flex-1 flex flex-col w-full">
-              <div class="flex items-center justify-between mb-1.5 h-5">
-                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
-                  >Notes</label
-                >
-                <button
-                  type="button"
-                  class="text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation py-1 px-1 leading-5"
-                  @click="showTagLegendQuickAdd = !showTagLegendQuickAdd"
-                >
-                  {{ showTagLegendQuickAdd ? 'Hide' : 'Show' }} Tags
-                </button>
-              </div>
-              <div class="relative">
-                <textarea
-                  ref="quickTaskNotesInputRef"
-                  v-model="quickTaskNotes"
-                  class="w-full px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
-                  style="box-sizing: border-box; vertical-align: top"
-                  rows="2"
-                  placeholder="Add notes... Use @ or # for tags (e.g., @delegate, @quick-win)"
-                  @focus="isAddingQuickTask = true"
-                  @input="handleQuickNotesInput"
-                  @keydown="handleQuickNotesKeydown"
-                />
-                <!-- Tag Suggestions Dropdown for quick add -->
-                <div
-                  v-if="tagSuggestions.length > 0"
-                  ref="tagSuggestionsRef"
-                  class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[200px]"
-                  style="left: 0; top: 100%"
-                >
-                  <div
-                    v-for="(tagInfo, index) in tagSuggestions"
-                    :key="tagInfo.tag"
-                    :data-suggestion-index="index"
-                    :class="[
-                      'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm',
-                      index === suggestionIndex ? 'bg-blue-100 dark:bg-blue-900/40' : '',
-                    ]"
-                    @click="insertTag(tagInfo.tag)"
-                  >
-                    <div class="font-medium text-gray-900 dark:text-gray-100">
-                      {{ tagInfo.tag }}
-                    </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400">
-                      {{ tagInfo.description }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Tag Legend for quick add (shown below when toggled) -->
-          <div
-            v-if="
-              showTagLegendQuickAdd &&
-              (isAddingQuickTask || quickTaskTitle?.trim() || quickTaskNotes?.trim())
-            "
-            class="mb-1.5 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
-          >
-            <!-- Quadrant Reference Guide -->
-            <div class="mb-3 pb-2 border-b border-gray-300 dark:border-gray-600">
-              <div class="font-semibold mb-1.5 text-gray-900 dark:text-gray-100 text-xs">
-                Quadrant Guide:
-              </div>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                <div class="flex items-center gap-1">
-                  <span
-                    class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 shrink-0"
-                    >Q1</span
-                  >
-                  <span class="text-gray-600 dark:text-gray-400 text-xs">Do Now</span>
-                </div>
-                <div class="flex items-center gap-1">
-                  <span
-                    class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0"
-                    >Q2</span
-                  >
-                  <span class="text-gray-600 dark:text-gray-400 text-xs">Schedule</span>
-                </div>
-                <div class="flex items-center gap-1">
-                  <span
-                    class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 shrink-0"
-                    >Q3</span
-                  >
-                  <span class="text-gray-600 dark:text-gray-400 text-xs">Defer</span>
-                </div>
-                <div class="flex items-center gap-1">
-                  <span
-                    class="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shrink-0"
-                    >Q4</span
-                  >
-                  <span class="text-gray-600 dark:text-gray-400 text-xs">Later</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Support Needed Tasks -->
-            <div class="mb-2">
-              <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
-                Support Needed:
-              </div>
-              <div class="flex flex-wrap gap-1">
-                <div
-                  v-for="tagInfo in availableTags.filter((t) => t.category === 'support-needed')"
-                  :key="tagInfo.tag"
-                  class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
-                >
-                  <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
-                    tagInfo.tag
-                  }}</span>
-                  <span class="text-gray-500 dark:text-gray-500">•</span>
-                  <span class="text-gray-700 dark:text-gray-300">{{ tagInfo.description }}</span>
-                  <span
-                    :class="[
-                      'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
-                      tagInfo.quadrant === 'Q1'
-                        ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                        : tagInfo.quadrant === 'Q2'
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                          : tagInfo.quadrant === 'Q3'
-                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                            : tagInfo.quadrant === 'Q4'
-                              ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                              : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                    ]"
-                  >
-                    {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Time/Effort Related Tasks -->
-            <div class="mb-2">
-              <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
-                Time/Effort:
-              </div>
-              <div class="flex flex-wrap gap-1">
-                <div
-                  v-for="tagInfo in availableTags.filter((t) => t.category === 'time-effort')"
-                  :key="tagInfo.tag"
-                  class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
-                >
-                  <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
-                    tagInfo.tag
-                  }}</span>
-                  <span class="text-gray-500 dark:text-gray-500">•</span>
-                  <span class="text-gray-700 dark:text-gray-300">{{ tagInfo.description }}</span>
-                  <span
-                    :class="[
-                      'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
-                      tagInfo.quadrant === 'Q1'
-                        ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                        : tagInfo.quadrant === 'Q2'
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                          : tagInfo.quadrant === 'Q3'
-                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                            : tagInfo.quadrant === 'Q4'
-                              ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                              : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                    ]"
-                  >
-                    {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Administrative Tasks -->
-            <div class="mb-0">
-              <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
-                Administrative:
-              </div>
-              <div class="flex flex-wrap gap-1">
-                <div
-                  v-for="tagInfo in availableTags.filter((t) => t.category === 'administrative')"
-                  :key="tagInfo.tag"
-                  class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
-                >
-                  <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
-                    tagInfo.tag
-                  }}</span>
-                  <span class="text-gray-500 dark:text-gray-500">•</span>
-                  <span class="text-gray-700 dark:text-gray-300">{{ tagInfo.description }}</span>
-                  <span
-                    :class="[
-                      'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
-                      tagInfo.quadrant === 'Q1'
-                        ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                        : tagInfo.quadrant === 'Q2'
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                          : tagInfo.quadrant === 'Q3'
-                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                            : tagInfo.quadrant === 'Q4'
-                              ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                              : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                    ]"
-                  >
-                    {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Options row (shown when focused or typing) -->
-          <div
-            v-show="isAddingQuickTask || quickTaskTitle?.trim() || quickTaskNotes?.trim()"
-            class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700 relative"
-          >
-            <!-- Date Input overlaid on button (for browser compatibility) -->
-            <div class="flex items-center gap-1 relative">
-              <div class="relative">
-                <input
-                  ref="datePickerRef"
-                  v-model="quickTaskDate"
-                  type="date"
-                  :class="[
-                    'absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10',
-                    'px-2 py-1.5 rounded-lg',
-                  ]"
-                  :title="quickTaskDate ? `Date: ${quickTaskDate}` : 'Set date'"
-                  @dblclick="quickTaskDate = null"
-                />
-                <div
-                  :class="[
-                    'px-2 py-1.5 rounded-lg transition-colors touch-manipulation flex items-center gap-1.5 pointer-events-none',
-                    quickTaskDate
-                      ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
-                  ]"
-                >
-                  <Icon name="mdi:calendar" size="16" />
-                  <span v-if="quickTaskDate" class="text-xs font-medium">
-                    {{ formatDateToDisplay(quickTaskDate) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Bucket Icon Button with Dropdown and Display -->
-            <div class="relative menu-container flex items-center gap-1">
-              <button
-                type="button"
-                :class="[
-                  'px-2 py-1.5 rounded-lg transition-colors touch-manipulation flex items-center gap-1.5',
-                  quickTaskTheme
-                    ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
-                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
-                ]"
-                :title="quickTaskTheme ? `Bucket: ${quickTaskTheme}` : 'Select bucket'"
-                @click.stop="showThemeDropdown = !showThemeDropdown"
-              >
-                <Icon name="mdi:folder" size="16" />
-                <span v-if="quickTaskTheme" class="text-xs font-medium max-w-[80px] truncate">
-                  {{ quickTaskTheme }}
-                </span>
-              </button>
-              <!-- Theme Dropdown -->
+          <div class="flex-1">
+            <div class="flex items-center gap-3">
+              <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+                Manage Tasks
+              </h1>
+              <!-- Database Connection Status Indicator -->
               <div
-                v-if="showThemeDropdown"
-                class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[150px]"
-                style="left: 0; top: 100%"
-                @click.stop
-              >
-                <div
-                  class="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm border-b border-gray-200 dark:border-gray-700"
-                  :class="{
-                    'bg-blue-100 dark:bg-blue-900/40': !quickTaskTheme,
-                  }"
-                  @click="clearQuickTaskTheme"
-                >
-                  <div class="font-medium text-gray-900 dark:text-gray-100">No Bucket</div>
-                </div>
-                <div
-                  v-for="theme in availableThemes"
-                  :key="theme"
-                  class="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
-                  :class="{
-                    'bg-blue-100 dark:bg-blue-900/40': quickTaskTheme === theme,
-                  }"
-                  @click="selectQuickTaskTheme(theme)"
-                >
-                  <div class="font-medium text-gray-900 dark:text-gray-100">{{ theme }}</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- New Bucket Icon Button -->
-            <button
-              type="button"
-              class="p-2 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center"
-              title="New bucket"
-              @click.stop="isThemeInputVisible = !isThemeInputVisible"
-            >
-              <Icon name="mdi:plus" size="18" />
-            </button>
-
-            <!-- MIT Icon Toggle Button -->
-            <button
-              type="button"
-              :class="[
-                'p-2 rounded-lg transition-colors touch-manipulation flex items-center justify-center',
-                quickTaskIsMit
-                  ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-                  : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
-              ]"
-              title="MIT (Most Important Task)"
-              @click="quickTaskIsMit = !quickTaskIsMit"
-            >
-              <Icon name="mdi:flag" size="18" />
-            </button>
-
-            <!-- Dependency Dropdown (only shown when bucket is chosen and there are active tasks) -->
-            <div
-              v-if="
-                (quickTaskTheme || newThemeName.value?.trim()) &&
-                availableTasksForDependency.length > 0
-              "
-              class="relative menu-container"
-            >
-              <button
-                type="button"
                 :class="[
-                  'px-1.5 py-1 sm:px-1 sm:py-0.5 rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-0.5',
-                  quickTaskDependsOn
-                    ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                  'flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium',
+                  dbConnectionStatus === 'connected'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : dbConnectionStatus === 'disconnected'
+                      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
                 ]"
                 :title="
-                  quickTaskDependsOn
-                    ? `Depends on: ${getTaskById(quickTaskDependsOn)?.title || 'Task'}`
-                    : 'Link to another task in this bucket'
+                  dbConnectionStatus === 'connected'
+                    ? 'Database connected'
+                    : dbConnectionStatus === 'disconnected'
+                      ? 'Database disconnected - check console for errors and verify DATABASE_URL is set correctly'
+                      : 'Checking database connection...'
                 "
-                @click.stop="showQuickTaskDependencyDropdown = !showQuickTaskDependencyDropdown"
               >
-                <Icon name="mdi:link-variant" size="14" class="sm:w-3 sm:h-3" />
-                <span
-                  v-if="quickTaskDependsOn"
-                  class="text-xs font-medium max-w-[60px] truncate leading-tight"
-                >
-                  {{ getTaskById(quickTaskDependsOn)?.title || 'Task' }}
+                <Icon
+                  :name="
+                    dbConnectionStatus === 'connected'
+                      ? 'mdi:database-check'
+                      : dbConnectionStatus === 'disconnected'
+                        ? 'mdi:database-off'
+                        : 'mdi:database-sync'
+                  "
+                  size="14"
+                />
+                <span class="hidden sm:inline">
+                  {{
+                    dbConnectionStatus === 'connected'
+                      ? 'Connected'
+                      : dbConnectionStatus === 'disconnected'
+                        ? 'Reconnecting...'
+                        : 'Checking...'
+                  }}
                 </span>
-              </button>
-              <!-- Dependency Dropdown -->
-              <div
-                v-if="showQuickTaskDependencyDropdown"
-                class="absolute z-[60] mt-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto min-w-[160px] max-w-[200px]"
-                style="left: 0; top: 100%"
-                @click.stop
-              >
-                <div
-                  class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-200 dark:border-gray-700"
-                  :class="{
-                    'bg-blue-100 dark:bg-blue-900/40': !quickTaskDependsOn,
-                  }"
-                  @click="clearQuickTaskDependency"
-                >
-                  <div class="font-medium text-gray-900 dark:text-gray-100">No Dependency</div>
-                </div>
-                <div
-                  v-for="task in availableTasksForDependency"
-                  :key="task.id"
-                  class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
-                  :class="{
-                    'bg-blue-100 dark:bg-blue-900/40': quickTaskDependsOn === task.id,
-                  }"
-                  @click="setQuickTaskDependency(task.id)"
-                >
-                  <div class="font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {{ task.title }}
-                  </div>
-                </div>
               </div>
             </div>
-
-            <!-- New Theme Input (when + button is clicked) -->
-            <div class="relative menu-container">
-              <input
-                v-if="isThemeInputVisible"
-                v-model="newThemeName"
-                type="text"
-                placeholder="Bucket"
-                class="px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 w-28 sm:w-20 h-9 sm:min-h-0"
-                @keyup.enter="addNewTheme"
-                @keyup.esc="handleThemeInputEsc"
-                @keydown="handleThemeInputKeydown"
-                @input="selectedThemeSuggestionIndex = -1"
-              />
-              <!-- Theme Suggestions Dropdown -->
-              <div
-                v-if="isThemeInputVisible && themeSuggestions.length > 0"
-                ref="themeSuggestionsRef"
-                class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[120px] max-w-[200px]"
-                style="left: 0; top: 100%"
-                @click.stop
-              >
-                <div
-                  v-for="(suggestion, index) in themeSuggestions"
-                  :key="suggestion"
-                  :data-theme-suggestion-index="index"
-                  :class="[
-                    'px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs',
-                    index === selectedThemeSuggestionIndex ? 'bg-blue-100 dark:bg-blue-900/40' : '',
-                  ]"
-                  @click="selectThemeSuggestion(suggestion)"
-                >
-                  <div class="text-gray-900 dark:text-gray-100 truncate">{{ suggestion }}</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Add Button (moved to end of options row) -->
-            <button
-              v-if="quickTaskTitle?.trim()"
-              class="px-3 py-2 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center justify-center gap-1.5 ml-auto"
-              @click="handleQuickAddTask"
+            <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
+              View and edit all your tasks
+            </p>
+          </div>
+          <!-- Desktop: Large buttons with labels -->
+          <div class="hidden sm:flex items-center gap-2 flex-wrap">
+            <!-- Dashboard - moved to front -->
+            <NuxtLink
+              to="/dev/planner"
+              class="px-4 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
             >
-              <Icon name="mdi:plus" size="16" />
-              <span>Add</span>
+              <Icon name="mdi:view-dashboard" size="20" />
+              <span>Dashboard</span>
+            </NuxtLink>
+            <NuxtLink
+              to="/dev/planner/review"
+              class="px-4 py-2.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
+            >
+              <Icon name="mdi:chart-line" size="20" />
+              <span>Review</span>
+            </NuxtLink>
+            <!-- Export/Print - merged and moved to end -->
+            <div class="relative menu-container">
+              <button
+                class="px-4 py-2.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
+                @click.stop="showExportMenu = !showExportMenu"
+              >
+                <Icon name="mdi:file-export" size="20" />
+                <span>Export/Print</span>
+                <Icon name="mdi:chevron-down" size="16" />
+              </button>
+              <!-- Export/Print Dropdown -->
+              <div
+                v-if="showExportMenu"
+                class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+                @click.stop
+              >
+                <button
+                  class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
+                  @click="handleExportCSV"
+                >
+                  <Icon name="mdi:download" size="20" />
+                  <span>Export CSV Report</span>
+                </button>
+                <button
+                  class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-sm border-t border-gray-200 dark:border-gray-700"
+                  @click="handlePrintReport"
+                >
+                  <Icon name="mdi:printer" size="20" />
+                  <span>Print Summary</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mobile: Horizontal Button Row -->
+          <div class="sm:hidden flex items-center gap-1.5 flex-wrap">
+            <NuxtLink
+              to="/dev/planner"
+              class="px-2.5 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+              style="touch-action: manipulation; min-height: 32px"
+            >
+              <Icon name="mdi:view-dashboard" size="16" />
+              <span>Dashboard</span>
+            </NuxtLink>
+            <NuxtLink
+              to="/dev/planner/review"
+              class="px-2.5 py-1.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+              style="touch-action: manipulation; min-height: 32px"
+            >
+              <Icon name="mdi:chart-line" size="16" />
+              <span>Review</span>
+            </NuxtLink>
+            <button
+              class="px-2.5 py-1.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+              style="touch-action: manipulation; min-height: 32px"
+              @click="handlePrintReport"
+            >
+              <Icon name="mdi:printer" size="16" />
+              <span>Print</span>
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Tasks List -->
-      <div class="relative">
-        <!-- Action Buttons - Icons overhead the tasks table -->
-        <div class="flex justify-end gap-2 mb-2">
-          <!-- Bulk Upload Button -->
-          <button
-            class="p-2 rounded-lg transition-colors touch-manipulation bg-blue-500 hover:bg-blue-600 text-white"
-            title="Bulk upload tasks"
-            @click="isBulkUploadVisible = true"
-          >
-            <Icon name="mdi:upload" size="22" />
-          </button>
-          <!-- Purge Button -->
-          <button
-            :class="[
-              'p-2 rounded-lg transition-colors touch-manipulation',
-              isPurging
-                ? 'bg-gray-400 cursor-not-allowed text-white'
-                : 'bg-orange-500 hover:bg-orange-600 text-white',
-            ]"
-            :disabled="isPurging"
-            :title="isPurging ? 'Purging...' : 'Purge all completed task'"
-            @click="handlePurge"
-          >
-            <Icon name="mdi:delete-sweep" size="22" />
-          </button>
-        </div>
+      <!-- Loading State -->
+      <div v-if="isLoading" class="text-center py-12">
         <div
-          class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700"
-        >
-          <template v-for="themeGroup in tasksGroupedByTheme" :key="themeGroup.theme">
-            <!-- Theme Header -->
-            <div
-              class="bg-gray-100 dark:bg-gray-700/50 px-3 sm:px-4 py-2.5 border-l-4 border-gray-400 dark:border-gray-500"
-            >
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-sm font-semibold text-gray-800 dark:text-gray-200 uppercase tracking-wide"
-                  >{{ themeGroup.theme }}</span
-                >
-                <span class="text-xs text-gray-600 dark:text-gray-400 font-medium">{{
-                  themeGroup.tasks.length
-                }}</span>
+          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"
+        ></div>
+      </div>
+
+      <div v-else>
+        <!-- Quick Add Task Section -->
+        <div class="mb-3">
+          <div
+            class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 sm:p-2.5"
+          >
+            <!-- Task and Notes row (aligned layout) -->
+            <div class="flex flex-col sm:flex-row gap-2 mb-1.5 items-start">
+              <!-- Task input -->
+              <div class="flex-1 flex flex-col w-full">
+                <div class="flex items-center justify-between mb-1.5 h-5">
+                  <label
+                    class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
+                  >
+                    Task
+                  </label>
+                  <span class="text-xs text-transparent leading-5">Placeholder</span>
+                </div>
+                <input
+                  ref="quickTaskInput"
+                  v-model="quickTaskTitle"
+                  type="text"
+                  placeholder="Add task..."
+                  class="w-full px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
+                  style="box-sizing: border-box"
+                  @keyup.enter="handleQuickAddTask"
+                  @keyup.esc="handleQuickTaskEsc"
+                  @focus="isAddingQuickTask = true"
+                />
+              </div>
+
+              <!-- Notes field -->
+              <div class="flex-1 flex flex-col w-full">
+                <div class="flex items-center justify-between mb-1.5 h-5">
+                  <label
+                    class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
+                    >Notes</label
+                  >
+                  <button
+                    type="button"
+                    class="text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation py-1 px-1 leading-5"
+                    @click="showTagLegendQuickAdd = !showTagLegendQuickAdd"
+                  >
+                    {{ showTagLegendQuickAdd ? 'Hide' : 'Show' }} Tags
+                  </button>
+                </div>
+                <div class="relative">
+                  <textarea
+                    ref="quickTaskNotesInputRef"
+                    v-model="quickTaskNotes"
+                    class="w-full px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
+                    style="box-sizing: border-box; vertical-align: top"
+                    rows="2"
+                    placeholder="Add notes... Use @ or # for tags (e.g., @delegate, @quick-win)"
+                    @focus="isAddingQuickTask = true"
+                    @input="handleQuickNotesInput"
+                    @keydown="handleQuickNotesKeydown"
+                  />
+                  <!-- Tag Suggestions Dropdown for quick add -->
+                  <div
+                    v-if="tagSuggestions.length > 0"
+                    ref="tagSuggestionsRef"
+                    class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[200px]"
+                    style="left: 0; top: 100%"
+                  >
+                    <div
+                      v-for="(tagInfo, index) in tagSuggestions"
+                      :key="tagInfo.tag"
+                      :data-suggestion-index="index"
+                      :class="[
+                        'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm',
+                        index === suggestionIndex ? 'bg-blue-100 dark:bg-blue-900/40' : '',
+                      ]"
+                      @click="insertTag(tagInfo.tag)"
+                    >
+                      <div class="font-medium text-gray-900 dark:text-gray-100">
+                        {{ tagInfo.tag }}
+                      </div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ tagInfo.description }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- Tasks in this theme -->
+            <!-- Tag Legend for quick add (shown below when toggled) -->
             <div
-              v-for="task in themeGroup.tasks"
-              :key="task.id"
-              :data-task-id="task.id"
-              :class="[
-                'px-3 sm:px-4 py-3 sm:py-2.5 border-l-4 transition-all',
-                editingTaskId === task.id &&
-                  'bg-blue-50 dark:bg-blue-950/20 border-blue-400 dark:border-blue-600',
-                task.is_mit &&
-                  editingTaskId !== task.id &&
-                  'bg-red-50 dark:bg-red-950/40 border-red-400 dark:border-red-600 hover:bg-red-100 dark:hover:bg-red-950/50',
-                !task.is_mit &&
-                  editingTaskId !== task.id &&
-                  'border-transparent hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50/50 dark:hover:bg-gray-800/30',
-              ]"
+              v-if="
+                showTagLegendQuickAdd &&
+                (isAddingQuickTask || quickTaskTitle?.trim() || quickTaskNotes?.trim())
+              "
+              class="mb-1.5 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
             >
-              <div
-                v-if="editingTaskId !== task.id"
-                class="flex flex-row items-center gap-2 sm:gap-3"
-              >
-                <!-- Done/Doing Toggle (square toggle) -->
-                <button
-                  :class="[
-                    'relative w-11 h-6 sm:w-8 sm:h-4 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0',
-                    task.status === 'done'
-                      ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
-                      : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
-                  ]"
-                  @click="toggleTaskStatus(task.id, task.status)"
-                >
-                  <span
-                    :class="[
-                      'absolute top-0.5 left-0.5 h-5 w-5 sm:h-3 sm:w-3 bg-white shadow-sm transform transition-transform duration-200 rounded-sm',
-                      task.status === 'done' ? 'translate-x-5 sm:translate-x-3.5' : 'translate-x-0',
-                    ]"
-                  ></span>
-                </button>
+              <!-- Quadrant Reference Guide -->
+              <div class="mb-3 pb-2 border-b border-gray-300 dark:border-gray-600">
+                <div class="font-semibold mb-1.5 text-gray-900 dark:text-gray-100 text-xs">
+                  Quadrant Guide:
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  <div class="flex items-center gap-1">
+                    <span
+                      class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 shrink-0"
+                      >Q1</span
+                    >
+                    <span class="text-gray-600 dark:text-gray-400 text-xs">Do Now</span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <span
+                      class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0"
+                      >Q2</span
+                    >
+                    <span class="text-gray-600 dark:text-gray-400 text-xs">Schedule</span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <span
+                      class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 shrink-0"
+                      >Q3</span
+                    >
+                    <span class="text-gray-600 dark:text-gray-400 text-xs">Defer</span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <span
+                      class="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shrink-0"
+                      >Q4</span
+                    >
+                    <span class="text-gray-600 dark:text-gray-400 text-xs">Later</span>
+                  </div>
+                </div>
+              </div>
 
-                <!-- Task Title and Notes (compact) -->
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center justify-between gap-2 mb-1">
-                    <div
+              <!-- Support Needed Tasks -->
+              <div class="mb-2">
+                <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                  Support Needed:
+                </div>
+                <div class="flex flex-wrap gap-1">
+                  <div
+                    v-for="tagInfo in availableTags.filter((t) => t.category === 'support-needed')"
+                    :key="tagInfo.tag"
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                  >
+                    <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                      tagInfo.tag
+                    }}</span>
+                    <span class="text-gray-500 dark:text-gray-500">•</span>
+                    <span class="text-gray-700 dark:text-gray-300">{{ tagInfo.description }}</span>
+                    <span
                       :class="[
-                        'text-sm cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex-1',
-                        task.status === 'done'
-                          ? 'text-gray-500 dark:text-gray-500 line-through'
-                          : 'text-gray-900 dark:text-gray-100',
+                        'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                        tagInfo.quadrant === 'Q1'
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                          : tagInfo.quadrant === 'Q2'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                            : tagInfo.quadrant === 'Q3'
+                              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                              : tagInfo.quadrant === 'Q4'
+                                ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
                       ]"
+                    >
+                      {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Time/Effort Related Tasks -->
+              <div class="mb-2">
+                <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                  Time/Effort:
+                </div>
+                <div class="flex flex-wrap gap-1">
+                  <div
+                    v-for="tagInfo in availableTags.filter((t) => t.category === 'time-effort')"
+                    :key="tagInfo.tag"
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                  >
+                    <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                      tagInfo.tag
+                    }}</span>
+                    <span class="text-gray-500 dark:text-gray-500">•</span>
+                    <span class="text-gray-700 dark:text-gray-300">{{ tagInfo.description }}</span>
+                    <span
+                      :class="[
+                        'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                        tagInfo.quadrant === 'Q1'
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                          : tagInfo.quadrant === 'Q2'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                            : tagInfo.quadrant === 'Q3'
+                              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                              : tagInfo.quadrant === 'Q4'
+                                ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                      ]"
+                    >
+                      {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Administrative Tasks -->
+              <div class="mb-0">
+                <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                  Administrative:
+                </div>
+                <div class="flex flex-wrap gap-1">
+                  <div
+                    v-for="tagInfo in availableTags.filter((t) => t.category === 'administrative')"
+                    :key="tagInfo.tag"
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                  >
+                    <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                      tagInfo.tag
+                    }}</span>
+                    <span class="text-gray-500 dark:text-gray-500">•</span>
+                    <span class="text-gray-700 dark:text-gray-300">{{ tagInfo.description }}</span>
+                    <span
+                      :class="[
+                        'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                        tagInfo.quadrant === 'Q1'
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                          : tagInfo.quadrant === 'Q2'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                            : tagInfo.quadrant === 'Q3'
+                              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                              : tagInfo.quadrant === 'Q4'
+                                ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                      ]"
+                    >
+                      {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Options row (shown when focused or typing) -->
+            <div
+              v-show="isAddingQuickTask || quickTaskTitle?.trim() || quickTaskNotes?.trim()"
+              class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700 relative"
+            >
+              <!-- Date Input overlaid on button (for browser compatibility) -->
+              <div class="flex items-center gap-1 relative">
+                <div class="relative">
+                  <input
+                    ref="datePickerRef"
+                    v-model="quickTaskDate"
+                    type="date"
+                    :class="[
+                      'absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10',
+                      'px-2 py-1.5 rounded-lg',
+                    ]"
+                    :title="quickTaskDate ? `Date: ${quickTaskDate}` : 'Set date'"
+                    @dblclick="quickTaskDate = null"
+                  />
+                  <div
+                    :class="[
+                      'px-2 py-1.5 rounded-lg transition-colors touch-manipulation flex items-center gap-1.5 pointer-events-none',
+                      quickTaskDate
+                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+                    ]"
+                  >
+                    <Icon name="mdi:calendar" size="16" />
+                    <span v-if="quickTaskDate" class="text-xs font-medium">
+                      {{ formatDateToDisplay(quickTaskDate) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bucket Icon Button with Dropdown and Display -->
+              <div class="relative menu-container flex items-center gap-1">
+                <button
+                  type="button"
+                  :class="[
+                    'px-2 py-1.5 rounded-lg transition-colors touch-manipulation flex items-center gap-1.5',
+                    quickTaskTheme
+                      ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                  ]"
+                  :title="quickTaskTheme ? `Bucket: ${quickTaskTheme}` : 'Select bucket'"
+                  @click.stop="showThemeDropdown = !showThemeDropdown"
+                >
+                  <Icon name="mdi:folder" size="16" />
+                  <span v-if="quickTaskTheme" class="text-xs font-medium max-w-[80px] truncate">
+                    {{ quickTaskTheme }}
+                  </span>
+                </button>
+                <!-- Theme Dropdown -->
+                <div
+                  v-if="showThemeDropdown"
+                  class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[150px]"
+                  style="left: 0; top: 100%"
+                  @click.stop
+                >
+                  <div
+                    class="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm border-b border-gray-200 dark:border-gray-700"
+                    :class="{
+                      'bg-blue-100 dark:bg-blue-900/40': !quickTaskTheme,
+                    }"
+                    @click="clearQuickTaskTheme"
+                  >
+                    <div class="font-medium text-gray-900 dark:text-gray-100">No Bucket</div>
+                  </div>
+                  <div
+                    v-for="theme in availableThemes"
+                    :key="theme"
+                    class="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
+                    :class="{
+                      'bg-blue-100 dark:bg-blue-900/40': quickTaskTheme === theme,
+                    }"
+                    @click="selectQuickTaskTheme(theme)"
+                  >
+                    <div class="font-medium text-gray-900 dark:text-gray-100">{{ theme }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- New Bucket Icon Button -->
+              <button
+                type="button"
+                class="p-2 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center"
+                title="New bucket"
+                @click.stop="isThemeInputVisible = !isThemeInputVisible"
+              >
+                <Icon name="mdi:plus" size="18" />
+              </button>
+
+              <!-- MIT Icon Toggle Button -->
+              <button
+                type="button"
+                :class="[
+                  'p-2 rounded-lg transition-colors touch-manipulation flex items-center justify-center',
+                  quickTaskIsMit
+                    ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                ]"
+                title="MIT (Most Important Task)"
+                @click="quickTaskIsMit = !quickTaskIsMit"
+              >
+                <Icon name="mdi:flag" size="18" />
+              </button>
+
+              <!-- Dependency Dropdown (only shown when bucket is chosen and there are active tasks) -->
+              <div
+                v-if="
+                  (quickTaskTheme || newThemeName.value?.trim()) &&
+                  availableTasksForDependency.length > 0
+                "
+                class="relative menu-container"
+              >
+                <button
+                  type="button"
+                  :class="[
+                    'px-1.5 py-1 sm:px-1 sm:py-0.5 rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-0.5',
+                    quickTaskDependsOn
+                      ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                  ]"
+                  :title="
+                    quickTaskDependsOn
+                      ? `Depends on: ${getTaskById(quickTaskDependsOn)?.title || 'Task'}`
+                      : 'Link to another task in this bucket'
+                  "
+                  @click.stop="showQuickTaskDependencyDropdown = !showQuickTaskDependencyDropdown"
+                >
+                  <Icon name="mdi:link-variant" size="14" class="sm:w-3 sm:h-3" />
+                  <span
+                    v-if="quickTaskDependsOn"
+                    class="text-xs font-medium max-w-[60px] truncate leading-tight"
+                  >
+                    {{ getTaskById(quickTaskDependsOn)?.title || 'Task' }}
+                  </span>
+                </button>
+                <!-- Dependency Dropdown -->
+                <div
+                  v-if="showQuickTaskDependencyDropdown"
+                  class="absolute z-[60] mt-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto min-w-[160px] max-w-[200px]"
+                  style="left: 0; top: 100%"
+                  @click.stop
+                >
+                  <div
+                    class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-200 dark:border-gray-700"
+                    :class="{
+                      'bg-blue-100 dark:bg-blue-900/40': !quickTaskDependsOn,
+                    }"
+                    @click="clearQuickTaskDependency"
+                  >
+                    <div class="font-medium text-gray-900 dark:text-gray-100">No Dependency</div>
+                  </div>
+                  <div
+                    v-for="task in availableTasksForDependency"
+                    :key="task.id"
+                    class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
+                    :class="{
+                      'bg-blue-100 dark:bg-blue-900/40': quickTaskDependsOn === task.id,
+                    }"
+                    @click="setQuickTaskDependency(task.id)"
+                  >
+                    <div class="font-medium text-gray-900 dark:text-gray-100 truncate">
+                      {{ task.title }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- New Theme Input (when + button is clicked) -->
+              <div class="relative menu-container">
+                <input
+                  v-if="isThemeInputVisible"
+                  v-model="newThemeName"
+                  type="text"
+                  placeholder="Bucket"
+                  class="px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 w-28 sm:w-20 h-9 sm:min-h-0"
+                  @keyup.enter="addNewTheme"
+                  @keyup.esc="handleThemeInputEsc"
+                  @keydown="handleThemeInputKeydown"
+                  @input="selectedThemeSuggestionIndex = -1"
+                />
+                <!-- Theme Suggestions Dropdown -->
+                <div
+                  v-if="isThemeInputVisible && themeSuggestions.length > 0"
+                  ref="themeSuggestionsRef"
+                  class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[120px] max-w-[200px]"
+                  style="left: 0; top: 100%"
+                  @click.stop
+                >
+                  <div
+                    v-for="(suggestion, index) in themeSuggestions"
+                    :key="suggestion"
+                    :data-theme-suggestion-index="index"
+                    :class="[
+                      'px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs',
+                      index === selectedThemeSuggestionIndex
+                        ? 'bg-blue-100 dark:bg-blue-900/40'
+                        : '',
+                    ]"
+                    @click="selectThemeSuggestion(suggestion)"
+                  >
+                    <div class="text-gray-900 dark:text-gray-100 truncate">{{ suggestion }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Add Button (moved to end of options row) -->
+              <button
+                v-if="quickTaskTitle?.trim()"
+                class="px-3 py-2 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center justify-center gap-1.5 ml-auto"
+                @click="handleQuickAddTask"
+              >
+                <Icon name="mdi:plus" size="16" />
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tasks List -->
+        <div class="relative">
+          <!-- Action Buttons - Icons overhead the tasks table -->
+          <div class="flex justify-end gap-2 mb-2">
+            <!-- Bulk Upload Button -->
+            <button
+              class="p-2 rounded-lg transition-colors touch-manipulation bg-blue-500 hover:bg-blue-600 text-white"
+              title="Bulk upload tasks"
+              @click="isBulkUploadVisible = true"
+            >
+              <Icon name="mdi:upload" size="22" />
+            </button>
+            <!-- Purge Button -->
+            <button
+              :class="[
+                'p-2 rounded-lg transition-colors touch-manipulation',
+                isPurging
+                  ? 'bg-gray-400 cursor-not-allowed text-white'
+                  : 'bg-orange-500 hover:bg-orange-600 text-white',
+              ]"
+              :disabled="isPurging"
+              :title="isPurging ? 'Purging...' : 'Purge all completed task'"
+              @click="handlePurge"
+            >
+              <Icon name="mdi:delete-sweep" size="22" />
+            </button>
+          </div>
+          <div
+            class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700"
+          >
+            <template v-for="themeGroup in tasksGroupedByTheme" :key="themeGroup.theme">
+              <!-- Theme Header -->
+              <div
+                class="bg-gray-100 dark:bg-gray-700/50 px-3 sm:px-4 py-2.5 border-l-4 border-gray-400 dark:border-gray-500"
+              >
+                <div class="flex items-center justify-between">
+                  <span
+                    class="text-sm font-semibold text-gray-800 dark:text-gray-200 uppercase tracking-wide"
+                    >{{ themeGroup.theme }}</span
+                  >
+                  <span class="text-xs text-gray-600 dark:text-gray-400 font-medium">{{
+                    themeGroup.tasks.length
+                  }}</span>
+                </div>
+              </div>
+
+              <!-- Tasks in this theme -->
+              <div
+                v-for="task in themeGroup.tasks"
+                :key="task.id"
+                :data-task-id="task.id"
+                :class="[
+                  'px-3 sm:px-4 py-3 sm:py-2.5 border-l-4 transition-all',
+                  editingTaskId === task.id &&
+                    'bg-blue-50 dark:bg-blue-950/20 border-blue-400 dark:border-blue-600',
+                  task.is_mit &&
+                    editingTaskId !== task.id &&
+                    'bg-red-50 dark:bg-red-950/40 border-red-400 dark:border-red-600 hover:bg-red-100 dark:hover:bg-red-950/50',
+                  !task.is_mit &&
+                    editingTaskId !== task.id &&
+                    'border-transparent hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50/50 dark:hover:bg-gray-800/30',
+                ]"
+              >
+                <div
+                  v-if="editingTaskId !== task.id"
+                  class="flex flex-row items-center gap-2 sm:gap-3"
+                >
+                  <!-- Done/Doing Toggle (square toggle) -->
+                  <button
+                    :class="[
+                      'relative w-11 h-6 sm:w-8 sm:h-4 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0',
+                      task.status === 'done'
+                        ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
+                        : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
+                    ]"
+                    @click="toggleTaskStatus(task.id, task.status)"
+                  >
+                    <span
+                      :class="[
+                        'absolute top-0.5 left-0.5 h-5 w-5 sm:h-3 sm:w-3 bg-white shadow-sm transform transition-transform duration-200 rounded-sm',
+                        task.status === 'done'
+                          ? 'translate-x-5 sm:translate-x-3.5'
+                          : 'translate-x-0',
+                      ]"
+                    ></span>
+                  </button>
+
+                  <!-- Task Title and Notes (compact) -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                      <div
+                        :class="[
+                          'text-sm cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex-1',
+                          task.status === 'done'
+                            ? 'text-gray-500 dark:text-gray-500 line-through'
+                            : 'text-gray-900 dark:text-gray-100',
+                        ]"
+                        title="Click to edit"
+                        @click.stop="startEdit(task)"
+                      >
+                        <div class="flex items-center gap-2">
+                          <!-- Expand/Collapse Button for Parent Tasks -->
+                          <button
+                            v-if="hasDependents(task.id)"
+                            type="button"
+                            class="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                            @click.stop="toggleDependents(task.id)"
+                          >
+                            <Icon
+                              :name="
+                                expandedParentTasks.has(task.id)
+                                  ? 'mdi:chevron-down'
+                                  : 'mdi:chevron-right'
+                              "
+                              size="16"
+                            />
+                          </button>
+                          <span v-else class="w-4"></span>
+                          <span class="font-medium">{{ task.title }}</span>
+                          <!-- Rollover Counter -->
+                          <span
+                            v-if="task.rollover_count && task.rollover_count > 0"
+                            class="font-bold whitespace-nowrap flex-shrink-0"
+                            style="color: rgb(220, 38, 38) !important; font-weight: bold !important"
+                          >
+                            +{{ task.rollover_count }}
+                          </span>
+                          <!-- Dependency Indicator (for child tasks) -->
+                          <span
+                            v-if="task.depends_on_task_id"
+                            class="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded border border-blue-200 dark:border-blue-800"
+                          >
+                            <Icon name="mdi:link-variant" size="12" />
+                            <span class="truncate max-w-[100px]">{{
+                              getTaskById(task.depends_on_task_id)?.title || 'Task'
+                            }}</span>
+                          </span>
+                          <!-- Dependent Count Badge -->
+                          <span
+                            v-if="hasDependents(task.id)"
+                            class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
+                          >
+                            {{ getDependentTasks(task.id).length }}
+                          </span>
+                        </div>
+                        <span v-if="task.notes" class="text-gray-600 dark:text-gray-400 ml-2">
+                          – {{ task.notes }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Actions -->
+                  <div class="flex items-center gap-2 flex-shrink-0">
+                    <!-- Date Tag (hidden for done tasks, clickable to edit) -->
+                    <span
+                      v-if="task.planned_date && task.status !== 'done'"
+                      class="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation whitespace-nowrap"
                       title="Click to edit"
                       @click.stop="startEdit(task)"
                     >
-                      <div class="flex items-center gap-2">
-                        <!-- Expand/Collapse Button for Parent Tasks -->
-                        <button
-                          v-if="hasDependents(task.id)"
-                          type="button"
-                          class="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                          @click.stop="toggleDependents(task.id)"
-                        >
-                          <Icon
-                            :name="
-                              expandedParentTasks.has(task.id)
-                                ? 'mdi:chevron-down'
-                                : 'mdi:chevron-right'
-                            "
-                            size="16"
-                          />
-                        </button>
-                        <span v-else class="w-4"></span>
-                        <span class="font-medium">{{ task.title }}</span>
-                        <!-- Rollover Counter -->
-                        <span
-                          v-if="task.rollover_count && task.rollover_count > 0"
-                          class="font-bold whitespace-nowrap flex-shrink-0"
-                          style="color: rgb(220, 38, 38) !important; font-weight: bold !important"
-                        >
-                          +{{ task.rollover_count }}
-                        </span>
-                        <!-- Dependency Indicator (for child tasks) -->
-                        <span
-                          v-if="task.depends_on_task_id"
-                          class="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded border border-blue-200 dark:border-blue-800"
-                        >
-                          <Icon name="mdi:link-variant" size="12" />
-                          <span class="truncate max-w-[100px]">{{
-                            getTaskById(task.depends_on_task_id)?.title || 'Task'
-                          }}</span>
-                        </span>
-                        <!-- Dependent Count Badge -->
-                        <span
-                          v-if="hasDependents(task.id)"
-                          class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
-                        >
-                          {{ getDependentTasks(task.id).length }}
-                        </span>
-                      </div>
-                      <span v-if="task.notes" class="text-gray-600 dark:text-gray-400 ml-2">
-                        – {{ task.notes }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                      {{
+                        formatDateRelative(task.planned_date) ||
+                        formatDateToDisplay(task.planned_date) ||
+                        task.planned_date
+                      }}
+                    </span>
 
-                <!-- Actions -->
-                <div class="flex items-center gap-2 flex-shrink-0">
-                  <!-- Date Tag (hidden for done tasks, clickable to edit) -->
-                  <span
-                    v-if="task.planned_date && task.status !== 'done'"
-                    class="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation whitespace-nowrap"
-                    title="Click to edit"
-                    @click.stop="startEdit(task)"
-                  >
-                    {{
-                      formatDateRelative(task.planned_date) ||
-                      formatDateToDisplay(task.planned_date) ||
-                      task.planned_date
-                    }}
-                  </span>
-
-                  <!-- Delete Icon -->
-                  <button
-                    :class="[
-                      'p-2 transition-colors touch-manipulation',
-                      hasDependents(task.id)
-                        ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                        : 'text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300',
-                    ]"
-                    :title="
-                      hasDependents(task.id)
-                        ? `Cannot delete: ${getDependentTasks(task.id).length} dependent task(s) exist`
-                        : 'Delete'
-                    "
-                    :disabled="hasDependents(task.id)"
-                    @click.stop="handleDeleteTaskClick(task)"
-                  >
-                    <Icon name="mdi:delete-outline" size="20" />
-                  </button>
-                </div>
-
-                <!-- Tag Legend for view mode (shown below when toggled) -->
-                <div
-                  v-if="showTagLegendForTask.value?.has(task.id)"
-                  class="mt-2 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
-                >
-                  <!-- Quadrant Reference Guide -->
-                  <div class="mb-3 pb-2 border-b border-gray-300 dark:border-gray-600">
-                    <div class="font-semibold mb-1.5 text-gray-900 dark:text-gray-100 text-xs">
-                      Quadrant Guide:
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                      <div class="flex items-center gap-1">
-                        <span
-                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 shrink-0"
-                          >Q1</span
-                        >
-                        <span class="text-gray-600 dark:text-gray-400 text-xs">Do Now</span>
-                      </div>
-                      <div class="flex items-center gap-1">
-                        <span
-                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0"
-                          >Q2</span
-                        >
-                        <span class="text-gray-600 dark:text-gray-400 text-xs">Schedule</span>
-                      </div>
-                      <div class="flex items-center gap-1">
-                        <span
-                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 shrink-0"
-                          >Q3</span
-                        >
-                        <span class="text-gray-600 dark:text-gray-400 text-xs">Defer</span>
-                      </div>
-                      <div class="flex items-center gap-1">
-                        <span
-                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shrink-0"
-                          >Q4</span
-                        >
-                        <span class="text-gray-600 dark:text-gray-400 text-xs">Later</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Support Needed Tasks -->
-                  <div class="mb-2">
-                    <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
-                      Support Needed:
-                    </div>
-                    <div class="flex flex-wrap gap-1">
-                      <div
-                        v-for="tagInfo in availableTags.filter(
-                          (t) => t.category === 'support-needed',
-                        )"
-                        :key="tagInfo.tag"
-                        class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
-                      >
-                        <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
-                          tagInfo.tag
-                        }}</span>
-                        <span class="text-gray-500 dark:text-gray-500">•</span>
-                        <span class="text-gray-700 dark:text-gray-300">{{
-                          tagInfo.description
-                        }}</span>
-                        <span
-                          :class="[
-                            'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
-                            tagInfo.quadrant === 'Q1'
-                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                              : tagInfo.quadrant === 'Q2'
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                : tagInfo.quadrant === 'Q3'
-                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                                  : tagInfo.quadrant === 'Q4'
-                                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                          ]"
-                        >
-                          {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <!-- Time/Effort Related Tasks -->
-                  <div class="mb-2">
-                    <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
-                      Time/Effort:
-                    </div>
-                    <div class="flex flex-wrap gap-1">
-                      <div
-                        v-for="tagInfo in availableTags.filter((t) => t.category === 'time-effort')"
-                        :key="tagInfo.tag"
-                        class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
-                      >
-                        <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
-                          tagInfo.tag
-                        }}</span>
-                        <span class="text-gray-500 dark:text-gray-500">•</span>
-                        <span class="text-gray-700 dark:text-gray-300">{{
-                          tagInfo.description
-                        }}</span>
-                        <span
-                          :class="[
-                            'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
-                            tagInfo.quadrant === 'Q1'
-                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                              : tagInfo.quadrant === 'Q2'
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                : tagInfo.quadrant === 'Q3'
-                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                                  : tagInfo.quadrant === 'Q4'
-                                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                          ]"
-                        >
-                          {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <!-- Administrative Tasks -->
-                  <div class="mb-0">
-                    <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
-                      Administrative:
-                    </div>
-                    <div class="flex flex-wrap gap-1">
-                      <div
-                        v-for="tagInfo in availableTags.filter(
-                          (t) => t.category === 'administrative',
-                        )"
-                        :key="tagInfo.tag"
-                        class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
-                      >
-                        <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
-                          tagInfo.tag
-                        }}</span>
-                        <span class="text-gray-500 dark:text-gray-500">•</span>
-                        <span class="text-gray-700 dark:text-gray-300">{{
-                          tagInfo.description
-                        }}</span>
-                        <span
-                          :class="[
-                            'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
-                            tagInfo.quadrant === 'Q1'
-                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                              : tagInfo.quadrant === 'Q2'
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                : tagInfo.quadrant === 'Q3'
-                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                                  : tagInfo.quadrant === 'Q4'
-                                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                          ]"
-                        >
-                          {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Edit Mode -->
-              <div v-else class="space-y-2 sm:space-y-1.5 py-2 sm:py-1.5 relative">
-                <!-- Task and Notes row (aligned layout - same as quick add) -->
-                <div class="flex flex-col sm:flex-row gap-2 mb-1.5 items-start">
-                  <!-- Task input -->
-                  <div class="flex-1 flex flex-col w-full">
-                    <div class="flex items-center justify-between mb-1.5 h-5">
-                      <label
-                        class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
-                      >
-                        Task
-                      </label>
-                      <span class="text-xs text-transparent leading-5">Placeholder</span>
-                    </div>
-                    <input
-                      v-model="editForm.title"
-                      type="text"
-                      class="w-full px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
-                      style="box-sizing: border-box"
-                      @keyup.enter="saveEdit"
-                      @keyup.esc="cancelEdit"
-                    />
-                  </div>
-
-                  <!-- Notes field -->
-                  <div class="flex-1 flex flex-col w-full">
-                    <div class="flex items-center justify-between mb-1.5 h-5">
-                      <label
-                        class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
-                        >Notes</label
-                      >
-                      <button
-                        type="button"
-                        class="text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation py-1 px-1 leading-5"
-                        @click="showTagLegendEdit = !showTagLegendEdit"
-                      >
-                        {{ showTagLegendEdit ? 'Hide' : 'Show' }} Tags
-                      </button>
-                    </div>
-                    <div class="relative flex items-stretch gap-1.5">
-                      <textarea
-                        ref="notesInputRef"
-                        v-model="editForm.notes"
-                        class="flex-1 px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
-                        style="box-sizing: border-box; vertical-align: top"
-                        rows="2"
-                        placeholder="Add notes... Use @ or # for tags (e.g., @delegate, @quick-win)"
-                        @input="handleNotesInput"
-                        @keydown="handleNotesKeydown"
-                      />
-                      <div class="flex items-center gap-1.5 flex-shrink-0">
-                        <button
-                          type="button"
-                          class="p-2 sm:p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors rounded hover:bg-green-50 dark:hover:bg-green-900/20 touch-manipulation"
-                          title="Save changes"
-                          @click.stop="saveEdit"
-                        >
-                          <Icon name="mdi:check" size="20" class="sm:w-[18px] sm:h-[18px]" />
-                        </button>
-                        <button
-                          class="p-2 sm:p-1.5 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors rounded hover:bg-gray-50 dark:hover:bg-gray-900/20 touch-manipulation"
-                          title="Cancel editing"
-                          @click="cancelEdit"
-                        >
-                          <Icon name="mdi:close" size="20" class="sm:w-[18px] sm:h-[18px]" />
-                        </button>
-                      </div>
-                      <!-- Tag Suggestions Dropdown -->
-                      <div
-                        v-if="tagSuggestions.length > 0"
-                        ref="tagSuggestionsRef"
-                        class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[200px]"
-                        style="left: 0; top: 100%"
-                      >
-                        <div
-                          v-for="(tagInfo, index) in tagSuggestions"
-                          :key="tagInfo.tag"
-                          :data-suggestion-index="index"
-                          :class="[
-                            'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm',
-                            index === suggestionIndex ? 'bg-blue-100 dark:bg-blue-900/40' : '',
-                          ]"
-                          @click="insertTag(tagInfo.tag)"
-                        >
-                          <div class="font-medium text-gray-900 dark:text-gray-100">
-                            {{ tagInfo.tag }}
-                          </div>
-                          <div class="text-xs text-gray-500 dark:text-gray-400">
-                            {{ tagInfo.description }}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Options row (Date, Bucket, MIT) -->
-                <div
-                  class="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-gray-200 dark:border-gray-700"
-                >
-                  <input
-                    v-model="editForm.planned_date"
-                    type="date"
-                    class="px-3 py-2.5 sm:px-2.5 sm:py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
-                  />
-                  <!-- Theme Dropdown with New Bucket Button on Same Row -->
-                  <div class="flex items-center gap-1.5">
-                    <div class="relative menu-container flex-1">
-                      <select
-                        v-if="!isEditThemeInputVisible"
-                        v-model="editForm.theme"
-                        class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 w-full"
-                      >
-                        <option :value="null">Bucket</option>
-                        <option v-for="theme in availableThemes" :key="theme" :value="theme">
-                          {{ theme }}
-                        </option>
-                      </select>
-                      <!-- New Theme Input (when + button is clicked) -->
-                      <input
-                        v-if="isEditThemeInputVisible"
-                        v-model="newEditThemeName"
-                        type="text"
-                        placeholder="Bucket"
-                        class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 w-full"
-                        @keyup.enter="addNewEditTheme"
-                        @keyup.esc="handleEditThemeInputEsc"
-                        @keydown="handleEditThemeInputKeydown"
-                        @input="selectedEditThemeSuggestionIndex = -1"
-                      />
-                      <!-- Edit Theme Suggestions Dropdown -->
-                      <div
-                        v-if="isEditThemeInputVisible && editThemeSuggestions.length > 0"
-                        ref="editThemeSuggestionsRef"
-                        class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[120px] max-w-[200px]"
-                        style="left: 0; top: 100%"
-                        @click.stop
-                      >
-                        <div
-                          v-for="(suggestion, index) in editThemeSuggestions"
-                          :key="suggestion"
-                          :data-theme-suggestion-index="index"
-                          :class="[
-                            'px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs',
-                            index === selectedEditThemeSuggestionIndex
-                              ? 'bg-blue-100 dark:bg-blue-900/40'
-                              : '',
-                          ]"
-                          @click="selectEditThemeSuggestion(suggestion)"
-                        >
-                          <div class="text-gray-900 dark:text-gray-100 truncate">
-                            {{ suggestion }}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <!-- New Bucket Icon Button -->
+                    <!-- Delete Icon -->
                     <button
-                      type="button"
-                      class="p-2 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center min-h-[44px] sm:min-h-0"
-                      title="New bucket"
-                      @click.stop="isEditThemeInputVisible = !isEditThemeInputVisible"
-                    >
-                      <Icon name="mdi:plus" size="18" />
-                    </button>
-                  </div>
-                  <label
-                    class="flex items-center gap-2 px-3 py-2 sm:px-1.5 sm:py-1 text-xs text-gray-700 dark:text-gray-300 touch-manipulation min-h-[44px] sm:min-h-0 cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
-                  >
-                    <input
-                      v-model="editForm.is_mit"
-                      type="checkbox"
-                      class="w-4 h-4 sm:w-3 sm:h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
-                    />
-                    <span>MIT</span>
-                  </label>
-
-                  <!-- Dependency Dropdown (only shown when bucket is chosen and there are active tasks OR task has a dependency) -->
-                  <div
-                    v-if="
-                      (editForm.theme ||
-                        (isEditThemeInputVisible && newEditThemeName.value?.trim())) &&
-                      (availableTasksForDependency.length > 0 || editForm.depends_on_task_id)
-                    "
-                    class="relative menu-container"
-                  >
-                    <button
-                      type="button"
                       :class="[
-                        'px-1.5 py-1 sm:px-1 sm:py-0.5 rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-0.5',
-                        editForm.depends_on_task_id
-                          ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                          : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                        'p-2 transition-colors touch-manipulation',
+                        'text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300',
                       ]"
                       :title="
-                        editForm.depends_on_task_id
-                          ? `Depends on: ${getTaskById(editForm.depends_on_task_id)?.title || 'Task'}`
-                          : 'Link to another task in this bucket'
+                        hasDependents(task.id)
+                          ? `Delete (${getDependentTasks(task.id).length} dependent task(s) will be reassigned automatically)`
+                          : 'Delete'
                       "
-                      @click.stop="showEditTaskDependencyDropdown = !showEditTaskDependencyDropdown"
+                      @click.stop="handleDeleteTaskClick(task)"
                     >
-                      <Icon name="mdi:link-variant" size="14" class="sm:w-3 sm:h-3" />
-                      <span
-                        v-if="editForm.depends_on_task_id"
-                        class="text-xs font-medium max-w-[60px] truncate leading-tight"
-                      >
-                        {{ getTaskById(editForm.depends_on_task_id)?.title || 'Task' }}
-                      </span>
+                      <Icon name="mdi:delete-outline" size="20" />
                     </button>
-                    <!-- Dependency Dropdown -->
-                    <div
-                      v-if="showEditTaskDependencyDropdown"
-                      class="absolute z-[60] mt-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto min-w-[160px] max-w-[200px]"
-                      style="left: 0; top: 100%"
-                      @click.stop
-                    >
-                      <div
-                        class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-200 dark:border-gray-700"
-                        :class="{
-                          'bg-blue-100 dark:bg-blue-900/40': !editForm.depends_on_task_id,
-                        }"
-                        @click="clearEditTaskDependency"
-                      >
-                        <div class="font-medium text-gray-900 dark:text-gray-100">
-                          No Dependency
-                        </div>
-                      </div>
-                      <div
-                        v-for="depTask in availableTasksForDependency"
-                        :key="depTask.id"
-                        class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
-                        :class="{
-                          'bg-blue-100 dark:bg-blue-900/40':
-                            editForm.depends_on_task_id === depTask.id,
-                        }"
-                        @click="setEditTaskDependency(depTask.id)"
-                      >
-                        <div class="font-medium text-gray-900 dark:text-gray-100 truncate">
-                          {{ depTask.title }}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Tag Legend -->
-                <div
-                  v-if="showTagLegendEdit"
-                  class="mt-1.5 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
-                >
-                  <!-- Quadrant Reference Guide -->
-                  <div class="mb-3 pb-2 border-b border-gray-300 dark:border-gray-600">
-                    <div class="font-semibold mb-1.5 text-gray-900 dark:text-gray-100 text-xs">
-                      Quadrant Guide:
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                      <div class="flex items-center gap-1">
-                        <span
-                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 shrink-0"
-                          >Q1</span
-                        >
-                        <span class="text-gray-600 dark:text-gray-400 text-xs">Do Now</span>
-                      </div>
-                      <div class="flex items-center gap-1">
-                        <span
-                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0"
-                          >Q2</span
-                        >
-                        <span class="text-gray-600 dark:text-gray-400 text-xs">Schedule</span>
-                      </div>
-                      <div class="flex items-center gap-1">
-                        <span
-                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 shrink-0"
-                          >Q3</span
-                        >
-                        <span class="text-gray-600 dark:text-gray-400 text-xs">Defer</span>
-                      </div>
-                      <div class="flex items-center gap-1">
-                        <span
-                          class="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shrink-0"
-                          >Q4</span
-                        >
-                        <span class="text-gray-600 dark:text-gray-400 text-xs">Later</span>
-                      </div>
-                    </div>
                   </div>
 
-                  <!-- Support Needed Tasks -->
-                  <div class="mb-2">
-                    <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
-                      Support Needed:
-                    </div>
-                    <div class="flex flex-wrap gap-1">
-                      <div
-                        v-for="tagInfo in availableTags.filter(
-                          (t) => t.category === 'support-needed',
-                        )"
-                        :key="tagInfo.tag"
-                        class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
-                      >
-                        <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
-                          tagInfo.tag
-                        }}</span>
-                        <span class="text-gray-500 dark:text-gray-500">•</span>
-                        <span class="text-gray-700 dark:text-gray-300">{{
-                          tagInfo.description
-                        }}</span>
-                        <span
-                          :class="[
-                            'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
-                            tagInfo.quadrant === 'Q1'
-                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                              : tagInfo.quadrant === 'Q2'
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                : tagInfo.quadrant === 'Q3'
-                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                                  : tagInfo.quadrant === 'Q4'
-                                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                          ]"
-                        >
-                          {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Time/Effort Related Tasks -->
-                  <div class="mb-2">
-                    <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
-                      Time/Effort:
-                    </div>
-                    <div class="flex flex-wrap gap-1">
-                      <div
-                        v-for="tagInfo in availableTags.filter((t) => t.category === 'time-effort')"
-                        :key="tagInfo.tag"
-                        class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
-                      >
-                        <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
-                          tagInfo.tag
-                        }}</span>
-                        <span class="text-gray-500 dark:text-gray-500">•</span>
-                        <span class="text-gray-700 dark:text-gray-300">{{
-                          tagInfo.description
-                        }}</span>
-                        <span
-                          :class="[
-                            'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
-                            tagInfo.quadrant === 'Q1'
-                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                              : tagInfo.quadrant === 'Q2'
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                : tagInfo.quadrant === 'Q3'
-                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                                  : tagInfo.quadrant === 'Q4'
-                                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                          ]"
-                        >
-                          {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Administrative Tasks -->
-                  <div class="mb-0">
-                    <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
-                      Administrative:
-                    </div>
-                    <div class="flex flex-wrap gap-1">
-                      <div
-                        v-for="tagInfo in availableTags.filter(
-                          (t) => t.category === 'administrative',
-                        )"
-                        :key="tagInfo.tag"
-                        class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
-                      >
-                        <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
-                          tagInfo.tag
-                        }}</span>
-                        <span class="text-gray-500 dark:text-gray-500">•</span>
-                        <span class="text-gray-700 dark:text-gray-300">{{
-                          tagInfo.description
-                        }}</span>
-                        <span
-                          :class="[
-                            'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
-                            tagInfo.quadrant === 'Q1'
-                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                              : tagInfo.quadrant === 'Q2'
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                : tagInfo.quadrant === 'Q3'
-                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                                  : tagInfo.quadrant === 'Q4'
-                                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                          ]"
-                        >
-                          {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Collapsible Dependent Tasks (Level 1) -->
-              <div
-                v-if="hasDependents(task.id) && expandedParentTasks.has(task.id)"
-                class="ml-8 mt-2 space-y-1 border-l-2 border-gray-300 dark:border-gray-600 pl-3"
-              >
-                <div
-                  v-for="dependentTask in getDependentTasks(task.id)"
-                  :key="dependentTask.id"
-                  :data-task-id="dependentTask.id"
-                  :class="[
-                    'px-2 py-1.5 border-l-2 border-blue-300 dark:border-blue-600 bg-blue-50/50 dark:bg-blue-950/20 rounded-r transition-all',
-                    editingTaskId === dependentTask.id &&
-                      'bg-blue-100 dark:bg-blue-950/40 border-blue-400 dark:border-blue-600',
-                    dependentTask.is_mit &&
-                      editingTaskId !== dependentTask.id &&
-                      'bg-red-50 dark:bg-red-950/40 border-red-400 dark:border-red-600',
-                    !dependentTask.is_mit &&
-                      editingTaskId !== dependentTask.id &&
-                      'border-blue-300 dark:border-blue-600',
-                  ]"
-                >
+                  <!-- Tag Legend for view mode (shown below when toggled) -->
                   <div
-                    v-if="editingTaskId !== dependentTask.id"
-                    class="flex flex-row items-center gap-2 sm:gap-3"
+                    v-if="showTagLegendForTask.value?.has(task.id)"
+                    class="mt-2 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
                   >
-                    <!-- Done/Doing Toggle -->
-                    <button
-                      :class="[
-                        'relative w-8 h-4 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0',
-                        dependentTask.status === 'done'
-                          ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
-                          : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
-                      ]"
-                      @click="toggleTaskStatus(dependentTask.id, dependentTask.status)"
-                    >
-                      <span
-                        :class="[
-                          'absolute top-0.5 left-0.5 h-3 w-3 bg-white shadow-sm transform transition-transform duration-200 rounded-sm',
-                          dependentTask.status === 'done' ? 'translate-x-3.5' : 'translate-x-0',
-                        ]"
-                      ></span>
-                    </button>
-
-                    <!-- Task Title -->
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-1.5">
-                        <!-- Expand/Collapse Button for Level 2 Dependents -->
-                        <button
-                          v-if="hasDependents(dependentTask.id)"
-                          type="button"
-                          class="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                          @click.stop="toggleDependents(dependentTask.id)"
-                        >
-                          <Icon
-                            :name="
-                              expandedParentTasks.has(dependentTask.id)
-                                ? 'mdi:chevron-down'
-                                : 'mdi:chevron-right'
-                            "
-                            size="14"
-                          />
-                        </button>
-                        <span v-else class="w-4"></span>
-                        <span
-                          :class="[
-                            'text-xs font-medium cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors',
-                            dependentTask.status === 'done'
-                              ? 'text-gray-500 dark:text-gray-500 line-through'
-                              : 'text-gray-900 dark:text-gray-100',
-                          ]"
-                          title="Click to edit"
-                          @click.stop="startEdit(dependentTask)"
-                        >
-                          {{ dependentTask.title }}
-                        </span>
-                        <!-- Rollover Counter for Dependent Tasks -->
-                        <span
-                          v-if="dependentTask.rollover_count && dependentTask.rollover_count > 0"
-                          class="text-xs font-bold text-red-600 dark:text-red-400 ml-1 whitespace-nowrap flex-shrink-0"
-                          style="color: rgb(220, 38, 38) !important; font-weight: bold !important"
-                        >
-                          +{{ dependentTask.rollover_count }}
-                        </span>
-                        <!-- Dependent Count Badge for Level 2 -->
-                        <span
-                          v-if="hasDependents(dependentTask.id)"
-                          class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
-                        >
-                          {{ getDependentTasks(dependentTask.id).length }}
-                        </span>
+                    <!-- Quadrant Reference Guide -->
+                    <div class="mb-3 pb-2 border-b border-gray-300 dark:border-gray-600">
+                      <div class="font-semibold mb-1.5 text-gray-900 dark:text-gray-100 text-xs">
+                        Quadrant Guide:
                       </div>
-                      <span
-                        v-if="dependentTask.notes"
-                        :class="[
-                          'text-xs text-gray-600 dark:text-gray-400 ml-5',
-                          dependentTask.status === 'done' && 'line-through',
-                        ]"
-                      >
-                        – {{ dependentTask.notes }}
-                      </span>
+                      <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                        <div class="flex items-center gap-1">
+                          <span
+                            class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 shrink-0"
+                            >Q1</span
+                          >
+                          <span class="text-gray-600 dark:text-gray-400 text-xs">Do Now</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <span
+                            class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0"
+                            >Q2</span
+                          >
+                          <span class="text-gray-600 dark:text-gray-400 text-xs">Schedule</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <span
+                            class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 shrink-0"
+                            >Q3</span
+                          >
+                          <span class="text-gray-600 dark:text-gray-400 text-xs">Defer</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <span
+                            class="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shrink-0"
+                            >Q4</span
+                          >
+                          <span class="text-gray-600 dark:text-gray-400 text-xs">Later</span>
+                        </div>
+                      </div>
                     </div>
 
-                    <!-- Actions -->
-                    <div class="flex items-center gap-1 flex-shrink-0">
-                      <!-- Date Tag -->
-                      <span
-                        v-if="dependentTask.planned_date && dependentTask.status !== 'done'"
-                        class="px-1.5 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation whitespace-nowrap"
-                        title="Click to edit"
-                        @click.stop="startEdit(dependentTask)"
-                      >
-                        {{
-                          formatDateRelative(dependentTask.planned_date) ||
-                          formatDateToDisplay(dependentTask.planned_date) ||
-                          dependentTask.planned_date
-                        }}
-                      </span>
-
-                      <!-- Delete Icon -->
-                      <button
-                        :class="[
-                          'p-1 transition-colors touch-manipulation',
-                          hasDependents(dependentTask.id)
-                            ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                            : 'text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300',
-                        ]"
-                        :title="
-                          hasDependents(dependentTask.id)
-                            ? `Cannot delete: ${getDependentTasks(dependentTask.id).length} dependent task(s) exist`
-                            : 'Delete'
-                        "
-                        :disabled="hasDependents(dependentTask.id)"
-                        @click.stop="handleDeleteTaskClick(dependentTask)"
-                      >
-                        <Icon name="mdi:delete-outline" size="16" />
-                      </button>
+                    <!-- Support Needed Tasks -->
+                    <div class="mb-2">
+                      <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                        Support Needed:
+                      </div>
+                      <div class="flex flex-wrap gap-1">
+                        <div
+                          v-for="tagInfo in availableTags.filter(
+                            (t) => t.category === 'support-needed',
+                          )"
+                          :key="tagInfo.tag"
+                          class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                        >
+                          <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                            tagInfo.tag
+                          }}</span>
+                          <span class="text-gray-500 dark:text-gray-500">•</span>
+                          <span class="text-gray-700 dark:text-gray-300">{{
+                            tagInfo.description
+                          }}</span>
+                          <span
+                            :class="[
+                              'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                              tagInfo.quadrant === 'Q1'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                                : tagInfo.quadrant === 'Q2'
+                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                  : tagInfo.quadrant === 'Q3'
+                                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                    : tagInfo.quadrant === 'Q4'
+                                      ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                      : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                            ]"
+                          >
+                            {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Time/Effort Related Tasks -->
+                    <div class="mb-2">
+                      <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                        Time/Effort:
+                      </div>
+                      <div class="flex flex-wrap gap-1">
+                        <div
+                          v-for="tagInfo in availableTags.filter(
+                            (t) => t.category === 'time-effort',
+                          )"
+                          :key="tagInfo.tag"
+                          class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                        >
+                          <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                            tagInfo.tag
+                          }}</span>
+                          <span class="text-gray-500 dark:text-gray-500">•</span>
+                          <span class="text-gray-700 dark:text-gray-300">{{
+                            tagInfo.description
+                          }}</span>
+                          <span
+                            :class="[
+                              'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                              tagInfo.quadrant === 'Q1'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                                : tagInfo.quadrant === 'Q2'
+                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                  : tagInfo.quadrant === 'Q3'
+                                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                    : tagInfo.quadrant === 'Q4'
+                                      ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                      : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                            ]"
+                          >
+                            {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Administrative Tasks -->
+                    <div class="mb-0">
+                      <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                        Administrative:
+                      </div>
+                      <div class="flex flex-wrap gap-1">
+                        <div
+                          v-for="tagInfo in availableTags.filter(
+                            (t) => t.category === 'administrative',
+                          )"
+                          :key="tagInfo.tag"
+                          class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                        >
+                          <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                            tagInfo.tag
+                          }}</span>
+                          <span class="text-gray-500 dark:text-gray-500">•</span>
+                          <span class="text-gray-700 dark:text-gray-300">{{
+                            tagInfo.description
+                          }}</span>
+                          <span
+                            :class="[
+                              'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                              tagInfo.quadrant === 'Q1'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                                : tagInfo.quadrant === 'Q2'
+                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                  : tagInfo.quadrant === 'Q3'
+                                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                    : tagInfo.quadrant === 'Q4'
+                                      ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                      : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                            ]"
+                          >
+                            {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                </div>
 
-                  <!-- Edit Mode for Dependent Task (Full Edit Form) -->
-                  <div v-else class="space-y-2 sm:space-y-1.5 py-2 sm:py-1.5 relative">
-                    <!-- Task and Notes row (aligned layout - same as parent tasks) -->
-                    <div class="flex flex-col sm:flex-row gap-2 mb-1.5 items-start">
-                      <!-- Task input -->
-                      <div class="flex-1 flex flex-col w-full">
-                        <div class="flex items-center justify-between mb-1.5 h-5">
-                          <label
-                            class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
-                          >
-                            Task
-                          </label>
-                          <span class="text-xs text-transparent leading-5">Placeholder</span>
-                        </div>
-                        <input
-                          v-model="editForm.title"
-                          type="text"
-                          class="w-full px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
-                          style="box-sizing: border-box"
-                          @keyup.enter="saveEdit"
-                          @keyup.esc="cancelEdit"
-                        />
+                <!-- Edit Mode -->
+                <div v-else class="space-y-2 sm:space-y-1.5 py-2 sm:py-1.5 relative">
+                  <!-- Task and Notes row (aligned layout - same as quick add) -->
+                  <div class="flex flex-col sm:flex-row gap-2 mb-1.5 items-start">
+                    <!-- Task input -->
+                    <div class="flex-1 flex flex-col w-full">
+                      <div class="flex items-center justify-between mb-1.5 h-5">
+                        <label
+                          class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
+                        >
+                          Task
+                        </label>
+                        <span class="text-xs text-transparent leading-5">Placeholder</span>
                       </div>
+                      <input
+                        v-model="editForm.title"
+                        type="text"
+                        class="w-full px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
+                        style="box-sizing: border-box"
+                        @keyup.enter="saveEdit"
+                        @keyup.esc="cancelEdit"
+                      />
+                    </div>
 
-                      <!-- Notes field -->
-                      <div class="flex-1 flex flex-col w-full">
-                        <div class="flex items-center justify-between mb-1.5 h-5">
-                          <label
-                            class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
-                            >Notes</label
-                          >
+                    <!-- Notes field -->
+                    <div class="flex-1 flex flex-col w-full">
+                      <div class="flex items-center justify-between mb-1.5 h-5">
+                        <label
+                          class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
+                          >Notes</label
+                        >
+                        <button
+                          type="button"
+                          class="text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation py-1 px-1 leading-5"
+                          @click="showTagLegendEdit = !showTagLegendEdit"
+                        >
+                          {{ showTagLegendEdit ? 'Hide' : 'Show' }} Tags
+                        </button>
+                      </div>
+                      <div class="relative flex items-stretch gap-1.5">
+                        <textarea
+                          ref="notesInputRef"
+                          v-model="editForm.notes"
+                          class="flex-1 px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
+                          style="box-sizing: border-box; vertical-align: top"
+                          rows="2"
+                          placeholder="Add notes... Use @ or # for tags (e.g., @delegate, @quick-win)"
+                          @input="handleNotesInput"
+                          @keydown="handleNotesKeydown"
+                        />
+                        <div class="flex items-center gap-1.5 flex-shrink-0">
                           <button
                             type="button"
-                            class="text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation py-1 px-1 leading-5"
-                            @click="showTagLegendEdit = !showTagLegendEdit"
+                            class="p-2 sm:p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors rounded hover:bg-green-50 dark:hover:bg-green-900/20 touch-manipulation"
+                            title="Save changes"
+                            @click.stop="saveEdit"
                           >
-                            {{ showTagLegendEdit ? 'Hide' : 'Show' }} Tags
+                            <Icon name="mdi:check" size="20" class="sm:w-[18px] sm:h-[18px]" />
+                          </button>
+                          <button
+                            class="p-2 sm:p-1.5 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors rounded hover:bg-gray-50 dark:hover:bg-gray-900/20 touch-manipulation"
+                            title="Cancel editing"
+                            @click="cancelEdit"
+                          >
+                            <Icon name="mdi:close" size="20" class="sm:w-[18px] sm:h-[18px]" />
                           </button>
                         </div>
-                        <div class="relative flex items-stretch gap-1.5">
-                          <textarea
-                            ref="notesInputRef"
-                            v-model="editForm.notes"
-                            class="flex-1 px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
-                            style="box-sizing: border-box; vertical-align: top"
-                            rows="2"
-                            placeholder="Add notes... Use @ or # for tags (e.g., @delegate, @quick-win)"
-                            @input="handleNotesInput"
-                            @keydown="handleNotesKeydown"
-                          />
-                          <div class="flex items-center gap-1.5 flex-shrink-0">
-                            <button
-                              type="button"
-                              class="p-2 sm:p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors rounded hover:bg-green-50 dark:hover:bg-green-900/20 touch-manipulation"
-                              title="Save changes"
-                              @click.stop="saveEdit"
-                            >
-                              <Icon name="mdi:check" size="20" class="sm:w-[18px] sm:h-[18px]" />
-                            </button>
-                            <button
-                              class="p-2 sm:p-1.5 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors rounded hover:bg-gray-50 dark:hover:bg-gray-900/20 touch-manipulation"
-                              title="Cancel editing"
-                              @click="cancelEdit"
-                            >
-                              <Icon name="mdi:close" size="20" class="sm:w-[18px] sm:h-[18px]" />
-                            </button>
-                          </div>
-                          <!-- Tag Suggestions Dropdown -->
+                        <!-- Tag Suggestions Dropdown -->
+                        <div
+                          v-if="tagSuggestions.length > 0"
+                          ref="tagSuggestionsRef"
+                          class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[200px]"
+                          style="left: 0; top: 100%"
+                        >
                           <div
-                            v-if="tagSuggestions.length > 0"
-                            ref="tagSuggestionsRef"
-                            class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[200px]"
-                            style="left: 0; top: 100%"
+                            v-for="(tagInfo, index) in tagSuggestions"
+                            :key="tagInfo.tag"
+                            :data-suggestion-index="index"
+                            :class="[
+                              'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm',
+                              index === suggestionIndex ? 'bg-blue-100 dark:bg-blue-900/40' : '',
+                            ]"
+                            @click="insertTag(tagInfo.tag)"
                           >
-                            <div
-                              v-for="(tagInfo, index) in tagSuggestions"
-                              :key="tagInfo.tag"
-                              :data-suggestion-index="index"
-                              :class="[
-                                'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm',
-                                index === suggestionIndex ? 'bg-blue-100 dark:bg-blue-900/40' : '',
-                              ]"
-                              @click="insertTag(tagInfo.tag)"
-                            >
-                              <div class="font-medium text-gray-900 dark:text-gray-100">
-                                {{ tagInfo.tag }}
-                              </div>
-                              <div class="text-xs text-gray-500 dark:text-gray-400">
-                                {{ tagInfo.description }}
-                              </div>
+                            <div class="font-medium text-gray-900 dark:text-gray-100">
+                              {{ tagInfo.tag }}
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                              {{ tagInfo.description }}
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    <!-- Options row (Date, Bucket, MIT, Dependency) -->
-                    <div
-                      class="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-gray-200 dark:border-gray-700"
-                    >
-                      <input
-                        v-model="editForm.planned_date"
-                        type="date"
-                        class="px-3 py-2.5 sm:px-2.5 sm:py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
-                      />
-                      <!-- Theme Dropdown with New Bucket Button on Same Row -->
-                      <div class="flex items-center gap-1.5">
-                        <div class="relative menu-container flex-1">
-                          <select
-                            v-if="!isEditThemeInputVisible"
-                            v-model="editForm.theme"
-                            class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 w-full"
-                          >
-                            <option :value="null">Bucket</option>
-                            <option v-for="theme in availableThemes" :key="theme" :value="theme">
-                              {{ theme }}
-                            </option>
-                          </select>
-                          <!-- New Theme Input (when + button is clicked) -->
-                          <input
-                            v-if="isEditThemeInputVisible"
-                            v-model="newEditThemeName"
-                            type="text"
-                            placeholder="Bucket"
-                            class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 w-full"
-                            @keyup.enter="addNewEditTheme"
-                            @keyup.esc="handleEditThemeInputEsc"
-                            @keydown="handleEditThemeInputKeydown"
-                            @input="selectedEditThemeSuggestionIndex = -1"
-                          />
-                          <!-- Edit Theme Suggestions Dropdown -->
-                          <div
-                            v-if="isEditThemeInputVisible && editThemeSuggestions.length > 0"
-                            ref="editThemeSuggestionsRef"
-                            class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[120px] max-w-[200px]"
-                            style="left: 0; top: 100%"
-                            @click.stop
-                          >
-                            <div
-                              v-for="(suggestion, index) in editThemeSuggestions"
-                              :key="suggestion"
-                              :data-theme-suggestion-index="index"
-                              :class="[
-                                'px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs',
-                                index === selectedEditThemeSuggestionIndex
-                                  ? 'bg-blue-100 dark:bg-blue-900/40'
-                                  : '',
-                              ]"
-                              @click="selectEditThemeSuggestion(suggestion)"
-                            >
-                              <div class="text-gray-900 dark:text-gray-100 truncate">
-                                {{ suggestion }}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <!-- New Bucket Icon Button -->
-                        <button
-                          type="button"
-                          class="p-2 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center min-h-[44px] sm:min-h-0"
-                          title="New bucket"
-                          @click.stop="isEditThemeInputVisible = !isEditThemeInputVisible"
+                  <!-- Options row (Date, Bucket, MIT) -->
+                  <div
+                    class="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-gray-200 dark:border-gray-700"
+                  >
+                    <input
+                      v-model="editForm.planned_date"
+                      type="date"
+                      class="px-3 py-2.5 sm:px-2.5 sm:py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
+                    />
+                    <!-- Theme Dropdown with New Bucket Button on Same Row -->
+                    <div class="flex items-center gap-1.5">
+                      <div class="relative menu-container flex-1">
+                        <select
+                          v-if="!isEditThemeInputVisible"
+                          v-model="editForm.theme"
+                          class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 w-full"
                         >
-                          <Icon name="mdi:plus" size="18" />
-                        </button>
-                      </div>
-                      <label
-                        class="flex items-center gap-2 px-3 py-2 sm:px-1.5 sm:py-1 text-xs text-gray-700 dark:text-gray-300 touch-manipulation min-h-[44px] sm:min-h-0 cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
-                      >
+                          <option :value="null">Bucket</option>
+                          <option v-for="theme in availableThemes" :key="theme" :value="theme">
+                            {{ theme }}
+                          </option>
+                        </select>
+                        <!-- New Theme Input (when + button is clicked) -->
                         <input
-                          v-model="editForm.is_mit"
-                          type="checkbox"
-                          class="w-4 h-4 sm:w-3 sm:h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
+                          v-if="isEditThemeInputVisible"
+                          v-model="newEditThemeName"
+                          type="text"
+                          placeholder="Bucket"
+                          class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 w-full"
+                          @keyup.enter="addNewEditTheme"
+                          @keyup.esc="handleEditThemeInputEsc"
+                          @keydown="handleEditThemeInputKeydown"
+                          @input="selectedEditThemeSuggestionIndex = -1"
                         />
-                        <span>MIT</span>
-                      </label>
-
-                      <!-- Dependency Dropdown (only shown when bucket is chosen and there are active tasks OR task has a dependency) -->
-                      <div
-                        v-if="
-                          (editForm.theme ||
-                            (isEditThemeInputVisible && newEditThemeName.value?.trim())) &&
-                          (availableTasksForDependency.length > 0 || editForm.depends_on_task_id)
-                        "
-                        class="relative menu-container"
-                      >
-                        <button
-                          type="button"
-                          :class="[
-                            'px-1.5 py-1 sm:px-1 sm:py-0.5 rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-0.5',
-                            editForm.depends_on_task_id
-                              ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
-                          ]"
-                          :title="
-                            editForm.depends_on_task_id
-                              ? `Depends on: ${getTaskById(editForm.depends_on_task_id)?.title || 'Task'}`
-                              : 'Link to another task in this bucket'
-                          "
-                          @click.stop="
-                            showEditTaskDependencyDropdown = !showEditTaskDependencyDropdown
-                          "
-                        >
-                          <Icon name="mdi:link-variant" size="14" class="sm:w-3 sm:h-3" />
-                          <span
-                            v-if="editForm.depends_on_task_id"
-                            class="text-xs font-medium max-w-[60px] truncate leading-tight"
-                          >
-                            {{ getTaskById(editForm.depends_on_task_id)?.title || 'Task' }}
-                          </span>
-                        </button>
-                        <!-- Dependency Dropdown -->
+                        <!-- Edit Theme Suggestions Dropdown -->
                         <div
-                          v-if="showEditTaskDependencyDropdown"
-                          class="absolute z-[60] mt-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto min-w-[160px] max-w-[200px]"
+                          v-if="isEditThemeInputVisible && editThemeSuggestions.length > 0"
+                          ref="editThemeSuggestionsRef"
+                          class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[120px] max-w-[200px]"
                           style="left: 0; top: 100%"
                           @click.stop
                         >
                           <div
-                            class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-200 dark:border-gray-700"
-                            :class="{
-                              'bg-blue-100 dark:bg-blue-900/40': !editForm.depends_on_task_id,
-                            }"
-                            @click="clearEditTaskDependency"
+                            v-for="(suggestion, index) in editThemeSuggestions"
+                            :key="suggestion"
+                            :data-theme-suggestion-index="index"
+                            :class="[
+                              'px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs',
+                              index === selectedEditThemeSuggestionIndex
+                                ? 'bg-blue-100 dark:bg-blue-900/40'
+                                : '',
+                            ]"
+                            @click="selectEditThemeSuggestion(suggestion)"
                           >
-                            <div class="font-medium text-gray-900 dark:text-gray-100">
-                              No Dependency
-                            </div>
-                          </div>
-                          <div
-                            v-for="depTask in availableTasksForDependency"
-                            :key="depTask.id"
-                            class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
-                            :class="{
-                              'bg-blue-100 dark:bg-blue-900/40':
-                                editForm.depends_on_task_id === depTask.id,
-                            }"
-                            @click="setEditTaskDependency(depTask.id)"
-                          >
-                            <div class="font-medium text-gray-900 dark:text-gray-100 truncate">
-                              {{ depTask.title }}
+                            <div class="text-gray-900 dark:text-gray-100 truncate">
+                              {{ suggestion }}
                             </div>
                           </div>
                         </div>
                       </div>
+                      <!-- New Bucket Icon Button -->
+                      <button
+                        type="button"
+                        class="p-2 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center min-h-[44px] sm:min-h-0"
+                        title="New bucket"
+                        @click.stop="isEditThemeInputVisible = !isEditThemeInputVisible"
+                      >
+                        <Icon name="mdi:plus" size="18" />
+                      </button>
                     </div>
-
-                    <!-- Tag Legend -->
-                    <div
-                      v-if="showTagLegendEdit"
-                      class="mt-1.5 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+                    <label
+                      class="flex items-center gap-2 px-3 py-2 sm:px-1.5 sm:py-1 text-xs text-gray-700 dark:text-gray-300 touch-manipulation min-h-[44px] sm:min-h-0 cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
                     >
-                      <!-- Same tag legend as parent tasks - copy from parent edit form -->
-                      <!-- Quadrant Reference Guide -->
-                      <div class="mb-3 pb-2 border-b border-gray-300 dark:border-gray-600">
-                        <div class="font-semibold mb-1.5 text-gray-900 dark:text-gray-100 text-xs">
-                          Quadrant Guide:
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                          <div class="flex items-center gap-1">
-                            <span
-                              class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 shrink-0"
-                              >Q1</span
-                            >
-                            <span class="text-gray-600 dark:text-gray-400 text-xs">Do Now</span>
-                          </div>
-                          <div class="flex items-center gap-1">
-                            <span
-                              class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0"
-                              >Q2</span
-                            >
-                            <span class="text-gray-600 dark:text-gray-400 text-xs">Schedule</span>
-                          </div>
-                          <div class="flex items-center gap-1">
-                            <span
-                              class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 shrink-0"
-                              >Q3</span
-                            >
-                            <span class="text-gray-600 dark:text-gray-400 text-xs">Defer</span>
-                          </div>
-                          <div class="flex items-center gap-1">
-                            <span
-                              class="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shrink-0"
-                              >Q4</span
-                            >
-                            <span class="text-gray-600 dark:text-gray-400 text-xs">Later</span>
-                          </div>
-                        </div>
-                      </div>
-                      <!-- Support Needed Tasks -->
-                      <div class="mb-2">
-                        <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
-                          Support Needed:
-                        </div>
-                        <div class="flex flex-wrap gap-1">
-                          <div
-                            v-for="tagInfo in availableTags.filter(
-                              (t) => t.category === 'support-needed',
-                            )"
-                            :key="tagInfo.tag"
-                            class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
-                          >
-                            <span
-                              class="font-mono font-semibold text-blue-600 dark:text-blue-400"
-                              >{{ tagInfo.tag }}</span
-                            >
-                            <span class="text-gray-500 dark:text-gray-500">•</span>
-                            <span class="text-gray-700 dark:text-gray-300">{{
-                              tagInfo.description
-                            }}</span>
-                            <span
-                              :class="[
-                                'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
-                                tagInfo.quadrant === 'Q1'
-                                  ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                                  : tagInfo.quadrant === 'Q2'
-                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                    : tagInfo.quadrant === 'Q3'
-                                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                                      : tagInfo.quadrant === 'Q4'
-                                        ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                        : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                              ]"
-                            >
-                              {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                            </span>
+                      <input
+                        v-model="editForm.is_mit"
+                        type="checkbox"
+                        class="w-4 h-4 sm:w-3 sm:h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
+                      />
+                      <span>MIT</span>
+                    </label>
+
+                    <!-- Dependency Dropdown (only shown when bucket is chosen and there are active tasks OR task has a dependency) -->
+                    <div
+                      v-if="
+                        (editForm.theme ||
+                          (isEditThemeInputVisible && newEditThemeName.value?.trim())) &&
+                        (availableTasksForDependency.length > 0 || editForm.depends_on_task_id)
+                      "
+                      class="relative menu-container"
+                    >
+                      <button
+                        type="button"
+                        :class="[
+                          'px-1.5 py-1 sm:px-1 sm:py-0.5 rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-0.5',
+                          editForm.depends_on_task_id
+                            ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                            : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                        ]"
+                        :title="
+                          editForm.depends_on_task_id
+                            ? `Depends on: ${getTaskById(editForm.depends_on_task_id)?.title || 'Task'}`
+                            : 'Link to another task in this bucket'
+                        "
+                        @click.stop="
+                          showEditTaskDependencyDropdown = !showEditTaskDependencyDropdown
+                        "
+                      >
+                        <Icon name="mdi:link-variant" size="14" class="sm:w-3 sm:h-3" />
+                        <span
+                          v-if="editForm.depends_on_task_id"
+                          class="text-xs font-medium max-w-[60px] truncate leading-tight"
+                        >
+                          {{ getTaskById(editForm.depends_on_task_id)?.title || 'Task' }}
+                        </span>
+                      </button>
+                      <!-- Dependency Dropdown -->
+                      <div
+                        v-if="showEditTaskDependencyDropdown"
+                        class="absolute z-[60] mt-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto min-w-[160px] max-w-[200px]"
+                        style="left: 0; top: 100%"
+                        @click.stop
+                      >
+                        <div
+                          class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-200 dark:border-gray-700"
+                          :class="{
+                            'bg-blue-100 dark:bg-blue-900/40': !editForm.depends_on_task_id,
+                          }"
+                          @click="clearEditTaskDependency"
+                        >
+                          <div class="font-medium text-gray-900 dark:text-gray-100">
+                            No Dependency
                           </div>
                         </div>
-                      </div>
-                      <!-- Time/Effort Related Tasks -->
-                      <div class="mb-2">
-                        <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
-                          Time/Effort:
-                        </div>
-                        <div class="flex flex-wrap gap-1">
-                          <div
-                            v-for="tagInfo in availableTags.filter(
-                              (t) => t.category === 'time-effort',
-                            )"
-                            :key="tagInfo.tag"
-                            class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
-                          >
-                            <span
-                              class="font-mono font-semibold text-blue-600 dark:text-blue-400"
-                              >{{ tagInfo.tag }}</span
-                            >
-                            <span class="text-gray-500 dark:text-gray-500">•</span>
-                            <span class="text-gray-700 dark:text-gray-300">{{
-                              tagInfo.description
-                            }}</span>
-                            <span
-                              :class="[
-                                'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
-                                tagInfo.quadrant === 'Q1'
-                                  ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                                  : tagInfo.quadrant === 'Q2'
-                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                    : tagInfo.quadrant === 'Q3'
-                                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                                      : tagInfo.quadrant === 'Q4'
-                                        ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                        : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                              ]"
-                            >
-                              {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <!-- Administrative Tasks -->
-                      <div class="mb-0">
-                        <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
-                          Administrative:
-                        </div>
-                        <div class="flex flex-wrap gap-1">
-                          <div
-                            v-for="tagInfo in availableTags.filter(
-                              (t) => t.category === 'administrative',
-                            )"
-                            :key="tagInfo.tag"
-                            class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
-                          >
-                            <span
-                              class="font-mono font-semibold text-blue-600 dark:text-blue-400"
-                              >{{ tagInfo.tag }}</span
-                            >
-                            <span class="text-gray-500 dark:text-gray-500">•</span>
-                            <span class="text-gray-700 dark:text-gray-300">{{
-                              tagInfo.description
-                            }}</span>
-                            <span
-                              :class="[
-                                'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
-                                tagInfo.quadrant === 'Q1'
-                                  ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                                  : tagInfo.quadrant === 'Q2'
-                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                    : tagInfo.quadrant === 'Q3'
-                                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                                      : tagInfo.quadrant === 'Q4'
-                                        ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                        : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                              ]"
-                            >
-                              {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
-                            </span>
+                        <div
+                          v-for="depTask in availableTasksForDependency"
+                          :key="depTask.id"
+                          class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
+                          :class="{
+                            'bg-blue-100 dark:bg-blue-900/40':
+                              editForm.depends_on_task_id === depTask.id,
+                          }"
+                          @click="setEditTaskDependency(depTask.id)"
+                        >
+                          <div class="font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {{ depTask.title }}
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <!-- Collapsible Level 2 Dependent Tasks (Grandchildren) -->
+                  <!-- Tag Legend -->
                   <div
-                    v-if="
-                      hasDependents(dependentTask.id) && expandedParentTasks.has(dependentTask.id)
-                    "
-                    class="ml-6 mt-1.5 space-y-1 border-l-2 border-green-300 dark:border-green-600 pl-2"
+                    v-if="showTagLegendEdit"
+                    class="mt-1.5 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
                   >
-                    <div
-                      v-for="grandchildTask in getDependentTasks(dependentTask.id)"
-                      :key="grandchildTask.id"
-                      :data-task-id="grandchildTask.id"
-                      :class="[
-                        'px-1.5 py-1 border-l-2 border-green-400 dark:border-green-500 bg-green-50/50 dark:bg-green-950/20 rounded-r transition-all',
-                        editingTaskId === grandchildTask.id &&
-                          'bg-green-100 dark:bg-green-950/40 border-green-500 dark:border-green-400',
-                        grandchildTask.is_mit &&
-                          editingTaskId !== grandchildTask.id &&
-                          'bg-red-50 dark:bg-red-950/40 border-red-400 dark:border-red-600',
-                        !grandchildTask.is_mit &&
-                          editingTaskId !== grandchildTask.id &&
-                          'border-green-400 dark:border-green-500',
-                      ]"
-                    >
-                      <div
-                        v-if="editingTaskId !== grandchildTask.id"
-                        class="flex flex-row items-center gap-1.5 sm:gap-2"
-                      >
-                        <!-- Done/Doing Toggle -->
-                        <button
-                          :class="[
-                            'relative w-7 h-3.5 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0',
-                            grandchildTask.status === 'done'
-                              ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
-                              : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
-                          ]"
-                          @click="toggleTaskStatus(grandchildTask.id, grandchildTask.status)"
-                        >
+                    <!-- Quadrant Reference Guide -->
+                    <div class="mb-3 pb-2 border-b border-gray-300 dark:border-gray-600">
+                      <div class="font-semibold mb-1.5 text-gray-900 dark:text-gray-100 text-xs">
+                        Quadrant Guide:
+                      </div>
+                      <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                        <div class="flex items-center gap-1">
                           <span
-                            :class="[
-                              'absolute top-0.5 left-0.5 h-2.5 w-2.5 bg-white shadow-sm transform transition-transform duration-200 rounded-sm',
-                              grandchildTask.status === 'done' ? 'translate-x-3' : 'translate-x-0',
-                            ]"
-                          ></span>
-                        </button>
-
-                        <!-- Task Title -->
-                        <div class="flex-1 min-w-0">
-                          <div class="flex items-center gap-1.5">
-                            <span
-                              :class="[
-                                'text-xs font-medium cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors',
-                                grandchildTask.status === 'done'
-                                  ? 'text-gray-500 dark:text-gray-500 line-through'
-                                  : 'text-gray-900 dark:text-gray-100',
-                              ]"
-                              title="Click to edit"
-                              @click.stop="startEdit(grandchildTask)"
-                            >
-                              {{ grandchildTask.title }}
-                            </span>
-                            <!-- Rollover Counter for Grandchild Tasks -->
-                            <span
-                              v-if="
-                                grandchildTask.rollover_count && grandchildTask.rollover_count > 0
-                              "
-                              class="text-xs font-bold text-red-600 dark:text-red-400 ml-1 whitespace-nowrap flex-shrink-0"
-                              style="
-                                color: rgb(220, 38, 38) !important;
-                                font-weight: bold !important;
-                              "
-                            >
-                              +{{ grandchildTask.rollover_count }}
-                            </span>
-                            <!-- Dependent Count Badge for Level 2 (if it had dependents, but max depth is 2, so this won't show) -->
-                            <span
-                              v-if="hasDependents(grandchildTask.id)"
-                              class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
-                            >
-                              {{ getDependentTasks(grandchildTask.id).length }}
-                            </span>
-                          </div>
-                          <span
-                            v-if="grandchildTask.notes"
-                            :class="[
-                              'text-xs text-gray-600 dark:text-gray-400 ml-5',
-                              grandchildTask.status === 'done' && 'line-through',
-                            ]"
+                            class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 shrink-0"
+                            >Q1</span
                           >
-                            – {{ grandchildTask.notes }}
-                          </span>
+                          <span class="text-gray-600 dark:text-gray-400 text-xs">Do Now</span>
                         </div>
-
-                        <!-- Actions -->
-                        <div class="flex items-center gap-1 flex-shrink-0">
-                          <!-- Date Tag -->
+                        <div class="flex items-center gap-1">
                           <span
-                            v-if="grandchildTask.planned_date && grandchildTask.status !== 'done'"
-                            class="px-1 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation whitespace-nowrap"
-                            title="Click to edit"
-                            @click.stop="startEdit(grandchildTask)"
+                            class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0"
+                            >Q2</span
                           >
-                            {{
-                              formatDateRelative(grandchildTask.planned_date) ||
-                              formatDateToDisplay(grandchildTask.planned_date) ||
-                              grandchildTask.planned_date
-                            }}
-                          </span>
-
-                          <!-- Delete Icon -->
-                          <button
-                            :class="[
-                              'p-0.5 transition-colors touch-manipulation',
-                              hasDependents(grandchildTask.id)
-                                ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                                : 'text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300',
-                            ]"
-                            :title="
-                              hasDependents(grandchildTask.id)
-                                ? `Cannot delete: ${getDependentTasks(grandchildTask.id).length} dependent task(s) exist`
-                                : 'Delete'
-                            "
-                            :disabled="hasDependents(grandchildTask.id)"
-                            @click.stop="handleDeleteTaskClick(grandchildTask)"
+                          <span class="text-gray-600 dark:text-gray-400 text-xs">Schedule</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <span
+                            class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 shrink-0"
+                            >Q3</span
                           >
-                            <Icon name="mdi:delete-outline" size="14" />
-                          </button>
+                          <span class="text-gray-600 dark:text-gray-400 text-xs">Defer</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <span
+                            class="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shrink-0"
+                            >Q4</span
+                          >
+                          <span class="text-gray-600 dark:text-gray-400 text-xs">Later</span>
                         </div>
                       </div>
+                    </div>
 
-                      <!-- Edit Mode for Level 2 Dependent Task (Full Edit Form) -->
-                      <div v-else class="space-y-1.5 py-1.5 relative">
-                        <!-- Same full edit form as level 1 dependents -->
-                        <div class="flex flex-col gap-1.5">
+                    <!-- Support Needed Tasks -->
+                    <div class="mb-2">
+                      <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                        Support Needed:
+                      </div>
+                      <div class="flex flex-wrap gap-1">
+                        <div
+                          v-for="tagInfo in availableTags.filter(
+                            (t) => t.category === 'support-needed',
+                          )"
+                          :key="tagInfo.tag"
+                          class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                        >
+                          <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                            tagInfo.tag
+                          }}</span>
+                          <span class="text-gray-500 dark:text-gray-500">•</span>
+                          <span class="text-gray-700 dark:text-gray-300">{{
+                            tagInfo.description
+                          }}</span>
+                          <span
+                            :class="[
+                              'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                              tagInfo.quadrant === 'Q1'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                                : tagInfo.quadrant === 'Q2'
+                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                  : tagInfo.quadrant === 'Q3'
+                                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                    : tagInfo.quadrant === 'Q4'
+                                      ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                      : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                            ]"
+                          >
+                            {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Time/Effort Related Tasks -->
+                    <div class="mb-2">
+                      <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                        Time/Effort:
+                      </div>
+                      <div class="flex flex-wrap gap-1">
+                        <div
+                          v-for="tagInfo in availableTags.filter(
+                            (t) => t.category === 'time-effort',
+                          )"
+                          :key="tagInfo.tag"
+                          class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                        >
+                          <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                            tagInfo.tag
+                          }}</span>
+                          <span class="text-gray-500 dark:text-gray-500">•</span>
+                          <span class="text-gray-700 dark:text-gray-300">{{
+                            tagInfo.description
+                          }}</span>
+                          <span
+                            :class="[
+                              'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                              tagInfo.quadrant === 'Q1'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                                : tagInfo.quadrant === 'Q2'
+                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                  : tagInfo.quadrant === 'Q3'
+                                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                    : tagInfo.quadrant === 'Q4'
+                                      ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                      : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                            ]"
+                          >
+                            {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Administrative Tasks -->
+                    <div class="mb-0">
+                      <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                        Administrative:
+                      </div>
+                      <div class="flex flex-wrap gap-1">
+                        <div
+                          v-for="tagInfo in availableTags.filter(
+                            (t) => t.category === 'administrative',
+                          )"
+                          :key="tagInfo.tag"
+                          class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                        >
+                          <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">{{
+                            tagInfo.tag
+                          }}</span>
+                          <span class="text-gray-500 dark:text-gray-500">•</span>
+                          <span class="text-gray-700 dark:text-gray-300">{{
+                            tagInfo.description
+                          }}</span>
+                          <span
+                            :class="[
+                              'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                              tagInfo.quadrant === 'Q1'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                                : tagInfo.quadrant === 'Q2'
+                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                  : tagInfo.quadrant === 'Q3'
+                                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                    : tagInfo.quadrant === 'Q4'
+                                      ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                      : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                            ]"
+                          >
+                            {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Collapsible Dependent Tasks (Level 1) -->
+                <div
+                  v-if="hasDependents(task.id) && expandedParentTasks.has(task.id)"
+                  class="ml-8 mt-2 space-y-1 border-l-2 border-gray-300 dark:border-gray-600 pl-3"
+                >
+                  <div
+                    v-for="dependentTask in getDependentTasks(task.id)"
+                    :key="dependentTask.id"
+                    :data-task-id="dependentTask.id"
+                    :class="[
+                      'px-2 py-1.5 border-l-2 border-blue-300 dark:border-blue-600 bg-blue-50/50 dark:bg-blue-950/20 rounded-r transition-all',
+                      editingTaskId === dependentTask.id &&
+                        'bg-blue-100 dark:bg-blue-950/40 border-blue-400 dark:border-blue-600',
+                      dependentTask.is_mit &&
+                        editingTaskId !== dependentTask.id &&
+                        'bg-red-50 dark:bg-red-950/40 border-red-400 dark:border-red-600',
+                      !dependentTask.is_mit &&
+                        editingTaskId !== dependentTask.id &&
+                        'border-blue-300 dark:border-blue-600',
+                    ]"
+                  >
+                    <div
+                      v-if="editingTaskId !== dependentTask.id"
+                      class="flex flex-row items-center gap-2 sm:gap-3"
+                    >
+                      <!-- Done/Doing Toggle -->
+                      <button
+                        :class="[
+                          'relative w-8 h-4 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0',
+                          dependentTask.status === 'done'
+                            ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
+                            : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
+                        ]"
+                        @click="toggleTaskStatus(dependentTask.id, dependentTask.status)"
+                      >
+                        <span
+                          :class="[
+                            'absolute top-0.5 left-0.5 h-3 w-3 bg-white shadow-sm transform transition-transform duration-200 rounded-sm',
+                            dependentTask.status === 'done' ? 'translate-x-3.5' : 'translate-x-0',
+                          ]"
+                        ></span>
+                      </button>
+
+                      <!-- Task Title -->
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5">
+                          <!-- Expand/Collapse Button for Level 2 Dependents -->
+                          <button
+                            v-if="hasDependents(dependentTask.id)"
+                            type="button"
+                            class="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                            @click.stop="toggleDependents(dependentTask.id)"
+                          >
+                            <Icon
+                              :name="
+                                expandedParentTasks.has(dependentTask.id)
+                                  ? 'mdi:chevron-down'
+                                  : 'mdi:chevron-right'
+                              "
+                              size="14"
+                            />
+                          </button>
+                          <span v-else class="w-4"></span>
+                          <span
+                            :class="[
+                              'text-xs font-medium cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors',
+                              dependentTask.status === 'done'
+                                ? 'text-gray-500 dark:text-gray-500 line-through'
+                                : 'text-gray-900 dark:text-gray-100',
+                            ]"
+                            title="Click to edit"
+                            @click.stop="startEdit(dependentTask)"
+                          >
+                            {{ dependentTask.title }}
+                          </span>
+                          <!-- Rollover Counter for Dependent Tasks -->
+                          <span
+                            v-if="dependentTask.rollover_count && dependentTask.rollover_count > 0"
+                            class="text-xs font-bold text-red-600 dark:text-red-400 ml-1 whitespace-nowrap flex-shrink-0"
+                            style="color: rgb(220, 38, 38) !important; font-weight: bold !important"
+                          >
+                            +{{ dependentTask.rollover_count }}
+                          </span>
+                          <!-- Dependent Count Badge for Level 2 -->
+                          <span
+                            v-if="hasDependents(dependentTask.id)"
+                            class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
+                          >
+                            {{ getDependentTasks(dependentTask.id).length }}
+                          </span>
+                        </div>
+                        <span
+                          v-if="dependentTask.notes"
+                          :class="[
+                            'text-xs text-gray-600 dark:text-gray-400 ml-5',
+                            dependentTask.status === 'done' && 'line-through',
+                          ]"
+                        >
+                          – {{ dependentTask.notes }}
+                        </span>
+                      </div>
+
+                      <!-- Actions -->
+                      <div class="flex items-center gap-1 flex-shrink-0">
+                        <!-- Date Tag -->
+                        <span
+                          v-if="dependentTask.planned_date && dependentTask.status !== 'done'"
+                          class="px-1.5 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation whitespace-nowrap"
+                          title="Click to edit"
+                          @click.stop="startEdit(dependentTask)"
+                        >
+                          {{
+                            formatDateRelative(dependentTask.planned_date) ||
+                            formatDateToDisplay(dependentTask.planned_date) ||
+                            dependentTask.planned_date
+                          }}
+                        </span>
+
+                        <!-- Delete Icon -->
+                        <button
+                          :class="[
+                            'p-1 transition-colors touch-manipulation',
+                            'text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300',
+                          ]"
+                          :title="
+                            hasDependents(dependentTask.id)
+                              ? `Delete (${getDependentTasks(dependentTask.id).length} dependent task(s) will be reassigned automatically)`
+                              : 'Delete'
+                          "
+                          @click.stop="handleDeleteTaskClick(dependentTask)"
+                        >
+                          <Icon name="mdi:delete-outline" size="16" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Edit Mode for Dependent Task (Full Edit Form) -->
+                    <div v-else class="space-y-2 sm:space-y-1.5 py-2 sm:py-1.5 relative">
+                      <!-- Task and Notes row (aligned layout - same as parent tasks) -->
+                      <div class="flex flex-col sm:flex-row gap-2 mb-1.5 items-start">
+                        <!-- Task input -->
+                        <div class="flex-1 flex flex-col w-full">
+                          <div class="flex items-center justify-between mb-1.5 h-5">
+                            <label
+                              class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
+                            >
+                              Task
+                            </label>
+                            <span class="text-xs text-transparent leading-5">Placeholder</span>
+                          </div>
                           <input
                             v-model="editForm.title"
                             type="text"
-                            class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                            class="w-full px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
+                            style="box-sizing: border-box"
                             @keyup.enter="saveEdit"
                             @keyup.esc="cancelEdit"
                           />
-                          <textarea
-                            ref="notesInputRef"
-                            v-model="editForm.notes"
-                            class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 resize-none"
-                            rows="2"
-                            placeholder="Add notes..."
-                            @input="handleNotesInput"
-                            @keydown="handleNotesKeydown"
-                          />
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              v-model="editForm.planned_date"
-                              type="date"
-                              class="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                        </div>
+
+                        <!-- Notes field -->
+                        <div class="flex-1 flex flex-col w-full">
+                          <div class="flex items-center justify-between mb-1.5 h-5">
+                            <label
+                              class="block text-xs font-medium text-gray-700 dark:text-gray-300 leading-5"
+                              >Notes</label
+                            >
+                            <button
+                              type="button"
+                              class="text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation py-1 px-1 leading-5"
+                              @click="showTagLegendEdit = !showTagLegendEdit"
+                            >
+                              {{ showTagLegendEdit ? 'Hide' : 'Show' }} Tags
+                            </button>
+                          </div>
+                          <div class="relative flex items-stretch gap-1.5">
+                            <textarea
+                              ref="notesInputRef"
+                              v-model="editForm.notes"
+                              class="flex-1 px-2.5 py-2 sm:px-2.5 sm:py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[48px] sm:h-[44px]"
+                              style="box-sizing: border-box; vertical-align: top"
+                              rows="2"
+                              placeholder="Add notes... Use @ or # for tags (e.g., @delegate, @quick-win)"
+                              @input="handleNotesInput"
+                              @keydown="handleNotesKeydown"
                             />
+                            <div class="flex items-center gap-1.5 flex-shrink-0">
+                              <button
+                                type="button"
+                                class="p-2 sm:p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors rounded hover:bg-green-50 dark:hover:bg-green-900/20 touch-manipulation"
+                                title="Save changes"
+                                @click.stop="saveEdit"
+                              >
+                                <Icon name="mdi:check" size="20" class="sm:w-[18px] sm:h-[18px]" />
+                              </button>
+                              <button
+                                class="p-2 sm:p-1.5 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors rounded hover:bg-gray-50 dark:hover:bg-gray-900/20 touch-manipulation"
+                                title="Cancel editing"
+                                @click="cancelEdit"
+                              >
+                                <Icon name="mdi:close" size="20" class="sm:w-[18px] sm:h-[18px]" />
+                              </button>
+                            </div>
+                            <!-- Tag Suggestions Dropdown -->
+                            <div
+                              v-if="tagSuggestions.length > 0"
+                              ref="tagSuggestionsRef"
+                              class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[200px]"
+                              style="left: 0; top: 100%"
+                            >
+                              <div
+                                v-for="(tagInfo, index) in tagSuggestions"
+                                :key="tagInfo.tag"
+                                :data-suggestion-index="index"
+                                :class="[
+                                  'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm',
+                                  index === suggestionIndex
+                                    ? 'bg-blue-100 dark:bg-blue-900/40'
+                                    : '',
+                                ]"
+                                @click="insertTag(tagInfo.tag)"
+                              >
+                                <div class="font-medium text-gray-900 dark:text-gray-100">
+                                  {{ tagInfo.tag }}
+                                </div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">
+                                  {{ tagInfo.description }}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Options row (Date, Bucket, MIT, Dependency) -->
+                      <div
+                        class="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-gray-200 dark:border-gray-700"
+                      >
+                        <input
+                          v-model="editForm.planned_date"
+                          type="date"
+                          class="px-3 py-2.5 sm:px-2.5 sm:py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0"
+                        />
+                        <!-- Theme Dropdown with New Bucket Button on Same Row -->
+                        <div class="flex items-center gap-1.5">
+                          <div class="relative menu-container flex-1">
                             <select
+                              v-if="!isEditThemeInputVisible"
                               v-model="editForm.theme"
-                              class="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                              class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 w-full"
                             >
                               <option :value="null">Bucket</option>
                               <option v-for="theme in availableThemes" :key="theme" :value="theme">
                                 {{ theme }}
                               </option>
                             </select>
-                            <label
-                              class="flex items-center gap-1 px-2 py-1 text-xs text-gray-700 dark:text-gray-300 cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
-                            >
-                              <input
-                                v-model="editForm.is_mit"
-                                type="checkbox"
-                                class="w-3 h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
-                              />
-                              <span>MIT</span>
-                            </label>
-                            <!-- Dependency Dropdown (only shown when bucket is chosen and there are active tasks OR task has a dependency) -->
+                            <!-- New Theme Input (when + button is clicked) -->
+                            <input
+                              v-if="isEditThemeInputVisible"
+                              v-model="newEditThemeName"
+                              type="text"
+                              placeholder="Bucket"
+                              class="px-2.5 py-2 sm:px-1.5 sm:py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 min-h-[44px] sm:min-h-0 w-full"
+                              @keyup.enter="addNewEditTheme"
+                              @keyup.esc="handleEditThemeInputEsc"
+                              @keydown="handleEditThemeInputKeydown"
+                              @input="selectedEditThemeSuggestionIndex = -1"
+                            />
+                            <!-- Edit Theme Suggestions Dropdown -->
                             <div
-                              v-if="
-                                (editForm.theme ||
-                                  (isEditThemeInputVisible && newEditThemeName.value?.trim())) &&
-                                (availableTasksForDependency.length > 0 ||
-                                  editForm.depends_on_task_id)
-                              "
-                              class="relative menu-container"
+                              v-if="isEditThemeInputVisible && editThemeSuggestions.length > 0"
+                              ref="editThemeSuggestionsRef"
+                              class="absolute z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[120px] max-w-[200px]"
+                              style="left: 0; top: 100%"
+                              @click.stop
                             >
-                              <button
-                                type="button"
-                                :class="[
-                                  'px-1.5 py-1 sm:px-1 sm:py-0.5 rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-0.5',
-                                  editForm.depends_on_task_id
-                                    ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
-                                ]"
-                                :title="
-                                  editForm.depends_on_task_id
-                                    ? `Depends on: ${getTaskById(editForm.depends_on_task_id)?.title || 'Task'}`
-                                    : 'Link to another task in this bucket'
-                                "
-                                @click.stop="
-                                  showEditTaskDependencyDropdown = !showEditTaskDependencyDropdown
-                                "
-                              >
-                                <Icon name="mdi:link-variant" size="14" class="sm:w-3 sm:h-3" />
-                                <span
-                                  v-if="editForm.depends_on_task_id"
-                                  class="text-xs font-medium max-w-[60px] truncate leading-tight"
-                                >
-                                  {{ getTaskById(editForm.depends_on_task_id)?.title || 'Task' }}
-                                </span>
-                              </button>
-                              <!-- Dependency Dropdown -->
                               <div
-                                v-if="showEditTaskDependencyDropdown"
-                                class="absolute z-[60] mt-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto min-w-[160px] max-w-[200px]"
-                                style="left: 0; top: 100%"
-                                @click.stop
+                                v-for="(suggestion, index) in editThemeSuggestions"
+                                :key="suggestion"
+                                :data-theme-suggestion-index="index"
+                                :class="[
+                                  'px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs',
+                                  index === selectedEditThemeSuggestionIndex
+                                    ? 'bg-blue-100 dark:bg-blue-900/40'
+                                    : '',
+                                ]"
+                                @click="selectEditThemeSuggestion(suggestion)"
                               >
-                                <div
-                                  class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-200 dark:border-gray-700"
-                                  :class="{
-                                    'bg-blue-100 dark:bg-blue-900/40': !editForm.depends_on_task_id,
-                                  }"
-                                  @click="clearEditTaskDependency"
-                                >
-                                  <div class="font-medium text-gray-900 dark:text-gray-100">
-                                    No Dependency
-                                  </div>
-                                </div>
-                                <div
-                                  v-for="depTask in availableTasksForDependency"
-                                  :key="depTask.id"
-                                  class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
-                                  :class="{
-                                    'bg-blue-100 dark:bg-blue-900/40':
-                                      editForm.depends_on_task_id === depTask.id,
-                                  }"
-                                  @click="setEditTaskDependency(depTask.id)"
-                                >
-                                  <div
-                                    class="font-medium text-gray-900 dark:text-gray-100 truncate"
-                                  >
-                                    {{ depTask.title }}
-                                  </div>
+                                <div class="text-gray-900 dark:text-gray-100 truncate">
+                                  {{ suggestion }}
                                 </div>
                               </div>
                             </div>
-                            <button
-                              type="button"
-                              class="p-1 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors rounded"
-                              title="Save"
-                              @click.stop="saveEdit"
+                          </div>
+                          <!-- New Bucket Icon Button -->
+                          <button
+                            type="button"
+                            class="p-2 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center min-h-[44px] sm:min-h-0"
+                            title="New bucket"
+                            @click.stop="isEditThemeInputVisible = !isEditThemeInputVisible"
+                          >
+                            <Icon name="mdi:plus" size="18" />
+                          </button>
+                        </div>
+                        <label
+                          class="flex items-center gap-2 px-3 py-2 sm:px-1.5 sm:py-1 text-xs text-gray-700 dark:text-gray-300 touch-manipulation min-h-[44px] sm:min-h-0 cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
+                        >
+                          <input
+                            v-model="editForm.is_mit"
+                            type="checkbox"
+                            class="w-4 h-4 sm:w-3 sm:h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
+                          />
+                          <span>MIT</span>
+                        </label>
+
+                        <!-- Dependency Dropdown (only shown when bucket is chosen and there are active tasks OR task has a dependency) -->
+                        <div
+                          v-if="
+                            (editForm.theme ||
+                              (isEditThemeInputVisible && newEditThemeName.value?.trim())) &&
+                            (availableTasksForDependency.length > 0 || editForm.depends_on_task_id)
+                          "
+                          class="relative menu-container"
+                        >
+                          <button
+                            type="button"
+                            :class="[
+                              'px-1.5 py-1 sm:px-1 sm:py-0.5 rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-0.5',
+                              editForm.depends_on_task_id
+                                ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                            ]"
+                            :title="
+                              editForm.depends_on_task_id
+                                ? `Depends on: ${getTaskById(editForm.depends_on_task_id)?.title || 'Task'}`
+                                : 'Link to another task in this bucket'
+                            "
+                            @click.stop="
+                              showEditTaskDependencyDropdown = !showEditTaskDependencyDropdown
+                            "
+                          >
+                            <Icon name="mdi:link-variant" size="14" class="sm:w-3 sm:h-3" />
+                            <span
+                              v-if="editForm.depends_on_task_id"
+                              class="text-xs font-medium max-w-[60px] truncate leading-tight"
                             >
-                              <Icon name="mdi:check" size="14" />
-                            </button>
-                            <button
-                              type="button"
-                              class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors rounded"
-                              title="Cancel"
-                              @click.stop="cancelEdit"
+                              {{ getTaskById(editForm.depends_on_task_id)?.title || 'Task' }}
+                            </span>
+                          </button>
+                          <!-- Dependency Dropdown -->
+                          <div
+                            v-if="showEditTaskDependencyDropdown"
+                            class="absolute z-[60] mt-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto min-w-[160px] max-w-[200px]"
+                            style="left: 0; top: 100%"
+                            @click.stop
+                          >
+                            <div
+                              class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-200 dark:border-gray-700"
+                              :class="{
+                                'bg-blue-100 dark:bg-blue-900/40': !editForm.depends_on_task_id,
+                              }"
+                              @click="clearEditTaskDependency"
                             >
-                              <Icon name="mdi:close" size="14" />
+                              <div class="font-medium text-gray-900 dark:text-gray-100">
+                                No Dependency
+                              </div>
+                            </div>
+                            <div
+                              v-for="depTask in availableTasksForDependency"
+                              :key="depTask.id"
+                              class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
+                              :class="{
+                                'bg-blue-100 dark:bg-blue-900/40':
+                                  editForm.depends_on_task_id === depTask.id,
+                              }"
+                              @click="setEditTaskDependency(depTask.id)"
+                            >
+                              <div class="font-medium text-gray-900 dark:text-gray-100 truncate">
+                                {{ depTask.title }}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Tag Legend -->
+                      <div
+                        v-if="showTagLegendEdit"
+                        class="mt-1.5 p-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+                      >
+                        <!-- Same tag legend as parent tasks - copy from parent edit form -->
+                        <!-- Quadrant Reference Guide -->
+                        <div class="mb-3 pb-2 border-b border-gray-300 dark:border-gray-600">
+                          <div
+                            class="font-semibold mb-1.5 text-gray-900 dark:text-gray-100 text-xs"
+                          >
+                            Quadrant Guide:
+                          </div>
+                          <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                            <div class="flex items-center gap-1">
+                              <span
+                                class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 shrink-0"
+                                >Q1</span
+                              >
+                              <span class="text-gray-600 dark:text-gray-400 text-xs">Do Now</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                              <span
+                                class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0"
+                                >Q2</span
+                              >
+                              <span class="text-gray-600 dark:text-gray-400 text-xs">Schedule</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                              <span
+                                class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 shrink-0"
+                                >Q3</span
+                              >
+                              <span class="text-gray-600 dark:text-gray-400 text-xs">Defer</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                              <span
+                                class="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shrink-0"
+                                >Q4</span
+                              >
+                              <span class="text-gray-600 dark:text-gray-400 text-xs">Later</span>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Support Needed Tasks -->
+                        <div class="mb-2">
+                          <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                            Support Needed:
+                          </div>
+                          <div class="flex flex-wrap gap-1">
+                            <div
+                              v-for="tagInfo in availableTags.filter(
+                                (t) => t.category === 'support-needed',
+                              )"
+                              :key="tagInfo.tag"
+                              class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                            >
+                              <span
+                                class="font-mono font-semibold text-blue-600 dark:text-blue-400"
+                                >{{ tagInfo.tag }}</span
+                              >
+                              <span class="text-gray-500 dark:text-gray-500">•</span>
+                              <span class="text-gray-700 dark:text-gray-300">{{
+                                tagInfo.description
+                              }}</span>
+                              <span
+                                :class="[
+                                  'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                                  tagInfo.quadrant === 'Q1'
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                                    : tagInfo.quadrant === 'Q2'
+                                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                      : tagInfo.quadrant === 'Q3'
+                                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                        : tagInfo.quadrant === 'Q4'
+                                          ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                          : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                                ]"
+                              >
+                                {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Time/Effort Related Tasks -->
+                        <div class="mb-2">
+                          <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                            Time/Effort:
+                          </div>
+                          <div class="flex flex-wrap gap-1">
+                            <div
+                              v-for="tagInfo in availableTags.filter(
+                                (t) => t.category === 'time-effort',
+                              )"
+                              :key="tagInfo.tag"
+                              class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                            >
+                              <span
+                                class="font-mono font-semibold text-blue-600 dark:text-blue-400"
+                                >{{ tagInfo.tag }}</span
+                              >
+                              <span class="text-gray-500 dark:text-gray-500">•</span>
+                              <span class="text-gray-700 dark:text-gray-300">{{
+                                tagInfo.description
+                              }}</span>
+                              <span
+                                :class="[
+                                  'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                                  tagInfo.quadrant === 'Q1'
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                                    : tagInfo.quadrant === 'Q2'
+                                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                      : tagInfo.quadrant === 'Q3'
+                                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                        : tagInfo.quadrant === 'Q4'
+                                          ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                          : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                                ]"
+                              >
+                                {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Administrative Tasks -->
+                        <div class="mb-0">
+                          <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">
+                            Administrative:
+                          </div>
+                          <div class="flex flex-wrap gap-1">
+                            <div
+                              v-for="tagInfo in availableTags.filter(
+                                (t) => t.category === 'administrative',
+                              )"
+                              :key="tagInfo.tag"
+                              class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs"
+                            >
+                              <span
+                                class="font-mono font-semibold text-blue-600 dark:text-blue-400"
+                                >{{ tagInfo.tag }}</span
+                              >
+                              <span class="text-gray-500 dark:text-gray-500">•</span>
+                              <span class="text-gray-700 dark:text-gray-300">{{
+                                tagInfo.description
+                              }}</span>
+                              <span
+                                :class="[
+                                  'ml-0.5 px-1 py-0.5 rounded text-xs font-semibold shrink-0',
+                                  tagInfo.quadrant === 'Q1'
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                                    : tagInfo.quadrant === 'Q2'
+                                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                      : tagInfo.quadrant === 'Q3'
+                                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                                        : tagInfo.quadrant === 'Q4'
+                                          ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                          : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                                ]"
+                              >
+                                {{ tagInfo.quadrant === 'any' ? 'Any' : tagInfo.quadrant }}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Collapsible Level 2 Dependent Tasks (Grandchildren) -->
+                    <div
+                      v-if="
+                        hasDependents(dependentTask.id) && expandedParentTasks.has(dependentTask.id)
+                      "
+                      class="ml-6 mt-1.5 space-y-1 border-l-2 border-green-300 dark:border-green-600 pl-2"
+                    >
+                      <div
+                        v-for="grandchildTask in getDependentTasks(dependentTask.id)"
+                        :key="grandchildTask.id"
+                        :data-task-id="grandchildTask.id"
+                        :class="[
+                          'px-1.5 py-1 border-l-2 border-green-400 dark:border-green-500 bg-green-50/50 dark:bg-green-950/20 rounded-r transition-all',
+                          editingTaskId === grandchildTask.id &&
+                            'bg-green-100 dark:bg-green-950/40 border-green-500 dark:border-green-400',
+                          grandchildTask.is_mit &&
+                            editingTaskId !== grandchildTask.id &&
+                            'bg-red-50 dark:bg-red-950/40 border-red-400 dark:border-red-600',
+                          !grandchildTask.is_mit &&
+                            editingTaskId !== grandchildTask.id &&
+                            'border-green-400 dark:border-green-500',
+                        ]"
+                      >
+                        <div
+                          v-if="editingTaskId !== grandchildTask.id"
+                          class="flex flex-row items-center gap-1.5 sm:gap-2"
+                        >
+                          <!-- Done/Doing Toggle -->
+                          <button
+                            :class="[
+                              'relative w-7 h-3.5 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation flex-shrink-0',
+                              grandchildTask.status === 'done'
+                                ? 'bg-green-500 dark:bg-green-600 focus:ring-green-500'
+                                : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400',
+                            ]"
+                            @click="toggleTaskStatus(grandchildTask.id, grandchildTask.status)"
+                          >
+                            <span
+                              :class="[
+                                'absolute top-0.5 left-0.5 h-2.5 w-2.5 bg-white shadow-sm transform transition-transform duration-200 rounded-sm',
+                                grandchildTask.status === 'done'
+                                  ? 'translate-x-3'
+                                  : 'translate-x-0',
+                              ]"
+                            ></span>
+                          </button>
+
+                          <!-- Task Title -->
+                          <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5">
+                              <span
+                                :class="[
+                                  'text-xs font-medium cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors',
+                                  grandchildTask.status === 'done'
+                                    ? 'text-gray-500 dark:text-gray-500 line-through'
+                                    : 'text-gray-900 dark:text-gray-100',
+                                ]"
+                                title="Click to edit"
+                                @click.stop="startEdit(grandchildTask)"
+                              >
+                                {{ grandchildTask.title }}
+                              </span>
+                              <!-- Rollover Counter for Grandchild Tasks -->
+                              <span
+                                v-if="
+                                  grandchildTask.rollover_count && grandchildTask.rollover_count > 0
+                                "
+                                class="text-xs font-bold text-red-600 dark:text-red-400 ml-1 whitespace-nowrap flex-shrink-0"
+                                style="
+                                  color: rgb(220, 38, 38) !important;
+                                  font-weight: bold !important;
+                                "
+                              >
+                                +{{ grandchildTask.rollover_count }}
+                              </span>
+                              <!-- Dependent Count Badge for Level 2 (if it had dependents, but max depth is 2, so this won't show) -->
+                              <span
+                                v-if="hasDependents(grandchildTask.id)"
+                                class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
+                              >
+                                {{ getDependentTasks(grandchildTask.id).length }}
+                              </span>
+                            </div>
+                            <span
+                              v-if="grandchildTask.notes"
+                              :class="[
+                                'text-xs text-gray-600 dark:text-gray-400 ml-5',
+                                grandchildTask.status === 'done' && 'line-through',
+                              ]"
+                            >
+                              – {{ grandchildTask.notes }}
+                            </span>
+                          </div>
+
+                          <!-- Actions -->
+                          <div class="flex items-center gap-1 flex-shrink-0">
+                            <!-- Date Tag -->
+                            <span
+                              v-if="grandchildTask.planned_date && grandchildTask.status !== 'done'"
+                              class="px-1 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors touch-manipulation whitespace-nowrap"
+                              title="Click to edit"
+                              @click.stop="startEdit(grandchildTask)"
+                            >
+                              {{
+                                formatDateRelative(grandchildTask.planned_date) ||
+                                formatDateToDisplay(grandchildTask.planned_date) ||
+                                grandchildTask.planned_date
+                              }}
+                            </span>
+
+                            <!-- Delete Icon -->
+                            <button
+                              :class="[
+                                'p-0.5 transition-colors touch-manipulation',
+                                'text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300',
+                              ]"
+                              :title="
+                                hasDependents(grandchildTask.id)
+                                  ? `Delete (${getDependentTasks(grandchildTask.id).length} dependent task(s) will be reassigned automatically)`
+                                  : 'Delete'
+                              "
+                              @click.stop="handleDeleteTaskClick(grandchildTask)"
+                            >
+                              <Icon name="mdi:delete-outline" size="14" />
                             </button>
+                          </div>
+                        </div>
+
+                        <!-- Edit Mode for Level 2 Dependent Task (Full Edit Form) -->
+                        <div v-else class="space-y-1.5 py-1.5 relative">
+                          <!-- Same full edit form as level 1 dependents -->
+                          <div class="flex flex-col gap-1.5">
+                            <input
+                              v-model="editForm.title"
+                              type="text"
+                              class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                              @keyup.enter="saveEdit"
+                              @keyup.esc="cancelEdit"
+                            />
+                            <textarea
+                              ref="notesInputRef"
+                              v-model="editForm.notes"
+                              class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 resize-none"
+                              rows="2"
+                              placeholder="Add notes..."
+                              @input="handleNotesInput"
+                              @keydown="handleNotesKeydown"
+                            />
+                            <div class="flex items-center gap-1.5">
+                              <input
+                                v-model="editForm.planned_date"
+                                type="date"
+                                class="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                              />
+                              <select
+                                v-model="editForm.theme"
+                                class="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                              >
+                                <option :value="null">Bucket</option>
+                                <option
+                                  v-for="theme in availableThemes"
+                                  :key="theme"
+                                  :value="theme"
+                                >
+                                  {{ theme }}
+                                </option>
+                              </select>
+                              <label
+                                class="flex items-center gap-1 px-2 py-1 text-xs text-gray-700 dark:text-gray-300 cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
+                              >
+                                <input
+                                  v-model="editForm.is_mit"
+                                  type="checkbox"
+                                  class="w-3 h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
+                                />
+                                <span>MIT</span>
+                              </label>
+                              <!-- Dependency Dropdown (only shown when bucket is chosen and there are active tasks OR task has a dependency) -->
+                              <div
+                                v-if="
+                                  (editForm.theme ||
+                                    (isEditThemeInputVisible && newEditThemeName.value?.trim())) &&
+                                  (availableTasksForDependency.length > 0 ||
+                                    editForm.depends_on_task_id)
+                                "
+                                class="relative menu-container"
+                              >
+                                <button
+                                  type="button"
+                                  :class="[
+                                    'px-1.5 py-1 sm:px-1 sm:py-0.5 rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-0.5',
+                                    editForm.depends_on_task_id
+                                      ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                                  ]"
+                                  :title="
+                                    editForm.depends_on_task_id
+                                      ? `Depends on: ${getTaskById(editForm.depends_on_task_id)?.title || 'Task'}`
+                                      : 'Link to another task in this bucket'
+                                  "
+                                  @click.stop="
+                                    showEditTaskDependencyDropdown = !showEditTaskDependencyDropdown
+                                  "
+                                >
+                                  <Icon name="mdi:link-variant" size="14" class="sm:w-3 sm:h-3" />
+                                  <span
+                                    v-if="editForm.depends_on_task_id"
+                                    class="text-xs font-medium max-w-[60px] truncate leading-tight"
+                                  >
+                                    {{ getTaskById(editForm.depends_on_task_id)?.title || 'Task' }}
+                                  </span>
+                                </button>
+                                <!-- Dependency Dropdown -->
+                                <div
+                                  v-if="showEditTaskDependencyDropdown"
+                                  class="absolute z-[60] mt-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto min-w-[160px] max-w-[200px]"
+                                  style="left: 0; top: 100%"
+                                  @click.stop
+                                >
+                                  <div
+                                    class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-200 dark:border-gray-700"
+                                    :class="{
+                                      'bg-blue-100 dark:bg-blue-900/40':
+                                        !editForm.depends_on_task_id,
+                                    }"
+                                    @click="clearEditTaskDependency"
+                                  >
+                                    <div class="font-medium text-gray-900 dark:text-gray-100">
+                                      No Dependency
+                                    </div>
+                                  </div>
+                                  <div
+                                    v-for="depTask in availableTasksForDependency"
+                                    :key="depTask.id"
+                                    class="px-2 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
+                                    :class="{
+                                      'bg-blue-100 dark:bg-blue-900/40':
+                                        editForm.depends_on_task_id === depTask.id,
+                                    }"
+                                    @click="setEditTaskDependency(depTask.id)"
+                                  >
+                                    <div
+                                      class="font-medium text-gray-900 dark:text-gray-100 truncate"
+                                    >
+                                      {{ depTask.title }}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                class="p-1 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors rounded"
+                                title="Save"
+                                @click.stop="saveEdit"
+                              >
+                                <Icon name="mdi:check" size="14" />
+                              </button>
+                              <button
+                                type="button"
+                                class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors rounded"
+                                title="Cancel"
+                                @click.stop="cancelEdit"
+                              >
+                                <Icon name="mdi:close" size="14" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -3771,155 +3807,161 @@ onUnmounted(() => {
                   </div>
                 </div>
               </div>
+            </template>
+
+            <!-- Empty State -->
+            <div
+              v-if="filteredAndSortedTasks.length === 0"
+              class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+            >
+              No tasks found
             </div>
-          </template>
-
-          <!-- Empty State -->
-          <div
-            v-if="filteredAndSortedTasks.length === 0"
-            class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
-          >
-            No tasks found
           </div>
-        </div>
 
-        <!-- Summary and Disclaimer -->
-        <div class="mt-4 space-y-2">
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            Showing {{ filteredAndSortedTasks.length }} task{{
-              filteredAndSortedTasks.length !== 1 ? 's' : ''
-            }}
-          </div>
-          <div
-            class="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2"
-          >
-            <Icon name="mdi:information-outline" size="16" class="inline align-middle mr-1" />
-            <span>
-              Done tasks are automatically removed after 1 day. Use the purge icon above to remove
-              deleted tasks immediately. Archived tasks are preserved for statistics and can be
-              viewed in the
-              <NuxtLink to="/dev/planner/review" class="underline font-medium">Review page</NuxtLink
-              >.
-            </span>
+          <!-- Summary and Disclaimer -->
+          <div class="mt-4 space-y-2">
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+              Showing {{ filteredAndSortedTasks.length }} task{{
+                filteredAndSortedTasks.length !== 1 ? 's' : ''
+              }}
+            </div>
+            <div
+              class="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2"
+            >
+              <Icon name="mdi:information-outline" size="16" class="inline align-middle mr-1" />
+              <span>
+                Done tasks are automatically removed after 1 day. Use the purge icon above to remove
+                deleted tasks immediately. Archived tasks are preserved for statistics and can be
+                viewed in the
+                <NuxtLink to="/dev/planner/review" class="underline font-medium"
+                  >Review page</NuxtLink
+                >.
+              </span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Bulk Upload Modal -->
-    <div
-      v-if="isBulkUploadVisible"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      @click.self="isBulkUploadVisible = false"
-    >
+      <!-- Bulk Upload Modal -->
       <div
-        class="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 max-w-md mx-4 border border-gray-200 dark:border-gray-700 shadow-xl w-full"
+        v-if="isBulkUploadVisible"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        @click.self="isBulkUploadVisible = false"
       >
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Bulk Upload Tasks</h2>
+        <div
+          class="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 max-w-md mx-4 border border-gray-200 dark:border-gray-700 shadow-xl w-full"
+        >
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Bulk Upload Tasks
+            </h2>
+            <button
+              class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors touch-manipulation"
+              @click="isBulkUploadVisible = false"
+            >
+              <Icon name="mdi:close" size="20" />
+            </button>
+          </div>
+
+          <div class="space-y-4 mb-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Upload CSV File
+              </label>
+              <input
+                ref="bulkUploadInput"
+                type="file"
+                accept=".csv"
+                class="hidden"
+                @change="handleBulkUpload"
+              />
+              <button
+                class="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors touch-manipulation flex items-center justify-center gap-2 text-sm font-medium"
+                @click="bulkUploadInput?.click()"
+              >
+                <Icon name="mdi:file-upload" size="18" />
+                <span>Choose File</span>
+              </button>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                CSV Format
+              </label>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Required columns:
+                <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">title,date,theme,mit</code>
+              </p>
+              <button
+                class="w-full px-4 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center gap-2 text-sm font-medium"
+                @click="downloadBulkTemplate"
+              >
+                <Icon name="mdi:download" size="18" />
+                <span>Download Template</span>
+              </button>
+            </div>
+          </div>
+
           <button
-            class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors touch-manipulation"
+            class="w-full px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors touch-manipulation"
             @click="isBulkUploadVisible = false"
           >
-            <Icon name="mdi:close" size="20" />
+            Close
           </button>
         </div>
-
-        <div class="space-y-4 mb-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Upload CSV File
-            </label>
-            <input
-              ref="bulkUploadInput"
-              type="file"
-              accept=".csv"
-              class="hidden"
-              @change="handleBulkUpload"
-            />
-            <button
-              class="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors touch-manipulation flex items-center justify-center gap-2 text-sm font-medium"
-              @click="bulkUploadInput?.click()"
-            >
-              <Icon name="mdi:file-upload" size="18" />
-              <span>Choose File</span>
-            </button>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              CSV Format
-            </label>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
-              Required columns:
-              <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">title,date,theme,mit</code>
-            </p>
-            <button
-              class="w-full px-4 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center gap-2 text-sm font-medium"
-              @click="downloadBulkTemplate"
-            >
-              <Icon name="mdi:download" size="18" />
-              <span>Download Template</span>
-            </button>
-          </div>
-        </div>
-
-        <button
-          class="w-full px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors touch-manipulation"
-          @click="isBulkUploadVisible = false"
-        >
-          Close
-        </button>
       </div>
-    </div>
 
-    <!-- Delete Confirmation Modal -->
-    <div
-      v-if="showDeleteModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      @click.self="closeDeleteModal"
-    >
+      <!-- Delete Confirmation Modal -->
       <div
-        class="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-5 max-w-sm mx-4 border border-gray-200 dark:border-gray-700 shadow-xl"
+        v-if="showDeleteModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        @click.self="closeDeleteModal"
       >
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Delete Task</h2>
+        <div
+          class="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-5 max-w-sm mx-4 border border-gray-200 dark:border-gray-700 shadow-xl"
+        >
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Delete Task</h2>
+            <button
+              class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              @click="closeDeleteModal"
+            >
+              <Icon name="mdi:close" size="20" />
+            </button>
+          </div>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+            {{ taskToDelete?.title }}
+          </p>
+
+          <div class="space-y-2 mb-4">
+            <button
+              class="w-full px-3 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors touch-manipulation flex items-center gap-2 text-sm"
+              @click="handleDelete(true)"
+            >
+              <Icon name="mdi:check-circle" size="18" />
+              <span class="font-medium">Close Task and Delete</span>
+            </button>
+
+            <button
+              class="w-full px-3 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors touch-manipulation flex items-center gap-2 text-sm"
+              @click="handleDelete(false)"
+            >
+              <Icon name="mdi:delete" size="18" />
+              <span class="font-medium">Delete Only</span>
+            </button>
+          </div>
+
           <button
-            class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            class="w-full px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors touch-manipulation"
             @click="closeDeleteModal"
           >
-            <Icon name="mdi:close" size="20" />
+            Cancel
           </button>
         </div>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-          {{ taskToDelete?.title }}
-        </p>
-
-        <div class="space-y-2 mb-4">
-          <button
-            class="w-full px-3 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors touch-manipulation flex items-center gap-2 text-sm"
-            @click="handleDelete(true)"
-          >
-            <Icon name="mdi:check-circle" size="18" />
-            <span class="font-medium">Close Task and Delete</span>
-          </button>
-
-          <button
-            class="w-full px-3 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors touch-manipulation flex items-center gap-2 text-sm"
-            @click="handleDelete(false)"
-          >
-            <Icon name="mdi:delete" size="18" />
-            <span class="font-medium">Delete Only</span>
-          </button>
-        </div>
-
-        <button
-          class="w-full px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors touch-manipulation"
-          @click="closeDeleteModal"
-        >
-          Cancel
-        </button>
       </div>
     </div>
+
+    <!-- Toast Notifications -->
+    <CommonToast />
   </div>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import { useNotion } from '~/composables/useNotion'
 import { resourcesPage, seoData } from '~/data'
 import GalleryLightbox from '~/components/gallery/Lightbox.vue'
 import GoogleMap from '~/components/blog/GoogleMap.vue'
@@ -26,8 +27,8 @@ const closeLoginModal = () => {
   showLoginModal.value = false
 }
 
-// Active tab state - default to resources (requires auth)
-const activeTab = ref<TabType>('resources')
+// Active tab state - default to photos (requires auth)
+const activeTab = ref<TabType>('photos')
 
 // Gallery state (for Photos tab)
 const viewMode = ref<'grid' | 'masonry'>('grid')
@@ -498,8 +499,57 @@ const loadVideoStats = async () => {
   }
 }
 
-// Tab configuration
-const tabs = [
+// Resources count from Notion
+const resourcesCount = ref(0)
+const isLoadingResourcesCount = ref(false)
+
+// Load resources count from Notion
+const loadResourcesCount = async () => {
+  if (resourcesCount.value > 0 || isLoadingResourcesCount.value) return // Already loaded
+
+  isLoadingResourcesCount.value = true
+  try {
+    const config = useRuntimeConfig()
+    const databaseId = config.public.notionDatabaseId
+
+    if (databaseId && typeof databaseId === 'string') {
+      const { fetchDatabase } = useNotion()
+      const response = await fetchDatabase({
+        databaseId: databaseId,
+        pageSize: 100,
+      })
+
+      if (response.success && response.items) {
+        // Filter by published status and count all published items
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const publishedItems = response.items.filter((item: any) => {
+          const published = item.Published || item.published || false
+          return published
+        })
+
+        resourcesCount.value = publishedItems.length
+      }
+    } else {
+      // Fallback to static count if Notion not configured
+      resourcesCount.value =
+        resourcesPage.books.length +
+        resourcesPage.tools.length +
+        resourcesPage.learningResources.length
+    }
+  } catch (error) {
+    console.error('[Library] Failed to load resources count:', error)
+    // Fallback to static count on error
+    resourcesCount.value =
+      resourcesPage.books.length +
+      resourcesPage.tools.length +
+      resourcesPage.learningResources.length
+  } finally {
+    isLoadingResourcesCount.value = false
+  }
+}
+
+// Tab configuration - computed to reactively update counts
+const tabs = computed(() => [
   {
     id: 'photos' as TabType,
     label: 'Photos',
@@ -525,20 +575,17 @@ const tabs = [
     id: 'travel-map' as TabType,
     label: 'Travel Map',
     icon: 'mdi:map',
-    count: 0,
+    count: travelPlaces.value.length,
     requiresAuth: true,
   },
   {
     id: 'resources' as TabType,
     label: 'Resources',
     icon: 'mdi:book-open-variant',
-    count:
-      resourcesPage.books.length +
-      resourcesPage.tools.length +
-      resourcesPage.learningResources.length,
+    count: resourcesCount.value,
     requiresAuth: true,
   },
-]
+])
 
 // Search-based filtering for photos
 const filteredItems = computed(() => {
@@ -774,6 +821,10 @@ watch(activeTab, (newTab) => {
   if (newTab === 'travel-map' && travelPlaces.value.length === 0 && !mapLoading.value) {
     loadTravelPlaces()
   }
+  // Load resources count when resources tab is activated
+  if (newTab === 'resources' && resourcesCount.value === 0 && !isLoadingResourcesCount.value) {
+    loadResourcesCount()
+  }
 })
 
 // Track if we've loaded stats for the current user to prevent duplicate calls
@@ -793,6 +844,9 @@ onMounted(async () => {
   }).catch(() => {
     // Silent fail
   })
+
+  // Load resources count on mount (doesn't require auth)
+  loadResourcesCount()
 
   // loadStoredUser() is synchronous - it directly sets user.value from localStorage
   // Check user.value immediately after calling it (no need to wait for nextTick)
@@ -838,7 +892,7 @@ watch(isAuthenticated, (newValue) => {
 
 // Check if current tab requires auth
 const currentTabRequiresAuth = computed(() => {
-  return tabs.find((tab) => tab.id === activeTab.value)?.requiresAuth ?? false
+  return tabs.value.find((tab) => tab.id === activeTab.value)?.requiresAuth ?? false
 })
 
 useHead({
@@ -910,7 +964,7 @@ try {
             <Icon :name="tab.icon" size="20" />
             <span>{{ tab.label }}</span>
             <span
-              v-if="tab.count > 0"
+              v-if="tab.count > 0 || (tab.id === 'resources' && isLoadingResourcesCount)"
               :class="[
                 'ml-1 px-2 py-0.5 rounded-full text-xs font-bold',
                 activeTab === tab.id
@@ -918,7 +972,12 @@ try {
                   : 'bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300',
               ]"
             >
-              {{ tab.count }}
+              <template v-if="tab.id === 'resources' && isLoadingResourcesCount">
+                <Icon name="svg-spinners:180-ring" class="animate-spin" size="12" />
+              </template>
+              <template v-else>
+                {{ tab.count }}
+              </template>
             </span>
             <!-- Active indicator -->
             <div

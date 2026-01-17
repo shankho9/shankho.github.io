@@ -1,9 +1,14 @@
 <script lang="ts" setup>
 import Fuse from 'fuse.js'
+import { onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { extractBlogPostFromMeta } from '~/utils/blog/blogMeta'
 import { parseCustomDate, getDateTimestamp } from '~/utils/common/dateParser'
 import { getTagColorClasses, getTagSelectedColorClasses } from '~/utils/blog/tagColors'
 import { blogsPage } from '~/data'
+import { getSearchSuggestions } from '~/utils/search/searchHighlighter'
+import SearchSuggestions from '~/components/search/SearchSuggestions.vue'
+import SearchFilters from '~/components/search/SearchFilters.vue'
+import { usePrefetch } from '~/composables/usePrefetch'
 
 // Load all blog posts
 const { data } = await useAsyncData('all-blog-post', () => queryCollection('content').all())
@@ -17,10 +22,15 @@ const pageNumber = ref(1)
 
 // Search
 const searchTest = ref('')
+const showSuggestions = ref(false)
+const searchInputRef = ref<HTMLInputElement | null>(null)
+const suggestionsRef = ref<InstanceType<typeof SearchSuggestions> | null>(null)
 
 // Filters
 const selectedTags = ref<string[]>([])
 const selectedCategories = ref<string[]>([])
+const minDate = ref<string | undefined>(undefined)
+const maxDate = ref<string | undefined>(undefined)
 const sortBy = ref<'date-desc' | 'date-asc' | 'title-asc' | 'title-desc' | 'category'>('date-desc')
 
 // Format all blog data (exclude lifelines)
@@ -84,7 +94,7 @@ const allCategories = computed(() => {
   return Array.from(categories).sort()
 })
 
-// Filter data based on selected tags and categories
+// Filter data based on selected tags, categories, and date range
 const filteredData = computed(() => {
   let filtered = formattedData.value
 
@@ -100,22 +110,89 @@ const filteredData = computed(() => {
     )
   }
 
+  // Filter by date range
+  if (minDate.value || maxDate.value) {
+    filtered = filtered.filter((post) => {
+      const postDate = parseCustomDate(post.date)
+      const postTimestamp = getDateTimestamp(postDate)
+
+      if (minDate.value) {
+        const minTimestamp = getDateTimestamp(parseCustomDate(minDate.value))
+        if (postTimestamp < minTimestamp) return false
+      }
+
+      if (maxDate.value) {
+        const maxTimestamp = getDateTimestamp(parseCustomDate(maxDate.value))
+        if (postTimestamp > maxTimestamp) return false
+      }
+
+      return true
+    })
+  }
+
   return filtered
 })
 
-// Search functionality
+// Enhanced search functionality with improved Fuse.js configuration
 const fuse = computed(
   () =>
     new Fuse(filteredData.value, {
-      keys: ['title', 'description', 'tags', 'category'],
-      threshold: 0.4,
-      includeScore: false,
+      keys: [
+        { name: 'title', weight: 0.5 },
+        { name: 'description', weight: 0.3 },
+        { name: 'tags', weight: 0.15 },
+        { name: 'category', weight: 0.05 },
+      ],
+      threshold: 0.3, // Lower threshold for more accurate matches
+      minMatchCharLength: 2, // Minimum characters to match
+      includeScore: true,
+      ignoreLocation: true, // Search anywhere in the text
+      useExtendedSearch: true, // Enable extended search syntax
     }),
 )
 
+// Search suggestions
+const searchSuggestions = computed(() => {
+  if (!searchTest.value.trim() || searchTest.value.length < 2) return []
+  return getSearchSuggestions(searchTest.value, filteredData.value, 5)
+})
+
+// "Did you mean?" functionality - find similar search terms
+const didYouMean = computed(() => {
+  if (!searchTest.value.trim() || searchTest.value.length < 3) return null
+
+  // If no results found, try to find similar terms
+  const searchResults = fuse.value.search(searchTest.value)
+  if (searchResults.length === 0) {
+    // Try with a higher threshold to find similar terms
+    const similarFuse = new Fuse(filteredData.value, {
+      keys: ['title', 'description', 'tags'],
+      threshold: 0.6, // More lenient threshold
+      minMatchCharLength: 2,
+      includeScore: true,
+    })
+
+    const similarResults = similarFuse.search(searchTest.value)
+    // Accept scores up to and including the threshold (0.6)
+    // In Fuse.js, lower scores indicate better matches, so scores <= 0.6 are valid matches
+    if (similarResults.length > 0 && similarResults[0].score && similarResults[0].score <= 0.6) {
+      // Find the matched term in the result
+      const bestMatch = similarResults[0]
+      if (bestMatch.matches && bestMatch.matches.length > 0) {
+        const matchedValue = bestMatch.matches[0].value as string
+        if (matchedValue.toLowerCase() !== searchTest.value.toLowerCase()) {
+          return matchedValue
+        }
+      }
+    }
+  }
+  return null
+})
+
 const searchData = computed(() => {
   if (!searchTest.value.trim()) return filteredData.value
-  return fuse.value.search(searchTest.value).map((result) => result.item)
+  const results = fuse.value.search(searchTest.value)
+  return results.map((result) => result.item)
 })
 
 // Sort data
@@ -206,13 +283,100 @@ function clearFilters() {
   selectedTags.value = []
   selectedCategories.value = []
   searchTest.value = ''
+  minDate.value = undefined
+  maxDate.value = undefined
+  pageNumber.value = 1
+  showSuggestions.value = false
+}
+
+// Search suggestion handlers
+function onSuggestionSelect(query: string) {
+  searchTest.value = query
+  showSuggestions.value = false
   pageNumber.value = 1
 }
 
+function onSuggestionClose() {
+  showSuggestions.value = false
+}
+
+function handleSearchKeyDown(event: KeyboardEvent) {
+  if (suggestionsRef.value) {
+    suggestionsRef.value.handleKeyDown(event)
+  }
+}
+
+function handleSearchFocus() {
+  if (searchTest.value.length >= 2) {
+    showSuggestions.value = true
+  }
+}
+
+function handleSearchInput() {
+  showSuggestions.value = searchTest.value.length >= 2
+}
+
+function handleDidYouMeanClick() {
+  if (didYouMean.value) {
+    searchTest.value = didYouMean.value
+    showSuggestions.value = false
+    pageNumber.value = 1
+  }
+}
+
+// Close suggestions when clicking outside
+function handleClickOutside(event: MouseEvent) {
+  if (
+    searchInputRef.value &&
+    !searchInputRef.value.contains(event.target as Node) &&
+    !(event.target as HTMLElement)?.closest('.search-suggestions-container')
+  ) {
+    showSuggestions.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
 // Watch for filter changes and reset page
-watch([selectedTags, selectedCategories, searchTest, sortBy], () => {
+watch([selectedTags, selectedCategories, searchTest, sortBy, minDate, maxDate], () => {
   pageNumber.value = 1
 })
+
+// Prefetching for performance
+const { prefetchNext } = usePrefetch()
+
+// Prefetch next page when current page is loaded
+watch(
+  [pageNumber, totalPage],
+  ([currentPage, totalPages]) => {
+    if (import.meta.client && currentPage < totalPages) {
+      // Prefetch next page in the background
+      nextTick(() => {
+        const baseUrl = window.location.pathname
+        prefetchNext(currentPage, totalPages, baseUrl)
+      })
+    }
+  },
+  { immediate: true },
+)
+
+// Prefetch images on hover for blog cards (lazy load optimization)
+// Note: Currently unused - images are lazy loaded via NuxtImg with loading="lazy"
+// const prefetchBlogImages = (imageUrl: string) => {
+//   if (import.meta.client) {
+//     const link = document.createElement('link')
+//     link.rel = 'prefetch'
+//     link.href = imageUrl
+//     link.as = 'image'
+//     document.head.appendChild(link)
+//   }
+// }
 
 useHead({
   title: 'All Blogs',
@@ -276,12 +440,24 @@ try {
     <div class="px-6 mb-6 space-y-4">
       <!-- Search and View Toggle -->
       <div class="flex flex-col sm:flex-row gap-4 items-center">
-        <div class="flex-1 w-full">
+        <div class="flex-1 w-full relative search-suggestions-container">
           <input
+            ref="searchInputRef"
             v-model="searchTest"
             placeholder="Search blogs by title, description, tags, or category..."
             type="text"
             class="block w-full bg-[#F1F2F4] dark:bg-slate-900 dark:placeholder-zinc-500 text-zinc-300 rounded-md border-gray-300 dark:border-gray-800 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 px-4 py-2"
+            @focus="handleSearchFocus"
+            @input="handleSearchInput"
+            @keydown="handleSearchKeyDown"
+          />
+          <SearchSuggestions
+            ref="suggestionsRef"
+            :suggestions="searchSuggestions"
+            :query="searchTest"
+            :show="showSuggestions"
+            @select="onSuggestionSelect"
+            @close="onSuggestionClose"
           />
         </div>
         <div class="flex gap-2 items-center">
@@ -332,13 +508,34 @@ try {
         <div class="flex-1"></div>
 
         <button
-          v-if="selectedTags.length > 0 || selectedCategories.length > 0 || searchTest.trim()"
+          v-if="
+            selectedTags.length > 0 ||
+            selectedCategories.length > 0 ||
+            searchTest.trim() ||
+            minDate ||
+            maxDate
+          "
           class="px-4 py-2 text-sm bg-gray-200 dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 rounded-md hover:bg-gray-300 dark:hover:bg-slate-700 transition-colors"
           @click="clearFilters"
         >
           Clear Filters
         </button>
       </div>
+
+      <!-- Advanced Search Filters -->
+      <SearchFilters
+        :all-tags="allTags"
+        :all-categories="allCategories"
+        :selected-tags="selectedTags"
+        :selected-categories="selectedCategories"
+        :min-date="minDate"
+        :max-date="maxDate"
+        @update:selected-tags="selectedTags = $event"
+        @update:selected-categories="selectedCategories = $event"
+        @update:min-date="minDate = $event"
+        @update:max-date="maxDate = $event"
+        @clear="clearFilters"
+      />
 
       <!-- Tag Filters -->
       <div v-if="allTags.length > 0" class="flex flex-wrap gap-2">
@@ -382,12 +579,39 @@ try {
     </div>
 
     <!-- Results Count -->
-    <div class="px-6 mb-4">
+    <div class="px-6 mb-4 space-y-2">
       <p class="text-sm text-zinc-600 dark:text-zinc-400">
         Showing {{ paginatedData.length }} of {{ sortedData.length }} posts
-        <span v-if="selectedTags.length > 0 || selectedCategories.length > 0 || searchTest.trim()">
+        <span
+          v-if="
+            selectedTags.length > 0 ||
+            selectedCategories.length > 0 ||
+            searchTest.trim() ||
+            minDate ||
+            maxDate
+          "
+        >
           (filtered)
         </span>
+      </p>
+
+      <!-- Did you mean? -->
+      <div v-if="didYouMean" class="text-sm text-sky-600 dark:text-sky-400">
+        <span>No results found for "{{ searchTest }}". </span>
+        <button
+          class="underline hover:text-sky-700 dark:hover:text-sky-300 font-medium"
+          @click="handleDidYouMeanClick"
+        >
+          Did you mean "{{ didYouMean }}"?
+        </button>
+      </div>
+
+      <!-- Search term highlighting info -->
+      <p
+        v-if="searchTest.trim() && sortedData.length > 0"
+        class="text-xs text-zinc-500 dark:text-zinc-500"
+      >
+        Search results highlighted for: "{{ searchTest }}"
       </p>
     </div>
 
@@ -406,6 +630,7 @@ try {
             :og-image="post.ogImage"
             :tags="post.tags"
             :published="post.published"
+            :search-query="searchTest.trim() || undefined"
           />
         </template>
         <div v-if="paginatedData.length === 0" class="col-span-full text-center py-12">
@@ -427,6 +652,7 @@ try {
             :tags="post.tags"
             :published="post.published"
             type="blog"
+            :search-query="searchTest.trim() || undefined"
           />
         </template>
         <div v-if="paginatedData.length === 0" class="text-center py-12">

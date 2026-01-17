@@ -117,7 +117,7 @@ The dev utilities page uses encrypted password authentication with optional 2FA 
 **Features:**
 
 - Quick links to:
-  - Manage Places (`/admin/places`)
+  - Manage Places (`/dev/locations`)
   - Gallery (`/gallery`)
   - Blog Posts (`/blogs`)
   - Resources (`/resources`)

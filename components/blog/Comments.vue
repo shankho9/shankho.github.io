@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import { formatDateForDisplay } from '~/utils/common/dateParser'
 import LoginModal from '~/components/auth/LoginModal.vue'
 
 interface Comment {
@@ -25,6 +26,20 @@ interface UserReactions {
   [commentId: number]: string[]
 }
 
+interface ReactionTypeConfig {
+  type: ReactionType
+  emoji: string
+  label: string
+}
+
+const reactionTypes: ReactionTypeConfig[] = [
+  { type: 'thumbs_up', emoji: '👍', label: 'Like it!' },
+  { type: 'heart', emoji: '❤️', label: 'Love it!' },
+  { type: 'party', emoji: '🎉', label: 'Celebrate it!' },
+  { type: 'rocket', emoji: '🚀', label: 'Amazing!' },
+  { type: 'eyes', emoji: '👀', label: 'Interesting!' },
+]
+
 const props = defineProps<{
   postId: string
 }>()
@@ -40,18 +55,10 @@ const imageErrors = ref<Set<number>>(new Set())
 const userImageError = ref(false)
 const showLoginModal = ref(false)
 
-// Comment reactions state
+// Comment reactions state (inlined from composable)
 const commentReactions = ref<CommentReactions>({})
 const userReactions = ref<UserReactions>({})
 const reactingComments = ref<Set<number>>(new Set())
-
-const reactionTypes: { type: ReactionType; emoji: string; label: string }[] = [
-  { type: 'thumbs_up', emoji: '👍', label: 'Like it!' },
-  { type: 'heart', emoji: '❤️', label: 'Love it!' },
-  { type: 'party', emoji: '🎉', label: 'Celebrate it!' },
-  { type: 'rocket', emoji: '🚀', label: 'Amazing!' },
-  { type: 'eyes', emoji: '👀', label: 'Interesting!' },
-]
 
 // Pagination state
 const currentPage = ref(1)
@@ -59,18 +66,10 @@ const commentsPerPage = ref(10)
 const totalComments = ref(0)
 const totalPages = ref(0)
 
-const formatDate = (date: string | Date) => {
-  const d = new Date(date)
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+const formatDate = formatDateForDisplay
 
-const loadCommentReactions = async (commentIds: number[]) => {
+// Load reactions for multiple comments
+const loadCommentReactions = async (commentIds: number[], userEmail?: string): Promise<void> => {
   if (commentIds.length === 0) return
 
   try {
@@ -79,7 +78,7 @@ const loadCommentReactions = async (commentIds: number[]) => {
       userReactions: UserReactions
     }>(
       `/api/blog/comment-reactions?commentIds=${commentIds.join(',')}${
-        user.value?.email ? `&userEmail=${encodeURIComponent(user.value.email)}` : ''
+        userEmail ? `&userEmail=${encodeURIComponent(userEmail)}` : ''
       }`,
     )
     commentReactions.value = { ...commentReactions.value, ...response.reactions }
@@ -89,18 +88,18 @@ const loadCommentReactions = async (commentIds: number[]) => {
   }
 }
 
+// Toggle a reaction on a comment
 const toggleReaction = async (commentId: number, reactionType: ReactionType) => {
   if (!isAuthenticated.value || !user.value) {
-    openLoginModal()
+    showLoginModal.value = true
     return
   }
 
   if (reactingComments.value.has(commentId)) return
 
-  // Get user details - ensure we have all required fields
   const userEmail = user.value.email
   const userName = user.value.name || user.value.email?.split('@')[0] || 'Anonymous'
-  const userPicture = user.value.picture
+  const userPicture = user.value.picture || ''
 
   // Check if user already has a reaction (any type) for this comment
   const existingReaction = userReactions.value[commentId]?.[0] // Only one reaction allowed
@@ -168,10 +167,8 @@ const toggleReaction = async (commentId: number, reactionType: ReactionType) => 
         ('statusCode' in err && (err as { statusCode?: number }).statusCode === 503))
 
     if (isTimeout) {
-      // For timeout errors, show a user-friendly message
+      // For timeout errors, keep optimistic update
       console.warn('[Comments] Database timeout - reaction may not have been saved')
-      // Note: We keep the optimistic update for timeout errors since the request might have succeeded
-      // but the response timed out. The next page load will sync the correct state.
     } else {
       // For other errors, revert optimistic update
       commentReactions.value[commentId] = prevReactions
@@ -190,15 +187,14 @@ const getReactionCount = (commentId: number, reactionType: ReactionType): number
   return commentReactions.value[commentId]?.[reactionType] || 0
 }
 
+const hasUserReacted = (commentId: number, reactionType: ReactionType): boolean => {
+  return userReactions.value[commentId]?.[0] === reactionType || false
+}
+
 const getTotalReactionCount = (commentId: number): number => {
   const reactions = commentReactions.value[commentId]
   if (!reactions) return 0
   return Object.values(reactions).reduce((sum, count) => sum + count, 0)
-}
-
-const hasUserReacted = (commentId: number, reactionType: ReactionType): boolean => {
-  // User can only have one reaction, so check if it matches the requested type
-  return userReactions.value[commentId]?.[0] === reactionType || false
 }
 
 // Track which comment's reaction picker is open
@@ -222,7 +218,10 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
 
     // Load reactions for these comments
     if (comments.value.length > 0) {
-      await loadCommentReactions(comments.value.map((c) => c.id))
+      await loadCommentReactions(
+        comments.value.map((c) => c.id),
+        user.value?.email,
+      )
     }
 
     isLoading.value = false

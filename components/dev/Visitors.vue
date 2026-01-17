@@ -449,6 +449,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { formatDateLocaleString } from '~/utils/common/dateParser'
 
 interface VisitorData {
   pageVisits: Array<{
@@ -522,11 +523,7 @@ const totalUniqueUsersPages = computed(() => {
   return Math.ceil(uniqueLoginsWithLimitedPages.value.length / uniqueUsersRowsPerPage.value)
 })
 
-const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A'
-  const date = new Date(dateString)
-  return date.toLocaleString()
-}
+const formatDate = formatDateLocaleString
 
 const loadData = async () => {
   isLoading.value = true

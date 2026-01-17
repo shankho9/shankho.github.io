@@ -7,6 +7,7 @@ import LikeButton from '@/components/blog/LikeButton.vue'
 import Comments from '@/components/blog/Comments.vue'
 import ReadingProgress from '@/components/blog/ReadingProgress.vue'
 import { calculateReadingTime } from '~/utils/blog/readingTime'
+import { useAnalytics } from '~/composables/useAnalytics'
 
 const { path } = useRoute()
 
@@ -33,7 +34,10 @@ const data = computed<BlogPost>(() => {
   }
 })
 
-// Calculate reading time from article content
+// Analytics tracking
+const { trackScroll, trackReading, trackExit } = useAnalytics()
+
+// Calculate reading time from article content and track analytics
 onMounted(() => {
   // Use nextTick and a small delay to ensure content is fully rendered
   nextTick(() => {
@@ -43,7 +47,21 @@ onMounted(() => {
       if (proseElement) {
         const textContent = proseElement.textContent || ''
         if (textContent.trim().length > 0) {
-          readingTime.value = calculateReadingTime(textContent)
+          const calculatedTime = calculateReadingTime(textContent)
+          readingTime.value = calculatedTime
+
+          // Track analytics
+          const wordCount = textContent.split(/\s+/).length
+
+          // Track scroll depth
+          trackScroll(path)
+
+          // Track reading time
+          trackReading(path, wordCount, calculatedTime)
+
+          // Track exit intent
+          trackExit(path)
+
           return true
         }
       }

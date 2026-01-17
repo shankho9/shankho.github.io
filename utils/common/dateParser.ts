@@ -274,3 +274,70 @@ export function calculateDaysOverdue(
     return 0
   }
 }
+
+/**
+ * Format date for display in comments and lists
+ * Formats date with date and time (e.g., "Jan 15, 2025, 02:30 PM")
+ * @param date Date string or Date object
+ * @returns Formatted date string or 'N/A' if invalid
+ */
+export function formatDateForDisplay(date: string | Date | null | undefined): string {
+  if (!date) return 'N/A'
+
+  try {
+    const d = new Date(date)
+    if (isNaN(d.getTime())) return 'N/A'
+
+    // Use toLocaleString instead of toLocaleDateString to support time formatting options
+    return d.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return 'N/A'
+  }
+}
+
+/**
+ * Format date for display with locale string
+ * Simple format for timestamps (e.g., "1/15/2025, 2:30:45 PM")
+ * @param dateString Date string
+ * @returns Formatted date string or 'N/A' if invalid
+ */
+export function formatDateLocaleString(dateString: string | null | undefined): string {
+  if (!dateString) return 'N/A'
+
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return 'N/A'
+
+    return date.toLocaleString()
+  } catch {
+    return 'N/A'
+  }
+}
+
+/**
+ * Format date for display (date only, no time)
+ * @param dateString Date string or Date object
+ * @returns Formatted date string (e.g., "Jan 15, 2025") or 'N/A' if invalid
+ */
+export function formatDateOnly(dateString: string | Date | null | undefined): string {
+  if (!dateString) return 'N/A'
+
+  try {
+    const d = new Date(dateString)
+    if (isNaN(d.getTime())) return 'N/A'
+
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  } catch {
+    return 'N/A'
+  }
+}

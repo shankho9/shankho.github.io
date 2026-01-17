@@ -14,11 +14,12 @@ definePageMeta({
 })
 
 const { fetchTasks, deleteTask } = useTasks()
+const { showToast } = useToast()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase || '/api'
 
-const isLoading = ref(false)
-const isLoadingArchive = ref(false)
+const isLoading = ref(true) // Start as true to show loading state immediately
+const isLoadingArchive = ref(true) // Start as true to show loading state immediately
 const allTasks = ref<Task[]>([])
 const selectedTasks = ref<number[]>([])
 const archiveStats = ref<ArchiveStats | null>(null)
@@ -554,6 +555,11 @@ const loadTasks = async () => {
     allTasks.value = fetchedTasks
   } catch (error) {
     console.error('Failed to load tasks:', error)
+    const errorMessage =
+      (error as { data?: { message?: string }; message?: string })?.data?.message ||
+      (error as { message?: string })?.message ||
+      'Failed to load tasks'
+    showToast(errorMessage, 'error')
   } finally {
     isLoading.value = false
   }
@@ -566,6 +572,7 @@ const loadArchiveStats = async () => {
     archiveStats.value = stats
   } catch (error) {
     console.error('Failed to load archive stats:', error)
+    // Don't show toast for archive stats failures - it's not critical
   } finally {
     isLoadingArchive.value = false
   }
@@ -575,19 +582,21 @@ const loadArchiveStats = async () => {
 
 const handleDelete = async (id: number) => {
   if (!confirm('Are you sure you want to delete this task?')) return
+
   try {
     await deleteTask(id, true) // archive=true for archival record
     allTasks.value = allTasks.value.filter((t) => t.id !== id)
     await loadArchiveStats() // Reload archive stats to reflect the change
+    showToast('Task deleted successfully', 'success')
   } catch (error) {
     console.error('Failed to delete task:', error)
-    alert('Failed to delete task. Please try again.')
+    showToast('Failed to delete task. Please try again.', 'error')
   }
 }
 
 const handleBulkDelete = async () => {
   if (selectedTasks.value.length === 0) {
-    alert('Please select at least one task to delete.')
+    showToast('Please select at least one task to delete.', 'info')
     return
   }
 
@@ -597,13 +606,32 @@ const handleBulkDelete = async () => {
   selectedTasks.value = []
 
   try {
-    await Promise.all(taskIdsToDelete.map((id) => deleteTask(id, true)))
-    allTasks.value = allTasks.value.filter((t) => !taskIdsToDelete.includes(t.id))
+    // Use Promise.allSettled to handle partial successes/failures
+    const results = await Promise.allSettled(taskIdsToDelete.map((id) => deleteTask(id, true)))
+
+    const successful = results.filter((r) => r.status === 'fulfilled').length
+    const failed = results.filter((r) => r.status === 'rejected').length
+
+    // Update tasks list - only remove successfully deleted tasks
+    const successfullyDeletedIds = taskIdsToDelete.filter(
+      (id, index) => results[index].status === 'fulfilled',
+    )
+    allTasks.value = allTasks.value.filter((t) => !successfullyDeletedIds.includes(t.id))
+
+    // Reload archive stats to reflect the change
     await loadArchiveStats()
-    alert(`Successfully deleted ${taskIdsToDelete.length} task(s).`)
+
+    if (failed > 0) {
+      showToast(`Deleted ${successful} task(s). ${failed} task(s) failed to delete.`, 'warning')
+    } else {
+      showToast(`Successfully deleted ${successful} task(s).`, 'success')
+    }
   } catch (error) {
     console.error('Failed to delete tasks:', error)
-    alert('Failed to delete some tasks. Please try again.')
+    showToast('Failed to delete some tasks. Please try again.', 'error')
+    // Reload to ensure UI consistency
+    await loadTasks()
+    await loadArchiveStats()
   }
 }
 
@@ -639,9 +667,9 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 }
 
-onMounted(() => {
-  loadTasks()
-  loadArchiveStats()
+onMounted(async () => {
+  // Load data in parallel for faster initial load
+  await Promise.all([loadTasks(), loadArchiveStats()])
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleEscapeKey)
 })
@@ -653,363 +681,127 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-6xl w-full overflow-x-hidden">
-    <!-- Header -->
-    <div class="mb-4 sm:mb-6">
-      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-          Planner Review
-        </h1>
-
-        <!-- Desktop: Button Row -->
-        <div class="hidden sm:flex items-center gap-3">
-          <NuxtLink
-            to="/dev/planner"
-            class="px-4 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
-          >
-            <Icon name="mdi:view-dashboard" size="20" />
-            <span>Dashboard</span>
-          </NuxtLink>
-          <NuxtLink
-            to="/dev/planner/tasks"
-            class="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
-          >
-            <Icon name="mdi:format-list-checkbox" size="20" />
-            <span>Manage Tasks</span>
-          </NuxtLink>
-          <div class="relative menu-container">
-            <button
-              class="px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
-              @click.stop="showExportMenu = !showExportMenu"
-            >
-              <Icon name="mdi:file-export" size="20" />
-              <span>Export/Print</span>
-              <Icon name="mdi:chevron-down" size="16" />
-            </button>
-            <div
-              v-if="showExportMenu"
-              class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
-              @click.stop
-            >
-              <button
-                class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
-                @click="handlePrintReport"
-              >
-                <Icon name="mdi:printer" size="20" />
-                <span>Print Summary</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Mobile: Horizontal Button Row -->
-        <div class="sm:hidden flex items-center gap-1.5 flex-wrap">
-          <NuxtLink
-            to="/dev/planner"
-            class="px-2.5 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
-            style="touch-action: manipulation; min-height: 32px"
-          >
-            <Icon name="mdi:view-dashboard" size="16" />
-            <span>Dashboard</span>
-          </NuxtLink>
-          <NuxtLink
-            to="/dev/planner/tasks"
-            class="px-2.5 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
-            style="touch-action: manipulation; min-height: 32px"
-          >
-            <Icon name="mdi:format-list-checkbox" size="16" />
-            <span>Tasks</span>
-          </NuxtLink>
-          <button
-            class="px-2.5 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
-            style="touch-action: manipulation; min-height: 32px"
-            @click="handlePrintReport"
-          >
-            <Icon name="mdi:printer" size="16" />
-            <span>Print</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Loading State -->
-    <div v-if="isLoading || isLoadingArchive" class="text-center py-8">
-      <div class="text-gray-600 dark:text-gray-400">Loading...</div>
-    </div>
-
-    <!-- Main Content -->
-    <div v-else class="space-y-6">
-      <!-- ========== OPEN TASKS SECTION ========== -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6">
-        <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-          Open Tasks
-        </h2>
-
-        <!-- Overview Stats -->
+  <div>
+    <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-6xl w-full overflow-x-hidden">
+      <!-- Header -->
+      <div class="mb-4 sm:mb-6">
         <div
-          class="flex flex-row flex-nowrap md:grid md:grid-cols-4 justify-around sm:justify-around gap-2 sm:gap-3 md:gap-4 mb-6 overflow-x-auto scrollbar-hide"
-          style="scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch"
+          class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4"
         >
-          <div
-            class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
-          >
-            <div class="text-lg sm:text-xl md:text-2xl font-bold text-blue-700 dark:text-blue-300">
-              {{ openTasksMetrics.total }}
-            </div>
-            <div class="text-[10px] sm:text-xs md:text-sm text-blue-600 dark:text-blue-400">
-              Total Open
-            </div>
-          </div>
-          <div
-            class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
-          >
-            <div class="text-lg sm:text-xl md:text-2xl font-bold text-red-700 dark:text-red-300">
-              {{ openTasksMetrics.withMits }}
-            </div>
-            <div class="text-[10px] sm:text-xs md:text-sm text-red-600 dark:text-red-400">
-              With MITs
-            </div>
-          </div>
-          <div
-            class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
-          >
-            <div class="text-lg sm:text-xl md:text-2xl font-bold text-gray-700 dark:text-gray-300">
-              {{ openTasksMetrics.withoutMits }}
-            </div>
-            <div class="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400">
-              Regular Tasks
-            </div>
-          </div>
-          <div
-            class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
-          >
-            <div
-              class="text-lg sm:text-xl md:text-2xl font-bold text-purple-700 dark:text-purple-300"
-            >
-              {{ openTasksMetrics.byPriority.high }}
-            </div>
-            <div class="text-[10px] sm:text-xs md:text-sm text-purple-600 dark:text-purple-400">
-              High Priority
-            </div>
-          </div>
-        </div>
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+            Planner Review
+          </h1>
 
-        <!-- Tasks Slipped Due Date -->
-        <div class="mb-6">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
-            Tasks Slipped Due Date
-          </h3>
-          <div
-            class="flex flex-row flex-nowrap md:grid md:grid-cols-2 justify-around sm:justify-around gap-2 sm:gap-3 overflow-x-auto scrollbar-hide"
-            style="
-              scrollbar-width: none;
-              -ms-overflow-style: none;
-              -webkit-overflow-scrolling: touch;
-            "
-          >
-            <div
-              class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
+          <!-- Desktop: Button Row -->
+          <div class="hidden sm:flex items-center gap-3">
+            <NuxtLink
+              to="/dev/planner"
+              class="px-4 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
             >
-              <div class="text-base sm:text-lg font-bold text-orange-700 dark:text-orange-300">
-                {{ openTasksMetrics.tasksSlippedCount }}
-              </div>
-              <div class="text-[10px] sm:text-xs text-orange-600 dark:text-orange-400">
-                Tasks Overdue
-              </div>
-            </div>
-            <div
-              class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
+              <Icon name="mdi:view-dashboard" size="20" />
+              <span>Dashboard</span>
+            </NuxtLink>
+            <NuxtLink
+              to="/dev/planner/tasks"
+              class="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
             >
-              <div class="text-base sm:text-lg font-bold text-red-700 dark:text-red-300">
-                {{ openTasksMetrics.avgDaysOverdue }}
+              <Icon name="mdi:format-list-checkbox" size="20" />
+              <span>Manage Tasks</span>
+            </NuxtLink>
+            <div class="relative menu-container">
+              <button
+                class="px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
+                @click.stop="showExportMenu = !showExportMenu"
+              >
+                <Icon name="mdi:file-export" size="20" />
+                <span>Export/Print</span>
+                <Icon name="mdi:chevron-down" size="16" />
+              </button>
+              <div
+                v-if="showExportMenu"
+                class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+                @click.stop
+              >
+                <button
+                  class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
+                  @click="handlePrintReport"
+                >
+                  <Icon name="mdi:printer" size="20" />
+                  <span>Print Summary</span>
+                </button>
               </div>
-              <div class="text-[10px] sm:text-xs text-red-600 dark:text-red-400">
-                Avg Days Overdue
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Task Aging -->
-        <div class="mb-6">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Task Aging</h3>
-          <div
-            class="flex flex-row flex-nowrap md:grid md:grid-cols-5 justify-around sm:justify-around gap-2 sm:gap-3 overflow-x-auto scrollbar-hide"
-            style="
-              scrollbar-width: none;
-              -ms-overflow-style: none;
-              -webkit-overflow-scrolling: touch;
-            "
-          >
-            <div
-              class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
-            >
-              <div class="text-base sm:text-lg font-bold text-green-700 dark:text-green-300">
-                {{ openTasksMetrics.aging['0-7'] }}
-              </div>
-              <div class="text-[10px] sm:text-xs text-green-600 dark:text-green-400">0-7 days</div>
-            </div>
-            <div
-              class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
-            >
-              <div class="text-base sm:text-lg font-bold text-yellow-700 dark:text-yellow-300">
-                {{ openTasksMetrics.aging['8-14'] }}
-              </div>
-              <div class="text-[10px] sm:text-xs text-yellow-600 dark:text-yellow-400">
-                8-14 days
-              </div>
-            </div>
-            <div
-              class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
-            >
-              <div class="text-base sm:text-lg font-bold text-orange-700 dark:text-orange-300">
-                {{ openTasksMetrics.aging['15-30'] }}
-              </div>
-              <div class="text-[10px] sm:text-xs text-orange-600 dark:text-orange-400">
-                15-30 days
-              </div>
-            </div>
-            <div
-              class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
-            >
-              <div class="text-base sm:text-lg font-bold text-red-700 dark:text-red-300">
-                {{ openTasksMetrics.aging['31-60'] }}
-              </div>
-              <div class="text-[10px] sm:text-xs text-red-600 dark:text-red-400">31-60 days</div>
-            </div>
-            <div
-              class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
-            >
-              <div class="text-base sm:text-lg font-bold text-gray-700 dark:text-gray-300">
-                {{ openTasksMetrics.aging['60+'] }}
-              </div>
-              <div class="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400">60+ days</div>
             </div>
           </div>
-        </div>
 
-        <!-- Open Tasks by Bucket -->
-        <div v-if="openTasksMetrics.byBucket.length > 0">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
-            Open Tasks by Bucket
-          </h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div
-              v-for="item in openTasksMetrics.byBucket"
-              :key="item.bucket"
-              class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+          <!-- Mobile: Horizontal Button Row -->
+          <div class="sm:hidden flex items-center gap-1.5 flex-wrap">
+            <NuxtLink
+              to="/dev/planner"
+              class="px-2.5 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+              style="touch-action: manipulation; min-height: 32px"
             >
-              <div class="flex items-center justify-between">
-                <div class="font-medium text-gray-900 dark:text-gray-100 text-sm">
-                  {{ item.bucket }}
-                </div>
-                <div class="text-lg font-bold text-gray-700 dark:text-gray-300">
-                  {{ item.count }}
-                </div>
-              </div>
-            </div>
+              <Icon name="mdi:view-dashboard" size="16" />
+              <span>Dashboard</span>
+            </NuxtLink>
+            <NuxtLink
+              to="/dev/planner/tasks"
+              class="px-2.5 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+              style="touch-action: manipulation; min-height: 32px"
+            >
+              <Icon name="mdi:format-list-checkbox" size="16" />
+              <span>Tasks</span>
+            </NuxtLink>
+            <button
+              class="px-2.5 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+              style="touch-action: manipulation; min-height: 32px"
+              @click="handlePrintReport"
+            >
+              <Icon name="mdi:printer" size="16" />
+              <span>Print</span>
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- ========== CLOSED TASKS SECTION ========== -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6">
-        <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-          Closed Tasks
-        </h2>
+      <!-- Loading State -->
+      <div v-if="isLoading || isLoadingArchive" class="text-center py-8">
+        <div class="text-gray-600 dark:text-gray-400">Loading...</div>
+      </div>
 
-        <!-- Closure Trends -->
-        <div class="mb-6">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
-            Closure Trends
-          </h3>
+      <!-- Main Content -->
+      <div v-else class="space-y-6">
+        <!-- ========== OPEN TASKS SECTION ========== -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6">
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+            Open Tasks
+          </h2>
+
+          <!-- Overview Stats -->
           <div
-            class="flex flex-row flex-nowrap md:grid md:grid-cols-4 justify-around sm:justify-around gap-2 sm:gap-3 md:gap-4 overflow-x-auto scrollbar-hide"
+            class="flex flex-row flex-nowrap md:grid md:grid-cols-4 justify-around sm:justify-around gap-2 sm:gap-3 md:gap-4 mb-6 overflow-x-auto scrollbar-hide"
             style="
               scrollbar-width: none;
               -ms-overflow-style: none;
               -webkit-overflow-scrolling: touch;
             "
           >
-            <div
-              class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
-            >
-              <div
-                class="text-lg sm:text-xl md:text-2xl font-bold text-green-700 dark:text-green-300"
-              >
-                {{ closedTasksMetrics.trends.thisWeek }}
-              </div>
-              <div class="text-[10px] sm:text-xs md:text-sm text-green-600 dark:text-green-400">
-                This Week
-              </div>
-            </div>
             <div
               class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
             >
               <div
                 class="text-lg sm:text-xl md:text-2xl font-bold text-blue-700 dark:text-blue-300"
               >
-                {{ closedTasksMetrics.trends.thisMonth }}
+                {{ openTasksMetrics.total }}
               </div>
               <div class="text-[10px] sm:text-xs md:text-sm text-blue-600 dark:text-blue-400">
-                This Month
-              </div>
-            </div>
-            <div
-              class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
-            >
-              <div
-                class="text-lg sm:text-xl md:text-2xl font-bold text-purple-700 dark:text-purple-300"
-              >
-                {{ closedTasksMetrics.trends.last3Months }}
-              </div>
-              <div class="text-[10px] sm:text-xs md:text-sm text-purple-600 dark:text-purple-400">
-                Last 3 Months
-              </div>
-            </div>
-            <div
-              class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
-            >
-              <div
-                class="text-lg sm:text-xl md:text-2xl font-bold text-orange-700 dark:text-orange-300"
-              >
-                {{ closedTasksMetrics.trends.last6Months }}
-              </div>
-              <div class="text-[10px] sm:text-xs md:text-sm text-orange-600 dark:text-orange-400">
-                Last 6 Months
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Total Closed Stats -->
-        <div class="mb-6">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Total Closed</h3>
-          <div
-            class="flex flex-row flex-nowrap md:grid md:grid-cols-3 justify-around sm:justify-around gap-2 sm:gap-3 md:gap-4 overflow-x-auto scrollbar-hide"
-            style="
-              scrollbar-width: none;
-              -ms-overflow-style: none;
-              -webkit-overflow-scrolling: touch;
-            "
-          >
-            <div
-              class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
-            >
-              <div
-                class="text-lg sm:text-xl md:text-2xl font-bold text-green-700 dark:text-green-300"
-              >
-                {{ closedTasksMetrics.totalClosed }}
-              </div>
-              <div class="text-[10px] sm:text-xs md:text-sm text-green-600 dark:text-green-400">
-                Total Closed
+                Total Open
               </div>
             </div>
             <div
               class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
             >
               <div class="text-lg sm:text-xl md:text-2xl font-bold text-red-700 dark:text-red-300">
-                {{ closedTasksMetrics.totalMits }}
+                {{ openTasksMetrics.withMits }}
               </div>
               <div class="text-[10px] sm:text-xs md:text-sm text-red-600 dark:text-red-400">
                 With MITs
@@ -1021,114 +813,841 @@ onUnmounted(() => {
               <div
                 class="text-lg sm:text-xl md:text-2xl font-bold text-gray-700 dark:text-gray-300"
               >
-                {{ closedTasksMetrics.totalRegular }}
+                {{ openTasksMetrics.withoutMits }}
               </div>
               <div class="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400">
                 Regular Tasks
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Closure Trends by Bucket -->
-        <div v-if="closedTasksMetrics.closedByBucket.length > 0" class="mb-6">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
-            Closure Trends by Bucket
-          </h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <div
-              v-for="item in closedTasksMetrics.closedByBucket"
-              :key="item.bucket"
-              class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+              class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
             >
-              <div class="flex items-center justify-between mb-2">
-                <div class="font-medium text-gray-900 dark:text-gray-100 text-sm">
-                  {{ item.bucket }}
+              <div
+                class="text-lg sm:text-xl md:text-2xl font-bold text-purple-700 dark:text-purple-300"
+              >
+                {{ openTasksMetrics.byPriority.high }}
+              </div>
+              <div class="text-[10px] sm:text-xs md:text-sm text-purple-600 dark:text-purple-400">
+                High Priority
+              </div>
+            </div>
+          </div>
+
+          <!-- Tasks Slipped Due Date -->
+          <div class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+              Tasks Slipped Due Date
+            </h3>
+            <div
+              class="flex flex-row flex-nowrap md:grid md:grid-cols-2 justify-around sm:justify-around gap-2 sm:gap-3 overflow-x-auto scrollbar-hide"
+              style="
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+                -webkit-overflow-scrolling: touch;
+              "
+            >
+              <div
+                class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div class="text-base sm:text-lg font-bold text-orange-700 dark:text-orange-300">
+                  {{ openTasksMetrics.tasksSlippedCount }}
                 </div>
-                <div class="text-lg font-bold text-gray-700 dark:text-gray-300">
-                  {{ item.closed }}
+                <div class="text-[10px] sm:text-xs text-orange-600 dark:text-orange-400">
+                  Tasks Overdue
                 </div>
               </div>
-              <div class="text-xs text-gray-600 dark:text-gray-400">
-                {{ item.closed }} of {{ item.total }} tasks ({{ item.percentage }}%)
+              <div
+                class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div class="text-base sm:text-lg font-bold text-red-700 dark:text-red-300">
+                  {{ openTasksMetrics.avgDaysOverdue }}
+                </div>
+                <div class="text-[10px] sm:text-xs text-red-600 dark:text-red-400">
+                  Avg Days Overdue
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Task Aging -->
+          <div class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Task Aging</h3>
+            <div
+              class="flex flex-row flex-nowrap md:grid md:grid-cols-5 justify-around sm:justify-around gap-2 sm:gap-3 overflow-x-auto scrollbar-hide"
+              style="
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+                -webkit-overflow-scrolling: touch;
+              "
+            >
+              <div
+                class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div class="text-base sm:text-lg font-bold text-green-700 dark:text-green-300">
+                  {{ openTasksMetrics.aging['0-7'] }}
+                </div>
+                <div class="text-[10px] sm:text-xs text-green-600 dark:text-green-400">
+                  0-7 days
+                </div>
+              </div>
+              <div
+                class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div class="text-base sm:text-lg font-bold text-yellow-700 dark:text-yellow-300">
+                  {{ openTasksMetrics.aging['8-14'] }}
+                </div>
+                <div class="text-[10px] sm:text-xs text-yellow-600 dark:text-yellow-400">
+                  8-14 days
+                </div>
+              </div>
+              <div
+                class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div class="text-base sm:text-lg font-bold text-orange-700 dark:text-orange-300">
+                  {{ openTasksMetrics.aging['15-30'] }}
+                </div>
+                <div class="text-[10px] sm:text-xs text-orange-600 dark:text-orange-400">
+                  15-30 days
+                </div>
+              </div>
+              <div
+                class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div class="text-base sm:text-lg font-bold text-red-700 dark:text-red-300">
+                  {{ openTasksMetrics.aging['31-60'] }}
+                </div>
+                <div class="text-[10px] sm:text-xs text-red-600 dark:text-red-400">31-60 days</div>
+              </div>
+              <div
+                class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-2 sm:p-3 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div class="text-base sm:text-lg font-bold text-gray-700 dark:text-gray-300">
+                  {{ openTasksMetrics.aging['60+'] }}
+                </div>
+                <div class="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400">60+ days</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Open Tasks by Bucket -->
+          <div v-if="openTasksMetrics.byBucket.length > 0">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+              Open Tasks by Bucket
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div
+                v-for="item in openTasksMetrics.byBucket"
+                :key="item.bucket"
+                class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                    {{ item.bucket }}
+                  </div>
+                  <div class="text-lg font-bold text-gray-700 dark:text-gray-300">
+                    {{ item.count }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Completion Trends & Insights (Charts) -->
-        <div v-if="archiveStats" class="mb-6">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Completion Trends & Insights
-          </h3>
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <!-- Daily Trend Bar Chart -->
+        <!-- ========== CLOSED TASKS SECTION ========== -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6">
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+            Closed Tasks
+          </h2>
+
+          <!-- Closure Trends -->
+          <div class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+              Closure Trends
+            </h3>
             <div
-              v-if="archiveStats?.dailyTrend.length"
-              class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 sm:p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
-              @click="openChartModal('daily')"
+              class="flex flex-row flex-nowrap md:grid md:grid-cols-4 justify-around sm:justify-around gap-2 sm:gap-3 md:gap-4 overflow-x-auto scrollbar-hide"
+              style="
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+                -webkit-overflow-scrolling: touch;
+              "
             >
-              <h4 class="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                Daily (Last 30 Days)
-              </h4>
-              <svg viewBox="0 0 400 220" class="w-full h-48" preserveAspectRatio="xMidYMid meet">
+              <div
+                class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div
+                  class="text-lg sm:text-xl md:text-2xl font-bold text-green-700 dark:text-green-300"
+                >
+                  {{ closedTasksMetrics.trends.thisWeek }}
+                </div>
+                <div class="text-[10px] sm:text-xs md:text-sm text-green-600 dark:text-green-400">
+                  This Week
+                </div>
+              </div>
+              <div
+                class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div
+                  class="text-lg sm:text-xl md:text-2xl font-bold text-blue-700 dark:text-blue-300"
+                >
+                  {{ closedTasksMetrics.trends.thisMonth }}
+                </div>
+                <div class="text-[10px] sm:text-xs md:text-sm text-blue-600 dark:text-blue-400">
+                  This Month
+                </div>
+              </div>
+              <div
+                class="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div
+                  class="text-lg sm:text-xl md:text-2xl font-bold text-purple-700 dark:text-purple-300"
+                >
+                  {{ closedTasksMetrics.trends.last3Months }}
+                </div>
+                <div class="text-[10px] sm:text-xs md:text-sm text-purple-600 dark:text-purple-400">
+                  Last 3 Months
+                </div>
+              </div>
+              <div
+                class="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div
+                  class="text-lg sm:text-xl md:text-2xl font-bold text-orange-700 dark:text-orange-300"
+                >
+                  {{ closedTasksMetrics.trends.last6Months }}
+                </div>
+                <div class="text-[10px] sm:text-xs md:text-sm text-orange-600 dark:text-orange-400">
+                  Last 6 Months
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Total Closed Stats -->
+          <div class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+              Total Closed
+            </h3>
+            <div
+              class="flex flex-row flex-nowrap md:grid md:grid-cols-3 justify-around sm:justify-around gap-2 sm:gap-3 md:gap-4 overflow-x-auto scrollbar-hide"
+              style="
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+                -webkit-overflow-scrolling: touch;
+              "
+            >
+              <div
+                class="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div
+                  class="text-lg sm:text-xl md:text-2xl font-bold text-green-700 dark:text-green-300"
+                >
+                  {{ closedTasksMetrics.totalClosed }}
+                </div>
+                <div class="text-[10px] sm:text-xs md:text-sm text-green-600 dark:text-green-400">
+                  Total Closed
+                </div>
+              </div>
+              <div
+                class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div
+                  class="text-lg sm:text-xl md:text-2xl font-bold text-red-700 dark:text-red-300"
+                >
+                  {{ closedTasksMetrics.totalMits }}
+                </div>
+                <div class="text-[10px] sm:text-xs md:text-sm text-red-600 dark:text-red-400">
+                  With MITs
+                </div>
+              </div>
+              <div
+                class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-2 sm:p-3 md:p-4 flex-1 min-w-0 text-center flex-shrink-0"
+              >
+                <div
+                  class="text-lg sm:text-xl md:text-2xl font-bold text-gray-700 dark:text-gray-300"
+                >
+                  {{ closedTasksMetrics.totalRegular }}
+                </div>
+                <div class="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400">
+                  Regular Tasks
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Closure Trends by Bucket -->
+          <div v-if="closedTasksMetrics.closedByBucket.length > 0" class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+              Closure Trends by Bucket
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div
+                v-for="item in closedTasksMetrics.closedByBucket"
+                :key="item.bucket"
+                class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+              >
+                <div class="flex items-center justify-between mb-2">
+                  <div class="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                    {{ item.bucket }}
+                  </div>
+                  <div class="text-lg font-bold text-gray-700 dark:text-gray-300">
+                    {{ item.closed }}
+                  </div>
+                </div>
+                <div class="text-xs text-gray-600 dark:text-gray-400">
+                  {{ item.closed }} of {{ item.total }} tasks ({{ item.percentage }}%)
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Completion Trends & Insights (Charts) -->
+          <div v-if="archiveStats" class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Completion Trends & Insights
+            </h3>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <!-- Daily Trend Bar Chart -->
+              <div
+                v-if="archiveStats?.dailyTrend.length"
+                class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 sm:p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+                @click="openChartModal('daily')"
+              >
+                <h4
+                  class="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-3"
+                >
+                  Daily (Last 30 Days)
+                </h4>
+                <svg viewBox="0 0 400 220" class="w-full h-48" preserveAspectRatio="xMidYMid meet">
+                  <!-- Y-axis -->
+                  <line
+                    x1="50"
+                    y1="30"
+                    x2="50"
+                    y2="190"
+                    stroke="rgb(156, 163, 175)"
+                    stroke-width="1.5"
+                    class="dark:stroke-gray-500"
+                  />
+                  <!-- X-axis -->
+                  <line
+                    x1="50"
+                    y1="190"
+                    x2="370"
+                    y2="190"
+                    stroke="rgb(156, 163, 175)"
+                    stroke-width="1.5"
+                    class="dark:[stroke:rgb(107,114,128)]"
+                  />
+                  <!-- Y-axis label -->
+                  <text
+                    x="15"
+                    y="110"
+                    fill="rgb(75, 85, 99)"
+                    text-anchor="middle"
+                    transform="rotate(-90 15 110)"
+                    style="font-size: 12px"
+                    class="dark:[fill:rgb(156,163,175)]"
+                  >
+                    Tasks
+                  </text>
+                  <!-- Y-axis ticks and labels -->
+                  <g v-for="(tick, index) in 4" :key="`daily-y-tick-${index}`">
+                    <line
+                      x1="48"
+                      :y1="30 + (index * 160) / 3"
+                      x2="50"
+                      :y2="30 + (index * 160) / 3"
+                      stroke="rgb(156, 163, 175)"
+                      stroke-width="1"
+                      class="dark:[stroke:rgb(107,114,128)]"
+                    />
+                    <text
+                      x="45"
+                      :y="35 + (index * 160) / 3"
+                      fill="rgb(75, 85, 99)"
+                      text-anchor="end"
+                      dominant-baseline="middle"
+                      style="font-size: 11px"
+                      class="dark:[fill:rgb(156,163,175)]"
+                    >
+                      {{ Math.round(maxDailyCount - (maxDailyCount / 3) * index) }}
+                    </text>
+                  </g>
+                  <!-- Bars -->
+                  <g v-for="(bar, index) in dailyBarChartData" :key="`daily-bar-${index}`">
+                    <rect
+                      :x="bar.x"
+                      :y="bar.y"
+                      :width="bar.width"
+                      :height="bar.height"
+                      fill="rgb(59, 130, 246)"
+                      class="dark:fill-blue-400 cursor-pointer hover:opacity-80 transition-opacity"
+                      :title="`${bar.date}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
+                    />
+                    <!-- Data label on top of bar -->
+                    <text
+                      v-if="bar.count > 0"
+                      :x="bar.centerX"
+                      :y="bar.y - 5"
+                      fill="rgb(75, 85, 99)"
+                      text-anchor="middle"
+                      dominant-baseline="bottom"
+                      style="font-size: 11px; font-weight: 500"
+                      class="dark:[fill:rgb(209,213,219)]"
+                    >
+                      {{ bar.count }}
+                    </text>
+                  </g>
+                  <!-- X-axis tick marks and labels -->
+                  <g v-for="(bar, index) in dailyBarChartData" :key="`daily-x-tick-${index}`">
+                    <line
+                      :x1="bar.centerX"
+                      y1="190"
+                      :x2="bar.centerX"
+                      y2="193"
+                      stroke="rgb(156, 163, 175)"
+                      stroke-width="1"
+                      class="dark:[stroke:rgb(107,114,128)]"
+                    />
+                    <text
+                      v-if="
+                        index % Math.ceil(dailyBarChartData.length / 6) === 0 ||
+                        index === dailyBarChartData.length - 1
+                      "
+                      :x="bar.centerX"
+                      y="212"
+                      fill="rgb(75, 85, 99)"
+                      text-anchor="middle"
+                      style="font-size: 11px; font-weight: 500"
+                      class="dark:[fill:rgb(156,163,175)]"
+                    >
+                      {{ bar.date }}
+                    </text>
+                  </g>
+                </svg>
+              </div>
+
+              <!-- Weekly Trend Bar Chart -->
+              <div
+                v-if="archiveStats?.weeklyTrend.length"
+                class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 sm:p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+                @click="openChartModal('weekly')"
+              >
+                <h4
+                  class="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-3"
+                >
+                  Weekly (Last 12 Weeks)
+                </h4>
+                <svg viewBox="0 0 400 220" class="w-full h-48" preserveAspectRatio="xMidYMid meet">
+                  <!-- Y-axis -->
+                  <line
+                    x1="50"
+                    y1="30"
+                    x2="50"
+                    y2="190"
+                    stroke="rgb(156, 163, 175)"
+                    stroke-width="1.5"
+                    class="dark:stroke-gray-500"
+                  />
+                  <!-- X-axis -->
+                  <line
+                    x1="50"
+                    y1="190"
+                    x2="370"
+                    y2="190"
+                    stroke="rgb(156, 163, 175)"
+                    stroke-width="1.5"
+                    class="dark:[stroke:rgb(107,114,128)]"
+                  />
+                  <!-- Y-axis label -->
+                  <text
+                    x="15"
+                    y="110"
+                    fill="rgb(75, 85, 99)"
+                    text-anchor="middle"
+                    transform="rotate(-90 15 110)"
+                    style="font-size: 12px"
+                    class="dark:[fill:rgb(156,163,175)]"
+                  >
+                    Tasks
+                  </text>
+                  <!-- Y-axis ticks and labels -->
+                  <g v-for="(tick, index) in 4" :key="`weekly-y-tick-${index}`">
+                    <line
+                      x1="48"
+                      :y1="30 + (index * 160) / 3"
+                      x2="50"
+                      :y2="30 + (index * 160) / 3"
+                      stroke="rgb(156, 163, 175)"
+                      stroke-width="1"
+                      class="dark:[stroke:rgb(107,114,128)]"
+                    />
+                    <text
+                      x="45"
+                      :y="35 + (index * 160) / 3"
+                      fill="rgb(75, 85, 99)"
+                      text-anchor="end"
+                      dominant-baseline="middle"
+                      style="font-size: 11px"
+                      class="dark:[fill:rgb(156,163,175)]"
+                    >
+                      {{ Math.round(maxWeeklyCount - (maxWeeklyCount / 3) * index) }}
+                    </text>
+                  </g>
+                  <!-- Bars -->
+                  <g v-for="(bar, index) in weeklyBarChartData" :key="`weekly-bar-${index}`">
+                    <rect
+                      :x="bar.x"
+                      :y="bar.y"
+                      :width="bar.width"
+                      :height="bar.height"
+                      fill="rgb(34, 197, 94)"
+                      class="dark:fill-green-400 cursor-pointer hover:opacity-80 transition-opacity"
+                      :title="`${bar.label}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
+                    />
+                    <!-- Data label on top of bar -->
+                    <text
+                      v-if="bar.count > 0"
+                      :x="bar.centerX"
+                      :y="bar.y - 5"
+                      fill="rgb(75, 85, 99)"
+                      text-anchor="middle"
+                      dominant-baseline="bottom"
+                      style="font-size: 11px; font-weight: 500"
+                      class="dark:[fill:rgb(209,213,219)]"
+                    >
+                      {{ bar.count }}
+                    </text>
+                  </g>
+                  <!-- X-axis tick marks and labels -->
+                  <g v-for="(bar, index) in weeklyBarChartData" :key="`weekly-x-tick-${index}`">
+                    <line
+                      :x1="bar.centerX"
+                      y1="190"
+                      :x2="bar.centerX"
+                      y2="193"
+                      stroke="rgb(156, 163, 175)"
+                      stroke-width="1"
+                      class="dark:[stroke:rgb(107,114,128)]"
+                    />
+                    <text
+                      :x="bar.centerX"
+                      y="212"
+                      fill="rgb(75, 85, 99)"
+                      text-anchor="middle"
+                      style="font-size: 11px; font-weight: 500"
+                      class="dark:[fill:rgb(156,163,175)]"
+                    >
+                      {{ bar.label }}
+                    </text>
+                  </g>
+                </svg>
+              </div>
+
+              <!-- Monthly Trend Bar Chart -->
+              <div
+                v-if="archiveStats?.monthlyTrend.length"
+                class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 sm:p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+                @click="openChartModal('monthly')"
+              >
+                <h4
+                  class="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-3"
+                >
+                  Monthly (Last 12 Months)
+                </h4>
+                <svg viewBox="0 0 400 220" class="w-full h-48" preserveAspectRatio="xMidYMid meet">
+                  <!-- Y-axis -->
+                  <line
+                    x1="50"
+                    y1="30"
+                    x2="50"
+                    y2="190"
+                    stroke="rgb(156, 163, 175)"
+                    stroke-width="1.5"
+                    class="dark:stroke-gray-500"
+                  />
+                  <!-- X-axis -->
+                  <line
+                    x1="50"
+                    y1="190"
+                    x2="370"
+                    y2="190"
+                    stroke="rgb(156, 163, 175)"
+                    stroke-width="1.5"
+                    class="dark:[stroke:rgb(107,114,128)]"
+                  />
+                  <!-- Y-axis label -->
+                  <text
+                    x="15"
+                    y="110"
+                    fill="rgb(75, 85, 99)"
+                    text-anchor="middle"
+                    transform="rotate(-90 15 110)"
+                    style="font-size: 12px"
+                    class="dark:[fill:rgb(156,163,175)]"
+                  >
+                    Tasks
+                  </text>
+                  <!-- Y-axis ticks and labels -->
+                  <g v-for="(tick, index) in 4" :key="`monthly-y-tick-${index}`">
+                    <line
+                      x1="48"
+                      :y1="30 + (index * 160) / 3"
+                      x2="50"
+                      :y2="30 + (index * 160) / 3"
+                      stroke="rgb(156, 163, 175)"
+                      stroke-width="1"
+                      class="dark:[stroke:rgb(107,114,128)]"
+                    />
+                    <text
+                      x="45"
+                      :y="35 + (index * 160) / 3"
+                      fill="rgb(75, 85, 99)"
+                      text-anchor="end"
+                      dominant-baseline="middle"
+                      style="font-size: 11px"
+                      class="dark:[fill:rgb(156,163,175)]"
+                    >
+                      {{ Math.round(maxMonthlyCount - (maxMonthlyCount / 3) * index) }}
+                    </text>
+                  </g>
+                  <!-- Bars -->
+                  <g v-for="(bar, index) in monthlyBarChartData" :key="`monthly-bar-${index}`">
+                    <rect
+                      :x="bar.x"
+                      :y="bar.y"
+                      :width="bar.width"
+                      :height="bar.height"
+                      fill="rgb(168, 85, 247)"
+                      class="dark:fill-purple-400 cursor-pointer hover:opacity-80 transition-opacity"
+                      :title="`${bar.label}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
+                    />
+                    <!-- Data label on top of bar -->
+                    <text
+                      v-if="bar.count > 0"
+                      :x="bar.centerX"
+                      :y="bar.y - 5"
+                      fill="rgb(75, 85, 99)"
+                      text-anchor="middle"
+                      dominant-baseline="bottom"
+                      style="font-size: 11px; font-weight: 500"
+                      class="dark:[fill:rgb(209,213,219)]"
+                    >
+                      {{ bar.count }}
+                    </text>
+                  </g>
+                  <!-- X-axis tick marks and labels -->
+                  <g v-for="(bar, index) in monthlyBarChartData" :key="`monthly-x-tick-${index}`">
+                    <line
+                      :x1="bar.centerX"
+                      y1="190"
+                      :x2="bar.centerX"
+                      y2="193"
+                      stroke="rgb(156, 163, 175)"
+                      stroke-width="1"
+                      class="dark:[stroke:rgb(107,114,128)]"
+                    />
+                    <text
+                      :x="bar.centerX"
+                      y="212"
+                      fill="rgb(75, 85, 99)"
+                      text-anchor="middle"
+                      style="font-size: 11px; font-weight: 500"
+                      class="dark:[fill:rgb(156,163,175)]"
+                    >
+                      {{ bar.label.split(' ')[0] }}
+                    </text>
+                  </g>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Insights -->
+          <div
+            v-if="
+              closedTasksMetrics.avgDaysToClose > 0 ||
+              closedTasksMetrics.avgDaysOverdueWhenClosed > 0
+            "
+            class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6"
+          >
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Insights</h3>
+            <div class="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+              <p v-if="closedTasksMetrics.avgDaysToClose > 0">
+                Average time to close tasks:
+                <strong>{{ closedTasksMetrics.avgDaysToClose }} days</strong>
+              </p>
+              <p v-if="closedTasksMetrics.tasksClosedOverdue > 0">
+                Tasks closed after due date:
+                <strong>{{ closedTasksMetrics.tasksClosedOverdue }}</strong>
+              </p>
+              <p v-if="closedTasksMetrics.avgDaysOverdueWhenClosed > 0">
+                Average days overdue when closed:
+                <strong>{{ closedTasksMetrics.avgDaysOverdueWhenClosed }} days</strong>
+              </p>
+            </div>
+          </div>
+
+          <!-- Closed Tasks List with Bulk Delete -->
+          <div v-if="closedTasks.length > 0" class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+            <div
+              class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4"
+            >
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Closed Tasks</h3>
+              <button
+                v-if="selectedTasks.length > 0"
+                class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+                @click="handleBulkDelete"
+              >
+                <Icon name="mdi:delete" size="20" />
+                <span>Delete Selected ({{ selectedTasks.length }})</span>
+              </button>
+            </div>
+
+            <div class="space-y-2 max-h-96 overflow-y-auto">
+              <div
+                v-for="task in closedTasks"
+                :key="task.id"
+                class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              >
+                <input
+                  :id="`task-${task.id}`"
+                  v-model="selectedTasks"
+                  type="checkbox"
+                  :value="task.id"
+                  class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                />
+                <label :for="`task-${task.id}`" class="flex-1 cursor-pointer">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span
+                      :class="[
+                        'text-sm',
+                        task.is_mit
+                          ? 'text-red-600 dark:text-red-400 font-semibold'
+                          : 'text-gray-900 dark:text-gray-100',
+                      ]"
+                    >
+                      {{ task.title }}
+                    </span>
+                    <span
+                      v-if="task.rollover_count && task.rollover_count > 0"
+                      class="font-bold text-red-600 dark:text-red-400 ml-1"
+                    >
+                      +{{ task.rollover_count }}
+                    </span>
+                    <span
+                      v-if="task.theme"
+                      class="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs rounded"
+                    >
+                      {{ task.theme }}
+                    </span>
+                    <span
+                      v-if="task.is_mit"
+                      class="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs rounded font-medium"
+                    >
+                      MIT
+                    </span>
+                    <span v-if="task.planned_date" class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ formatDateToDisplay(task.planned_date) }}
+                    </span>
+                  </div>
+                  <div v-if="task.notes" class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    {{ task.notes }}
+                  </div>
+                </label>
+                <button
+                  class="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                  @click="handleDelete(task.id)"
+                >
+                  <Icon name="mdi:delete" size="20" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart Modal -->
+        <div
+          v-if="selectedChart"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 p-4"
+          @click.self="closeChartModal"
+        >
+          <div
+            class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-auto relative"
+            @click.stop
+          >
+            <!-- Close Button -->
+            <button
+              class="absolute top-4 right-4 z-10 p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              @click="closeChartModal"
+            >
+              <Icon name="mdi:close" size="24" class="text-gray-600 dark:text-gray-300" />
+            </button>
+
+            <!-- Daily Chart Modal -->
+            <div v-if="selectedChart === 'daily' && archiveStats?.dailyTrend.length" class="p-6">
+              <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                Daily Completion Trend (Last 30 Days)
+              </h2>
+              <svg viewBox="0 0 800 400" class="w-full h-96" preserveAspectRatio="xMidYMid meet">
                 <!-- Y-axis -->
                 <line
-                  x1="50"
-                  y1="30"
-                  x2="50"
-                  y2="190"
+                  x1="60"
+                  y1="40"
+                  x2="60"
+                  y2="360"
                   stroke="rgb(156, 163, 175)"
-                  stroke-width="1.5"
-                  class="dark:stroke-gray-500"
+                  stroke-width="2"
+                  class="dark:[stroke:rgb(107,114,128)]"
                 />
                 <!-- X-axis -->
                 <line
-                  x1="50"
-                  y1="190"
-                  x2="370"
-                  y2="190"
+                  x1="60"
+                  y1="360"
+                  x2="760"
+                  y2="360"
                   stroke="rgb(156, 163, 175)"
-                  stroke-width="1.5"
+                  stroke-width="2"
                   class="dark:[stroke:rgb(107,114,128)]"
                 />
                 <!-- Y-axis label -->
                 <text
-                  x="15"
-                  y="110"
+                  x="30"
+                  y="200"
                   fill="rgb(75, 85, 99)"
                   text-anchor="middle"
-                  transform="rotate(-90 15 110)"
-                  style="font-size: 12px"
+                  transform="rotate(-90 30 200)"
+                  style="font-size: 14px; font-weight: 600"
                   class="dark:[fill:rgb(156,163,175)]"
                 >
                   Tasks
                 </text>
                 <!-- Y-axis ticks and labels -->
-                <g v-for="(tick, index) in 4" :key="`daily-y-tick-${index}`">
+                <g v-for="(tick, index) in 5" :key="`modal-daily-y-tick-${index}`">
                   <line
-                    x1="48"
-                    :y1="30 + (index * 160) / 3"
-                    x2="50"
-                    :y2="30 + (index * 160) / 3"
+                    x1="58"
+                    :y1="40 + (index * 320) / 4"
+                    x2="60"
+                    :y2="40 + (index * 320) / 4"
                     stroke="rgb(156, 163, 175)"
-                    stroke-width="1"
+                    stroke-width="1.5"
                     class="dark:[stroke:rgb(107,114,128)]"
                   />
                   <text
-                    x="45"
-                    :y="35 + (index * 160) / 3"
+                    x="55"
+                    :y="45 + (index * 320) / 4"
                     fill="rgb(75, 85, 99)"
                     text-anchor="end"
                     dominant-baseline="middle"
-                    style="font-size: 11px"
+                    style="font-size: 12px"
                     class="dark:[fill:rgb(156,163,175)]"
                   >
-                    {{ Math.round(maxDailyCount - (maxDailyCount / 3) * index) }}
+                    {{ Math.round(maxDailyCount - (maxDailyCount / 4) * index) }}
                   </text>
                 </g>
                 <!-- Bars -->
-                <g v-for="(bar, index) in dailyBarChartData" :key="`daily-bar-${index}`">
+                <g v-for="(bar, index) in modalDailyBarChartData" :key="`modal-daily-bar-${index}`">
                   <rect
                     :x="bar.x"
                     :y="bar.y"
@@ -1138,41 +1657,44 @@ onUnmounted(() => {
                     class="dark:fill-blue-400 cursor-pointer hover:opacity-80 transition-opacity"
                     :title="`${bar.date}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
                   />
-                  <!-- Data label on top of bar -->
+                  <!-- Data label -->
                   <text
                     v-if="bar.count > 0"
                     :x="bar.centerX"
-                    :y="bar.y - 5"
+                    :y="bar.y - 8"
                     fill="rgb(75, 85, 99)"
                     text-anchor="middle"
                     dominant-baseline="bottom"
-                    style="font-size: 11px; font-weight: 500"
+                    style="font-size: 13px; font-weight: 600"
                     class="dark:[fill:rgb(209,213,219)]"
                   >
                     {{ bar.count }}
                   </text>
                 </g>
-                <!-- X-axis tick marks and labels -->
-                <g v-for="(bar, index) in dailyBarChartData" :key="`daily-x-tick-${index}`">
+                <!-- X-axis labels -->
+                <g
+                  v-for="(bar, index) in modalDailyBarChartData"
+                  :key="`modal-daily-x-tick-${index}`"
+                >
                   <line
                     :x1="bar.centerX"
-                    y1="190"
+                    y1="360"
                     :x2="bar.centerX"
-                    y2="193"
+                    y2="365"
                     stroke="rgb(156, 163, 175)"
-                    stroke-width="1"
+                    stroke-width="1.5"
                     class="dark:[stroke:rgb(107,114,128)]"
                   />
                   <text
                     v-if="
-                      index % Math.ceil(dailyBarChartData.length / 6) === 0 ||
-                      index === dailyBarChartData.length - 1
+                      index % Math.ceil(modalDailyBarChartData.length / 10) === 0 ||
+                      index === modalDailyBarChartData.length - 1
                     "
                     :x="bar.centerX"
-                    y="212"
+                    y="378"
                     fill="rgb(75, 85, 99)"
                     text-anchor="middle"
-                    style="font-size: 11px; font-weight: 500"
+                    style="font-size: 12px; font-weight: 500"
                     class="dark:[fill:rgb(156,163,175)]"
                   >
                     {{ bar.date }}
@@ -1181,73 +1703,72 @@ onUnmounted(() => {
               </svg>
             </div>
 
-            <!-- Weekly Trend Bar Chart -->
-            <div
-              v-if="archiveStats?.weeklyTrend.length"
-              class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 sm:p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
-              @click="openChartModal('weekly')"
-            >
-              <h4 class="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                Weekly (Last 12 Weeks)
-              </h4>
-              <svg viewBox="0 0 400 220" class="w-full h-48" preserveAspectRatio="xMidYMid meet">
+            <!-- Weekly Chart Modal -->
+            <div v-if="selectedChart === 'weekly' && archiveStats?.weeklyTrend.length" class="p-6">
+              <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                Weekly Completion Trend (Last 12 Weeks)
+              </h2>
+              <svg viewBox="0 0 800 400" class="w-full h-96" preserveAspectRatio="xMidYMid meet">
                 <!-- Y-axis -->
                 <line
-                  x1="50"
-                  y1="30"
-                  x2="50"
-                  y2="190"
+                  x1="60"
+                  y1="40"
+                  x2="60"
+                  y2="360"
                   stroke="rgb(156, 163, 175)"
-                  stroke-width="1.5"
-                  class="dark:stroke-gray-500"
+                  stroke-width="2"
+                  class="dark:[stroke:rgb(107,114,128)]"
                 />
                 <!-- X-axis -->
                 <line
-                  x1="50"
-                  y1="190"
-                  x2="370"
-                  y2="190"
+                  x1="60"
+                  y1="360"
+                  x2="760"
+                  y2="360"
                   stroke="rgb(156, 163, 175)"
-                  stroke-width="1.5"
+                  stroke-width="2"
                   class="dark:[stroke:rgb(107,114,128)]"
                 />
                 <!-- Y-axis label -->
                 <text
-                  x="15"
-                  y="110"
+                  x="30"
+                  y="200"
                   fill="rgb(75, 85, 99)"
                   text-anchor="middle"
-                  transform="rotate(-90 15 110)"
-                  style="font-size: 12px"
+                  transform="rotate(-90 30 200)"
+                  style="font-size: 14px; font-weight: 600"
                   class="dark:[fill:rgb(156,163,175)]"
                 >
                   Tasks
                 </text>
                 <!-- Y-axis ticks and labels -->
-                <g v-for="(tick, index) in 4" :key="`weekly-y-tick-${index}`">
+                <g v-for="(tick, index) in 5" :key="`modal-weekly-y-tick-${index}`">
                   <line
-                    x1="48"
-                    :y1="30 + (index * 160) / 3"
-                    x2="50"
-                    :y2="30 + (index * 160) / 3"
+                    x1="58"
+                    :y1="40 + (index * 320) / 4"
+                    x2="60"
+                    :y2="40 + (index * 320) / 4"
                     stroke="rgb(156, 163, 175)"
-                    stroke-width="1"
+                    stroke-width="1.5"
                     class="dark:[stroke:rgb(107,114,128)]"
                   />
                   <text
-                    x="45"
-                    :y="35 + (index * 160) / 3"
+                    x="55"
+                    :y="45 + (index * 320) / 4"
                     fill="rgb(75, 85, 99)"
                     text-anchor="end"
                     dominant-baseline="middle"
-                    style="font-size: 11px"
+                    style="font-size: 12px"
                     class="dark:[fill:rgb(156,163,175)]"
                   >
-                    {{ Math.round(maxWeeklyCount - (maxWeeklyCount / 3) * index) }}
+                    {{ Math.round(maxWeeklyCount - (maxWeeklyCount / 4) * index) }}
                   </text>
                 </g>
                 <!-- Bars -->
-                <g v-for="(bar, index) in weeklyBarChartData" :key="`weekly-bar-${index}`">
+                <g
+                  v-for="(bar, index) in modalWeeklyBarChartData"
+                  :key="`modal-weekly-bar-${index}`"
+                >
                   <rect
                     :x="bar.x"
                     :y="bar.y"
@@ -1257,37 +1778,40 @@ onUnmounted(() => {
                     class="dark:fill-green-400 cursor-pointer hover:opacity-80 transition-opacity"
                     :title="`${bar.label}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
                   />
-                  <!-- Data label on top of bar -->
+                  <!-- Data label -->
                   <text
                     v-if="bar.count > 0"
                     :x="bar.centerX"
-                    :y="bar.y - 5"
+                    :y="bar.y - 8"
                     fill="rgb(75, 85, 99)"
                     text-anchor="middle"
                     dominant-baseline="bottom"
-                    style="font-size: 11px; font-weight: 500"
+                    style="font-size: 13px; font-weight: 600"
                     class="dark:[fill:rgb(209,213,219)]"
                   >
                     {{ bar.count }}
                   </text>
                 </g>
-                <!-- X-axis tick marks and labels -->
-                <g v-for="(bar, index) in weeklyBarChartData" :key="`weekly-x-tick-${index}`">
+                <!-- X-axis labels -->
+                <g
+                  v-for="(bar, index) in modalWeeklyBarChartData"
+                  :key="`modal-weekly-x-tick-${index}`"
+                >
                   <line
                     :x1="bar.centerX"
-                    y1="190"
+                    y1="360"
                     :x2="bar.centerX"
-                    y2="193"
+                    y2="365"
                     stroke="rgb(156, 163, 175)"
-                    stroke-width="1"
+                    stroke-width="1.5"
                     class="dark:[stroke:rgb(107,114,128)]"
                   />
                   <text
                     :x="bar.centerX"
-                    y="212"
+                    y="378"
                     fill="rgb(75, 85, 99)"
                     text-anchor="middle"
-                    style="font-size: 11px; font-weight: 500"
+                    style="font-size: 12px; font-weight: 500"
                     class="dark:[fill:rgb(156,163,175)]"
                   >
                     {{ bar.label }}
@@ -1296,73 +1820,75 @@ onUnmounted(() => {
               </svg>
             </div>
 
-            <!-- Monthly Trend Bar Chart -->
+            <!-- Monthly Chart Modal -->
             <div
-              v-if="archiveStats?.monthlyTrend.length"
-              class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 sm:p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
-              @click="openChartModal('monthly')"
+              v-if="selectedChart === 'monthly' && archiveStats?.monthlyTrend.length"
+              class="p-6"
             >
-              <h4 class="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                Monthly (Last 12 Months)
-              </h4>
-              <svg viewBox="0 0 400 220" class="w-full h-48" preserveAspectRatio="xMidYMid meet">
+              <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                Monthly Completion Trend (Last 12 Months)
+              </h2>
+              <svg viewBox="0 0 800 400" class="w-full h-96" preserveAspectRatio="xMidYMid meet">
                 <!-- Y-axis -->
                 <line
-                  x1="50"
-                  y1="30"
-                  x2="50"
-                  y2="190"
+                  x1="60"
+                  y1="40"
+                  x2="60"
+                  y2="360"
                   stroke="rgb(156, 163, 175)"
-                  stroke-width="1.5"
-                  class="dark:stroke-gray-500"
+                  stroke-width="2"
+                  class="dark:[stroke:rgb(107,114,128)]"
                 />
                 <!-- X-axis -->
                 <line
-                  x1="50"
-                  y1="190"
-                  x2="370"
-                  y2="190"
+                  x1="60"
+                  y1="360"
+                  x2="760"
+                  y2="360"
                   stroke="rgb(156, 163, 175)"
-                  stroke-width="1.5"
+                  stroke-width="2"
                   class="dark:[stroke:rgb(107,114,128)]"
                 />
                 <!-- Y-axis label -->
                 <text
-                  x="15"
-                  y="110"
+                  x="30"
+                  y="200"
                   fill="rgb(75, 85, 99)"
                   text-anchor="middle"
-                  transform="rotate(-90 15 110)"
-                  style="font-size: 12px"
+                  transform="rotate(-90 30 200)"
+                  style="font-size: 14px; font-weight: 600"
                   class="dark:[fill:rgb(156,163,175)]"
                 >
                   Tasks
                 </text>
                 <!-- Y-axis ticks and labels -->
-                <g v-for="(tick, index) in 4" :key="`monthly-y-tick-${index}`">
+                <g v-for="(tick, index) in 5" :key="`modal-monthly-y-tick-${index}`">
                   <line
-                    x1="48"
-                    :y1="30 + (index * 160) / 3"
-                    x2="50"
-                    :y2="30 + (index * 160) / 3"
+                    x1="58"
+                    :y1="40 + (index * 320) / 4"
+                    x2="60"
+                    :y2="40 + (index * 320) / 4"
                     stroke="rgb(156, 163, 175)"
-                    stroke-width="1"
+                    stroke-width="1.5"
                     class="dark:[stroke:rgb(107,114,128)]"
                   />
                   <text
-                    x="45"
-                    :y="35 + (index * 160) / 3"
+                    x="55"
+                    :y="45 + (index * 320) / 4"
                     fill="rgb(75, 85, 99)"
                     text-anchor="end"
                     dominant-baseline="middle"
-                    style="font-size: 11px"
+                    style="font-size: 12px"
                     class="dark:[fill:rgb(156,163,175)]"
                   >
-                    {{ Math.round(maxMonthlyCount - (maxMonthlyCount / 3) * index) }}
+                    {{ Math.round(maxMonthlyCount - (maxMonthlyCount / 4) * index) }}
                   </text>
                 </g>
                 <!-- Bars -->
-                <g v-for="(bar, index) in monthlyBarChartData" :key="`monthly-bar-${index}`">
+                <g
+                  v-for="(bar, index) in modalMonthlyBarChartData"
+                  :key="`modal-monthly-bar-${index}`"
+                >
                   <rect
                     :x="bar.x"
                     :y="bar.y"
@@ -1372,37 +1898,40 @@ onUnmounted(() => {
                     class="dark:fill-purple-400 cursor-pointer hover:opacity-80 transition-opacity"
                     :title="`${bar.label}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
                   />
-                  <!-- Data label on top of bar -->
+                  <!-- Data label -->
                   <text
                     v-if="bar.count > 0"
                     :x="bar.centerX"
-                    :y="bar.y - 5"
+                    :y="bar.y - 8"
                     fill="rgb(75, 85, 99)"
                     text-anchor="middle"
                     dominant-baseline="bottom"
-                    style="font-size: 11px; font-weight: 500"
+                    style="font-size: 13px; font-weight: 600"
                     class="dark:[fill:rgb(209,213,219)]"
                   >
                     {{ bar.count }}
                   </text>
                 </g>
-                <!-- X-axis tick marks and labels -->
-                <g v-for="(bar, index) in monthlyBarChartData" :key="`monthly-x-tick-${index}`">
+                <!-- X-axis labels -->
+                <g
+                  v-for="(bar, index) in modalMonthlyBarChartData"
+                  :key="`modal-monthly-x-tick-${index}`"
+                >
                   <line
                     :x1="bar.centerX"
-                    y1="190"
+                    y1="360"
                     :x2="bar.centerX"
-                    y2="193"
+                    y2="365"
                     stroke="rgb(156, 163, 175)"
-                    stroke-width="1"
+                    stroke-width="1.5"
                     class="dark:[stroke:rgb(107,114,128)]"
                   />
                   <text
                     :x="bar.centerX"
-                    y="212"
+                    y="378"
                     fill="rgb(75, 85, 99)"
                     text-anchor="middle"
-                    style="font-size: 11px; font-weight: 500"
+                    style="font-size: 12px; font-weight: 500"
                     class="dark:[fill:rgb(156,163,175)]"
                   >
                     {{ bar.label.split(' ')[0] }}
@@ -1412,477 +1941,10 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
-
-        <!-- Insights -->
-        <div
-          v-if="
-            closedTasksMetrics.avgDaysToClose > 0 || closedTasksMetrics.avgDaysOverdueWhenClosed > 0
-          "
-          class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6"
-        >
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Insights</h3>
-          <div class="text-sm text-gray-700 dark:text-gray-300 space-y-1">
-            <p v-if="closedTasksMetrics.avgDaysToClose > 0">
-              Average time to close tasks:
-              <strong>{{ closedTasksMetrics.avgDaysToClose }} days</strong>
-            </p>
-            <p v-if="closedTasksMetrics.tasksClosedOverdue > 0">
-              Tasks closed after due date:
-              <strong>{{ closedTasksMetrics.tasksClosedOverdue }}</strong>
-            </p>
-            <p v-if="closedTasksMetrics.avgDaysOverdueWhenClosed > 0">
-              Average days overdue when closed:
-              <strong>{{ closedTasksMetrics.avgDaysOverdueWhenClosed }} days</strong>
-            </p>
-          </div>
-        </div>
-
-        <!-- Closed Tasks List with Bulk Delete -->
-        <div v-if="closedTasks.length > 0" class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-          <div
-            class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4"
-          >
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Closed Tasks</h3>
-            <button
-              v-if="selectedTasks.length > 0"
-              class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
-              @click="handleBulkDelete"
-            >
-              <Icon name="mdi:delete" size="20" />
-              <span>Delete Selected ({{ selectedTasks.length }})</span>
-            </button>
-          </div>
-
-          <div class="space-y-2 max-h-96 overflow-y-auto">
-            <div
-              v-for="task in closedTasks"
-              :key="task.id"
-              class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-            >
-              <input
-                :id="`task-${task.id}`"
-                v-model="selectedTasks"
-                type="checkbox"
-                :value="task.id"
-                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <label :for="`task-${task.id}`" class="flex-1 cursor-pointer">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span
-                    :class="[
-                      'text-sm',
-                      task.is_mit
-                        ? 'text-red-600 dark:text-red-400 font-semibold'
-                        : 'text-gray-900 dark:text-gray-100',
-                    ]"
-                  >
-                    {{ task.title }}
-                  </span>
-                  <span
-                    v-if="task.rollover_count && task.rollover_count > 0"
-                    class="font-bold text-red-600 dark:text-red-400 ml-1"
-                  >
-                    +{{ task.rollover_count }}
-                  </span>
-                  <span
-                    v-if="task.theme"
-                    class="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs rounded"
-                  >
-                    {{ task.theme }}
-                  </span>
-                  <span
-                    v-if="task.is_mit"
-                    class="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs rounded font-medium"
-                  >
-                    MIT
-                  </span>
-                  <span v-if="task.planned_date" class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ formatDateToDisplay(task.planned_date) }}
-                  </span>
-                </div>
-                <div v-if="task.notes" class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                  {{ task.notes }}
-                </div>
-              </label>
-              <button
-                class="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                @click="handleDelete(task.id)"
-              >
-                <Icon name="mdi:delete" size="20" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Chart Modal -->
-      <div
-        v-if="selectedChart"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 p-4"
-        @click.self="closeChartModal"
-      >
-        <div
-          class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-auto relative"
-          @click.stop
-        >
-          <!-- Close Button -->
-          <button
-            class="absolute top-4 right-4 z-10 p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            @click="closeChartModal"
-          >
-            <Icon name="mdi:close" size="24" class="text-gray-600 dark:text-gray-300" />
-          </button>
-
-          <!-- Daily Chart Modal -->
-          <div v-if="selectedChart === 'daily' && archiveStats?.dailyTrend.length" class="p-6">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-              Daily Completion Trend (Last 30 Days)
-            </h2>
-            <svg viewBox="0 0 800 400" class="w-full h-96" preserveAspectRatio="xMidYMid meet">
-              <!-- Y-axis -->
-              <line
-                x1="60"
-                y1="40"
-                x2="60"
-                y2="360"
-                stroke="rgb(156, 163, 175)"
-                stroke-width="2"
-                class="dark:[stroke:rgb(107,114,128)]"
-              />
-              <!-- X-axis -->
-              <line
-                x1="60"
-                y1="360"
-                x2="760"
-                y2="360"
-                stroke="rgb(156, 163, 175)"
-                stroke-width="2"
-                class="dark:[stroke:rgb(107,114,128)]"
-              />
-              <!-- Y-axis label -->
-              <text
-                x="30"
-                y="200"
-                fill="rgb(75, 85, 99)"
-                text-anchor="middle"
-                transform="rotate(-90 30 200)"
-                style="font-size: 14px; font-weight: 600"
-                class="dark:[fill:rgb(156,163,175)]"
-              >
-                Tasks
-              </text>
-              <!-- Y-axis ticks and labels -->
-              <g v-for="(tick, index) in 5" :key="`modal-daily-y-tick-${index}`">
-                <line
-                  x1="58"
-                  :y1="40 + (index * 320) / 4"
-                  x2="60"
-                  :y2="40 + (index * 320) / 4"
-                  stroke="rgb(156, 163, 175)"
-                  stroke-width="1.5"
-                  class="dark:[stroke:rgb(107,114,128)]"
-                />
-                <text
-                  x="55"
-                  :y="45 + (index * 320) / 4"
-                  fill="rgb(75, 85, 99)"
-                  text-anchor="end"
-                  dominant-baseline="middle"
-                  style="font-size: 12px"
-                  class="dark:[fill:rgb(156,163,175)]"
-                >
-                  {{ Math.round(maxDailyCount - (maxDailyCount / 4) * index) }}
-                </text>
-              </g>
-              <!-- Bars -->
-              <g v-for="(bar, index) in modalDailyBarChartData" :key="`modal-daily-bar-${index}`">
-                <rect
-                  :x="bar.x"
-                  :y="bar.y"
-                  :width="bar.width"
-                  :height="bar.height"
-                  fill="rgb(59, 130, 246)"
-                  class="dark:fill-blue-400 cursor-pointer hover:opacity-80 transition-opacity"
-                  :title="`${bar.date}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
-                />
-                <!-- Data label -->
-                <text
-                  v-if="bar.count > 0"
-                  :x="bar.centerX"
-                  :y="bar.y - 8"
-                  fill="rgb(75, 85, 99)"
-                  text-anchor="middle"
-                  dominant-baseline="bottom"
-                  style="font-size: 13px; font-weight: 600"
-                  class="dark:[fill:rgb(209,213,219)]"
-                >
-                  {{ bar.count }}
-                </text>
-              </g>
-              <!-- X-axis labels -->
-              <g
-                v-for="(bar, index) in modalDailyBarChartData"
-                :key="`modal-daily-x-tick-${index}`"
-              >
-                <line
-                  :x1="bar.centerX"
-                  y1="360"
-                  :x2="bar.centerX"
-                  y2="365"
-                  stroke="rgb(156, 163, 175)"
-                  stroke-width="1.5"
-                  class="dark:[stroke:rgb(107,114,128)]"
-                />
-                <text
-                  v-if="
-                    index % Math.ceil(modalDailyBarChartData.length / 10) === 0 ||
-                    index === modalDailyBarChartData.length - 1
-                  "
-                  :x="bar.centerX"
-                  y="378"
-                  fill="rgb(75, 85, 99)"
-                  text-anchor="middle"
-                  style="font-size: 12px; font-weight: 500"
-                  class="dark:[fill:rgb(156,163,175)]"
-                >
-                  {{ bar.date }}
-                </text>
-              </g>
-            </svg>
-          </div>
-
-          <!-- Weekly Chart Modal -->
-          <div v-if="selectedChart === 'weekly' && archiveStats?.weeklyTrend.length" class="p-6">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-              Weekly Completion Trend (Last 12 Weeks)
-            </h2>
-            <svg viewBox="0 0 800 400" class="w-full h-96" preserveAspectRatio="xMidYMid meet">
-              <!-- Y-axis -->
-              <line
-                x1="60"
-                y1="40"
-                x2="60"
-                y2="360"
-                stroke="rgb(156, 163, 175)"
-                stroke-width="2"
-                class="dark:[stroke:rgb(107,114,128)]"
-              />
-              <!-- X-axis -->
-              <line
-                x1="60"
-                y1="360"
-                x2="760"
-                y2="360"
-                stroke="rgb(156, 163, 175)"
-                stroke-width="2"
-                class="dark:[stroke:rgb(107,114,128)]"
-              />
-              <!-- Y-axis label -->
-              <text
-                x="30"
-                y="200"
-                fill="rgb(75, 85, 99)"
-                text-anchor="middle"
-                transform="rotate(-90 30 200)"
-                style="font-size: 14px; font-weight: 600"
-                class="dark:[fill:rgb(156,163,175)]"
-              >
-                Tasks
-              </text>
-              <!-- Y-axis ticks and labels -->
-              <g v-for="(tick, index) in 5" :key="`modal-weekly-y-tick-${index}`">
-                <line
-                  x1="58"
-                  :y1="40 + (index * 320) / 4"
-                  x2="60"
-                  :y2="40 + (index * 320) / 4"
-                  stroke="rgb(156, 163, 175)"
-                  stroke-width="1.5"
-                  class="dark:[stroke:rgb(107,114,128)]"
-                />
-                <text
-                  x="55"
-                  :y="45 + (index * 320) / 4"
-                  fill="rgb(75, 85, 99)"
-                  text-anchor="end"
-                  dominant-baseline="middle"
-                  style="font-size: 12px"
-                  class="dark:[fill:rgb(156,163,175)]"
-                >
-                  {{ Math.round(maxWeeklyCount - (maxWeeklyCount / 4) * index) }}
-                </text>
-              </g>
-              <!-- Bars -->
-              <g v-for="(bar, index) in modalWeeklyBarChartData" :key="`modal-weekly-bar-${index}`">
-                <rect
-                  :x="bar.x"
-                  :y="bar.y"
-                  :width="bar.width"
-                  :height="bar.height"
-                  fill="rgb(34, 197, 94)"
-                  class="dark:fill-green-400 cursor-pointer hover:opacity-80 transition-opacity"
-                  :title="`${bar.label}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
-                />
-                <!-- Data label -->
-                <text
-                  v-if="bar.count > 0"
-                  :x="bar.centerX"
-                  :y="bar.y - 8"
-                  fill="rgb(75, 85, 99)"
-                  text-anchor="middle"
-                  dominant-baseline="bottom"
-                  style="font-size: 13px; font-weight: 600"
-                  class="dark:[fill:rgb(209,213,219)]"
-                >
-                  {{ bar.count }}
-                </text>
-              </g>
-              <!-- X-axis labels -->
-              <g
-                v-for="(bar, index) in modalWeeklyBarChartData"
-                :key="`modal-weekly-x-tick-${index}`"
-              >
-                <line
-                  :x1="bar.centerX"
-                  y1="360"
-                  :x2="bar.centerX"
-                  y2="365"
-                  stroke="rgb(156, 163, 175)"
-                  stroke-width="1.5"
-                  class="dark:[stroke:rgb(107,114,128)]"
-                />
-                <text
-                  :x="bar.centerX"
-                  y="378"
-                  fill="rgb(75, 85, 99)"
-                  text-anchor="middle"
-                  style="font-size: 12px; font-weight: 500"
-                  class="dark:[fill:rgb(156,163,175)]"
-                >
-                  {{ bar.label }}
-                </text>
-              </g>
-            </svg>
-          </div>
-
-          <!-- Monthly Chart Modal -->
-          <div v-if="selectedChart === 'monthly' && archiveStats?.monthlyTrend.length" class="p-6">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-              Monthly Completion Trend (Last 12 Months)
-            </h2>
-            <svg viewBox="0 0 800 400" class="w-full h-96" preserveAspectRatio="xMidYMid meet">
-              <!-- Y-axis -->
-              <line
-                x1="60"
-                y1="40"
-                x2="60"
-                y2="360"
-                stroke="rgb(156, 163, 175)"
-                stroke-width="2"
-                class="dark:[stroke:rgb(107,114,128)]"
-              />
-              <!-- X-axis -->
-              <line
-                x1="60"
-                y1="360"
-                x2="760"
-                y2="360"
-                stroke="rgb(156, 163, 175)"
-                stroke-width="2"
-                class="dark:[stroke:rgb(107,114,128)]"
-              />
-              <!-- Y-axis label -->
-              <text
-                x="30"
-                y="200"
-                fill="rgb(75, 85, 99)"
-                text-anchor="middle"
-                transform="rotate(-90 30 200)"
-                style="font-size: 14px; font-weight: 600"
-                class="dark:[fill:rgb(156,163,175)]"
-              >
-                Tasks
-              </text>
-              <!-- Y-axis ticks and labels -->
-              <g v-for="(tick, index) in 5" :key="`modal-monthly-y-tick-${index}`">
-                <line
-                  x1="58"
-                  :y1="40 + (index * 320) / 4"
-                  x2="60"
-                  :y2="40 + (index * 320) / 4"
-                  stroke="rgb(156, 163, 175)"
-                  stroke-width="1.5"
-                  class="dark:[stroke:rgb(107,114,128)]"
-                />
-                <text
-                  x="55"
-                  :y="45 + (index * 320) / 4"
-                  fill="rgb(75, 85, 99)"
-                  text-anchor="end"
-                  dominant-baseline="middle"
-                  style="font-size: 12px"
-                  class="dark:[fill:rgb(156,163,175)]"
-                >
-                  {{ Math.round(maxMonthlyCount - (maxMonthlyCount / 4) * index) }}
-                </text>
-              </g>
-              <!-- Bars -->
-              <g
-                v-for="(bar, index) in modalMonthlyBarChartData"
-                :key="`modal-monthly-bar-${index}`"
-              >
-                <rect
-                  :x="bar.x"
-                  :y="bar.y"
-                  :width="bar.width"
-                  :height="bar.height"
-                  fill="rgb(168, 85, 247)"
-                  class="dark:fill-purple-400 cursor-pointer hover:opacity-80 transition-opacity"
-                  :title="`${bar.label}: ${bar.count} tasks${bar.mits > 0 ? ` (${bar.mits} MITs)` : ''}`"
-                />
-                <!-- Data label -->
-                <text
-                  v-if="bar.count > 0"
-                  :x="bar.centerX"
-                  :y="bar.y - 8"
-                  fill="rgb(75, 85, 99)"
-                  text-anchor="middle"
-                  dominant-baseline="bottom"
-                  style="font-size: 13px; font-weight: 600"
-                  class="dark:[fill:rgb(209,213,219)]"
-                >
-                  {{ bar.count }}
-                </text>
-              </g>
-              <!-- X-axis labels -->
-              <g
-                v-for="(bar, index) in modalMonthlyBarChartData"
-                :key="`modal-monthly-x-tick-${index}`"
-              >
-                <line
-                  :x1="bar.centerX"
-                  y1="360"
-                  :x2="bar.centerX"
-                  y2="365"
-                  stroke="rgb(156, 163, 175)"
-                  stroke-width="1.5"
-                  class="dark:[stroke:rgb(107,114,128)]"
-                />
-                <text
-                  :x="bar.centerX"
-                  y="378"
-                  fill="rgb(75, 85, 99)"
-                  text-anchor="middle"
-                  style="font-size: 12px; font-weight: 500"
-                  class="dark:[fill:rgb(156,163,175)]"
-                >
-                  {{ bar.label.split(' ')[0] }}
-                </text>
-              </g>
-            </svg>
-          </div>
-        </div>
       </div>
     </div>
+
+    <!-- Toast Notifications -->
+    <CommonToast />
   </div>
 </template>

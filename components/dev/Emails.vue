@@ -139,6 +139,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { formatDateLocaleString } from '~/utils/common/dateParser'
 
 interface NewUser {
   user_email: string
@@ -165,11 +166,7 @@ const thisMonthUsers = computed(() => {
   return newUsers.value.filter((user) => new Date(user.first_login) >= startOfMonth)
 })
 
-const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A'
-  const date = new Date(dateString)
-  return date.toLocaleString()
-}
+const formatDate = formatDateLocaleString
 
 const loadData = async () => {
   isLoading.value = true

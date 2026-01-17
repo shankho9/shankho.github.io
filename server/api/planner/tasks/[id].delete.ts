@@ -20,7 +20,23 @@ export default defineEventHandler(async (event) => {
   const shouldArchive = queryParams.archive === 'true' || queryParams.archive === true
 
   try {
-    // Check if task has dependent tasks before allowing deletion
+    // Get the task's parent (grandfather) if it exists
+    // Note: We query without deleted_at filter first to get the parent ID even if task is about to be deleted
+    const taskInfo = await query<{ depends_on_task_id: number | null }>(
+      `SELECT depends_on_task_id FROM tasks WHERE id = $1`,
+      [taskId],
+    )
+
+    if (taskInfo.length === 0) {
+      throw createError({
+        statusCode: 404,
+        message: 'Task not found',
+      })
+    }
+
+    const grandfatherId = taskInfo[0].depends_on_task_id
+
+    // Check if task has dependent tasks (children) - if so, reassign them
     const dependentTasks = await query<{ id: number; title: string }>(
       `SELECT id, title FROM tasks 
        WHERE depends_on_task_id = $1 
@@ -29,10 +45,46 @@ export default defineEventHandler(async (event) => {
     )
 
     if (dependentTasks.length > 0) {
-      throw createError({
-        statusCode: 400,
-        message: `Cannot delete task: ${dependentTasks.length} dependent task(s) exist. Please delete or reassign dependent tasks first.`,
-      })
+      // If this task has a parent (grandfather), attach children to grandfather
+      // Otherwise, make children independent
+      if (grandfatherId !== null) {
+        // Verify that the grandfather task still exists and is valid
+        const grandfatherCheck = await query<{ id: number }>(
+          `SELECT id FROM tasks 
+           WHERE id = $1 
+           AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')`,
+          [grandfatherId],
+        )
+
+        if (grandfatherCheck.length > 0) {
+          // Grandfather exists and is valid - attach all child tasks to the grandfather
+          await query(
+            `UPDATE tasks 
+             SET depends_on_task_id = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE depends_on_task_id = $2 
+             AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')`,
+            [grandfatherId, taskId],
+          )
+        } else {
+          // Grandfather doesn't exist or is deleted - make children independent
+          await query(
+            `UPDATE tasks 
+             SET depends_on_task_id = NULL, updated_at = CURRENT_TIMESTAMP
+             WHERE depends_on_task_id = $1 
+             AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')`,
+            [taskId],
+          )
+        }
+      } else {
+        // Make all child tasks independent by removing their dependency
+        await query(
+          `UPDATE tasks 
+           SET depends_on_task_id = NULL, updated_at = CURRENT_TIMESTAMP
+           WHERE depends_on_task_id = $1 
+           AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')`,
+          [taskId],
+        )
+      }
     }
     if (shouldArchive) {
       // Close and archive: Mark as done, archive it, then mark for deletion

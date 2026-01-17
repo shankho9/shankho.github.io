@@ -147,6 +147,27 @@
             </p>
           </NuxtLink>
 
+          <!-- Analytics Dashboard Utility -->
+          <NuxtLink
+            to="/dev/utilities/analytics"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation block"
+          >
+            <div class="flex items-center gap-4 mb-4">
+              <div
+                class="w-12 h-12 bg-pink-100 dark:bg-pink-900 rounded-lg flex items-center justify-center"
+              >
+                <Icon name="mdi:chart-bar" size="24" class="text-pink-600 dark:text-pink-400" />
+              </div>
+              <div>
+                <h3 class="text-xl font-semibold">Analytics Dashboard</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Popular posts & engagement</p>
+              </div>
+            </div>
+            <p class="text-gray-600 dark:text-gray-400 text-sm">
+              View popular posts, reading time, engagement metrics, and content performance
+            </p>
+          </NuxtLink>
+
           <!-- Content Manager Utility -->
           <NuxtLink
             to="/dev/utilities/content"

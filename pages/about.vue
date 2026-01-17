@@ -238,11 +238,11 @@ const socialIcons = {
         </p>
 
         <p>
-          I dedicate this blogsite to my <b>daughters</b> (Riya & Tiya) — my greatest adventure, my
-          toughest negotiators, and my future world-changers. May you always lead with kindness,
-          curiosity, and just enough mischief to keep life interesting. And to my wife, my daily
-          reminder that leadership isn’t about power—it’s about knowing when to just nod and say,
-          <span class="italic">"Yes, dear."</span> 😂❤️
+          I dedicate this blogsite to my <b>daughters</b> (Riya & Tiya) and my <b>wife</b> Papiya —
+          my greatest adventure, my toughest negotiators, and my future world-changers. May you
+          always lead with kindness, curiosity, and just enough mischief to keep life interesting.
+          And to my wife, my daily reminder that leadership isn’t about power—it’s about knowing
+          when to just nod and say, <span class="italic">"Yes, dear."</span> 😂❤️
         </p>
       </div>
     </div>
