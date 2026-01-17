@@ -106,7 +106,11 @@ const performSearch = async (query: string) => {
     return // Component unmounted, don't update state
   }
 
-  isLoading.value = true
+  // Only set loading state if component is still mounted
+  if (isMounted.value) {
+    isLoading.value = true
+  }
+
   try {
     const response = await $fetch<{ success: boolean; results: SearchResult[] }>(
       `/api/cars/search?q=${encodeURIComponent(query)}`,
@@ -132,9 +136,8 @@ const performSearch = async (query: string) => {
     searchResults.value = []
     showDropdown.value = false
   } finally {
-    if (isMounted.value) {
-      isLoading.value = false
-    }
+    // Always reset loading state to ensure proper cleanup, even if component unmounted
+    isLoading.value = false
   }
 }
 
@@ -274,8 +277,21 @@ onUnmounted(() => {
         class="w-full px-2 py-1.5 text-sm border rounded bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700"
         @input="
           (e) => {
-            searchQuery.value = (e.target as HTMLInputElement).value
-            if (selectedVariant) clearSelection()
+            const inputValue = (e.target as HTMLInputElement).value
+            if (selectedVariant.value) {
+              // Clear selection but preserve the typed input
+              selectedVariant.value = null
+              showDropdown.value = false
+              emit('update:modelValue', '')
+              // Clear any pending search timeout and prevent watch from triggering
+              if (searchTimeout) {
+                clearTimeout(searchTimeout)
+                searchTimeout = null
+              }
+              isProgrammaticUpdate = true
+            }
+            // Set search query after clearing selection to preserve user input
+            searchQuery.value = inputValue
           }
         "
         @focus="showDropdown = searchResults.length > 0"
