@@ -74,8 +74,15 @@ const displayValue = computed(() => {
 
 // Debounced search
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
+let isProgrammaticUpdate = false // Flag to prevent watch from triggering on programmatic updates
 
 watch(searchQuery, (newQuery) => {
+  // Skip watch handler if this is a programmatic update
+  if (isProgrammaticUpdate) {
+    isProgrammaticUpdate = false
+    return
+  }
+
   if (searchTimeout) {
     clearTimeout(searchTimeout)
   }
@@ -171,6 +178,13 @@ const selectResult = async (result: SearchResult) => {
     }
   } else if (result.type === 'manufacturer') {
     // Manufacturer selected - search for all models by this manufacturer
+    // Clear any pending search timeout to avoid duplicate calls
+    if (searchTimeout) {
+      clearTimeout(searchTimeout)
+      searchTimeout = null
+    }
+    // Set flag to prevent watch from triggering, then set searchQuery and perform search immediately
+    isProgrammaticUpdate = true
     searchQuery.value = result.name
     await performSearch(result.name)
   }
@@ -246,14 +260,13 @@ defineExpose({
           <span class="text-gray-500 dark:text-gray-400">Fuel:</span>
           <span class="ml-1 font-medium">{{ selectedVariant.fuel_type }}</span>
         </div>
-        <div v-if="selectedVariant.mileage_kmpl != null && selectedVariant.mileage_kmpl !== ''">
+        <div v-if="selectedVariant.mileage_kmpl != null">
           <span class="text-gray-500 dark:text-gray-400">Mileage:</span>
           <span class="ml-1 font-medium">{{ selectedVariant.mileage_kmpl }} kmpl</span>
         </div>
         <div
           v-if="
             selectedVariant.price_ex_showroom_inr != null &&
-            selectedVariant.price_ex_showroom_inr !== '' &&
             selectedVariant.price_ex_showroom_inr !== 0
           "
         >
