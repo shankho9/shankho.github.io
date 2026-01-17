@@ -773,6 +773,8 @@ const exportTemplateAsJSON = () => {
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
 
     showToast('Template exported as JSON file!', 'success')
   } catch (error) {

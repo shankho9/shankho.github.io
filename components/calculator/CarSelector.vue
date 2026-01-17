@@ -233,7 +233,7 @@ defineExpose({
         class="w-full px-2 py-1.5 text-sm border rounded bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700"
         @input="
           (e) => {
-            searchQuery = (e.target as HTMLInputElement).value
+            searchQuery.value = (e.target as HTMLInputElement).value
             if (selectedVariant) clearSelection()
           }
         "
