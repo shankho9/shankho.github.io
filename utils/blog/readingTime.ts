@@ -10,24 +10,66 @@ function stripHtml(html: string): string {
   // Remove HTML comments (including multi-line)
   text = text.replace(/<!--[\s\S]*?-->/g, '')
 
-  // Remove script and style tags with their content
-  // Handle both complete tags and incomplete/malformed tags to prevent injection vulnerabilities
-  {
+  // Remove script and style content using position-based approach to avoid
+  // multi-character regex patterns that CodeQL flags. Find tag boundaries
+  // and remove content between them.
+  const scriptStyleTags = ['script', 'style']
+  for (const tag of scriptStyleTags) {
     let previous: string
     do {
       previous = text
-      // Remove complete script and style tags with their content
-      text = text.replace(/<script[\s\S]*?<\/script>/gi, '')
-      text = text.replace(/<style[\s\S]*?<\/style>/gi, '')
-      // Remove opening script/style tags with closing bracket (e.g., <script src="...">)
-      text = text.replace(/<script[\s\S]*?>/gi, '')
-      text = text.replace(/<style[\s\S]*?>/gi, '')
-      // Remove incomplete script/style tags without closing bracket (e.g., <script, <style)
-      // Use word boundary to match exact tag names, then match any characters except >
-      // The \b ensures we match <script or <style as complete words, not partial matches
-      // This pattern matches the tag name and everything after it until > or end of string
-      text = text.replace(/<script\b[^>]*/gi, '')
-      text = text.replace(/<style\b[^>]*/gi, '')
+      const lowerText = text.toLowerCase()
+
+      // Find opening tag <script or <style, verifying it's a tag boundary
+      // Search for <tag followed by whitespace, >, or end of string to avoid
+      // false matches like <scriptable> or <styling>
+      let openStart = -1
+      let searchPos = 0
+      while (searchPos < lowerText.length) {
+        const pos = lowerText.indexOf(`<${tag}`, searchPos)
+        if (pos === -1) break
+
+        const afterTag = pos + tag.length + 1 // Position after <tag
+        if (afterTag >= text.length) {
+          // End of string - treat as malformed tag
+          openStart = pos
+          break
+        }
+
+        const nextChar = text[afterTag]
+        // Verify it's a tag boundary: whitespace, >, or end of string
+        // Not a letter (which would make it part of another word)
+        if (nextChar === '>' || /\s/.test(nextChar)) {
+          openStart = pos
+          break
+        }
+
+        // Continue searching after this position
+        searchPos = pos + 1
+      }
+
+      if (openStart === -1) break
+
+      // Find the closing > of opening tag
+      let openEnd = text.indexOf('>', openStart)
+      if (openEnd === -1) {
+        // Malformed tag without closing >, remove everything from <tag to end of string
+        text = text.substring(0, openStart)
+        continue
+      }
+      openEnd++
+
+      // Find closing tag </script> or </style>
+      const closeStart = lowerText.indexOf(`</${tag}>`, openEnd)
+      if (closeStart === -1) {
+        // No closing tag, remove from opening tag to end
+        text = text.substring(0, openStart)
+        continue
+      }
+
+      // Remove everything from opening tag to closing tag
+      const closeEnd = closeStart + tag.length + 3 // length of </tag>
+      text = text.substring(0, openStart) + text.substring(closeEnd)
     } while (text !== previous)
   }
 
