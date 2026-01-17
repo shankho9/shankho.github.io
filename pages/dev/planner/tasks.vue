@@ -15,8 +15,7 @@ definePageMeta({
   middleware: 'auth-planner',
 })
 
-const { fetchTasks, fetchThemes, updateTask, deleteTask, createTask, purgeDeletedTasks } =
-  useTasks()
+const { fetchTasks, fetchThemes, updateTask, deleteTask, createTask } = useTasks()
 
 const tasks = ref<Task[]>([])
 const isLoading = ref(false)
@@ -1359,22 +1358,53 @@ const handleDelete = async (archive: boolean = false) => {
 }
 
 const handlePurge = async () => {
+  // Find all completed tasks (status === 'done')
+  const completedTasks = tasks.value.filter((t) => t.status === 'done')
+
+  if (completedTasks.length === 0) {
+    alert('No completed tasks to delete.')
+    return
+  }
+
   if (
     !confirm(
-      'Are you sure you want to permanently delete all tasks marked for deletion? This action cannot be undone.',
+      `Are you sure you want to delete ${completedTasks.length} completed task(s)? This action cannot be undone.`,
     )
   )
     return
 
   isPurging.value = true
+  const taskIdsToDelete = completedTasks.map((t) => t.id)
+
   try {
-    const result = await purgeDeletedTasks()
-    alert(`Successfully purged ${result.deletedCount} task(s)`)
-    // Reload tasks to refresh the list
-    await loadData()
+    // Use Promise.allSettled to handle partial successes/failures
+    const results = await Promise.allSettled(
+      taskIdsToDelete.map((id) => deleteTask(id, true)), // archive=true for archival record
+    )
+
+    const successful = results.filter((r) => r.status === 'fulfilled').length
+    const failed = results.filter((r) => r.status === 'rejected').length
+
+    if (failed > 0) {
+      // Some deletions failed - reload from server to ensure UI state is accurate
+      // This handles cases where some tasks were deleted before a failure occurred
+      console.error(
+        `Failed to delete ${failed} task(s). Some tasks may have been deleted. Reloading from server...`,
+      )
+      await loadData()
+      alert(
+        `Deleted ${successful} task(s). ${failed} task(s) failed to delete. The list has been refreshed.`,
+      )
+    } else {
+      // All deletions succeeded - update UI optimistically
+      tasks.value = tasks.value.filter((t) => !taskIdsToDelete.includes(t.id))
+      alert(`Successfully deleted ${successful} completed task(s).`)
+    }
   } catch (error) {
-    console.error('Failed to purge tasks:', error)
-    alert('Failed to purge tasks. Please try again.')
+    // Unexpected error - reload from server to ensure UI state is accurate
+    console.error('Failed to delete tasks:', error)
+    await loadData()
+    alert('Failed to delete some tasks. The list has been refreshed from the server.')
   } finally {
     isPurging.value = false
   }
@@ -2190,7 +2220,7 @@ onUnmounted(() => {
                 : 'bg-orange-500 hover:bg-orange-600 text-white',
             ]"
             :disabled="isPurging"
-            :title="isPurging ? 'Purging...' : 'Purge all deleted tasks'"
+            :title="isPurging ? 'Purging...' : 'Purge all completed task'"
             @click="handlePurge"
           >
             <Icon name="mdi:delete-sweep" size="22" />
