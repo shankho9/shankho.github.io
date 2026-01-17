@@ -296,8 +296,8 @@ onUnmounted(() => {
             searchQuery.value = inputValue
           }
         "
-        @focus="showDropdown = searchResults.length > 0"
-        @blur="setTimeout(() => (showDropdown = false), 200)"
+        @focus="showDropdown.value = searchResults.length > 0"
+        @blur="setTimeout(() => (showDropdown.value = false), 200)"
       />
       <button
         v-if="selectedVariant"

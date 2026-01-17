@@ -41,6 +41,8 @@ export default defineNuxtConfig({
           '/resources',
           '/personalSpace',
           '/categories',
+          '/maps',
+          '/sitemap',
           '/rss.xml',
         ],
         defaults: {

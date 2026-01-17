@@ -16,11 +16,13 @@ const staticPages = [
   { path: '/', title: 'Home', icon: 'mdi:home' },
   { path: '/blogs', title: 'Blogs', icon: 'mdi:book-open-variant' },
   { path: '/about', title: 'About', icon: 'mdi:account' },
-  { path: '/gallery', title: 'Gallery', icon: 'mdi:image-multiple' },
-  { path: '/library', title: 'Library', icon: 'mdi:library' },
+  { path: '/gallery', title: 'Gallery', icon: 'mdi:image-multiple', requiresAuth: true },
+  { path: '/library', title: 'Library', icon: 'mdi:library', requiresAuth: true },
   { path: '/resources', title: 'Resources', icon: 'mdi:folder-multiple' },
   { path: '/personalSpace', title: 'LifeLines', icon: 'mdi:heart', requiresAuth: true },
   { path: '/categories', title: 'Categories', icon: 'mdi:tag-multiple' },
+  { path: '/maps', title: 'Places I\'ve Visited', icon: 'mdi:map' },
+  { path: '/sitemap', title: 'Sitemap', icon: 'mdi:sitemap' },
 ]
 
 // Format blog data
