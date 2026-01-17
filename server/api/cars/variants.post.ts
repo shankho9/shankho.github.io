@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
         transmission_type || null,
         transmission_speeds || null,
         mileage_kmpl || null,
-        seating_capacity || 5,
+        seating_capacity ?? 5,
         price_ex_showroom_inr || null,
         price_on_road_inr || null,
         length_mm || null,
