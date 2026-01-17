@@ -11,8 +11,14 @@ function stripHtml(html: string): string {
   text = text.replace(/<!--[\s\S]*?-->/g, '')
 
   // Remove script and style tags with their content
-  text = text.replace(/<script[\s\S]*?<\/script>/gi, '')
-  text = text.replace(/<style[\s\S]*?<\/style>/gi, '')
+  {
+    let previous: string
+    do {
+      previous = text
+      text = text.replace(/<script[\s\S]*?<\/script>/gi, '')
+      text = text.replace(/<style[\s\S]*?<\/style>/gi, '')
+    } while (text !== previous)
+  }
 
   // Remove all remaining HTML tags
   // Repeatedly strip tags to avoid incomplete multi-character sanitization issues
