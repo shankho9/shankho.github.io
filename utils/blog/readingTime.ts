@@ -14,9 +14,19 @@ function stripHtml(html: string): string {
   text = text.replace(/<script[\s\S]*?<\/script>/gi, '')
   text = text.replace(/<style[\s\S]*?<\/style>/gi, '')
 
-  // Remove all remaining HTML tags (including malformed ones)
-  // This regex handles tags that may not have closing > or are malformed
-  text = text.replace(/<[^>]*>?/g, '')
+  // Remove all remaining HTML tags
+  // Repeatedly strip tags to avoid incomplete multi-character sanitization issues
+  // Match tags with optional closing bracket and across newlines to handle both
+  // well-formed and malformed HTML (e.g., <script, <div) and multi-line tags
+  {
+    let previous: string
+    do {
+      previous = text
+      // Match tags with optional closing > and across newlines ([^>] includes newlines)
+      // The ? makes > optional, allowing us to catch malformed tags like <script
+      text = text.replace(/<[^>]*>?/g, '')
+    } while (text !== previous)
+  }
 
   // Decode common HTML entities
   text = text
