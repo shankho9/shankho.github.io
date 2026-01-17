@@ -11,12 +11,21 @@ function stripHtml(html: string): string {
   text = text.replace(/<!--[\s\S]*?-->/g, '')
 
   // Remove script and style tags with their content
+  // Handle both complete tags and incomplete/malformed tags to prevent injection vulnerabilities
   {
     let previous: string
     do {
       previous = text
+      // Remove complete script and style tags with their content
       text = text.replace(/<script[\s\S]*?<\/script>/gi, '')
       text = text.replace(/<style[\s\S]*?<\/style>/gi, '')
+      // Remove opening script/style tags with closing bracket (e.g., <script src="...">)
+      text = text.replace(/<script[\s\S]*?>/gi, '')
+      text = text.replace(/<style[\s\S]*?>/gi, '')
+      // Remove incomplete script/style tags without closing bracket (e.g., <script, <style)
+      // Match until whitespace, >, or end of string to catch all incomplete tags
+      text = text.replace(/<script[^\s>]*/gi, '')
+      text = text.replace(/<style[^\s>]*/gi, '')
     } while (text !== previous)
   }
 
