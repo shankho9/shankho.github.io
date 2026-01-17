@@ -129,6 +129,12 @@ const selectResult = async (result: SearchResult) => {
 
       if (response.success) {
         selectedVariant.value = response.variant
+        // Clear any pending search timeout and prevent watch from triggering
+        if (searchTimeout) {
+          clearTimeout(searchTimeout)
+          searchTimeout = null
+        }
+        isProgrammaticUpdate = true
         searchQuery.value = displayValue.value
         showDropdown.value = false
         emit('variant-selected', response.variant)
@@ -166,6 +172,12 @@ const selectResult = async (result: SearchResult) => {
               manufacturer_name: manufacturer.name,
               model_name: model.name,
             }
+            // Clear any pending search timeout and prevent watch from triggering
+            if (searchTimeout) {
+              clearTimeout(searchTimeout)
+              searchTimeout = null
+            }
+            isProgrammaticUpdate = true
             searchQuery.value = displayValue.value
             showDropdown.value = false
             emit('variant-selected', selectedVariant.value)
@@ -192,6 +204,12 @@ const selectResult = async (result: SearchResult) => {
 
 const clearSelection = () => {
   selectedVariant.value = null
+  // Clear any pending search timeout and prevent watch from triggering
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+    searchTimeout = null
+  }
+  isProgrammaticUpdate = true
   searchQuery.value = ''
   showDropdown.value = false
   emit('update:modelValue', '')
