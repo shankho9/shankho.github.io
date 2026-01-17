@@ -14,9 +14,9 @@ function stripHtml(html: string): string {
   text = text.replace(/<script[\s\S]*?<\/script>/gi, '')
   text = text.replace(/<style[\s\S]*?<\/style>/gi, '')
 
-  // Remove all remaining HTML tags (including malformed ones)
-  // This regex handles tags that may not have closing > or are malformed
-  text = text.replace(/<[^>]*>?/g, '')
+  // Remove all remaining HTML tags
+  // Use a standard tag-stripping regex to avoid leaving partial tag starts
+  text = text.replace(/<[^>]*>/g, '')
 
   // Decode common HTML entities
   text = text
