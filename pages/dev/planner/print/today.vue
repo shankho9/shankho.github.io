@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import type { Task } from '~/server/api/planner/tasks.get'
-import { getLocalDateString, formatDateToDisplay } from '~/utils/common/dateParser'
+import {
+  getLocalDateString,
+  formatDateToDisplay,
+  formatDateRelative,
+} from '~/utils/common/dateParser'
 import { groupTasksByQuadrant, enrichTaskWithQuadrant } from '~/utils/planner/eisenhower'
 
 definePageMeta({
@@ -136,7 +140,11 @@ onUnmounted(() => {
                   +{{ task.rollover_count }}
                 </span>
                 <span v-if="task.planned_date" class="task-date-inline">
-                  {{ formatDateToDisplay(task.planned_date) }}
+                  {{
+                    formatDateRelative(task.planned_date) ||
+                    formatDateToDisplay(task.planned_date) ||
+                    task.planned_date
+                  }}
                 </span>
                 <span v-if="task.is_mit" class="mit-badge">MIT</span>
                 <span v-if="task.theme" class="theme-badge">{{ task.theme }}</span>
