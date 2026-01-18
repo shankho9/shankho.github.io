@@ -130,8 +130,6 @@ const handleProviderClick = async (provider: OAuthProvider) => {
   try {
     await initializeProvider(provider)
 
-    let result
-
     switch (provider) {
       case 'google':
         // For Google, use the credential flow with a popup trigger
@@ -208,18 +206,12 @@ const handleProviderClick = async (provider: OAuthProvider) => {
         return
 
       case 'github':
-        result = await handleGitHubSignIn()
-        // GitHub uses redirect, so this won't return
+        // GitHub uses redirect flow, so this won't return
+        await handleGitHubSignIn()
         return
 
       default:
         throw new Error(`Unsupported provider: ${provider}`)
-    }
-
-    if (result?.success) {
-      emit('success', result.user)
-    } else {
-      emit('error', result?.error || `${getProviderConfig(provider).name} login failed`)
     }
   } catch (error) {
     // Clean up temporary container on error
