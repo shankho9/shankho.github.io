@@ -67,8 +67,18 @@ const { handleGoogleCredential } = useAuth()
 const tempContainerRefs = ref<Map<OAuthProvider, HTMLElement>>(new Map())
 const cleanupTimeoutRefs = ref<Map<OAuthProvider, ReturnType<typeof setTimeout>>>(new Map())
 
-// Track whether Google has been initialized (initialize() should only be called once per page)
-const googleInitialized = ref(false)
+// Track whether Google has been initialized globally (using sessionStorage for cross-component state)
+// Google's documentation states initialize() should only be called once per page load
+const isGoogleInitialized = () => {
+  if (typeof window === 'undefined') return false
+  return sessionStorage.getItem('google_oauth_initialized') === 'true'
+}
+
+const setGoogleInitialized = () => {
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('google_oauth_initialized', 'true')
+  }
+}
 
 // Cleanup function to remove temporary container for a specific provider
 const cleanupTempContainer = (provider: OAuthProvider) => {
@@ -140,9 +150,9 @@ const handleProviderClick = async (provider: OAuthProvider) => {
             throw new Error('Google Client ID not configured')
           }
 
-          // Initialize Google Sign-In only once per page load
+          // Initialize Google Sign-In only once per page load (globally, not per component)
           // Google's documentation states initialize() should only be called once
-          if (!googleInitialized.value) {
+          if (!isGoogleInitialized()) {
             window.google.accounts.id.initialize({
               client_id: clientId,
               callback: async (response: { credential: string }) => {
@@ -156,7 +166,7 @@ const handleProviderClick = async (provider: OAuthProvider) => {
                 }
               },
             })
-            googleInitialized.value = true
+            setGoogleInitialized()
           }
 
           // Clean up any existing container first

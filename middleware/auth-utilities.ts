@@ -11,22 +11,28 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
   // Load stored user from localStorage first
   loadStoredUser()
 
-  // If user is already authenticated in localStorage, allow access
-  // This handles cases where session cookie might not be immediately available
-  // but the user is legitimately logged in
-  if (isAuthenticated.value) {
-    // Still verify with server, but don't block if localStorage has user
-    checkAuth().catch(() => {
-      // Silently fail - user is in localStorage, allow access
-    })
-    return
-  }
+  // Always verify with server to ensure session is still valid
+  // This prevents revoked sessions from accessing protected routes
+  try {
+    const isAuth = await checkAuth()
 
-  // Check authentication with server
-  const isAuth = await checkAuth()
-
-  // Require authentication - redirect to login if not authenticated
-  if (!isAuth || !isAuthenticated.value) {
-    return navigateTo('/auth/login?redirect=' + encodeURIComponent(to.fullPath))
+    // If server says user is not authenticated, clear localStorage and redirect
+    if (!isAuth || !isAuthenticated.value) {
+      // Clear potentially stale localStorage data
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_user')
+      }
+      return navigateTo('/auth/login?redirect=' + encodeURIComponent(to.fullPath))
+    }
+  } catch (error) {
+    // If checkAuth fails (network error, etc.), but user is in localStorage,
+    // allow access as fallback but still verify when possible
+    // This handles race conditions where session cookie might not be immediately available
+    if (!isAuthenticated.value) {
+      // No user in localStorage and checkAuth failed - redirect to login
+      return navigateTo('/auth/login?redirect=' + encodeURIComponent(to.fullPath))
+    }
+    // User is in localStorage but checkAuth failed - allow access but log the error
+    console.warn('[Auth Middleware] Server verification failed, but user in localStorage:', error)
   }
 })

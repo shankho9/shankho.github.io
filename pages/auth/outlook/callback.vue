@@ -60,6 +60,9 @@ onMounted(async () => {
       const redirect = route.query.redirect as string
       const redirectPath = redirect || '/'
 
+      // Set loading to false before redirecting (consistent with GitHub callback)
+      isLoading.value = false
+
       if (redirectPath.startsWith('/auth/')) {
         await router.push('/')
       } else {
