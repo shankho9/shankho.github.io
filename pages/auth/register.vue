@@ -154,25 +154,29 @@
           </div>
         </div>
 
-        <div>
-          <div id="google-signin-button" class="flex justify-center"></div>
-        </div>
+        <OAuthButtons
+          size="large"
+          theme="outline"
+          @success="handleOAuthSuccess"
+          @error="handleOAuthError"
+        />
       </form>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { useRouter } from 'vue-router'
+import OAuthButtons from '~/components/auth/OAuthButtons.vue'
 
 definePageMeta({
   layout: 'default',
 })
 
 const router = useRouter()
-const { register, initializeGoogleSignIn, handleGoogleCredential } = useAuth()
+const { register } = useAuth()
 
 const name = ref('')
 const email = ref('')
@@ -216,60 +220,16 @@ const handleRegister = async () => {
   }
 }
 
-let checkGoogleInterval: ReturnType<typeof setInterval> | null = null
+const handleOAuthSuccess = async () => {
+  isLoading.value = false
+  successMessage.value = 'Account created successfully! Redirecting...'
+  setTimeout(() => {
+    router.push('/')
+  }, 1500)
+}
 
-onMounted(() => {
-  initializeGoogleSignIn()
-
-  // Wait for Google to load, then render button
-  checkGoogleInterval = setInterval(() => {
-    if (window.google && window.google.accounts) {
-      if (checkGoogleInterval) {
-        clearInterval(checkGoogleInterval)
-        checkGoogleInterval = null
-      }
-      const clientId = useRuntimeConfig().public.googleClientId
-      if (clientId) {
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: async (response: { credential: string }) => {
-            isLoading.value = true
-            errorMessage.value = ''
-            try {
-              const result = await handleGoogleCredential(response)
-              if (result.success) {
-                successMessage.value = 'Account created successfully! Redirecting...'
-                setTimeout(() => {
-                  router.push('/')
-                }, 1500)
-              } else {
-                errorMessage.value = result.error || 'Google registration failed'
-              }
-            } catch (error: unknown) {
-              errorMessage.value =
-                error instanceof Error ? error.message : 'An unexpected error occurred'
-            } finally {
-              isLoading.value = false
-            }
-          },
-        })
-
-        window.google.accounts.id.renderButton(document.getElementById('google-signin-button'), {
-          theme: 'outline',
-          size: 'large',
-          text: 'signup_with',
-          width: '100%',
-        })
-      }
-    }
-  }, 100)
-})
-
-onUnmounted(() => {
-  // Clean up the interval if the component unmounts before Google loads
-  if (checkGoogleInterval) {
-    clearInterval(checkGoogleInterval)
-    checkGoogleInterval = null
-  }
-})
+const handleOAuthError = (error: string) => {
+  errorMessage.value = error || 'OAuth registration failed'
+  isLoading.value = false
+}
 </script>

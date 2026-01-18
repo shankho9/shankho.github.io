@@ -25,8 +25,11 @@ export interface User {
   picture: string | null
   password_hash: string | null
   mfa_secret: string | null
-  auth_provider: 'email' | 'google'
+  auth_provider: 'email' | 'google' | 'apple' | 'outlook' | 'github'
   google_sub: string | null
+  apple_sub: string | null
+  outlook_id: string | null
+  github_id: string | null
   mfa_enabled: boolean
   email_verified: boolean
   created_at: Date
@@ -273,7 +276,7 @@ export async function getCurrentUser(event: H3Event): Promise<User | null> {
   }
 
   const users = await query<User>(
-    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE id = $1',
+    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE id = $1',
     [session.user_id],
   )
   return users.length > 0 ? users[0] : null
@@ -310,7 +313,7 @@ export function clearSessionCookie(event: H3Event): void {
  */
 export async function getUserByEmail(email: string): Promise<User | null> {
   const users = await query<User>(
-    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE email = $1',
+    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE email = $1',
     [email.toLowerCase()],
   )
   return users.length > 0 ? users[0] : null
@@ -321,8 +324,41 @@ export async function getUserByEmail(email: string): Promise<User | null> {
  */
 export async function getUserByGoogleSub(googleSub: string): Promise<User | null> {
   const users = await query<User>(
-    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE google_sub = $1',
+    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE google_sub = $1',
     [googleSub],
+  )
+  return users.length > 0 ? users[0] : null
+}
+
+/**
+ * Get user by Apple sub
+ */
+export async function getUserByAppleSub(appleSub: string): Promise<User | null> {
+  const users = await query<User>(
+    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE apple_sub = $1',
+    [appleSub],
+  )
+  return users.length > 0 ? users[0] : null
+}
+
+/**
+ * Get user by Outlook ID
+ */
+export async function getUserByOutlookId(outlookId: string): Promise<User | null> {
+  const users = await query<User>(
+    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE outlook_id = $1',
+    [outlookId],
+  )
+  return users.length > 0 ? users[0] : null
+}
+
+/**
+ * Get user by GitHub ID
+ */
+export async function getUserByGitHubId(githubId: string): Promise<User | null> {
+  const users = await query<User>(
+    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE github_id = $1',
+    [githubId],
   )
   return users.length > 0 ? users[0] : null
 }
@@ -335,18 +371,25 @@ export async function createUser(data: {
   name?: string
   picture?: string
   passwordHash?: string
-  authProvider: 'email' | 'google'
+  authProvider: 'email' | 'google' | 'apple' | 'outlook' | 'github'
   googleSub?: string
+  appleSub?: string
+  outlookId?: string
+  githubId?: string
 }): Promise<User> {
   try {
     // Note: Sequence should be properly set up during migration.
     // PostgreSQL's SERIAL type with nextval() handles concurrent inserts atomically.
     // We don't fix the sequence here to avoid race conditions where concurrent
     // requests read the same MAX(id) and set the sequence to the same value.
+
+    // OAuth providers have pre-verified emails
+    const emailVerified = ['google', 'apple', 'outlook', 'github'].includes(data.authProvider)
+
     const result = await query<User>(
-      `INSERT INTO users (email, name, picture, password_hash, auth_provider, google_sub, email_verified)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, mfa_enabled, email_verified, created_at, last_login_at`,
+      `INSERT INTO users (email, name, picture, password_hash, auth_provider, google_sub, apple_sub, outlook_id, github_id, email_verified)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at`,
       [
         data.email.toLowerCase(),
         data.name || null,
@@ -354,7 +397,10 @@ export async function createUser(data: {
         data.passwordHash || null,
         data.authProvider,
         data.googleSub || null,
-        data.authProvider === 'google' ? true : false, // Google emails are pre-verified
+        data.appleSub || null,
+        data.outlookId || null,
+        data.githubId || null,
+        emailVerified,
       ],
     )
 

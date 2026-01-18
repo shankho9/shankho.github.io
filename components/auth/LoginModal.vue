@@ -57,11 +57,16 @@
                 </div>
 
                 <div class="space-y-3">
-                  <!-- Google Sign-In Button Container -->
-                  <div id="google-signin-button-fallback"></div>
+                  <!-- OAuth Buttons -->
+                  <OAuthButtons
+                    size="large"
+                    theme="outline"
+                    @success="handleOAuthSuccess"
+                    @error="handleOAuthError"
+                  />
 
-                  <!-- Divider -->
-                  <div class="relative">
+                  <!-- Divider (only show if OAuth providers are configured) -->
+                  <div v-if="hasOAuthProviders" class="relative">
                     <div class="absolute inset-0 flex items-center">
                       <div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
                     </div>
@@ -115,9 +120,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted, nextTick } from 'vue'
+import { ref, watch, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuth } from '~/composables/useAuth'
+import OAuthButtons from '~/components/auth/OAuthButtons.vue'
+import { getEnabledProviders } from '~/utils/oauth/providers'
 
 interface Props {
   isOpen: boolean
@@ -128,162 +134,38 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const { initializeGoogleSignIn, handleGoogleCredential } = useAuth()
 const isLoading = ref(false)
 const errorMessage = ref('')
 const router = useRouter()
+
+// Check if any OAuth providers are configured
+const hasOAuthProviders = computed(() => getEnabledProviders().length > 0)
 
 const close = () => {
   errorMessage.value = ''
   emit('close')
 }
 
-// Initialize Google Sign-In when modal opens
-const initializeGoogleSignInButton = async () => {
-  if (typeof window === 'undefined') return
+const handleOAuthSuccess = async (_user: unknown) => {
+  errorMessage.value = ''
+  isLoading.value = false
+  close()
 
-  try {
-    // Initialize Google Sign-In script
-    initializeGoogleSignIn()
+  // Redirect to intended page or home
+  const redirect = router.currentRoute.value.query.redirect as string
+  const redirectPath = redirect || '/'
 
-    // Wait for Google to load
-    await new Promise<void>((resolve) => {
-      const checkGoogle = setInterval(() => {
-        if (window.google && window.google.accounts) {
-          clearInterval(checkGoogle)
-          resolve()
-        }
-      }, 100)
-      setTimeout(() => {
-        clearInterval(checkGoogle)
-        resolve()
-      }, 5000)
-    })
-
-    if (!window.google || !window.google.accounts) {
-      throw new Error('Google Identity Services failed to load')
-    }
-
-    const clientId = useRuntimeConfig().public.googleClientId
-    if (!clientId) {
-      throw new Error('Google Client ID not configured')
-    }
-
-    // Initialize Google Sign-In with comprehensive error handling
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: async (response: { credential: string }) => {
-        errorMessage.value = ''
-        isLoading.value = true
-        try {
-          console.log('[LoginModal] Google credential received, processing...')
-          const result = await handleGoogleCredential(response)
-          if (result.success) {
-            console.log('[LoginModal] Google login successful')
-            close()
-            // Redirect to intended page or home
-            // Prevent redirecting to login/auth pages after successful login
-            const redirect = router.currentRoute.value.query.redirect as string
-            const redirectPath = redirect || '/'
-
-            // Don't redirect to login/auth pages after successful login
-            if (redirectPath.startsWith('/auth/')) {
-              // If redirect was to an auth page, go to home instead
-              await router.push('/')
-            } else {
-              await router.push(redirectPath)
-            }
-          } else {
-            errorMessage.value =
-              result.error || 'Google login failed. Please try again or use email login.'
-            console.error('[LoginModal] Google login failed:', result.error)
-          }
-        } catch (error: unknown) {
-          console.error('[LoginModal] Google login error:', error)
-
-          // Extract error message with better type handling
-          let errorMsg = 'An unexpected error occurred. Please try again.'
-
-          if (error && typeof error === 'object' && 'data' in error) {
-            const errorData = error.data as { error?: string | boolean; message?: string }
-            // Handle both string and boolean error values
-            if (typeof errorData?.error === 'string') {
-              errorMsg = errorData.error
-            } else if (errorData?.message) {
-              errorMsg = errorData.message
-            } else if (errorData?.error === true) {
-              // If error is boolean true, use a generic message
-              errorMsg =
-                'Google authentication failed. Please check your configuration or try again.'
-            }
-          } else if (error instanceof Error) {
-            errorMsg = error.message
-          }
-
-          // Ensure we always set a string, never a boolean
-          errorMessage.value =
-            typeof errorMsg === 'string'
-              ? errorMsg
-              : 'An unexpected error occurred. Please try again.'
-        } finally {
-          isLoading.value = false
-        }
-      },
-      error_callback: (error: { type: string; message?: string }) => {
-        console.error('[LoginModal] Google Identity Services error:', error)
-        let userMessage = 'Google sign-in encountered an error.'
-
-        // Provide more specific error messages based on error type
-        if (error.type === 'popup_closed_by_user') {
-          userMessage = 'Sign-in popup was closed. Please try again.'
-        } else if (error.type === 'popup_blocked') {
-          userMessage = 'Popup was blocked by your browser. Please allow popups and try again.'
-        } else if (error.type === 'access_denied') {
-          userMessage = 'Access was denied. Please try again or use email login.'
-        } else if (error.message) {
-          userMessage = error.message
-        } else {
-          userMessage =
-            'Google sign-in encountered an error. Please check your browser settings or try email login.'
-        }
-
-        errorMessage.value = userMessage
-        isLoading.value = false
-      },
-    })
-
-    // Disable One Tap prompt aggressively to avoid showing popup in top right
-    // This must be called after initialize but before any prompts
-    try {
-      window.google.accounts.id.disableAutoSelect()
-    } catch (disableError) {
-      console.warn('[LoginModal] Error disabling One Tap:', disableError)
-    }
-
-    // Render Google Sign-In button
-    await nextTick()
-    const buttonContainer = document.getElementById('google-signin-button-fallback')
-    if (buttonContainer) {
-      try {
-        window.google.accounts.id.renderButton(buttonContainer, {
-          theme: 'outline',
-          size: 'large',
-          text: 'signin_with',
-          width: '100%',
-        })
-      } catch (renderError) {
-        console.error('[LoginModal] Error rendering Google button:', renderError)
-        errorMessage.value = 'Failed to load Google sign-in. Please try refreshing the page.'
-      }
-    }
-  } catch (error: unknown) {
-    const errorMsg =
-      error instanceof Error
-        ? error.message
-        : 'Failed to initialize Google login. Please check your configuration.'
-    errorMessage.value = errorMsg
-    console.error('[LoginModal] Failed to initialize Google login:', error)
+  // Don't redirect to login/auth pages after successful login
+  if (redirectPath.startsWith('/auth/')) {
+    await router.push('/')
+  } else {
+    await router.push(redirectPath)
   }
+}
+
+const handleOAuthError = (error: string) => {
+  errorMessage.value = error || 'OAuth login failed. Please try again or use email login.'
+  isLoading.value = false
 }
 
 // Close on escape key
@@ -291,11 +173,8 @@ let escapeHandler: ((e: KeyboardEvent) => void) | null = null
 
 watch(
   () => props.isOpen,
-  async (isOpen) => {
+  (isOpen) => {
     if (isOpen) {
-      // Initialize Google Sign-In when modal opens
-      await initializeGoogleSignInButton()
-
       escapeHandler = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
           close()

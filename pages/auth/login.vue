@@ -126,25 +126,29 @@
           </div>
         </div>
 
-        <div>
-          <div id="google-signin-button" class="flex justify-center"></div>
-        </div>
+        <OAuthButtons
+          size="large"
+          theme="outline"
+          @success="handleOAuthSuccess"
+          @error="handleOAuthError"
+        />
       </form>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { useRouter } from 'vue-router'
+import OAuthButtons from '~/components/auth/OAuthButtons.vue'
 
 definePageMeta({
   layout: 'default',
 })
 
 const router = useRouter()
-const { login, initializeGoogleSignIn, handleGoogleCredential } = useAuth()
+const { login, isAuthenticated, checkAuth, loadStoredUser } = useAuth()
 
 const route = useRoute()
 const email = ref('')
@@ -163,9 +167,16 @@ const handleLogin = async () => {
     const result = await login(email.value, password.value, mfaCode.value || undefined)
 
     if (result.success) {
-      // Redirect to home or intended page
+      // Redirect to intended page or home
       const redirect = router.currentRoute.value.query.redirect as string
-      await router.push(redirect || '/')
+      const redirectPath = redirect || '/'
+
+      // Don't redirect to auth pages after successful login
+      if (redirectPath.startsWith('/auth/')) {
+        await router.push('/')
+      } else {
+        await router.push(redirectPath)
+      }
     } else {
       errorMessage.value = result.error || 'Login failed'
       if (result.requiresMFA) {
@@ -179,64 +190,66 @@ const handleLogin = async () => {
   }
 }
 
-let checkGoogleInterval: ReturnType<typeof setInterval> | null = null
+const handleOAuthSuccess = async () => {
+  isLoading.value = false
 
-onMounted(() => {
+  // Redirect to intended page or home
+  const redirect = router.currentRoute.value.query.redirect as string
+  const redirectPath = redirect || '/'
+
+  // Don't redirect to auth pages after successful login
+  if (redirectPath.startsWith('/auth/')) {
+    await router.push('/')
+  } else {
+    await router.push(redirectPath)
+  }
+}
+
+const handleOAuthError = (error: string) => {
+  errorMessage.value = error || 'OAuth login failed'
+  isLoading.value = false
+}
+
+onMounted(async () => {
   // Check for password reset success message
   if (route.query.reset === 'success') {
     successMessage.value = 'Password reset successful! You can now login with your new password.'
   }
 
-  // Initialize Google Sign-In
-  initializeGoogleSignIn()
+  // If user is already authenticated, redirect them to the intended page or home
+  loadStoredUser()
 
-  // Wait for Google to load, then render button
-  checkGoogleInterval = setInterval(() => {
-    if (window.google && window.google.accounts) {
-      if (checkGoogleInterval) {
-        clearInterval(checkGoogleInterval)
-        checkGoogleInterval = null
-      }
-      const clientId = useRuntimeConfig().public.googleClientId
-      if (clientId) {
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: async (response: { credential: string }) => {
-            isLoading.value = true
-            errorMessage.value = ''
-            try {
-              const result = await handleGoogleCredential(response)
-              if (result.success) {
-                const redirect = router.currentRoute.value.query.redirect as string
-                await router.push(redirect || '/')
-              } else {
-                errorMessage.value = result.error || 'Google login failed'
-              }
-            } catch (error: unknown) {
-              errorMessage.value =
-                error instanceof Error ? error.message : 'An unexpected error occurred'
-            } finally {
-              isLoading.value = false
-            }
-          },
-        })
+  // Check if user exists in localStorage first (faster check)
+  if (isAuthenticated.value) {
+    // Verify with server in background, but don't wait
+    checkAuth().catch(() => {
+      // If server check fails but user is in localStorage, still redirect
+    })
 
-        window.google.accounts.id.renderButton(document.getElementById('google-signin-button'), {
-          theme: 'outline',
-          size: 'large',
-          text: 'signin_with',
-          width: '100%',
-        })
-      }
+    const redirect = route.query.redirect as string
+    const redirectPath = redirect || '/'
+
+    // Don't redirect to auth pages after successful login
+    if (redirectPath.startsWith('/auth/')) {
+      await router.push('/')
+    } else {
+      await router.push(redirectPath)
     }
-  }, 100)
-})
+    return
+  }
 
-onUnmounted(() => {
-  // Clean up the interval if the component unmounts before Google loads
-  if (checkGoogleInterval) {
-    clearInterval(checkGoogleInterval)
-    checkGoogleInterval = null
+  // If no user in localStorage, check with server
+  const isAuth = await checkAuth()
+  if (isAuth || isAuthenticated.value) {
+    const redirect = route.query.redirect as string
+    const redirectPath = redirect || '/'
+
+    // Don't redirect to auth pages after successful login
+    if (redirectPath.startsWith('/auth/')) {
+      await router.push('/')
+    } else {
+      await router.push(redirectPath)
+    }
   }
 })
 </script>

@@ -6,7 +6,7 @@ interface User {
   email: string
   name: string | null
   picture: string | null
-  auth_provider: 'email' | 'google'
+  auth_provider: 'email' | 'google' | 'apple' | 'outlook' | 'github'
   mfa_enabled: boolean
 }
 
@@ -273,6 +273,136 @@ export const useAuth = () => {
   }
 
   /**
+   * Login with Apple OAuth
+   */
+  const loginWithApple = async (token: string) => {
+    isLoading.value = true
+    try {
+      const response = await $fetch<{ success: boolean; user: User; error?: string }>(
+        '/api/auth/apple',
+        {
+          method: 'POST',
+          body: { token },
+        },
+      )
+
+      if (response.success && response.user) {
+        user.value = response.user
+        localStorage.setItem('auth_user', JSON.stringify(response.user))
+        sharedLastCheck.value = Date.now()
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:signin', { detail: response.user }))
+        }
+        return { success: true, user: response.user }
+      } else {
+        return { success: false, error: response.error || 'Apple login failed' }
+      }
+    } catch (error: unknown) {
+      console.error('[Auth] Apple login error:', error)
+      const errorMessage =
+        error && typeof error === 'object' && 'data' in error
+          ? (error.data as { error?: string })?.error || 'Apple login failed'
+          : error instanceof Error
+            ? error.message
+            : 'Apple login failed'
+      return { success: false, error: errorMessage }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Login with Outlook/Microsoft OAuth
+   */
+  const loginWithOutlook = async (code: string) => {
+    isLoading.value = true
+    try {
+      const response = await $fetch<{ success: boolean; user: User; error?: string }>(
+        '/api/auth/outlook',
+        {
+          method: 'POST',
+          body: { code },
+        },
+      )
+
+      if (response.success && response.user) {
+        user.value = response.user
+        localStorage.setItem('auth_user', JSON.stringify(response.user))
+        sharedLastCheck.value = Date.now()
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:signin', { detail: response.user }))
+        }
+        return { success: true, user: response.user }
+      } else {
+        return { success: false, error: response.error || 'Outlook login failed' }
+      }
+    } catch (error: unknown) {
+      console.error('[Auth] Outlook login error:', error)
+      const errorMessage =
+        error && typeof error === 'object' && 'data' in error
+          ? (error.data as { error?: string })?.error || 'Outlook login failed'
+          : error instanceof Error
+            ? error.message
+            : 'Outlook login failed'
+      return { success: false, error: errorMessage }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Login with GitHub OAuth
+   */
+  const loginWithGitHub = async (code: string) => {
+    isLoading.value = true
+    try {
+      const response = await $fetch<{ success: boolean; user: User; error?: string }>(
+        '/api/auth/github',
+        {
+          method: 'POST',
+          body: { code },
+        },
+      )
+
+      if (response.success && response.user) {
+        user.value = response.user
+        localStorage.setItem('auth_user', JSON.stringify(response.user))
+        sharedLastCheck.value = Date.now()
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:signin', { detail: response.user }))
+        }
+        return { success: true, user: response.user }
+      } else {
+        return { success: false, error: response.error || 'GitHub login failed' }
+      }
+    } catch (error: unknown) {
+      console.error('[Auth] GitHub login error:', error)
+      let errorMessage = 'GitHub login failed'
+
+      if (error && typeof error === 'object' && 'data' in error) {
+        const errorData = error.data as { error?: string; message?: string }
+        errorMessage = errorData?.error || errorData?.message || 'GitHub login failed'
+      } else if (error instanceof Error) {
+        errorMessage = error.message
+      }
+
+      // Ensure error message is a proper string, not a boolean
+      if (
+        errorMessage === 'true' ||
+        errorMessage === 'false' ||
+        errorMessage === true ||
+        errorMessage === false
+      ) {
+        errorMessage = 'GitHub login failed. Please try again.'
+      }
+
+      return { success: false, error: String(errorMessage) }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
    * Initialize Google Sign-In
    */
   const initializeGoogleSignIn = () => {
@@ -348,26 +478,47 @@ export const useAuth = () => {
   }
 
   /**
-   * Sign out
+   * Sign out - clears all authentication state and session
    */
   const signOut = async () => {
     isLoading.value = true
     try {
+      // Call logout API to revoke server-side session
       await $fetch('/api/auth/logout', { method: 'POST' })
     } catch (error: unknown) {
+      // Even if API call fails, clear client-side state
       console.error('[Auth] Logout error:', error)
     } finally {
+      // Clear all client-side authentication state
       user.value = null
+      sharedUser.value = null
       localStorage.removeItem('auth_user')
       sharedLastCheck.value = 0
+
       if (typeof window !== 'undefined') {
         // Clear utility passcode verification flag on logout
         sessionStorage.removeItem('utility_passcode_verified')
+
+        // Clear Google OAuth initialization flag to allow re-initialization on next login
+        sessionStorage.removeItem('google_oauth_initialized')
+
+        // Dispatch custom event for cross-tab synchronization
         window.dispatchEvent(new CustomEvent('auth:signout'))
-        if (window.google) {
-          window.google.accounts.id.disableAutoSelect()
+
+        // Clear OAuth provider states
+        // Google
+        if (window.google?.accounts?.id) {
+          try {
+            window.google.accounts.id.disableAutoSelect()
+          } catch (e) {
+            console.warn('[Auth] Failed to disable Google auto-select:', e)
+          }
         }
+
+        // Note: Apple, Outlook, and GitHub don't require explicit cleanup
+        // as they use redirect-based flows or don't maintain persistent state
       }
+
       isLoading.value = false
     }
   }
@@ -444,6 +595,9 @@ export const useAuth = () => {
     register,
     login,
     loginWithGoogle,
+    loginWithApple,
+    loginWithOutlook,
+    loginWithGitHub,
     initializeGoogleSignIn,
     handleGoogleCredential,
     signIn,

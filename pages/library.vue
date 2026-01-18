@@ -834,7 +834,6 @@ const lastLoadedUserEmail = ref<string | null>(null)
 onMounted(async () => {
   // Load stored user first to ensure authentication state is available
   loadStoredUser()
-  initializeGoogleSignIn()
 
   // Track page visit
   fetch('/api/analytics/track-visit', {

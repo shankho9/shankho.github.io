@@ -8,16 +8,32 @@ export default defineNuxtRouteMiddleware(async (_to, _from) => {
 
   const { isAuthenticated, checkAuth, loadStoredUser } = useAuth()
 
-  // Load stored user
+  // Load stored user from localStorage first
   loadStoredUser()
 
-  // Check authentication
-  const isAuth = await checkAuth()
+  // Always verify with server to ensure session is still valid
+  // This prevents revoked sessions from accessing protected routes
+  try {
+    const isAuth = await checkAuth()
 
-  // Require authentication
-  if (!isAuth || !isAuthenticated.value) {
-    console.warn('[Auth Planner] Authentication required')
-    return navigateTo('/auth/login?redirect=' + encodeURIComponent(_to.fullPath))
+    // If server says user is not authenticated, clear localStorage and redirect
+    if (!isAuth || !isAuthenticated.value) {
+      // Clear potentially stale localStorage data
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_user')
+      }
+      return navigateTo('/auth/login?redirect=' + encodeURIComponent(_to.fullPath))
+    }
+  } catch (error) {
+    // If checkAuth fails (network error, etc.), but user is in localStorage,
+    // allow access as fallback but still verify when possible
+    // This handles race conditions where session cookie might not be immediately available
+    if (!isAuthenticated.value) {
+      // No user in localStorage and checkAuth failed - redirect to login
+      return navigateTo('/auth/login?redirect=' + encodeURIComponent(_to.fullPath))
+    }
+    // User is in localStorage but checkAuth failed - allow access but log the error
+    console.warn('[Auth Middleware] Server verification failed, but user in localStorage:', error)
   }
 
   // Check utility passcode status
@@ -36,10 +52,9 @@ export default defineNuxtRouteMiddleware(async (_to, _from) => {
       needsRotation: boolean
       expiresAt: string | null
     }>('/api/auth/utility-passcode/status')
-  } catch (error) {
-    // If API call fails, log but don't assume passcode is not set
+  } catch {
+    // If API call fails, don't assume passcode is not set
     // This prevents false redirects when the API is temporarily unavailable
-    console.warn('[Auth Planner] Failed to check passcode status:', error)
     apiCallFailed = true
   }
 
@@ -53,9 +68,6 @@ export default defineNuxtRouteMiddleware(async (_to, _from) => {
   //   Settings page can handle both setup and verification flows
   if (apiCallFailed) {
     if (!passcodeVerified) {
-      console.warn(
-        '[Auth Planner] API call failed and passcode not verified, redirecting to settings',
-      )
       // Redirect to settings which can handle both setup and verification
       // This prevents dead-end where user is sent to verification page without a passcode set
       return navigateTo(
@@ -63,7 +75,6 @@ export default defineNuxtRouteMiddleware(async (_to, _from) => {
       )
     }
     // If passcode was verified before, allow access even if API is down
-    console.warn('[Auth Planner] API call failed but passcode previously verified, allowing access')
     return
   }
 
