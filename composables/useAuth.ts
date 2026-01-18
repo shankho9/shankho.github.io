@@ -499,6 +499,9 @@ export const useAuth = () => {
         // Clear utility passcode verification flag on logout
         sessionStorage.removeItem('utility_passcode_verified')
 
+        // Clear Google OAuth initialization flag to allow re-initialization on next login
+        sessionStorage.removeItem('google_oauth_initialized')
+
         // Dispatch custom event for cross-tab synchronization
         window.dispatchEvent(new CustomEvent('auth:signout'))
 
