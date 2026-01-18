@@ -303,6 +303,8 @@ const { isAuthenticated, checkAuth, signOut } = useAuth()
 
 const handleLogout = async () => {
   await signOut()
+  // Small delay to ensure state is cleared before navigation
+  await new Promise((resolve) => setTimeout(resolve, 100))
   await navigateTo('/auth/login?redirect=/dev')
 }
 

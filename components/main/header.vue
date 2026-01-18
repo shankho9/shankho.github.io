@@ -24,9 +24,15 @@ const toggleUserDropdown = () => {
   showUserDropdown.value = !showUserDropdown.value
 }
 
-const handleSignOut = () => {
-  signOut()
+const handleSignOut = async () => {
+  await signOut()
   showUserDropdown.value = false
+  // If on a protected page, redirect to home or login
+  const protectedPaths = ['/gallery', '/library', '/dev', '/auth/settings']
+  const currentPath = route.path
+  if (protectedPaths.some((path) => currentPath.startsWith(path))) {
+    await navigateTo('/')
+  }
 }
 
 const openLoginModal = () => {

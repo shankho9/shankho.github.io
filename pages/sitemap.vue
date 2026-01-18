@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { extractBlogPostFromMeta } from '~/utils/blog/blogMeta'
 import { useAuth } from '~/composables/useAuth'
-import { onMounted, nextTick, computed, watch } from 'vue'
+import { onMounted, nextTick, computed } from 'vue'
+import OAuthButtons from '~/components/auth/OAuthButtons.vue'
 
 // Authentication
-const { user, isAuthenticated, loadStoredUser, initializeGoogleSignIn } = useAuth()
+const { isAuthenticated, loadStoredUser } = useAuth()
 
 // Load all blog posts
 const { data: allBlogs } = await useAsyncData('sitemap-blogs', () =>
@@ -117,85 +118,26 @@ const handleBlogClick = (blog: (typeof formattedBlogs.value)[0], event: Event) =
   }
 }
 
-// Initialize auth on mount
-onMounted(() => {
-  initializeGoogleSignIn()
-  loadStoredUser()
-})
-
-// Render Google Sign-In button
-const renderGoogleSignInButton = () => {
-  nextTick(() => {
-    const buttonElement = document.getElementById('sitemap-google-signin-button')
-    if (!buttonElement || !window.google) return
-
-    const clientId = useRuntimeConfig().public.googleClientId
-    if (!clientId) {
-      console.error('[Sitemap] Google Client ID not configured')
-      return
+// Handle OAuth success
+const handleOAuthSuccess = async (authUser: unknown) => {
+  if (typeof window !== 'undefined' && authUser && typeof authUser === 'object') {
+    const userData = authUser as { email?: string; name?: string }
+    if (userData.email && userData.name) {
+      const { trackLogin } = await import('~/utils/analytics/trackLogin')
+      await trackLogin(userData.email, userData.name, window.location.pathname)
     }
-
-    buttonElement.innerHTML = ''
-
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: async (response: { credential: string }) => {
-        try {
-          const result = await $fetch<{
-            success: boolean
-            user: {
-              id: number
-              email: string
-              name: string
-              picture: string
-              auth_provider: string
-              mfa_enabled: boolean
-            }
-          }>('/api/auth/google', {
-            method: 'POST',
-            body: { token: response.credential },
-          })
-          if (result.success && result.user) {
-            user.value = result.user
-            localStorage.setItem('auth_user', JSON.stringify(result.user))
-
-            if (typeof window !== 'undefined') {
-              const { trackLogin } = await import('~/utils/analytics/trackLogin')
-              await trackLogin(result.user.email, result.user.name, window.location.pathname)
-              window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
-            }
-          }
-        } catch (error) {
-          console.error('[Sitemap] Authentication failed:', error)
-        }
-      },
-    })
-
-    window.google.accounts.id.renderButton(buttonElement, {
-      theme: 'outline',
-      size: 'large',
-      text: 'signin_with',
-      width: 250,
-    })
-  })
+  }
 }
 
-// Watch for authentication changes
-watch(isAuthenticated, (newValue) => {
-  if (!newValue) {
-    nextTick(() => {
-      renderGoogleSignInButton()
-    })
-  }
-})
+// Handle OAuth error
+const handleOAuthError = (error: string) => {
+  console.error('[Sitemap] OAuth error:', error)
+  // Error is handled by the OAuth component
+}
 
-// Render button when component mounts and user is not authenticated
+// Initialize auth on mount
 onMounted(() => {
-  if (!isAuthenticated.value) {
-    nextTick(() => {
-      renderGoogleSignInButton()
-    })
-  }
+  loadStoredUser()
 })
 
 useHead({
@@ -226,9 +168,15 @@ useHead({
         🔒 Authentication Required
       </h2>
       <p class="text-yellow-700 dark:text-yellow-300 mb-4">
-        Some blog posts with the "Lifelines" tag require Google authentication to access.
+        Some blog posts with the "Lifelines" tag require authentication to access.
       </p>
-      <div id="sitemap-google-signin-button" class="flex justify-center"></div>
+      <OAuthButtons
+        size="large"
+        theme="outline"
+        :full-width="false"
+        @success="handleOAuthSuccess"
+        @error="handleOAuthError"
+      />
     </div>
 
     <!-- Static Pages -->

@@ -46,6 +46,13 @@ const props = defineProps<{
 
 const { user, isAuthenticated, signOut, loadStoredUser } = useAuth()
 
+// Handle sign out
+const handleSignOut = async () => {
+  await signOut()
+  // Reload comments to reflect sign out state
+  await loadComments()
+}
+
 const comments = ref<Comment[]>([])
 const isLoading = ref(false)
 const isSubmitting = ref(false)
@@ -459,7 +466,7 @@ onMounted(async () => {
       </div>
       <button
         class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-        @click="signOut"
+        @click="handleSignOut"
       >
         Sign out
       </button>

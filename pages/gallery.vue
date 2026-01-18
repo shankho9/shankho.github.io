@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import Fuse from 'fuse.js'
 import { useAuth } from '~/composables/useAuth'
 import { seoData } from '~/data'
+import OAuthButtons from '~/components/auth/OAuthButtons.vue'
 
 // Authentication
-const { user, isAuthenticated, signOut, loadStoredUser, initializeGoogleSignIn } = useAuth()
+const { user, isAuthenticated, signOut, loadStoredUser } = useAuth()
 
 // Gallery state
 const viewMode = ref<'grid' | 'masonry'>('grid')
@@ -261,7 +262,6 @@ const lastLoadedUserEmail = ref<string | null>(null)
 
 // Initialize auth on mount
 onMounted(async () => {
-  initializeGoogleSignIn()
   loadStoredUser()
 
   // Track page visit
@@ -294,77 +294,29 @@ watch(isAuthenticated, (newValue) => {
   }
 })
 
-// Render Google Sign-In button
-const renderGoogleSignInButton = () => {
-  nextTick(() => {
-    const buttonElement = document.getElementById('google-signin-button')
-    if (!buttonElement || !window.google) return
-
-    const clientId = useRuntimeConfig().public.googleClientId
-    if (!clientId) {
-      console.error('[Gallery] Google Client ID not configured')
-      return
+// Handle OAuth success
+const handleOAuthSuccess = async (authUser: unknown) => {
+  if (typeof window !== 'undefined' && authUser && typeof authUser === 'object') {
+    const userData = authUser as { email?: string; name?: string }
+    if (userData.email && userData.name) {
+      const { trackLogin } = await import('~/utils/analytics/trackLogin')
+      await trackLogin(userData.email, userData.name, window.location.pathname)
     }
-
-    // Clear any existing button first
-    buttonElement.innerHTML = ''
-
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: async (response: { credential: string }) => {
-        try {
-          const result = await $fetch<{
-            success: boolean
-            user: {
-              id: number
-              email: string
-              name: string
-              picture: string
-              auth_provider: string
-              mfa_enabled: boolean
-            }
-          }>('/api/auth/google', {
-            method: 'POST',
-            body: { token: response.credential },
-          })
-          if (result.success && result.user) {
-            user.value = result.user
-            localStorage.setItem('auth_user', JSON.stringify(result.user))
-
-            // Track login event for analytics
-            if (typeof window !== 'undefined') {
-              const { trackLogin } = await import('~/utils/analytics/trackLogin')
-              await trackLogin(result.user.email, result.user.name, window.location.pathname)
-            }
-
-            // Dispatch custom event to notify all components
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('auth:signin', { detail: result.user }))
-            }
-          }
-        } catch (error) {
-          console.error('[Gallery] Authentication failed:', error)
-        }
-      },
-    })
-
-    window.google.accounts.id.renderButton(buttonElement, {
-      theme: 'outline',
-      size: 'large',
-      text: 'signin_with',
-      width: 250,
-    })
-  })
+  }
 }
 
-// Watch for authentication changes - render button when not authenticated
-watch(isAuthenticated, (newValue) => {
-  if (!newValue) {
-    nextTick(() => {
-      renderGoogleSignInButton()
-    })
-  }
-})
+// Handle OAuth error
+const handleOAuthError = (error: string) => {
+  console.error('[Gallery] OAuth error:', error)
+}
+
+// Handle sign out
+const handleSignOut = async () => {
+  await signOut()
+  // Redirect to home after sign out
+  await navigateTo('/')
+  // Error is handled by the OAuth component
+}
 
 useHead({
   title: 'Gallery',
@@ -415,10 +367,14 @@ try {
         <h2 class="text-2xl font-bold mb-4 text-zinc-800 dark:text-zinc-200">
           Authentication Required
         </h2>
-        <p class="text-zinc-600 dark:text-zinc-400 mb-6">
-          Please sign in with Google to access the gallery.
-        </p>
-        <div id="google-signin-button" class="flex justify-center"></div>
+        <p class="text-zinc-600 dark:text-zinc-400 mb-6">Please sign in to access the gallery.</p>
+        <OAuthButtons
+          size="large"
+          theme="outline"
+          :full-width="false"
+          @success="handleOAuthSuccess"
+          @error="handleOAuthError"
+        />
       </div>
     </div>
 
@@ -469,7 +425,7 @@ try {
           <!-- Sign Out Button -->
           <button
             class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors text-sm font-semibold flex items-center gap-2"
-            @click="signOut"
+            @click="handleSignOut"
           >
             <Icon name="mdi:logout" size="18" />
             Sign Out

@@ -179,6 +179,9 @@ export default defineNuxtConfig({
       },
       googleClientId: process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID,
       googleMapsApiKey: process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+      appleClientId: process.env.NUXT_PUBLIC_APPLE_CLIENT_ID,
+      outlookClientId: process.env.NUXT_PUBLIC_OUTLOOK_CLIENT_ID,
+      githubClientId: process.env.NUXT_PUBLIC_GITHUB_CLIENT_ID,
       apiBase: '/api',
       // ImageKit public configuration (client-side accessible)
       imageKitUrlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/u6cq4dqll',
@@ -206,6 +209,10 @@ export default defineNuxtConfig({
     // Notion configuration (server-side only)
     notionApiKey: process.env.NOTION_API_KEY,
     notionDatabaseId: process.env.NOTION_DATABASE_ID,
+    // OAuth provider secrets (server-side only)
+    outlookClientSecret: process.env.OUTLOOK_CLIENT_SECRET,
+    githubClientSecret: process.env.GITHUB_CLIENT_SECRET,
+    appleClientSecret: process.env.APPLE_CLIENT_SECRET,
   },
 
   typescript: {
