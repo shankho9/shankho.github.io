@@ -1,5 +1,5 @@
 // OAuth Provider Types
-export type OAuthProvider = 'google' | 'apple' | 'outlook' | 'github'
+export type OAuthProvider = 'google' | 'github'
 
 export interface OAuthProviderConfig {
   name: string

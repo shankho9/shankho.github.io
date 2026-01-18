@@ -60,13 +60,15 @@ const emit = defineEmits<{
   error: [error: string]
 }>()
 
-const { initializeProvider, handleAppleSignIn, handleOutlookSignIn, handleGitHubSignIn } =
-  useOAuth()
+const { initializeProvider, handleGitHubSignIn } = useOAuth()
 const { handleGoogleCredential } = useAuth()
 
 // Track temporary containers for cleanup (one per provider)
 const tempContainerRefs = ref<Map<OAuthProvider, HTMLElement>>(new Map())
 const cleanupTimeoutRefs = ref<Map<OAuthProvider, ReturnType<typeof setTimeout>>>(new Map())
+
+// Track whether Google has been initialized (initialize() should only be called once per page)
+const googleInitialized = ref(false)
 
 // Cleanup function to remove temporary container for a specific provider
 const cleanupTempContainer = (provider: OAuthProvider) => {
@@ -140,6 +142,25 @@ const handleProviderClick = async (provider: OAuthProvider) => {
             throw new Error('Google Client ID not configured')
           }
 
+          // Initialize Google Sign-In only once per page load
+          // Google's documentation states initialize() should only be called once
+          if (!googleInitialized.value) {
+            window.google.accounts.id.initialize({
+              client_id: clientId,
+              callback: async (response: { credential: string }) => {
+                // Clean up any temporary containers
+                cleanupTempContainer('google')
+                const loginResult = await handleGoogleCredential(response)
+                if (loginResult.success) {
+                  emit('success', loginResult.user)
+                } else {
+                  emit('error', loginResult.error || 'Google login failed')
+                }
+              },
+            })
+            googleInitialized.value = true
+          }
+
           // Clean up any existing container first
           cleanupTempContainer('google')
 
@@ -163,20 +184,6 @@ const handleProviderClick = async (provider: OAuthProvider) => {
             ),
           )
 
-          // Initialize Google Sign-In
-          window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: async (response: { credential: string }) => {
-              cleanupTempContainer('google')
-              const loginResult = await handleGoogleCredential(response)
-              if (loginResult.success) {
-                emit('success', loginResult.user)
-              } else {
-                emit('error', loginResult.error || 'Google login failed')
-              }
-            },
-          })
-
           // Render Google's button in the hidden container
           window.google.accounts.id.renderButton(tempContainer, {
             theme: 'outline',
@@ -198,15 +205,6 @@ const handleProviderClick = async (provider: OAuthProvider) => {
         } else {
           throw new Error('Google Identity Services not loaded. Please refresh the page.')
         }
-        return
-
-      case 'apple':
-        result = await handleAppleSignIn()
-        break
-
-      case 'outlook':
-        result = await handleOutlookSignIn()
-        // Outlook uses redirect, so this won't return
         return
 
       case 'github':

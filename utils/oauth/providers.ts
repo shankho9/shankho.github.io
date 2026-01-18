@@ -13,22 +13,6 @@ export const oauthProviders: Record<OAuthProvider, OAuthProviderConfig> = {
     hoverColor: 'hover:bg-gray-50 dark:hover:bg-gray-700',
     enabled: true,
   },
-  apple: {
-    name: 'Apple',
-    icon: 'mdi:apple',
-    color: 'text-white',
-    bgColor: 'bg-black hover:bg-gray-900',
-    hoverColor: 'hover:bg-gray-900',
-    enabled: true,
-  },
-  outlook: {
-    name: 'Microsoft',
-    icon: 'mdi:microsoft',
-    color: 'text-white',
-    bgColor: 'bg-[#0078d4] hover:bg-[#006cbe]',
-    hoverColor: 'hover:bg-[#006cbe]',
-    enabled: true,
-  },
   github: {
     name: 'GitHub',
     icon: 'mdi:github',
@@ -49,8 +33,6 @@ export function getEnabledProviders(): OAuthProvider[] {
   // Check each provider's configuration
   // Trim values to handle any accidental whitespace
   const googleId = config.public.googleClientId?.trim()
-  const appleId = config.public.appleClientId?.trim()
-  const outlookId = config.public.outlookClientId?.trim()
   let githubId = config.public.githubClientId?.trim()
 
   // Fallback: If runtime config doesn't have it but process.env does, use process.env
@@ -62,12 +44,6 @@ export function getEnabledProviders(): OAuthProvider[] {
 
   if (googleId) {
     enabled.push('google')
-  }
-  if (appleId) {
-    enabled.push('apple')
-  }
-  if (outlookId) {
-    enabled.push('outlook')
   }
   if (githubId) {
     enabled.push('github')
