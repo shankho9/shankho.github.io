@@ -234,6 +234,13 @@ const hasDependents = (taskId: number): boolean => {
   return tasks.value.some((task) => task.depends_on_task_id === taskId)
 }
 
+// Dependents that pass the active filters (date, done/1-day). Used for display and hidden count
+// so "(X dependent tasks hidden)" and the expanded list match: only filtered dependents are counted/shown.
+const getFilteredDependentTasks = computed(() => {
+  const ids = new Set(filteredAndSortedTasks.value.map((t) => t.id))
+  return (parentId: number) => getDependentTasks(parentId).filter((d) => ids.has(d.id))
+})
+
 const tasksGroupedByTheme = computed(() => {
   const grouped = new Map<string, Task[]>()
 
@@ -274,12 +281,15 @@ const tasksGroupedByTheme = computed(() => {
     })
 })
 
-// Count dependent tasks hidden because their parent is collapsed
+// Count dependent tasks hidden because their parent is collapsed.
+// Only counts dependents that pass the active filters so the "(X hidden)" text matches what
+// will appear when the user expands.
 const hiddenDependentCount = computed(() => {
+  const getFiltered = getFilteredDependentTasks.value
   const parents = filteredAndSortedTasks.value.filter((t) => !t.depends_on_task_id)
   return parents
-    .filter((p) => hasDependents(p.id) && !expandedParentTasks.value.has(p.id))
-    .reduce((sum, p) => sum + getDependentTasks(p.id).length, 0)
+    .filter((p) => !expandedParentTasks.value.has(p.id))
+    .reduce((sum, p) => sum + getFiltered(p.id).length, 0)
 })
 
 const rollOverPastDates = async (tasksList: Task[]) => {
@@ -2401,7 +2411,7 @@ onUnmounted(() => {
                         <div class="flex items-center gap-2">
                           <!-- Expand/Collapse Button for Parent Tasks -->
                           <button
-                            v-if="hasDependents(task.id)"
+                            v-if="getFilteredDependentTasks(task.id).length > 0"
                             type="button"
                             class="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                             @click.stop="toggleDependents(task.id)"
@@ -2437,10 +2447,10 @@ onUnmounted(() => {
                           </span>
                           <!-- Dependent Count Badge -->
                           <span
-                            v-if="hasDependents(task.id)"
+                            v-if="getFilteredDependentTasks(task.id).length > 0"
                             class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
                           >
-                            {{ getDependentTasks(task.id).length }}
+                            {{ getFilteredDependentTasks(task.id).length }}
                           </span>
                         </div>
                         <span v-if="task.notes" class="text-gray-600 dark:text-gray-400 ml-2">
@@ -3058,11 +3068,14 @@ onUnmounted(() => {
 
                 <!-- Collapsible Dependent Tasks (Level 1) -->
                 <div
-                  v-if="hasDependents(task.id) && expandedParentTasks.has(task.id)"
+                  v-if="
+                    getFilteredDependentTasks(task.id).length > 0 &&
+                    expandedParentTasks.has(task.id)
+                  "
                   class="ml-8 mt-2 space-y-1 border-l-2 border-gray-300 dark:border-gray-600 pl-3"
                 >
                   <div
-                    v-for="dependentTask in getDependentTasks(task.id)"
+                    v-for="dependentTask in getFilteredDependentTasks(task.id)"
                     :key="dependentTask.id"
                     :data-task-id="dependentTask.id"
                     :class="[
@@ -3104,7 +3117,7 @@ onUnmounted(() => {
                         <div class="flex items-center gap-1.5">
                           <!-- Expand/Collapse Button for Level 2 Dependents -->
                           <button
-                            v-if="hasDependents(dependentTask.id)"
+                            v-if="getFilteredDependentTasks(dependentTask.id).length > 0"
                             type="button"
                             class="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                             @click.stop="toggleDependents(dependentTask.id)"
@@ -3141,10 +3154,10 @@ onUnmounted(() => {
                           </span>
                           <!-- Dependent Count Badge for Level 2 -->
                           <span
-                            v-if="hasDependents(dependentTask.id)"
+                            v-if="getFilteredDependentTasks(dependentTask.id).length > 0"
                             class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
                           >
-                            {{ getDependentTasks(dependentTask.id).length }}
+                            {{ getFilteredDependentTasks(dependentTask.id).length }}
                           </span>
                         </div>
                         <span
@@ -3611,12 +3624,13 @@ onUnmounted(() => {
                     <!-- Collapsible Level 2 Dependent Tasks (Grandchildren) -->
                     <div
                       v-if="
-                        hasDependents(dependentTask.id) && expandedParentTasks.has(dependentTask.id)
+                        getFilteredDependentTasks(dependentTask.id).length > 0 &&
+                        expandedParentTasks.has(dependentTask.id)
                       "
                       class="ml-6 mt-1.5 space-y-1 border-l-2 border-green-300 dark:border-green-600 pl-2"
                     >
                       <div
-                        v-for="grandchildTask in getDependentTasks(dependentTask.id)"
+                        v-for="grandchildTask in getFilteredDependentTasks(dependentTask.id)"
                         :key="grandchildTask.id"
                         :data-task-id="grandchildTask.id"
                         :class="[
@@ -3685,10 +3699,10 @@ onUnmounted(() => {
                               </span>
                               <!-- Dependent Count Badge for Level 2 (if it had dependents, but max depth is 2, so this won't show) -->
                               <span
-                                v-if="hasDependents(grandchildTask.id)"
+                                v-if="getFilteredDependentTasks(grandchildTask.id).length > 0"
                                 class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
                               >
-                                {{ getDependentTasks(grandchildTask.id).length }}
+                                {{ getFilteredDependentTasks(grandchildTask.id).length }}
                               </span>
                             </div>
                             <span
