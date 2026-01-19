@@ -21,7 +21,6 @@ export default defineEventHandler(async (event) => {
 
   try {
     // Get the task's parent (grandfather) if it exists
-    // Note: We query without deleted_at filter first to get the parent ID even if task is about to be deleted
     const taskInfo = await query<{ depends_on_task_id: number | null }>(
       `SELECT depends_on_task_id FROM tasks WHERE id = $1`,
       [taskId],
@@ -39,8 +38,7 @@ export default defineEventHandler(async (event) => {
     // Check if task has dependent tasks (children) - if so, reassign them
     const dependentTasks = await query<{ id: number; title: string }>(
       `SELECT id, title FROM tasks 
-       WHERE depends_on_task_id = $1 
-       AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')`,
+       WHERE depends_on_task_id = $1 AND deleted_at IS NULL`,
       [taskId],
     )
 
@@ -50,9 +48,7 @@ export default defineEventHandler(async (event) => {
       if (grandfatherId !== null) {
         // Verify that the grandfather task still exists and is valid
         const grandfatherCheck = await query<{ id: number }>(
-          `SELECT id FROM tasks 
-           WHERE id = $1 
-           AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')`,
+          `SELECT id FROM tasks WHERE id = $1 AND deleted_at IS NULL`,
           [grandfatherId],
         )
 
@@ -61,8 +57,7 @@ export default defineEventHandler(async (event) => {
           await query(
             `UPDATE tasks 
              SET depends_on_task_id = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE depends_on_task_id = $2 
-             AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')`,
+             WHERE depends_on_task_id = $2 AND deleted_at IS NULL`,
             [grandfatherId, taskId],
           )
         } else {
@@ -70,8 +65,7 @@ export default defineEventHandler(async (event) => {
           await query(
             `UPDATE tasks 
              SET depends_on_task_id = NULL, updated_at = CURRENT_TIMESTAMP
-             WHERE depends_on_task_id = $1 
-             AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')`,
+             WHERE depends_on_task_id = $1 AND deleted_at IS NULL`,
             [taskId],
           )
         }
@@ -80,8 +74,7 @@ export default defineEventHandler(async (event) => {
         await query(
           `UPDATE tasks 
            SET depends_on_task_id = NULL, updated_at = CURRENT_TIMESTAMP
-           WHERE depends_on_task_id = $1 
-           AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')`,
+           WHERE depends_on_task_id = $1 AND deleted_at IS NULL`,
           [taskId],
         )
       }
@@ -136,16 +129,10 @@ export default defineEventHandler(async (event) => {
         ],
       )
 
-      // Mark task as archived and set deleted_at
-      await query(
-        `UPDATE tasks 
-         SET status = 'done', is_archived = true, deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1`,
-        [taskId],
-      )
+      // Hard delete the task
+      await query(`DELETE FROM tasks WHERE id = $1`, [taskId])
 
       // Invalidate cache when task is deleted/archived
-      // Only clear task-related cache, preserve themes cache
       cache.clearByPrefix('tasks:')
 
       return {
@@ -154,44 +141,25 @@ export default defineEventHandler(async (event) => {
         archived: true,
       }
     } else {
-      // Direct delete: Just mark for deletion (will be purged after 1 day)
-      const result = await query<{ id: number }>(
-        `UPDATE tasks 
-         SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1 AND deleted_at IS NULL
-         RETURNING id`,
-        [taskId],
-      )
+      // Delete only: hard delete without archiving
+      const result = await query<{ id: number }>(`DELETE FROM tasks WHERE id = $1 RETURNING id`, [
+        taskId,
+      ])
 
       if (result.length === 0) {
-        // Check if task exists but is already deleted
-        const checkResult = await query<{ id: number }>('SELECT id FROM tasks WHERE id = $1', [
-          taskId,
-        ])
-
-        if (checkResult.length === 0) {
-          throw createError({
-            statusCode: 404,
-            message: 'Task not found',
-          })
-        }
-
-        // Task exists but already marked for deletion
-        return {
-          success: true,
-          message: 'Task already marked for deletion',
-          archived: false,
-        }
+        throw createError({
+          statusCode: 404,
+          message: 'Task not found',
+        })
       }
 
       // Invalidate cache when task is deleted
-      // Clear both task cache and themes cache (theme list may change)
       cache.clearByPrefix('tasks:')
       cache.clearByPrefix('themes:')
 
       return {
         success: true,
-        message: 'Task marked for deletion (will be removed after 1 day)',
+        message: 'Task deleted successfully',
         archived: false,
       }
     }

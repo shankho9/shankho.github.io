@@ -149,8 +149,8 @@ Comprehensive task management interface:
 - **Tag Legend**: Reference guide for available tags
 - **Quick Add**: Fast task creation with auto-complete
 - **Edit Tasks**: Update title, status, MIT flag, priority, theme, date, notes
-- **Delete Tasks**: Remove tasks (with confirmation)
-- **Auto-Cleanup**: Done tasks older than 1 day are automatically hidden
+- **Delete Tasks**: Remove tasks via the delete button (Delete Only or Close and Delete) or purge all
+  completed tasks via the purge icon. Archived tasks are preserved for the Review page.
 
 ### Backlog (`/dev/planner/backlog`)
 
