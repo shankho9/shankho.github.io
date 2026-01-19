@@ -50,16 +50,14 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Filter out tasks that are deleted and older than 1 day
-    // Tasks with deleted_at set but less than 1 day ago are still shown (pending purge)
-    // Use efficient WHERE clause with index-friendly conditions
+    // Exclude archived tasks. Legacy rows with deleted_at set are also excluded.
     let sql = `SELECT id, title, status, is_mit, priority, 
                TO_CHAR(planned_date, 'YYYY-MM-DD') as planned_date,
                notes, theme, depends_on_task_id, 
                COALESCE(rollover_count, 0) as rollover_count,
                created_at, updated_at 
                FROM tasks 
-               WHERE (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')
+               WHERE deleted_at IS NULL
                AND (is_archived IS NULL OR is_archived = false)`
     const params: unknown[] = []
     let paramIndex = 1

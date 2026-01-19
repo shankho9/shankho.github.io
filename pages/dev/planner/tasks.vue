@@ -25,6 +25,9 @@ const sortBy = ref<'title' | 'status' | 'planned_date' | 'theme'>('planned_date'
 const sortOrder = ref<'asc' | 'desc'>('desc')
 const dbConnectionStatus = ref<'connected' | 'disconnected' | 'checking'>('checking')
 
+// Date filter: All | Today | Tomorrow | Later
+const dateFilter = ref<'all' | 'today' | 'tomorrow' | 'later'>('all')
+
 // Quick Add Task
 const quickTaskTitle = ref('')
 const quickTaskTheme = ref<string | null>(null)
@@ -106,6 +109,21 @@ const toggleDependents = (taskId: number) => {
 
 const filteredAndSortedTasks = computed(() => {
   let filtered = tasks.value
+
+  // Date filter: Today, Tomorrow, or Later (tasks with no date or after tomorrow)
+  if (dateFilter.value !== 'all') {
+    const todayStr = getLocalDateString()
+    const tomorrowDate = new Date()
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+    const tomorrowStr = getLocalDateString(tomorrowDate)
+    filtered = filtered.filter((task) => {
+      const pd = task.planned_date
+      if (dateFilter.value === 'today') return pd === todayStr
+      if (dateFilter.value === 'tomorrow') return pd === tomorrowStr
+      if (dateFilter.value === 'later') return !pd || pd > tomorrowStr
+      return true
+    })
+  }
 
   // Filter out done tasks older than 1 day (based on today's date - if planned_date is more than 1 day in the past)
   const today = new Date()
@@ -254,6 +272,14 @@ const tasksGroupedByTheme = computed(() => {
       if (b.theme === 'No Bucket') return -1
       return a.theme.localeCompare(b.theme)
     })
+})
+
+// Count dependent tasks hidden because their parent is collapsed
+const hiddenDependentCount = computed(() => {
+  const parents = filteredAndSortedTasks.value.filter((t) => !t.depends_on_task_id)
+  return parents
+    .filter((p) => hasDependents(p.id) && !expandedParentTasks.value.has(p.id))
+    .reduce((sum, p) => sum + getDependentTasks(p.id).length, 0)
 })
 
 const rollOverPastDates = async (tasksList: Task[]) => {
@@ -1106,10 +1132,9 @@ const updateTaskInState = (updatedTask: Task) => {
     // Task not found - might have moved to a different bucket or been filtered
     // Add it if it matches current filters, otherwise it will appear on next full load
     const shouldShow =
-      !updatedTask.deleted_at &&
-      (updatedTask.status !== 'done' ||
-        (updatedTask.planned_date &&
-          new Date(updatedTask.planned_date + 'T00:00:00') >= new Date(Date.now() - 86400000)))
+      updatedTask.status !== 'done' ||
+      (updatedTask.planned_date &&
+        new Date(updatedTask.planned_date + 'T00:00:00') >= new Date(Date.now() - 86400000))
     if (shouldShow) {
       tasks.value.push(updatedTask)
       tasks.value.sort((a, b) => {
@@ -2226,30 +2251,79 @@ onUnmounted(() => {
 
         <!-- Tasks List -->
         <div class="relative">
-          <!-- Action Buttons - Icons overhead the tasks table -->
-          <div class="flex justify-end gap-2 mb-2">
-            <!-- Bulk Upload Button -->
-            <button
-              class="p-2 rounded-lg transition-colors touch-manipulation bg-blue-500 hover:bg-blue-600 text-white"
-              title="Bulk upload tasks"
-              @click="isBulkUploadVisible = true"
-            >
-              <Icon name="mdi:upload" size="22" />
-            </button>
-            <!-- Purge Button -->
-            <button
-              :class="[
-                'p-2 rounded-lg transition-colors touch-manipulation',
-                isPurging
-                  ? 'bg-gray-400 cursor-not-allowed text-white'
-                  : 'bg-orange-500 hover:bg-orange-600 text-white',
-              ]"
-              :disabled="isPurging"
-              :title="isPurging ? 'Purging...' : 'Purge all completed task'"
-              @click="handlePurge"
-            >
-              <Icon name="mdi:delete-sweep" size="22" />
-            </button>
+          <!-- When filter + Action Buttons (Bulk Upload, Purge) on one line -->
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <!-- When: All | Today | Tomorrow | Later -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">When:</span>
+              <button
+                :class="[
+                  'px-2.5 py-1 rounded-lg text-sm font-medium transition-colors touch-manipulation',
+                  dateFilter === 'all'
+                    ? 'bg-blue-600 text-white dark:bg-blue-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
+                ]"
+                @click="dateFilter = 'all'"
+              >
+                All
+              </button>
+              <button
+                :class="[
+                  'px-2.5 py-1 rounded-lg text-sm font-medium transition-colors touch-manipulation',
+                  dateFilter === 'today'
+                    ? 'bg-blue-600 text-white dark:bg-blue-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
+                ]"
+                @click="dateFilter = 'today'"
+              >
+                Today
+              </button>
+              <button
+                :class="[
+                  'px-2.5 py-1 rounded-lg text-sm font-medium transition-colors touch-manipulation',
+                  dateFilter === 'tomorrow'
+                    ? 'bg-blue-600 text-white dark:bg-blue-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
+                ]"
+                @click="dateFilter = 'tomorrow'"
+              >
+                Tomorrow
+              </button>
+              <button
+                :class="[
+                  'px-2.5 py-1 rounded-lg text-sm font-medium transition-colors touch-manipulation',
+                  dateFilter === 'later'
+                    ? 'bg-blue-600 text-white dark:bg-blue-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
+                ]"
+                @click="dateFilter = 'later'"
+              >
+                Later
+              </button>
+            </div>
+            <!-- Bulk Upload + Purge -->
+            <div class="flex items-center gap-2">
+              <button
+                class="p-2 rounded-lg transition-colors touch-manipulation bg-blue-500 hover:bg-blue-600 text-white"
+                title="Bulk upload tasks"
+                @click="isBulkUploadVisible = true"
+              >
+                <Icon name="mdi:upload" size="22" />
+              </button>
+              <button
+                :class="[
+                  'p-2 rounded-lg transition-colors touch-manipulation',
+                  isPurging
+                    ? 'bg-gray-400 cursor-not-allowed text-white'
+                    : 'bg-orange-500 hover:bg-orange-600 text-white',
+                ]"
+                :disabled="isPurging"
+                :title="isPurging ? 'Purging...' : 'Purge all completed tasks'"
+                @click="handlePurge"
+              >
+                <Icon name="mdi:delete-sweep" size="22" />
+              </button>
+            </div>
           </div>
           <div
             class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700"
@@ -3823,16 +3897,20 @@ onUnmounted(() => {
             <div class="text-sm text-gray-600 dark:text-gray-400">
               Showing {{ filteredAndSortedTasks.length }} task{{
                 filteredAndSortedTasks.length !== 1 ? 's' : ''
-              }}
+              }}<template v-if="hiddenDependentCount > 0">
+                ({{ hiddenDependentCount }} dependent task{{
+                  hiddenDependentCount !== 1 ? 's' : ''
+                }}
+                hidden — click ▶ next to a task to expand)
+              </template>
             </div>
             <div
               class="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2"
             >
               <Icon name="mdi:information-outline" size="16" class="inline align-middle mr-1" />
               <span>
-                Done tasks are automatically removed after 1 day. Use the purge icon above to remove
-                deleted tasks immediately. Archived tasks are preserved for statistics and can be
-                viewed in the
+                Use the purge icon above to remove completed tasks. Archived tasks are preserved for
+                statistics and can be viewed in the
                 <NuxtLink to="/dev/planner/review" class="underline font-medium"
                   >Review page</NuxtLink
                 >.

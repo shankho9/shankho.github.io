@@ -97,7 +97,7 @@ export default defineEventHandler(async (event) => {
       }
       // Check if parent task exists and is not completed
       const parentTask = await query<{ id: number; status: string; theme: string | null }>(
-        "SELECT id, status, theme FROM tasks WHERE id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+        'SELECT id, status, theme FROM tasks WHERE id = $1 AND deleted_at IS NULL',
         [body.depends_on_task_id],
       )
       if (parentTask.length === 0) {
@@ -117,7 +117,7 @@ export default defineEventHandler(async (event) => {
       // Get the current task's theme (or the new theme if it's being updated)
       const currentTaskId = parseInt(id, 10)
       const currentTask = await query<{ theme: string | null }>(
-        "SELECT theme FROM tasks WHERE id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+        'SELECT theme FROM tasks WHERE id = $1 AND deleted_at IS NULL',
         [currentTaskId],
       )
       if (currentTask.length === 0) {
@@ -162,7 +162,7 @@ export default defineEventHandler(async (event) => {
 
         // Get the task that checkTaskId depends on
         const ancestorTask = await query<{ depends_on_task_id: number | null }>(
-          "SELECT depends_on_task_id FROM tasks WHERE id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+          'SELECT depends_on_task_id FROM tasks WHERE id = $1 AND deleted_at IS NULL',
           [checkTaskId],
         )
 
@@ -205,7 +205,7 @@ export default defineEventHandler(async (event) => {
       // If current task has dependents, we need to ensure changing its dependency
       // won't break the chain for its dependents
       const currentTaskDependents = await query<{ id: number }>(
-        "SELECT id FROM tasks WHERE depends_on_task_id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+        'SELECT id FROM tasks WHERE depends_on_task_id = $1 AND deleted_at IS NULL',
         [currentTaskId],
       )
 
@@ -245,7 +245,7 @@ export default defineEventHandler(async (event) => {
     let originalStatus: string | null = null
     if (body.status === 'done') {
       const originalTask = await query<{ status: string }>(
-        "SELECT status FROM tasks WHERE id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+        'SELECT status FROM tasks WHERE id = $1 AND deleted_at IS NULL',
         [id],
       )
       if (originalTask.length === 0) {
@@ -298,7 +298,7 @@ export default defineEventHandler(async (event) => {
       // Find all tasks that depend on this task that are not already 'done'
       // These tasks should be activated now that the parent is complete
       const dependentTasks = await query<{ id: number; status: string }>(
-        "SELECT id, status FROM tasks WHERE depends_on_task_id = $1 AND status != $2 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+        'SELECT id, status FROM tasks WHERE depends_on_task_id = $1 AND status != $2 AND deleted_at IS NULL',
         [id, 'done'], // Find all dependent tasks that are not already 'done'
       )
 
@@ -306,7 +306,7 @@ export default defineEventHandler(async (event) => {
       // This makes them available for work now that the parent is complete
       if (dependentTasks.length > 0) {
         await query(
-          "UPDATE tasks SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE depends_on_task_id = $2 AND status != $3 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+          'UPDATE tasks SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE depends_on_task_id = $2 AND status != $3 AND deleted_at IS NULL',
           ['doing', id, 'done'], // Activate all non-done dependent tasks
         )
       }

@@ -3,6 +3,11 @@
   "version": "2.0.0",
   "private": true,
   "license": "MIT",
+  "imports": {
+    "#internal/nuxt/paths": "./node_modules/@nuxt/nitro-server/dist/runtime/utils/paths.js",
+    "#internal/nitro": "./node_modules/nitropack/dist/runtime/index.mjs",
+    "#internal/nitro/*": "./node_modules/nitropack/dist/runtime/internal/*.mjs"
+  },
   "scripts": {
     "build": "nuxt build",
     "deploy:prebuilt": "npm run build && npx vercel deploy --prebuilt",
