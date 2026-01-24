@@ -4,15 +4,13 @@
   "private": true,
   "license": "MIT",
   "imports": {
-    "#internal/nuxt/paths": "./node_modules/@nuxt/nitro-server/dist/runtime/utils/paths.js",
-    "#internal/nitro": "./node_modules/nitropack/dist/runtime/index.mjs",
-    "#internal/nitro/*": "./node_modules/nitropack/dist/runtime/internal/*.mjs"
+    "#internal/nuxt/paths": "./internal/nuxt/paths.mjs"
   },
   "scripts": {
     "build": "nuxt build",
     "deploy:prebuilt": "npm run build && npx vercel deploy --prebuilt",
     "deploy:prebuilt:prod": "npm run build && npx vercel deploy --prebuilt --prod",
-    "dev": "nuxt prepare && nuxt dev",
+    "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "lint": "nuxt prepare && eslint .",
@@ -30,6 +28,8 @@
     "migrate:auth:prod": "NODE_ENV=production node scripts/migrations/run-auth-migration.js",
     "migrate:oauth": "node scripts/migrations/run-oauth-providers-migration.js",
     "migrate:oauth:prod": "NODE_ENV=production node scripts/migrations/run-oauth-providers-migration.js",
+    "migrate:calculator-templates": "node scripts/migrations/run-calculator-templates-migration.js",
+    "migrate:calculator-templates:prod": "NODE_ENV=production node scripts/migrations/run-calculator-templates-migration.js",
     "check:db:structure": "node scripts/check-table-structure.js",
     "check:db:structure:prod": "NODE_ENV=production node scripts/check-table-structure.js",
     "test:tasks": "node scripts/tests/task-management.test.js",

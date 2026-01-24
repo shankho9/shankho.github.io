@@ -1,4 +1,5 @@
 // server/api/calculator/templates.get.ts
+import { getQuery } from 'h3'
 import { getCurrentUser } from '~/server/utils/auth'
 import { query } from '~/server/utils/db'
 
@@ -12,6 +13,9 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  const queryParams = getQuery(event)
+  const calculatorKey = String(queryParams.calculatorKey || 'car-lease')
+
   try {
     const templates = await query<{
       id: number
@@ -19,11 +23,12 @@ export default defineEventHandler(async (event) => {
       description: string | null
       template_data: Record<string, unknown>
       is_default: boolean
+      calculator_key: string
       created_at: Date
       updated_at: Date
     }>(
-      'SELECT id, name, description, template_data, is_default, created_at, updated_at FROM calculator_templates WHERE user_id = $1 ORDER BY is_default DESC, updated_at DESC',
-      [user.id],
+      'SELECT id, name, description, template_data, is_default, calculator_key, created_at, updated_at FROM calculator_templates WHERE user_id = $1 AND calculator_key = $2 ORDER BY is_default DESC, updated_at DESC',
+      [user.id, calculatorKey],
     )
 
     return {

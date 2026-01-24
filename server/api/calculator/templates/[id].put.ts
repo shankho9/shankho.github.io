@@ -71,13 +71,14 @@ export default defineEventHandler(async (event) => {
       description: string | null
       template_data: Record<string, unknown>
       is_default: boolean
+      calculator_key: string
       created_at: Date
       updated_at: Date
     }>(
       `UPDATE calculator_templates
        SET ${updates.join(', ')}
        WHERE id = $${paramIndex}
-       RETURNING id, name, description, template_data, is_default, created_at, updated_at`,
+       RETURNING id, calculator_key, name, description, template_data, is_default, created_at, updated_at`,
       values,
     )
 

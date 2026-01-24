@@ -46,22 +46,155 @@ async function runMigration() {
   try {
     console.log('📦 Connecting to database...')
 
-    // Read the migration file
-    const migrationPath = join(
-      process.cwd(),
-      'server/db/migrations/create_calculator_templates_table.sql',
-    )
-    const migrationSQL = readFileSync(migrationPath, 'utf-8')
-
-    console.log('🚀 Running migration...')
-    console.log('   Migration file:', migrationPath)
-
-    // Execute the migration
     const client = await pool.connect()
     try {
-      await client.query(migrationSQL)
-      console.log('✅ Migration completed successfully!')
-      console.log('✅ Calculator templates table created with indexes and triggers')
+      // Determine current state to make this script idempotent.
+      const tableExistsRes = await client.query(`
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'calculator_templates'
+        LIMIT 1
+      `)
+      const tableExists = tableExistsRes.rows.length > 0
+
+      const columnExistsRes = await client.query(`
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'calculator_templates'
+          AND column_name = 'calculator_key'
+        LIMIT 1
+      `)
+      const calculatorKeyExists = columnExistsRes.rows.length > 0
+
+      // If everything is already in place, we can exit early.
+      if (tableExists && calculatorKeyExists) {
+        console.log('✅ calculator_templates already up to date (calculator_key exists)')
+        return
+      }
+
+      // Only run the "create" migration if the table doesn't exist.
+      if (!tableExists) {
+        // Ensure user_id type matches users.id in the current database.
+        // Some environments use integer IDs, others use text/uuid.
+        const usersIdTypeRes = await client.query(`
+          SELECT data_type
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'users'
+            AND column_name = 'id'
+          LIMIT 1
+        `)
+        const usersIdType = (usersIdTypeRes.rows[0]?.data_type || '').toLowerCase()
+
+        console.log(`ℹ️  Detected users.id type: ${usersIdType || 'unknown'}`)
+
+        if (usersIdType === 'integer' || usersIdType === 'bigint' || usersIdType === 'smallint') {
+          const createPath = join(
+            process.cwd(),
+            'server/db/migrations/create_calculator_templates_table.sql',
+          )
+          const createSQL = readFileSync(createPath, 'utf-8')
+          console.log('🚀 Running migration...')
+          console.log('   Migration file:', createPath)
+          await client.query(createSQL)
+        } else if (usersIdType === 'text' || usersIdType === 'uuid' || usersIdType === 'character varying') {
+          // Create a compatible version of the table for text/uuid user IDs.
+          const createSQL = `
+            CREATE TABLE IF NOT EXISTS calculator_templates (
+              id SERIAL PRIMARY KEY,
+              user_id ${usersIdType === 'uuid' ? 'UUID' : 'TEXT'} NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              calculator_key TEXT NOT NULL DEFAULT 'car-lease',
+              name VARCHAR(255) NOT NULL,
+              description TEXT,
+              template_data JSONB NOT NULL,
+              is_default BOOLEAN DEFAULT false,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_calculator_templates_user_id ON calculator_templates(user_id);
+            CREATE INDEX IF NOT EXISTS idx_calculator_templates_user_calc_key
+              ON calculator_templates(user_id, calculator_key);
+            CREATE INDEX IF NOT EXISTS idx_calculator_templates_user_default
+              ON calculator_templates(user_id, calculator_key, is_default)
+              WHERE is_default = true;
+
+            CREATE OR REPLACE FUNCTION update_calculator_templates_updated_at()
+            RETURNS TRIGGER AS $$
+            BEGIN
+              NEW.updated_at = CURRENT_TIMESTAMP;
+              RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            DO $$
+            BEGIN
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_trigger WHERE tgname = 'update_calculator_templates_updated_at'
+              ) THEN
+                CREATE TRIGGER update_calculator_templates_updated_at
+                  BEFORE UPDATE ON calculator_templates
+                  FOR EACH ROW
+                  EXECUTE FUNCTION update_calculator_templates_updated_at();
+              END IF;
+            END;
+            $$;
+
+            CREATE OR REPLACE FUNCTION ensure_single_default_template()
+            RETURNS TRIGGER AS $$
+            BEGIN
+              IF NEW.is_default = true THEN
+                UPDATE calculator_templates
+                SET is_default = false
+                WHERE user_id = NEW.user_id
+                  AND calculator_key = NEW.calculator_key
+                  AND id != NEW.id
+                  AND is_default = true;
+              END IF;
+              RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            DO $$
+            BEGIN
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_trigger WHERE tgname = 'ensure_single_default_template_trigger'
+              ) THEN
+                CREATE TRIGGER ensure_single_default_template_trigger
+                  BEFORE INSERT OR UPDATE ON calculator_templates
+                  FOR EACH ROW
+                  EXECUTE FUNCTION ensure_single_default_template();
+              END IF;
+            END;
+            $$;
+          `
+          console.log('🚀 Running migration...')
+          console.log('   Migration: create calculator_templates (text/uuid user_id)')
+          await client.query(createSQL)
+        } else {
+          throw new Error(
+            `Unsupported users.id data_type "${usersIdType}". Please update migration script.`,
+          )
+        }
+      } else {
+        console.log('ℹ️  calculator_templates exists - skipping create migration')
+      }
+
+      // Always try to apply calculator_key migration if missing.
+      if (!calculatorKeyExists) {
+        const keyPath = join(
+          process.cwd(),
+          'server/db/migrations/add_calculator_key_to_templates.sql',
+        )
+        const keySQL = readFileSync(keyPath, 'utf-8')
+        console.log('🚀 Running migration...')
+        console.log('   Migration file:', keyPath)
+        await client.query(keySQL)
+      }
+
+      console.log('✅ Migrations completed successfully!')
+      console.log('✅ Calculator templates table is up to date (calculator_key enabled)')
     } finally {
       client.release()
     }

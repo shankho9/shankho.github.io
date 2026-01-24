@@ -289,6 +289,32 @@
               returns. Save and manage templates.
             </p>
           </NuxtLink>
+
+          <!-- Rent vs Buy (EMI) Utility -->
+          <NuxtLink
+            to="/dev/utilities/rent-vs-buy-calculator"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow active:scale-[0.98] touch-manipulation cursor-pointer block"
+          >
+            <div class="flex items-center gap-4 mb-4">
+              <div
+                class="w-12 h-12 bg-emerald-100 dark:bg-emerald-900 rounded-lg flex items-center justify-center"
+              >
+                <Icon
+                  name="mdi:home-currency-usd"
+                  size="24"
+                  class="text-emerald-600 dark:text-emerald-400"
+                />
+              </div>
+              <div>
+                <h3 class="text-xl font-semibold">Rent vs Buy (EMI)</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Housing decision analysis</p>
+              </div>
+            </div>
+            <p class="text-gray-600 dark:text-gray-400 text-sm">
+              Compare renting vs buying with EMI, taxes, maintenance, appreciation, and investment
+              opportunity cost. Includes sensitivity scenarios and PDF export.
+            </p>
+          </NuxtLink>
         </div>
       </div>
     </div>

@@ -120,6 +120,7 @@ const originalTemplateData = ref<typeof defaultAssumptions | null>(null) // Stor
 // Template comparison
 interface Template {
   id: number
+  calculator_key: string
   name: string
   description: string | null
   template_data: typeof defaultAssumptions
@@ -724,6 +725,7 @@ const saveTemplate = async () => {
         {
           method: 'POST',
           body: {
+            calculator_key: 'car-lease',
             name: templateName.value,
             description: templateDescription.value || null,
             template_data: templateData,
@@ -886,7 +888,7 @@ const importTemplateFromJSON = (event: Event) => {
 const loadTemplates = async () => {
   try {
     const response = await $fetch<{ success: boolean; templates: Template[] }>(
-      '/api/calculator/templates',
+      '/api/calculator/templates?calculatorKey=car-lease',
     )
     if (response.success) {
       savedTemplates.value = response.templates
@@ -1418,7 +1420,9 @@ const runScenario = (overrides: Partial<typeof defaultAssumptions>) => {
     }
   }
 
-  // Operating costs include depreciation (economic cost) to match existing model
+  // Ownership cost for scenarios:
+  // Use "cash operating costs + value loss (purchasePrice - resaleValue)".
+  // Do NOT add purchase price again if you already include value loss, otherwise you double-count.
   let totalRepairs = 0
   // tyre at ~80% of period, major at end
   const tyreYear = Math.floor(years * 0.8)
@@ -1426,17 +1430,18 @@ const runScenario = (overrides: Partial<typeof defaultAssumptions>) => {
     if (y === tyreYear) totalRepairs += tyres
     if (y === years) totalRepairs += majorRepairs
   }
-  // Approx depreciation total using straight-line as proxy for scenario rollups (keeps it simple)
-  const approxTotalDepreciation =
+
+  // Value loss (economic cost). If depreciation model is 'none', resale equals purchase (loss 0).
+  const valueLoss =
     a.depreciationModel === 'none' ? 0 : Math.max(0, purchasePrice - resaleValue)
 
-  const operatingCosts =
+  const operatingCashCosts =
     annualFuel * years +
     annualInsurance * years +
     annualService * years +
-    totalRepairs +
-    approxTotalDepreciation
-  const ownedNetCost = purchasePrice + operatingCosts - resaleValue
+    totalRepairs
+
+  const ownedNetCost = operatingCashCosts + valueLoss
 
   // Lease: compute each option net total cost for analysis period (matches leaseOptions logic)
   const fuelReimbursementCap = Number(a.fuelReimbursementCap) || 0
