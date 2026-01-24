@@ -1406,6 +1406,24 @@ const runScenario = (overrides: Partial<typeof defaultAssumptions>) => {
 
   const purchasePrice = Number(a.currentMarketValue) || 0
 
+  const calculateDepreciationForScenario = (year: number, totalYears: number) => {
+    const model = a.depreciationModel
+    const initialValue = purchasePrice
+    const rate = depreciationRate
+
+    if (model === 'straightLine') {
+      return (initialValue * rate) / totalYears
+    } else if (model === 'accelerated') {
+      // Double declining balance (same math as calculateDepreciation)
+      const bookValue = initialValue * Math.pow(1 - rate * 2, year - 1)
+      return bookValue * rate * 2
+    } else if (model === 'custom') {
+      // Custom: distribute major repairs over years (matches calculateDepreciation)
+      return year <= totalYears ? majorRepairs / totalYears : 0
+    }
+    return 0
+  }
+
   // Depreciation model for resale value
   let resaleValue = Number(a.expectedValueAfter5Years) || 0
   if (!resaleValue) {
@@ -1421,8 +1439,8 @@ const runScenario = (overrides: Partial<typeof defaultAssumptions>) => {
   }
 
   // Ownership cost for scenarios:
-  // Use "cash operating costs + value loss (purchasePrice - resaleValue)".
-  // Do NOT add purchase price again if you already include value loss, otherwise you double-count.
+  // Match `ownershipCosts` to keep base/scenario consistent across depreciation models.
+  // netOwnershipCost = purchasePrice + (fuel+insurance+service+repairs+depreciation) - resaleValue
   let totalRepairs = 0
   // tyre at ~80% of period, major at end
   const tyreYear = Math.floor(years * 0.8)
@@ -1431,13 +1449,17 @@ const runScenario = (overrides: Partial<typeof defaultAssumptions>) => {
     if (y === years) totalRepairs += majorRepairs
   }
 
-  // Value loss (economic cost). If depreciation model is 'none', resale equals purchase (loss 0).
-  const valueLoss = a.depreciationModel === 'none' ? 0 : Math.max(0, purchasePrice - resaleValue)
+  let totalDepreciation = 0
+  if (a.depreciationModel !== 'none') {
+    for (let y = 1; y <= years; y++) {
+      totalDepreciation += calculateDepreciationForScenario(y, years)
+    }
+  }
 
   const operatingCashCosts =
     annualFuel * years + annualInsurance * years + annualService * years + totalRepairs
 
-  const ownedNetCost = operatingCashCosts + valueLoss
+  const ownedNetCost = purchasePrice + operatingCashCosts + totalDepreciation - resaleValue
 
   // Lease: compute each option net total cost for analysis period (matches leaseOptions logic)
   const fuelReimbursementCap = Number(a.fuelReimbursementCap) || 0
