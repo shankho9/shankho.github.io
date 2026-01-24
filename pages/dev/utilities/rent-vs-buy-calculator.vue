@@ -540,7 +540,8 @@ const loadTemplate = async (id: number) => {
   assumptions.value = JSON.parse(JSON.stringify(t.template_data))
   syncMoneyInputsFromAssumptions()
   currentlyLoadedTemplateId.value = id
-  saveAsNew.value = true
+  // Default UX: when a template is loaded, "Save" should update it unless user opts to "Save as new".
+  saveAsNew.value = false
   showTemplatesModal.value = false
   showToast(`Loaded: ${t.name}`, 'success')
 }
