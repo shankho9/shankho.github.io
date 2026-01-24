@@ -120,6 +120,7 @@ const originalTemplateData = ref<typeof defaultAssumptions | null>(null) // Stor
 // Template comparison
 interface Template {
   id: number
+  calculator_key: string
   name: string
   description: string | null
   template_data: typeof defaultAssumptions
@@ -724,6 +725,7 @@ const saveTemplate = async () => {
         {
           method: 'POST',
           body: {
+            calculator_key: 'car-lease',
             name: templateName.value,
             description: templateDescription.value || null,
             template_data: templateData,
@@ -886,7 +888,7 @@ const importTemplateFromJSON = (event: Event) => {
 const loadTemplates = async () => {
   try {
     const response = await $fetch<{ success: boolean; templates: Template[] }>(
-      '/api/calculator/templates',
+      '/api/calculator/templates?calculatorKey=car-lease',
     )
     if (response.success) {
       savedTemplates.value = response.templates
@@ -1404,6 +1406,24 @@ const runScenario = (overrides: Partial<typeof defaultAssumptions>) => {
 
   const purchasePrice = Number(a.currentMarketValue) || 0
 
+  const calculateDepreciationForScenario = (year: number, totalYears: number) => {
+    const model = a.depreciationModel
+    const initialValue = purchasePrice
+    const rate = depreciationRate
+
+    if (model === 'straightLine') {
+      return (initialValue * rate) / totalYears
+    } else if (model === 'accelerated') {
+      // Double declining balance (same math as calculateDepreciation)
+      const bookValue = initialValue * Math.pow(1 - rate * 2, year - 1)
+      return bookValue * rate * 2
+    } else if (model === 'custom') {
+      // Custom: distribute major repairs over years (matches calculateDepreciation)
+      return year <= totalYears ? majorRepairs / totalYears : 0
+    }
+    return 0
+  }
+
   // Depreciation model for resale value
   let resaleValue = Number(a.expectedValueAfter5Years) || 0
   if (!resaleValue) {
@@ -1418,7 +1438,9 @@ const runScenario = (overrides: Partial<typeof defaultAssumptions>) => {
     }
   }
 
-  // Operating costs include depreciation (economic cost) to match existing model
+  // Ownership cost for scenarios:
+  // Match `ownershipCosts` to keep base/scenario consistent across depreciation models.
+  // netOwnershipCost = purchasePrice + (fuel+insurance+service+repairs+depreciation) - resaleValue
   let totalRepairs = 0
   // tyre at ~80% of period, major at end
   const tyreYear = Math.floor(years * 0.8)
@@ -1426,17 +1448,18 @@ const runScenario = (overrides: Partial<typeof defaultAssumptions>) => {
     if (y === tyreYear) totalRepairs += tyres
     if (y === years) totalRepairs += majorRepairs
   }
-  // Approx depreciation total using straight-line as proxy for scenario rollups (keeps it simple)
-  const approxTotalDepreciation =
-    a.depreciationModel === 'none' ? 0 : Math.max(0, purchasePrice - resaleValue)
 
-  const operatingCosts =
-    annualFuel * years +
-    annualInsurance * years +
-    annualService * years +
-    totalRepairs +
-    approxTotalDepreciation
-  const ownedNetCost = purchasePrice + operatingCosts - resaleValue
+  let totalDepreciation = 0
+  if (a.depreciationModel !== 'none') {
+    for (let y = 1; y <= years; y++) {
+      totalDepreciation += calculateDepreciationForScenario(y, years)
+    }
+  }
+
+  const operatingCashCosts =
+    annualFuel * years + annualInsurance * years + annualService * years + totalRepairs
+
+  const ownedNetCost = purchasePrice + operatingCashCosts + totalDepreciation - resaleValue
 
   // Lease: compute each option net total cost for analysis period (matches leaseOptions logic)
   const fuelReimbursementCap = Number(a.fuelReimbursementCap) || 0

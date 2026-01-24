@@ -1,5 +1,5 @@
 // server/api/calculator/templates.post.ts
-import { readBody, setResponseStatus } from 'h3'
+import { readBody, setResponseStatus, getQuery } from 'h3'
 import { getCurrentUser } from '~/server/utils/auth'
 import { query } from '~/server/utils/db'
 
@@ -13,6 +13,8 @@ export default defineEventHandler(async (event) => {
 
   const body = await readBody(event)
   const { name, description, template_data, is_default } = body
+  const queryParams = getQuery(event)
+  const calculatorKey = String(body?.calculator_key || queryParams.calculatorKey || 'car-lease')
 
   if (!name || !template_data) {
     setResponseStatus(event, 400)
@@ -26,13 +28,21 @@ export default defineEventHandler(async (event) => {
       description: string | null
       template_data: Record<string, unknown>
       is_default: boolean
+      calculator_key: string
       created_at: Date
       updated_at: Date
     }>(
-      `INSERT INTO calculator_templates (user_id, name, description, template_data, is_default)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, name, description, template_data, is_default, created_at, updated_at`,
-      [user.id, name, description || null, JSON.stringify(template_data), is_default || false],
+      `INSERT INTO calculator_templates (user_id, calculator_key, name, description, template_data, is_default)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, calculator_key, name, description, template_data, is_default, created_at, updated_at`,
+      [
+        user.id,
+        calculatorKey,
+        name,
+        description || null,
+        JSON.stringify(template_data),
+        is_default || false,
+      ],
     )
 
     return {
