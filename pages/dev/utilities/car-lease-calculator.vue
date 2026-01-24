@@ -1432,14 +1432,10 @@ const runScenario = (overrides: Partial<typeof defaultAssumptions>) => {
   }
 
   // Value loss (economic cost). If depreciation model is 'none', resale equals purchase (loss 0).
-  const valueLoss =
-    a.depreciationModel === 'none' ? 0 : Math.max(0, purchasePrice - resaleValue)
+  const valueLoss = a.depreciationModel === 'none' ? 0 : Math.max(0, purchasePrice - resaleValue)
 
   const operatingCashCosts =
-    annualFuel * years +
-    annualInsurance * years +
-    annualService * years +
-    totalRepairs
+    annualFuel * years + annualInsurance * years + annualService * years + totalRepairs
 
   const ownedNetCost = operatingCashCosts + valueLoss
 

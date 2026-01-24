@@ -125,7 +125,8 @@ const applyIndiaTierPreset = () => {
 
   keys.forEach((k) => {
     const current = assumptions.value[k]
-    const shouldApply = applyPresetOverwrite.value || current === 0 || current === '' || current === null
+    const shouldApply =
+      applyPresetOverwrite.value || current === 0 || current === '' || current === null
     if (shouldApply) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(assumptions.value as any)[k] = preset[k] as any
@@ -174,12 +175,12 @@ const parseMoneyInput = (raw: string) => {
 }
 
 const syncMoneyInputsFromAssumptions = () => {
-  ;(['homePrice', 'homeInsuranceAnnual', 'rentMonthly', 'renterInsuranceAnnual'] as MoneyField[]).forEach(
-    (k) => {
-      const n = Number((assumptions.value as unknown as Record<string, unknown>)[k] || 0)
-      moneyInputs.value[k] = n > 0 ? formatNumberWithCommas(n) : ''
-    },
-  )
+  ;(
+    ['homePrice', 'homeInsuranceAnnual', 'rentMonthly', 'renterInsuranceAnnual'] as MoneyField[]
+  ).forEach((k) => {
+    const n = Number((assumptions.value as unknown as Record<string, unknown>)[k] || 0)
+    moneyInputs.value[k] = n > 0 ? formatNumberWithCommas(n) : ''
+  })
 }
 
 const updateMoneyField = (field: MoneyField, raw: string) => {
@@ -189,7 +190,7 @@ const updateMoneyField = (field: MoneyField, raw: string) => {
 }
 
 // ===== Core finance helpers =====
-const monthlyRate = (annualPct: number) => (annualPct / 100) / 12
+const monthlyRate = (annualPct: number) => annualPct / 100 / 12
 
 const pmt = (principal: number, annualRatePct: number, years: number) => {
   const r = monthlyRate(annualRatePct)
@@ -213,7 +214,7 @@ const remainingBalance = (
   // Remaining balance formula after k payments
   const pow = Math.pow(1 + r, n)
   const powK = Math.pow(1 + r, k)
-  return principal * (pow - powK) / (pow - 1)
+  return (principal * (pow - powK)) / (pow - 1)
 }
 
 const discountMonthly = (annualPct: number) => Math.pow(1 + annualPct / 100, 1 / 12) - 1
@@ -230,7 +231,11 @@ const derived = computed(() => {
   const downPct = clamp(Number(assumptions.value.downPaymentPct) || 0, 0, 100)
   const downPayment = homePrice * (downPct / 100)
   const loanPrincipal = Math.max(0, homePrice - downPayment)
-  const emi = pmt(loanPrincipal, Number(assumptions.value.loanRate) || 0, Number(assumptions.value.loanTenureYears) || 1)
+  const emi = pmt(
+    loanPrincipal,
+    Number(assumptions.value.loanRate) || 0,
+    Number(assumptions.value.loanTenureYears) || 1,
+  )
 
   return { years, homePrice, downPayment, loanPrincipal, emi }
 })
@@ -241,9 +246,12 @@ const buyModel = computed(() => {
   const discount = clamp(Number(assumptions.value.discountRate) || 0, 0, 30)
   const investReturn = clamp(Number(assumptions.value.investmentReturn) || 0, 0, 30)
 
-  const closingCosts = derived.value.homePrice * (clamp(Number(assumptions.value.closingCostsPct) || 0, 0, 20) / 100)
-  const propertyTaxAnnual = derived.value.homePrice * (clamp(Number(assumptions.value.propertyTaxPct) || 0, 0, 10) / 100)
-  const maintenanceAnnual = derived.value.homePrice * (clamp(Number(assumptions.value.maintenancePct) || 0, 0, 15) / 100)
+  const closingCosts =
+    derived.value.homePrice * (clamp(Number(assumptions.value.closingCostsPct) || 0, 0, 20) / 100)
+  const propertyTaxAnnual =
+    derived.value.homePrice * (clamp(Number(assumptions.value.propertyTaxPct) || 0, 0, 10) / 100)
+  const maintenanceAnnual =
+    derived.value.homePrice * (clamp(Number(assumptions.value.maintenancePct) || 0, 0, 15) / 100)
   const homeInsuranceAnnual = Math.max(0, Number(assumptions.value.homeInsuranceAnnual) || 0)
 
   // Upfront outflow at month 0 (not included in NPV function which starts at month 1)
@@ -268,16 +276,19 @@ const buyModel = computed(() => {
     months,
   )
 
-  const sellingCosts = homeValueEnd * (clamp(Number(assumptions.value.sellingCostsPct) || 0, 0, 10) / 100)
+  const sellingCosts =
+    homeValueEnd * (clamp(Number(assumptions.value.sellingCostsPct) || 0, 0, 10) / 100)
   const equityEnd = Math.max(0, homeValueEnd - bal - sellingCosts)
 
   // NPV: monthly outflows + add upfront (treated as month 1 cashflow for NPV approximation) - equity as inflow at end
-  const npvOutflows = npvMonthly(cashflows, discount) + upfront / Math.pow(1 + discountMonthly(discount), 1)
+  const npvOutflows =
+    npvMonthly(cashflows, discount) + upfront / Math.pow(1 + discountMonthly(discount), 1)
   const equityPV = equityEnd / Math.pow(1 + discountMonthly(discount), months)
   const npvNetCost = npvOutflows - equityPV
 
   // Opportunity: if you rent instead, you can invest the upfront amount; show it as comparison helper
-  const investmentGainOnUpfront = upfront * (Math.pow(1 + investReturn / 100, derived.value.years) - 1)
+  const investmentGainOnUpfront =
+    upfront * (Math.pow(1 + investReturn / 100, derived.value.years) - 1)
 
   return {
     months,
@@ -324,7 +335,8 @@ const rentModel = computed(() => {
   const investFinal = investBase * Math.pow(1 + investReturn / 100, derived.value.years)
   const investGain = investFinal - investBase
 
-  const npvOutflows = npvMonthly(cashflows, discount) + deposit / Math.pow(1 + discountMonthly(discount), 1)
+  const npvOutflows =
+    npvMonthly(cashflows, discount) + deposit / Math.pow(1 + discountMonthly(discount), 1)
   const depositPV = deposit / Math.pow(1 + discountMonthly(discount), months) // returned
   const investPV = investFinal / Math.pow(1 + discountMonthly(discount), months)
   const npvNetCost = npvOutflows - depositPV - investPV
@@ -367,7 +379,11 @@ const recommendation = computed(() => {
 type Scenario = { id: string; label: string; overrides: Partial<typeof defaultAssumptions> }
 
 const runScenario = (overrides: Partial<typeof defaultAssumptions>) => {
-  const a = { ...JSON.parse(JSON.stringify(defaultAssumptions)), ...JSON.parse(JSON.stringify(assumptions.value)), ...overrides }
+  const a = {
+    ...JSON.parse(JSON.stringify(defaultAssumptions)),
+    ...JSON.parse(JSON.stringify(assumptions.value)),
+    ...overrides,
+  }
   // minimal recompute by temporarily swapping assumptions
   const prev = assumptions.value
   assumptions.value = a as typeof defaultAssumptions
@@ -652,7 +668,10 @@ const exportToPDF = async () => {
     // Info boxes
     const boxW = (contentWidth - 10) / 2
     const info = [
-      ['Generated', new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })],
+      [
+        'Generated',
+        new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }),
+      ],
       ['Currency', assumptions.value.currency],
       ['Horizon', `${derived.value.years} years`],
       ['Discount rate', `${assumptions.value.discountRate}%`],
@@ -705,13 +724,19 @@ const exportToPDF = async () => {
         ['Closing costs %', `${assumptions.value.closingCostsPct}%`],
         ['Property tax %/yr', `${assumptions.value.propertyTaxPct}%`],
         ['Maintenance %/yr', `${assumptions.value.maintenancePct}%`],
-        ['Home insurance / yr', formatCurrencyForPDF(Number(assumptions.value.homeInsuranceAnnual) || 0)],
+        [
+          'Home insurance / yr',
+          formatCurrencyForPDF(Number(assumptions.value.homeInsuranceAnnual) || 0),
+        ],
         ['Home appreciation %/yr', `${assumptions.value.homeAppreciation}%`],
         ['Selling costs %', `${assumptions.value.sellingCostsPct}%`],
         ['Monthly rent', formatCurrencyForPDF(Number(assumptions.value.rentMonthly) || 0)],
         ['Rent escalation %/yr', `${assumptions.value.rentEscalation}%`],
         ['Deposit (months)', `${assumptions.value.securityDepositMonths}`],
-        ['Renter insurance / yr', formatCurrencyForPDF(Number(assumptions.value.renterInsuranceAnnual) || 0)],
+        [
+          'Renter insurance / yr',
+          formatCurrencyForPDF(Number(assumptions.value.renterInsuranceAnnual) || 0),
+        ],
         ['Investment return %/yr', `${assumptions.value.investmentReturn}%`],
         ['Discount rate %/yr', `${assumptions.value.discountRate}%`],
       ],
@@ -911,12 +936,12 @@ watch(
     >
       <div class="flex gap-2 min-w-max">
         <button
-          v-for="tab in ([
+          v-for="tab in [
             { id: 'assumptions', label: '01 Assumptions', icon: 'mdi:cog' },
             { id: 'buy', label: '02 Buy (EMI)', icon: 'mdi:home' },
             { id: 'rent', label: '03 Rent', icon: 'mdi:home-outline' },
             { id: 'comparison', label: '04 Comparison', icon: 'mdi:scale-balance' },
-          ] as const)"
+          ] as const"
           :key="tab.id"
           class="px-4 py-2 font-semibold transition-colors border-b-2 flex-shrink-0"
           :class="
@@ -933,7 +958,9 @@ watch(
     </div>
 
     <!-- Content -->
-    <div class="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-800">
+    <div
+      class="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-800"
+    >
       <!-- Assumptions -->
       <div v-show="activeTab === 'assumptions'" class="space-y-6">
         <!-- India tier preset -->
@@ -1045,7 +1072,9 @@ watch(
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800">
+          <div
+            class="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800"
+          >
             <h3 class="text-lg font-bold text-zinc-800 dark:text-zinc-200 mb-3 flex items-center">
               <Icon icon="mdi:home" class="mr-2 text-sky-600" /> Buy inputs
             </h3>
@@ -1163,7 +1192,10 @@ watch(
                   placeholder="0"
                   class="w-full px-3 py-2 text-sm border rounded bg-yellow-50 dark:bg-slate-700 dark:text-gray-100 border-yellow-300 dark:border-slate-600"
                   @input="
-                    updateMoneyField('homeInsuranceAnnual', ($event.target as HTMLInputElement).value)
+                    updateMoneyField(
+                      'homeInsuranceAnnual',
+                      ($event.target as HTMLInputElement).value,
+                    )
                   "
                 />
               </div>
@@ -1183,7 +1215,9 @@ watch(
             </div>
           </div>
 
-          <div class="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800">
+          <div
+            class="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800"
+          >
             <h3 class="text-lg font-bold text-zinc-800 dark:text-zinc-200 mb-3 flex items-center">
               <Icon icon="mdi:home-outline" class="mr-2 text-sky-600" /> Rent inputs
             </h3>
@@ -1198,7 +1232,9 @@ watch(
                   inputmode="numeric"
                   placeholder="0"
                   class="w-full px-3 py-2 text-sm border rounded bg-yellow-50 dark:bg-slate-700 dark:text-gray-100 border-yellow-300 dark:border-slate-600"
-                  @input="updateMoneyField('rentMonthly', ($event.target as HTMLInputElement).value)"
+                  @input="
+                    updateMoneyField('rentMonthly', ($event.target as HTMLInputElement).value)
+                  "
                 />
               </div>
               <div>
@@ -1225,7 +1261,10 @@ watch(
                   placeholder="0"
                   class="w-full px-3 py-2 text-sm border rounded bg-yellow-50 dark:bg-slate-700 dark:text-gray-100 border-yellow-300 dark:border-slate-600"
                   @input="
-                    updateMoneyField('renterInsuranceAnnual', ($event.target as HTMLInputElement).value)
+                    updateMoneyField(
+                      'renterInsuranceAnnual',
+                      ($event.target as HTMLInputElement).value,
+                    )
                   "
                 />
               </div>
@@ -1251,7 +1290,9 @@ watch(
 
       <!-- Buy -->
       <div v-show="activeTab === 'buy'" class="space-y-5 sm:space-y-6">
-        <h2 class="text-xl sm:text-2xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center">
+        <h2
+          class="text-xl sm:text-2xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center"
+        >
           <Icon icon="mdi:home" class="mr-2 text-sky-600" />
           Buy (EMI) Breakdown
         </h2>
@@ -1291,7 +1332,9 @@ watch(
                 >
                   Upfront (down + closing)
                 </td>
-                <td class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right">
+                <td
+                  class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right"
+                >
                   {{ formatCurrency(buyModel.upfront) }}
                 </td>
               </tr>
@@ -1301,7 +1344,9 @@ watch(
                 >
                   Monthly EMI
                 </td>
-                <td class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right">
+                <td
+                  class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right"
+                >
                   {{ formatCurrency(derived.emi) }}
                 </td>
               </tr>
@@ -1311,7 +1356,9 @@ watch(
                 >
                   Property tax / year
                 </td>
-                <td class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right">
+                <td
+                  class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right"
+                >
                   {{ formatCurrency(buyModel.propertyTaxAnnual) }}
                 </td>
               </tr>
@@ -1321,7 +1368,9 @@ watch(
                 >
                   Maintenance / year
                 </td>
-                <td class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right">
+                <td
+                  class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right"
+                >
                   {{ formatCurrency(buyModel.maintenanceAnnual) }}
                 </td>
               </tr>
@@ -1331,7 +1380,9 @@ watch(
                 >
                   Home value at end
                 </td>
-                <td class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right">
+                <td
+                  class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right"
+                >
                   {{ formatCurrency(buyModel.homeValueEnd) }}
                 </td>
               </tr>
@@ -1341,7 +1392,9 @@ watch(
                 >
                   Remaining loan at end
                 </td>
-                <td class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right">
+                <td
+                  class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right"
+                >
                   {{ formatCurrency(buyModel.remainingBalanceEnd) }}
                 </td>
               </tr>
@@ -1349,7 +1402,9 @@ watch(
                 <td class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2">
                   Net present cost (Buy)
                 </td>
-                <td class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right">
+                <td
+                  class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right"
+                >
                   {{ formatCurrency(buyModel.npvNetCost) }}
                 </td>
               </tr>
@@ -1360,7 +1415,9 @@ watch(
 
       <!-- Rent -->
       <div v-show="activeTab === 'rent'" class="space-y-5 sm:space-y-6">
-        <h2 class="text-xl sm:text-2xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center">
+        <h2
+          class="text-xl sm:text-2xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center"
+        >
           <Icon icon="mdi:home-outline" class="mr-2 text-sky-600" />
           Rent Breakdown
         </h2>
@@ -1400,7 +1457,9 @@ watch(
                 >
                   Invested base (buy upfront)
                 </td>
-                <td class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right">
+                <td
+                  class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right"
+                >
                   {{ formatCurrency(rentModel.investBase) }}
                 </td>
               </tr>
@@ -1410,7 +1469,9 @@ watch(
                 >
                   Investment gain (est.)
                 </td>
-                <td class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right">
+                <td
+                  class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right"
+                >
                   {{ formatCurrency(rentModel.investGain) }}
                 </td>
               </tr>
@@ -1418,7 +1479,9 @@ watch(
                 <td class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2">
                   Net present cost (Rent)
                 </td>
-                <td class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right">
+                <td
+                  class="border border-gray-300 dark:border-slate-700 px-3 sm:px-4 py-2 text-right"
+                >
                   {{ formatCurrency(rentModel.npvNetCost) }}
                 </td>
               </tr>
@@ -1429,13 +1492,17 @@ watch(
 
       <!-- Comparison -->
       <div v-show="activeTab === 'comparison'" class="space-y-5 sm:space-y-6">
-        <h2 class="text-xl sm:text-2xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center">
+        <h2
+          class="text-xl sm:text-2xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center"
+        >
           <Icon icon="mdi:scale-balance" class="mr-2 text-sky-600" />
           Final Comparison
         </h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+          <div
+            class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800"
+          >
             <h3 class="font-semibold text-lg mb-3 text-zinc-800 dark:text-zinc-200">Buy</h3>
             <div class="space-y-2">
               <div class="flex justify-between">
@@ -1443,7 +1510,9 @@ watch(
                 <span class="font-bold text-lg">{{ formatCurrency(buyModel.npvNetCost) }}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Monthly outflow (est.):</span>
+                <span class="text-sm text-gray-600 dark:text-gray-400"
+                  >Monthly outflow (est.):</span
+                >
                 <span class="font-semibold">{{ formatCurrency(buyModel.monthlyOutflow) }}</span>
               </div>
               <div class="flex justify-between">
@@ -1453,7 +1522,9 @@ watch(
             </div>
           </div>
 
-          <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+          <div
+            class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800"
+          >
             <h3 class="font-semibold text-lg mb-3 text-zinc-800 dark:text-zinc-200">Rent</h3>
             <div class="space-y-2">
               <div class="flex justify-between">
@@ -1472,7 +1543,9 @@ watch(
           </div>
         </div>
 
-        <div class="bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-800 p-3 sm:p-4">
+        <div
+          class="bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-800 p-3 sm:p-4"
+        >
           <h3 class="text-lg font-bold text-zinc-800 dark:text-zinc-200 mb-2">Sensitivity</h3>
           <p class="text-xs text-gray-600 dark:text-gray-400 mb-3">
             Quick “what-if” checks so you can see when the decision flips.
@@ -1556,7 +1629,9 @@ watch(
             class="border border-gray-200 dark:border-slate-700 rounded-lg p-3 flex items-start justify-between gap-3"
           >
             <div class="min-w-0">
-              <div class="font-semibold text-zinc-800 dark:text-zinc-200 truncate">{{ t.name }}</div>
+              <div class="font-semibold text-zinc-800 dark:text-zinc-200 truncate">
+                {{ t.name }}
+              </div>
               <div v-if="t.description" class="text-xs text-gray-600 dark:text-gray-400 mt-1">
                 {{ t.description }}
               </div>
@@ -1623,23 +1698,13 @@ watch(
             />
           </div>
           <div v-if="currentlyLoadedTemplateId" class="flex items-center gap-2 text-xs">
-            <input
-              id="save-as-new"
-              v-model="saveAsNew"
-              type="checkbox"
-              class="w-4 h-4"
-            />
+            <input id="save-as-new" v-model="saveAsNew" type="checkbox" class="w-4 h-4" />
             <label for="save-as-new" class="text-gray-600 dark:text-gray-400">
               Save as new (uncheck to overwrite loaded template)
             </label>
           </div>
           <div class="flex items-center gap-2 text-xs">
-            <input
-              id="is-default"
-              v-model="isDefaultTemplate"
-              type="checkbox"
-              class="w-4 h-4"
-            />
+            <input id="is-default" v-model="isDefaultTemplate" type="checkbox" class="w-4 h-4" />
             <label for="is-default" class="text-gray-600 dark:text-gray-400">
               Set as default
             </label>
@@ -1658,4 +1723,3 @@ watch(
     <CommonToast />
   </div>
 </template>
-

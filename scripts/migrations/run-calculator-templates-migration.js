@@ -98,7 +98,11 @@ async function runMigration() {
           console.log('🚀 Running migration...')
           console.log('   Migration file:', createPath)
           await client.query(createSQL)
-        } else if (usersIdType === 'text' || usersIdType === 'uuid' || usersIdType === 'character varying') {
+        } else if (
+          usersIdType === 'text' ||
+          usersIdType === 'uuid' ||
+          usersIdType === 'character varying'
+        ) {
           // Create a compatible version of the table for text/uuid user IDs.
           const createSQL = `
             CREATE TABLE IF NOT EXISTS calculator_templates (
