@@ -79,21 +79,11 @@ export const useTasks = () => {
     )
   }
 
-  const purgeDeletedTasks = async (): Promise<{ success: boolean; deletedCount: number }> => {
-    return await $fetch<{ success: boolean; deletedCount: number }>(
-      `${apiBase}/planner/tasks/purge`,
-      {
-        method: 'POST',
-      },
-    )
-  }
-
   return {
     fetchTasks,
     fetchThemes,
     createTask,
     updateTask,
     deleteTask,
-    purgeDeletedTasks,
   }
 }

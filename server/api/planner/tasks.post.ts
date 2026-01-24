@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
       depends_on_task_id: number | null
       theme: string | null
     }>(
-      "SELECT id, status, depends_on_task_id, theme FROM tasks WHERE id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+      'SELECT id, status, depends_on_task_id, theme FROM tasks WHERE id = $1 AND deleted_at IS NULL',
       [depends_on_task_id],
     )
     if (parentTask.length === 0) {
@@ -88,7 +88,7 @@ export default defineEventHandler(async (event) => {
       visited.add(currentTaskId)
 
       const task = await query<{ depends_on_task_id: number | null }>(
-        "SELECT depends_on_task_id FROM tasks WHERE id = $1 AND (deleted_at IS NULL OR deleted_at > CURRENT_TIMESTAMP - INTERVAL '1 day')",
+        'SELECT depends_on_task_id FROM tasks WHERE id = $1 AND deleted_at IS NULL',
         [currentTaskId],
       )
 

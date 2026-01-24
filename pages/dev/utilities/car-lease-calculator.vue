@@ -120,6 +120,7 @@ const originalTemplateData = ref<typeof defaultAssumptions | null>(null) // Stor
 // Template comparison
 interface Template {
   id: number
+  calculator_key: string
   name: string
   description: string | null
   template_data: typeof defaultAssumptions
@@ -724,6 +725,7 @@ const saveTemplate = async () => {
         {
           method: 'POST',
           body: {
+            calculator_key: 'car-lease',
             name: templateName.value,
             description: templateDescription.value || null,
             template_data: templateData,
@@ -886,7 +888,7 @@ const importTemplateFromJSON = (event: Event) => {
 const loadTemplates = async () => {
   try {
     const response = await $fetch<{ success: boolean; templates: Template[] }>(
-      '/api/calculator/templates',
+      '/api/calculator/templates?calculatorKey=car-lease',
     )
     if (response.success) {
       savedTemplates.value = response.templates
@@ -1300,6 +1302,11 @@ const bestLeaseOption = computed(() => {
   )
 })
 
+// Lease options ranking (by net total cost; after-investment ranking is identical since investment gain is constant)
+const leaseOptionsRanked = computed(() => {
+  return [...leaseOptions.value].sort((a, b) => a.netTotalCost - b.netTotalCost)
+})
+
 // Final Comparison
 const finalComparison = computed(() => {
   if (!bestLeaseOption.value) return null
@@ -1365,6 +1372,241 @@ const recommendation = computed(() => {
           : `Keeping your owned ${assumptions.value.carName} is recommended.`,
     }
   }
+})
+
+// Lightweight sensitivity analysis (Low/Base/High) to support decision making without adding complex UI
+type Scenario = {
+  id: string
+  label: string
+  overrides: Partial<typeof defaultAssumptions>
+}
+
+const runScenario = (overrides: Partial<typeof defaultAssumptions>) => {
+  const a = {
+    ...JSON.parse(JSON.stringify(defaultAssumptions)),
+    ...JSON.parse(JSON.stringify(assumptions.value)),
+    ...overrides,
+  }
+
+  // Ownership net cost (same core logic as ownershipCosts)
+  const repairsBase = (Number(a.annualInsurance) || 0) + (Number(a.annualServiceMaintenance) || 0)
+  const repairsFactor = Number(a.repairsFactor) || 0
+  const totalRepairsCost = repairsBase * repairsFactor
+  const majorRepairs = Math.round(totalRepairsCost * 0.7)
+  const tyres = Math.round(totalRepairsCost * 0.3)
+
+  const years = Math.max(1, Number(a.analysisPeriod) || 1)
+  const annualDistance = Number(a.annualDistance) || 0
+  const mileage = Math.max(1, Number(a.mileage) || 1)
+  const fuelPrice = Number(a.fuelPrice) || 0
+  const annualFuel = (annualDistance / mileage) * fuelPrice
+  const annualInsurance = Number(a.annualInsurance) || 0
+  const annualService = Number(a.annualServiceMaintenance) || 0
+  const depreciationRate = (Number(a.depreciationRate) || 0) / 100
+
+  const purchasePrice = Number(a.currentMarketValue) || 0
+
+  const calculateDepreciationForScenario = (year: number, totalYears: number) => {
+    const model = a.depreciationModel
+    const initialValue = purchasePrice
+    const rate = depreciationRate
+
+    if (model === 'straightLine') {
+      return (initialValue * rate) / totalYears
+    } else if (model === 'accelerated') {
+      // Double declining balance (same math as calculateDepreciation)
+      const bookValue = initialValue * Math.pow(1 - rate * 2, year - 1)
+      return bookValue * rate * 2
+    } else if (model === 'custom') {
+      // Custom: distribute major repairs over years (matches calculateDepreciation)
+      return year <= totalYears ? majorRepairs / totalYears : 0
+    }
+    return 0
+  }
+
+  // Depreciation model for resale value
+  let resaleValue = Number(a.expectedValueAfter5Years) || 0
+  if (!resaleValue) {
+    if (a.depreciationModel === 'straightLine') {
+      resaleValue = Math.max(0, purchasePrice * (1 - depreciationRate * years))
+    } else if (a.depreciationModel === 'accelerated') {
+      resaleValue = Math.max(0, purchasePrice * Math.pow(1 - depreciationRate * 2, years))
+    } else if (a.depreciationModel === 'custom') {
+      resaleValue = Math.max(0, purchasePrice * 0.3)
+    } else {
+      resaleValue = purchasePrice
+    }
+  }
+
+  // Ownership cost for scenarios:
+  // Match `ownershipCosts` to keep base/scenario consistent across depreciation models.
+  // netOwnershipCost = purchasePrice + (fuel+insurance+service+repairs+depreciation) - resaleValue
+  let totalRepairs = 0
+  // tyre at ~80% of period, major at end
+  const tyreYear = Math.floor(years * 0.8)
+  for (let y = 1; y <= years; y++) {
+    if (y === tyreYear) totalRepairs += tyres
+    if (y === years) totalRepairs += majorRepairs
+  }
+
+  let totalDepreciation = 0
+  if (a.depreciationModel !== 'none') {
+    for (let y = 1; y <= years; y++) {
+      totalDepreciation += calculateDepreciationForScenario(y, years)
+    }
+  }
+
+  const operatingCashCosts =
+    annualFuel * years + annualInsurance * years + annualService * years + totalRepairs
+
+  const ownedNetCost = purchasePrice + operatingCashCosts + totalDepreciation - resaleValue
+
+  // Lease: compute each option net total cost for analysis period (matches leaseOptions logic)
+  const fuelReimbursementCap = Number(a.fuelReimbursementCap) || 0
+  const driverReimbursementCap = Number(a.driverReimbursementCap) || 0
+  const effectiveRate = (Number(a.effectiveTaxRate) || 0) / 100
+  const taxDeductions = Number(a.taxDeductions) || 0
+
+  const postLeaseScenario = (a.postLeaseScenario || 'extend') as 'extend' | 'buy' | 'lease_new'
+
+  const options = Array.isArray(a.leaseOptions) ? a.leaseOptions : []
+  let bestLease: { optionName: string; netTotalCost: number; postLeaseYears: number } | null = null
+
+  for (const opt of options) {
+    const emi = Number(opt.emi) || 0
+    const annualEMI = emi * 12
+    const allowedKMperYear = Number(opt.allowedKMperYear) || 0
+    const extraKM = Math.max(0, annualDistance - allowedKMperYear)
+    const extraKMCharge = Number(opt.extraKMCharge) || 0
+    const extraKMCost = extraKM * extraKMCharge
+    const grossAnnualCost = annualEMI + annualFuel + extraKMCost
+
+    const fuelReimbursement = Math.min(annualFuel, fuelReimbursementCap)
+    const reimbursement = fuelReimbursement + driverReimbursementCap
+
+    const taxSaving = Math.max(0, annualEMI * effectiveRate - taxDeductions)
+    const netAnnualCost = grossAnnualCost - reimbursement - taxSaving
+
+    const leaseTenureMonths = Number(opt.tenure) || 0
+    const leaseTenureYears = leaseTenureMonths / 12
+
+    let leasePeriodCost = netAnnualCost * leaseTenureYears
+    let postLeaseCost = 0
+    let postLeaseYears = 0
+
+    if (leaseTenureYears > 0 && leaseTenureYears < years) {
+      postLeaseYears = years - leaseTenureYears
+      switch (postLeaseScenario) {
+        case 'extend':
+        case 'lease_new':
+          postLeaseCost = netAnnualCost * postLeaseYears
+          break
+        case 'buy': {
+          // Keep it simple: approximate remaining years as ownership annual operating cost
+          const repairsBase2 = annualInsurance + annualService
+          const totalRepairsCost2 = repairsBase2 * (Number(a.repairsFactor) || 0)
+          const annualRepairs = totalRepairsCost2 / years
+          const annualDep = ((Number(a.depreciationRate) || 0) / 100) * purchasePrice
+          const ownershipAnnualOperatingCost =
+            annualFuel + annualInsurance + annualService + annualRepairs + annualDep
+          postLeaseCost = ownershipAnnualOperatingCost * postLeaseYears
+          break
+        }
+      }
+    } else if (leaseTenureYears > years) {
+      leasePeriodCost = netAnnualCost * years
+    }
+
+    const netTotalCost = Math.max(0, leasePeriodCost + postLeaseCost)
+    if (!bestLease || netTotalCost < bestLease.netTotalCost) {
+      bestLease = { optionName: opt.name || 'Option', netTotalCost, postLeaseYears }
+    }
+  }
+
+  // Investment gain (same logic as investmentReturn; constant across lease options)
+  const roi = (Number(a.returnOnInvestedCapital) || 0) / 100
+  let invested = purchasePrice
+  for (let y = 1; y <= years; y++) invested += invested * roi
+  const investmentGain = invested - purchasePrice
+
+  const bestLeaseAfterInvestment = bestLease ? bestLease.netTotalCost - investmentGain : Infinity
+  const leaseRecommended = bestLeaseAfterInvestment < ownedNetCost
+
+  return {
+    ownedNetCost,
+    bestLeaseOption: bestLease?.optionName || null,
+    bestLeaseNetCost: bestLease?.netTotalCost ?? null,
+    bestLeaseNetCostAfterInvestment: bestLease ? bestLeaseAfterInvestment : null,
+    investmentGain,
+    recommended: leaseRecommended ? bestLease?.optionName || 'Lease' : `Own ${a.carName || 'Car'}`,
+    savings: leaseRecommended
+      ? ownedNetCost - bestLeaseAfterInvestment
+      : bestLeaseAfterInvestment - ownedNetCost,
+  }
+}
+
+const sensitivityScenarios = computed(() => {
+  const scenarios: Scenario[] = [
+    {
+      id: 'low-cost',
+      label: 'Low running cost (−20% km & fuel)',
+      overrides: {
+        annualDistance: Math.max(
+          0,
+          Math.round((Number(assumptions.value.annualDistance) || 0) * 0.8),
+        ),
+        fuelPrice: Math.max(0, (Number(assumptions.value.fuelPrice) || 0) * 0.8),
+      },
+    },
+    {
+      id: 'base',
+      label: 'Base (your inputs)',
+      overrides: {},
+    },
+    {
+      id: 'high-cost',
+      label: 'High running cost (+20% km & fuel)',
+      overrides: {
+        annualDistance: Math.max(
+          0,
+          Math.round((Number(assumptions.value.annualDistance) || 0) * 1.2),
+        ),
+        fuelPrice: Math.max(0, (Number(assumptions.value.fuelPrice) || 0) * 1.2),
+      },
+    },
+    {
+      id: 'low-resale',
+      label: 'Low resale (−20% end value)',
+      overrides: {
+        // IMPORTANT:
+        // expectedValueAfter5Years only affects calculations when explicitly set.
+        // To make this scenario effective for ALL users (including those relying on auto depreciation),
+        // we force the resale value to be derived from the depreciation model by clearing the explicit override,
+        // and we increase the depreciation rate to reduce end value.
+        expectedValueAfter5Years: 0,
+        depreciationModel:
+          assumptions.value.depreciationModel === 'none'
+            ? 'straightLine'
+            : assumptions.value.depreciationModel,
+        depreciationRate: Math.min(
+          60,
+          Math.max(0, (Number(assumptions.value.depreciationRate) || 15) * 1.2),
+        ),
+      },
+    },
+    {
+      id: 'high-roi',
+      label: 'High ROI (+3% points)',
+      overrides: {
+        returnOnInvestedCapital: (Number(assumptions.value.returnOnInvestedCapital) || 0) + 3,
+      },
+    },
+  ]
+
+  return scenarios.map((s) => ({
+    ...s,
+    result: runScenario(s.overrides),
+  }))
 })
 
 // Helper function to calculate costs for a template
@@ -2906,26 +3148,28 @@ const activeTab = ref('assumptions')
 </script>
 
 <template>
-  <div class="py-10 container mx-auto max-w-7xl px-6">
+  <div class="py-6 sm:py-10 container mx-auto max-w-7xl px-3 sm:px-6 w-full">
     <!-- Header -->
-    <div class="text-center mb-12">
-      <div class="flex items-center justify-center gap-4 mb-4 flex-wrap">
+    <div class="text-center mb-8 sm:mb-12">
+      <div
+        class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-4 mb-4"
+      >
         <NuxtLink
           to="/dev"
-          class="inline-flex items-center text-sky-600 dark:text-sky-400 hover:underline"
+          class="inline-flex items-center justify-center sm:justify-start text-sky-600 dark:text-sky-400 hover:underline"
         >
           <Icon icon="mdi:arrow-left" class="mr-2" />
           Back to Utilities
         </NuxtLink>
         <button
-          class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+          class="inline-flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors w-full sm:w-auto"
           @click="showTemplatesModal = true"
         >
           <Icon icon="mdi:file-multiple" class="mr-2" />
           Templates
         </button>
         <button
-          class="inline-flex items-center px-4 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors"
+          class="inline-flex items-center justify-center px-3 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors w-full sm:w-auto"
           @click="showSaveModal = true"
         >
           <Icon icon="mdi:content-save" class="mr-2" />
@@ -2933,14 +3177,14 @@ const activeTab = ref('assumptions')
         </button>
         <button
           :disabled="isExportingPDF"
-          class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+          class="inline-flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 w-full sm:w-auto"
           @click="exportToPDF"
         >
           <Icon icon="mdi:file-pdf-box" class="mr-2" />
           {{ isExportingPDF ? 'Exporting...' : 'Export PDF' }}
         </button>
         <button
-          class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+          class="inline-flex items-center justify-center px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors w-full sm:w-auto"
           title="Reset all fields to blank defaults"
           @click="resetToDefaults"
         >
@@ -3009,32 +3253,37 @@ const activeTab = ref('assumptions')
     </div>
 
     <!-- Tabs Navigation -->
-    <div class="mb-6 flex flex-wrap gap-2 border-b border-gray-300 dark:border-slate-700">
-      <button
-        v-for="tab in [
-          { id: 'assumptions', label: '01 Assumptions', icon: 'mdi:cog' },
-          { id: 'ownership', label: '02 Ownership', icon: 'mdi:car' },
-          { id: 'lease', label: '03 Lease Comparison', icon: 'mdi:file-compare' },
-          { id: 'investment', label: '04 Investment', icon: 'mdi:chart-line' },
-          { id: 'comparison', label: '05 Final Comparison', icon: 'mdi:scale-balance' },
-        ]"
-        :key="tab.id"
-        class="px-4 py-2 font-semibold transition-colors border-b-2"
-        :class="
-          activeTab === tab.id
-            ? 'border-sky-600 text-sky-700 dark:text-sky-400'
-            : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
-        "
-        @click="activeTab = tab.id"
-      >
-        <Icon :icon="tab.icon" class="inline mr-2" />
-        {{ tab.label }}
-      </button>
+    <div
+      class="mb-6 border-b border-gray-300 dark:border-slate-700 -mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto whitespace-nowrap"
+      style="scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch"
+    >
+      <div class="flex gap-2 min-w-max">
+        <button
+          v-for="tab in [
+            { id: 'assumptions', label: '01 Assumptions', icon: 'mdi:cog' },
+            { id: 'ownership', label: '02 Ownership', icon: 'mdi:car' },
+            { id: 'lease', label: '03 Lease Comparison', icon: 'mdi:file-compare' },
+            { id: 'investment', label: '04 Investment', icon: 'mdi:chart-line' },
+            { id: 'comparison', label: '05 Final Comparison', icon: 'mdi:scale-balance' },
+          ]"
+          :key="tab.id"
+          class="px-4 py-2 font-semibold transition-colors border-b-2 flex-shrink-0"
+          :class="
+            activeTab === tab.id
+              ? 'border-sky-600 text-sky-700 dark:text-sky-400'
+              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
+          "
+          @click="activeTab = tab.id"
+        >
+          <Icon :icon="tab.icon" class="inline mr-2" />
+          {{ tab.label }}
+        </button>
+      </div>
     </div>
 
     <!-- Tab Content -->
     <div
-      class="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-800"
+      class="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-800"
     >
       <!-- 01 ASSUMPTIONS -->
       <div v-show="activeTab === 'assumptions'" class="space-y-4">
@@ -4749,6 +4998,77 @@ const activeTab = ref('assumptions')
           Lease Comparison
         </h2>
 
+        <!-- Lease options ranking -->
+        <div
+          class="bg-gray-50 dark:bg-slate-800/50 rounded-lg p-4 border border-gray-200 dark:border-slate-700"
+        >
+          <div class="flex items-start justify-between gap-3 flex-wrap mb-3">
+            <div>
+              <h3 class="text-lg font-bold text-zinc-800 dark:text-zinc-200">
+                Lease options ranking
+              </h3>
+              <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                Ranked by total net lease cost over {{ assumptions.analysisPeriod }} years (tax &
+                reimbursements applied). “After investment” subtracts the same investment gain for
+                all options.
+              </p>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse">
+              <thead>
+                <tr class="bg-white dark:bg-slate-900">
+                  <th class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-left">
+                    Option
+                  </th>
+                  <th class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-right">
+                    Net cost (cash)
+                  </th>
+                  <th class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-right">
+                    Net cost (after investment)
+                  </th>
+                  <th class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-right">
+                    Over‑km / year
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="opt in leaseOptionsRanked"
+                  :key="opt.optionName"
+                  class="hover:bg-gray-100 dark:hover:bg-slate-900/50"
+                >
+                  <td class="border border-gray-300 dark:border-slate-700 px-3 py-2 font-medium">
+                    <div class="flex items-center gap-2">
+                      <span>{{ opt.optionName }}</span>
+                      <span
+                        v-if="bestLeaseOption && opt.optionName === bestLeaseOption.optionName"
+                        class="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                      >
+                        Best
+                      </span>
+                    </div>
+                  </td>
+                  <td class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-right">
+                    {{ formatCurrency(opt.netTotalCost) }}
+                  </td>
+                  <td class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-right">
+                    {{ formatCurrency(opt.netTotalCost - investmentReturn.totalGain) }}
+                  </td>
+                  <td class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-right">
+                    {{
+                      Math.max(
+                        0,
+                        assumptions.annualDistance - opt.allowedKMperYear,
+                      ).toLocaleString()
+                    }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="overflow-x-auto">
           <table class="w-full border-collapse">
             <thead>
@@ -5215,6 +5535,49 @@ const activeTab = ref('assumptions')
           </div>
         </div>
 
+        <!-- Quick assumptions snapshot -->
+        <div
+          class="bg-gray-50 dark:bg-slate-800/50 rounded-lg p-4 border border-gray-200 dark:border-slate-700"
+        >
+          <h3 class="text-sm font-bold text-zinc-800 dark:text-zinc-200 mb-2">
+            Assumptions snapshot
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+            <div class="flex justify-between gap-3">
+              <span class="text-gray-600 dark:text-gray-400">Annual km</span>
+              <span class="font-medium">{{
+                Number(assumptions.annualDistance || 0).toLocaleString()
+              }}</span>
+            </div>
+            <div class="flex justify-between gap-3">
+              <span class="text-gray-600 dark:text-gray-400">Mileage</span>
+              <span class="font-medium">{{
+                Number(assumptions.mileage || 0).toLocaleString()
+              }}</span>
+            </div>
+            <div class="flex justify-between gap-3">
+              <span class="text-gray-600 dark:text-gray-400">Fuel price</span>
+              <span class="font-medium">{{
+                formatCurrency(Number(assumptions.fuelPrice || 0))
+              }}</span>
+            </div>
+            <div class="flex justify-between gap-3">
+              <span class="text-gray-600 dark:text-gray-400">Tax rate (lease EMI)</span>
+              <span class="font-medium">{{ Number(assumptions.effectiveTaxRate || 0) }}%</span>
+            </div>
+            <div class="flex justify-between gap-3">
+              <span class="text-gray-600 dark:text-gray-400">ROI used</span>
+              <span class="font-medium"
+                >{{ Number(assumptions.returnOnInvestedCapital || 0) }}%</span
+              >
+            </div>
+            <div class="flex justify-between gap-3">
+              <span class="text-gray-600 dark:text-gray-400">Post‑lease</span>
+              <span class="font-medium">{{ assumptions.postLeaseScenario }}</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Comparison Summary Cards -->
         <div v-if="finalComparison" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div
@@ -5256,15 +5619,31 @@ const activeTab = ref('assumptions')
             </h3>
             <div class="space-y-2">
               <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Net Cost:</span>
+                <span class="text-sm text-gray-600 dark:text-gray-400">Net Cost (cash):</span>
                 <span class="font-bold text-lg">{{
                   formatCurrency(finalComparison.leasedCar.netCost)
                 }}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Monthly Cost:</span>
+                <span class="text-sm text-gray-600 dark:text-gray-400"
+                  >Net Cost (after investment):</span
+                >
+                <span class="font-bold text-lg">{{
+                  formatCurrency(finalComparison.leasedCar.netCostAfterInvestment)
+                }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-sm text-gray-600 dark:text-gray-400">Monthly (cash):</span>
                 <span class="font-semibold">{{
                   formatCurrency(finalComparison.leasedCar.avgMonthlyCost)
+                }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-sm text-gray-600 dark:text-gray-400"
+                  >Monthly (after investment):</span
+                >
+                <span class="font-semibold">{{
+                  formatCurrency(finalComparison.leasedCar.avgMonthlyCostAfterInvestment)
                 }}</span>
               </div>
               <div class="flex justify-between">
@@ -5282,6 +5661,70 @@ const activeTab = ref('assumptions')
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Sensitivity panel -->
+        <div
+          class="bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-800 p-4"
+        >
+          <h3 class="text-lg font-bold text-zinc-800 dark:text-zinc-200 mb-2">
+            Sensitivity (quick scenarios)
+          </h3>
+          <p class="text-xs text-gray-600 dark:text-gray-400 mb-3">
+            Helps answer “does the decision change if assumptions move?”. Uses the same high-level
+            model and compares ownership vs best lease
+            <span class="font-semibold">after investment</span>.
+          </p>
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse">
+              <thead>
+                <tr class="bg-gray-100 dark:bg-slate-800">
+                  <th class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-left">
+                    Scenario
+                  </th>
+                  <th class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-left">
+                    Recommended
+                  </th>
+                  <th class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-right">
+                    Owned (net)
+                  </th>
+                  <th class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-right">
+                    Lease best (after inv.)
+                  </th>
+                  <th class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-right">
+                    Savings
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="s in sensitivityScenarios"
+                  :key="s.id"
+                  class="hover:bg-gray-50 dark:hover:bg-slate-800/50"
+                >
+                  <td class="border border-gray-300 dark:border-slate-700 px-3 py-2">
+                    <div class="font-medium text-zinc-800 dark:text-zinc-200">{{ s.label }}</div>
+                  </td>
+                  <td class="border border-gray-300 dark:border-slate-700 px-3 py-2">
+                    <span class="font-semibold">{{ s.result.recommended }}</span>
+                  </td>
+                  <td class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-right">
+                    {{ formatCurrency(s.result.ownedNetCost) }}
+                  </td>
+                  <td class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-right">
+                    {{
+                      s.result.bestLeaseNetCostAfterInvestment !== null
+                        ? formatCurrency(s.result.bestLeaseNetCostAfterInvestment)
+                        : '—'
+                    }}
+                  </td>
+                  <td class="border border-gray-300 dark:border-slate-700 px-3 py-2 text-right">
+                    {{ formatCurrency(s.result.savings) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 

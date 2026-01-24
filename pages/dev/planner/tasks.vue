@@ -25,6 +25,9 @@ const sortBy = ref<'title' | 'status' | 'planned_date' | 'theme'>('planned_date'
 const sortOrder = ref<'asc' | 'desc'>('desc')
 const dbConnectionStatus = ref<'connected' | 'disconnected' | 'checking'>('checking')
 
+// Date filter: All | Today | Tomorrow | Later
+const dateFilter = ref<'all' | 'today' | 'tomorrow' | 'later'>('all')
+
 // Quick Add Task
 const quickTaskTitle = ref('')
 const quickTaskTheme = ref<string | null>(null)
@@ -106,6 +109,21 @@ const toggleDependents = (taskId: number) => {
 
 const filteredAndSortedTasks = computed(() => {
   let filtered = tasks.value
+
+  // Date filter: Today, Tomorrow, or Later (tasks with no date or after tomorrow)
+  if (dateFilter.value !== 'all') {
+    const todayStr = getLocalDateString()
+    const tomorrowDate = new Date()
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+    const tomorrowStr = getLocalDateString(tomorrowDate)
+    filtered = filtered.filter((task) => {
+      const pd = task.planned_date
+      if (dateFilter.value === 'today') return pd === todayStr
+      if (dateFilter.value === 'tomorrow') return pd === tomorrowStr
+      if (dateFilter.value === 'later') return !pd || pd > tomorrowStr
+      return true
+    })
+  }
 
   // Filter out done tasks older than 1 day (based on today's date - if planned_date is more than 1 day in the past)
   const today = new Date()
@@ -216,6 +234,13 @@ const hasDependents = (taskId: number): boolean => {
   return tasks.value.some((task) => task.depends_on_task_id === taskId)
 }
 
+// Dependents that pass the active filters (date, done/1-day). Used for display and hidden count
+// so "(X dependent tasks hidden)" and the expanded list match: only filtered dependents are counted/shown.
+const getFilteredDependentTasks = computed(() => {
+  const ids = new Set(filteredAndSortedTasks.value.map((t) => t.id))
+  return (parentId: number) => getDependentTasks(parentId).filter((d) => ids.has(d.id))
+})
+
 const tasksGroupedByTheme = computed(() => {
   const grouped = new Map<string, Task[]>()
 
@@ -254,6 +279,17 @@ const tasksGroupedByTheme = computed(() => {
       if (b.theme === 'No Bucket') return -1
       return a.theme.localeCompare(b.theme)
     })
+})
+
+// Count dependent tasks hidden because their parent is collapsed.
+// Only counts dependents that pass the active filters so the "(X hidden)" text matches what
+// will appear when the user expands.
+const hiddenDependentCount = computed(() => {
+  const getFiltered = getFilteredDependentTasks.value
+  const parents = filteredAndSortedTasks.value.filter((t) => !t.depends_on_task_id)
+  return parents
+    .filter((p) => !expandedParentTasks.value.has(p.id))
+    .reduce((sum, p) => sum + getFiltered(p.id).length, 0)
 })
 
 const rollOverPastDates = async (tasksList: Task[]) => {
@@ -1106,10 +1142,9 @@ const updateTaskInState = (updatedTask: Task) => {
     // Task not found - might have moved to a different bucket or been filtered
     // Add it if it matches current filters, otherwise it will appear on next full load
     const shouldShow =
-      !updatedTask.deleted_at &&
-      (updatedTask.status !== 'done' ||
-        (updatedTask.planned_date &&
-          new Date(updatedTask.planned_date + 'T00:00:00') >= new Date(Date.now() - 86400000)))
+      updatedTask.status !== 'done' ||
+      (updatedTask.planned_date &&
+        new Date(updatedTask.planned_date + 'T00:00:00') >= new Date(Date.now() - 86400000))
     if (shouldShow) {
       tasks.value.push(updatedTask)
       tasks.value.sort((a, b) => {
@@ -2226,30 +2261,79 @@ onUnmounted(() => {
 
         <!-- Tasks List -->
         <div class="relative">
-          <!-- Action Buttons - Icons overhead the tasks table -->
-          <div class="flex justify-end gap-2 mb-2">
-            <!-- Bulk Upload Button -->
-            <button
-              class="p-2 rounded-lg transition-colors touch-manipulation bg-blue-500 hover:bg-blue-600 text-white"
-              title="Bulk upload tasks"
-              @click="isBulkUploadVisible = true"
-            >
-              <Icon name="mdi:upload" size="22" />
-            </button>
-            <!-- Purge Button -->
-            <button
-              :class="[
-                'p-2 rounded-lg transition-colors touch-manipulation',
-                isPurging
-                  ? 'bg-gray-400 cursor-not-allowed text-white'
-                  : 'bg-orange-500 hover:bg-orange-600 text-white',
-              ]"
-              :disabled="isPurging"
-              :title="isPurging ? 'Purging...' : 'Purge all completed task'"
-              @click="handlePurge"
-            >
-              <Icon name="mdi:delete-sweep" size="22" />
-            </button>
+          <!-- When filter + Action Buttons (Bulk Upload, Purge) on one line -->
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <!-- When: All | Today | Tomorrow | Later -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">When:</span>
+              <button
+                :class="[
+                  'px-2.5 py-1 rounded-lg text-sm font-medium transition-colors touch-manipulation',
+                  dateFilter === 'all'
+                    ? 'bg-blue-600 text-white dark:bg-blue-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
+                ]"
+                @click="dateFilter = 'all'"
+              >
+                All
+              </button>
+              <button
+                :class="[
+                  'px-2.5 py-1 rounded-lg text-sm font-medium transition-colors touch-manipulation',
+                  dateFilter === 'today'
+                    ? 'bg-blue-600 text-white dark:bg-blue-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
+                ]"
+                @click="dateFilter = 'today'"
+              >
+                Today
+              </button>
+              <button
+                :class="[
+                  'px-2.5 py-1 rounded-lg text-sm font-medium transition-colors touch-manipulation',
+                  dateFilter === 'tomorrow'
+                    ? 'bg-blue-600 text-white dark:bg-blue-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
+                ]"
+                @click="dateFilter = 'tomorrow'"
+              >
+                Tomorrow
+              </button>
+              <button
+                :class="[
+                  'px-2.5 py-1 rounded-lg text-sm font-medium transition-colors touch-manipulation',
+                  dateFilter === 'later'
+                    ? 'bg-blue-600 text-white dark:bg-blue-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
+                ]"
+                @click="dateFilter = 'later'"
+              >
+                Later
+              </button>
+            </div>
+            <!-- Bulk Upload + Purge -->
+            <div class="flex items-center gap-2">
+              <button
+                class="p-2 rounded-lg transition-colors touch-manipulation bg-blue-500 hover:bg-blue-600 text-white"
+                title="Bulk upload tasks"
+                @click="isBulkUploadVisible = true"
+              >
+                <Icon name="mdi:upload" size="22" />
+              </button>
+              <button
+                :class="[
+                  'p-2 rounded-lg transition-colors touch-manipulation',
+                  isPurging
+                    ? 'bg-gray-400 cursor-not-allowed text-white'
+                    : 'bg-orange-500 hover:bg-orange-600 text-white',
+                ]"
+                :disabled="isPurging"
+                :title="isPurging ? 'Purging...' : 'Purge all completed tasks'"
+                @click="handlePurge"
+              >
+                <Icon name="mdi:delete-sweep" size="22" />
+              </button>
+            </div>
           </div>
           <div
             class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700"
@@ -2289,7 +2373,7 @@ onUnmounted(() => {
               >
                 <div
                   v-if="editingTaskId !== task.id"
-                  class="flex flex-row items-center gap-2 sm:gap-3"
+                  class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full min-w-0"
                 >
                   <!-- Done/Doing Toggle (square toggle) -->
                   <button
@@ -2313,7 +2397,9 @@ onUnmounted(() => {
 
                   <!-- Task Title and Notes (compact) -->
                   <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between gap-2 mb-1">
+                    <div
+                      class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1 min-w-0"
+                    >
                       <div
                         :class="[
                           'text-sm cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex-1',
@@ -2324,10 +2410,10 @@ onUnmounted(() => {
                         title="Click to edit"
                         @click.stop="startEdit(task)"
                       >
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-2 min-w-0">
                           <!-- Expand/Collapse Button for Parent Tasks -->
                           <button
-                            v-if="hasDependents(task.id)"
+                            v-if="getFilteredDependentTasks(task.id).length > 0"
                             type="button"
                             class="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                             @click.stop="toggleDependents(task.id)"
@@ -2342,7 +2428,9 @@ onUnmounted(() => {
                             />
                           </button>
                           <span v-else class="w-4"></span>
-                          <span class="font-medium">{{ task.title }}</span>
+                          <span class="font-medium min-w-0 break-words">
+                            {{ task.title }}
+                          </span>
                           <!-- Rollover Counter -->
                           <span
                             v-if="task.rollover_count && task.rollover_count > 0"
@@ -2363,21 +2451,26 @@ onUnmounted(() => {
                           </span>
                           <!-- Dependent Count Badge -->
                           <span
-                            v-if="hasDependents(task.id)"
+                            v-if="getFilteredDependentTasks(task.id).length > 0"
                             class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
                           >
-                            {{ getDependentTasks(task.id).length }}
+                            {{ getFilteredDependentTasks(task.id).length }}
                           </span>
                         </div>
-                        <span v-if="task.notes" class="text-gray-600 dark:text-gray-400 ml-2">
-                          – {{ task.notes }}
-                        </span>
+                        <div
+                          v-if="task.notes"
+                          class="text-gray-600 dark:text-gray-400 mt-1 sm:mt-0 sm:ml-2 min-w-0 break-words"
+                        >
+                          <span class="hidden sm:inline">– </span>{{ task.notes }}
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   <!-- Actions -->
-                  <div class="flex items-center gap-2 flex-shrink-0">
+                  <div
+                    class="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start mt-1 sm:mt-0"
+                  >
                     <!-- Date Tag (hidden for done tasks, clickable to edit) -->
                     <span
                       v-if="task.planned_date && task.status !== 'done'"
@@ -2984,11 +3077,14 @@ onUnmounted(() => {
 
                 <!-- Collapsible Dependent Tasks (Level 1) -->
                 <div
-                  v-if="hasDependents(task.id) && expandedParentTasks.has(task.id)"
+                  v-if="
+                    getFilteredDependentTasks(task.id).length > 0 &&
+                    expandedParentTasks.has(task.id)
+                  "
                   class="ml-8 mt-2 space-y-1 border-l-2 border-gray-300 dark:border-gray-600 pl-3"
                 >
                   <div
-                    v-for="dependentTask in getDependentTasks(task.id)"
+                    v-for="dependentTask in getFilteredDependentTasks(task.id)"
                     :key="dependentTask.id"
                     :data-task-id="dependentTask.id"
                     :class="[
@@ -3030,7 +3126,7 @@ onUnmounted(() => {
                         <div class="flex items-center gap-1.5">
                           <!-- Expand/Collapse Button for Level 2 Dependents -->
                           <button
-                            v-if="hasDependents(dependentTask.id)"
+                            v-if="getFilteredDependentTasks(dependentTask.id).length > 0"
                             type="button"
                             class="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                             @click.stop="toggleDependents(dependentTask.id)"
@@ -3067,10 +3163,10 @@ onUnmounted(() => {
                           </span>
                           <!-- Dependent Count Badge for Level 2 -->
                           <span
-                            v-if="hasDependents(dependentTask.id)"
+                            v-if="getFilteredDependentTasks(dependentTask.id).length > 0"
                             class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
                           >
-                            {{ getDependentTasks(dependentTask.id).length }}
+                            {{ getFilteredDependentTasks(dependentTask.id).length }}
                           </span>
                         </div>
                         <span
@@ -3537,12 +3633,13 @@ onUnmounted(() => {
                     <!-- Collapsible Level 2 Dependent Tasks (Grandchildren) -->
                     <div
                       v-if="
-                        hasDependents(dependentTask.id) && expandedParentTasks.has(dependentTask.id)
+                        getFilteredDependentTasks(dependentTask.id).length > 0 &&
+                        expandedParentTasks.has(dependentTask.id)
                       "
                       class="ml-6 mt-1.5 space-y-1 border-l-2 border-green-300 dark:border-green-600 pl-2"
                     >
                       <div
-                        v-for="grandchildTask in getDependentTasks(dependentTask.id)"
+                        v-for="grandchildTask in getFilteredDependentTasks(dependentTask.id)"
                         :key="grandchildTask.id"
                         :data-task-id="grandchildTask.id"
                         :class="[
@@ -3611,10 +3708,10 @@ onUnmounted(() => {
                               </span>
                               <!-- Dependent Count Badge for Level 2 (if it had dependents, but max depth is 2, so this won't show) -->
                               <span
-                                v-if="hasDependents(grandchildTask.id)"
+                                v-if="getFilteredDependentTasks(grandchildTask.id).length > 0"
                                 class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded border border-green-200 dark:border-green-800"
                               >
-                                {{ getDependentTasks(grandchildTask.id).length }}
+                                {{ getFilteredDependentTasks(grandchildTask.id).length }}
                               </span>
                             </div>
                             <span
@@ -3823,16 +3920,20 @@ onUnmounted(() => {
             <div class="text-sm text-gray-600 dark:text-gray-400">
               Showing {{ filteredAndSortedTasks.length }} task{{
                 filteredAndSortedTasks.length !== 1 ? 's' : ''
-              }}
+              }}<template v-if="hiddenDependentCount > 0">
+                ({{ hiddenDependentCount }} dependent task{{
+                  hiddenDependentCount !== 1 ? 's' : ''
+                }}
+                hidden — click ▶ next to a task to expand)
+              </template>
             </div>
             <div
               class="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2"
             >
               <Icon name="mdi:information-outline" size="16" class="inline align-middle mr-1" />
               <span>
-                Done tasks are automatically removed after 1 day. Use the purge icon above to remove
-                deleted tasks immediately. Archived tasks are preserved for statistics and can be
-                viewed in the
+                Use the purge icon above to remove completed tasks. Archived tasks are preserved for
+                statistics and can be viewed in the
                 <NuxtLink to="/dev/planner/review" class="underline font-medium"
                   >Review page</NuxtLink
                 >.
