@@ -1,10 +1,14 @@
 // Service Worker for Offline Support and Caching
-const CACHE_NAME = 'nomadic-notions-v1'
-const STATIC_CACHE_NAME = 'nomadic-notions-static-v1'
-const DYNAMIC_CACHE_NAME = 'nomadic-notions-dynamic-v1'
+// IMPORTANT:
+// - Never serve a stale HTML shell (/) after deployments, or users will see a broken app until hard refresh.
+// - Use network-first for navigations/HTML and keep caches versioned so old caches are purged on activate.
+const CACHE_NAME = 'nomadic-notions-v2'
+const STATIC_CACHE_NAME = 'nomadic-notions-static-v2'
+const DYNAMIC_CACHE_NAME = 'nomadic-notions-dynamic-v2'
 
 // Assets to cache immediately on install
-const STATIC_ASSETS = ['/', '/blogs', '/about', '/resources', '/favicon.ico']
+// Do NOT precache '/' or other HTML routes — that can cause stale HTML to reference removed JS bundles.
+const STATIC_ASSETS = ['/favicon.ico', '/manifest.json', '/Nomadic Notion-logo-2.png']
 
 // Cache strategies
 const CACHE_STRATEGY = {
@@ -74,6 +78,13 @@ self.addEventListener('fetch', (event) => {
     return fetch(request)
   }
 
+  // Navigations (HTML documents): always prefer network to avoid stale HTML after deployments.
+  // This is the #1 fix for "works only after Ctrl+F5".
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirstHTMLStrategy(request, DYNAMIC_CACHE_NAME))
+    return
+  }
+
   // Strategy: Network First for API calls
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirstStrategy(request, DYNAMIC_CACHE_NAME))
@@ -92,15 +103,52 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Strategy: Stale While Revalidate for blog posts and pages
+  // Pages (non-navigate fetches): prefer network-first as well.
+  // (If your router prefetches JSON or other content, it will still be cached safely.)
   if (url.pathname.startsWith('/blogs/') || url.pathname === '/') {
-    event.respondWith(staleWhileRevalidateStrategy(request, DYNAMIC_CACHE_NAME))
+    event.respondWith(networkFirstStrategy(request, DYNAMIC_CACHE_NAME))
     return
   }
 
   // Default: Network First for other requests
   event.respondWith(networkFirstStrategy(request, DYNAMIC_CACHE_NAME))
 })
+
+// Network First strategy specifically for HTML navigations.
+// Uses a cache-busted request to avoid the browser HTTP cache returning stale HTML.
+async function networkFirstHTMLStrategy(request, cacheName) {
+  try {
+    const cacheBustedRequest = new Request(request.url, {
+      method: request.method,
+      headers: request.headers,
+      credentials: request.credentials,
+      redirect: request.redirect,
+      referrer: request.referrer,
+      referrerPolicy: request.referrerPolicy,
+      integrity: request.integrity,
+      cache: 'no-store',
+    })
+
+    const networkResponse = await fetch(cacheBustedRequest)
+    if (networkResponse.ok) {
+      const cache = await caches.open(cacheName)
+      try {
+        await cache.put(request, networkResponse.clone())
+      } catch (error) {
+        console.warn('[Service Worker] Failed to update HTML cache:', error)
+      }
+    }
+    return networkResponse
+  } catch (error) {
+    console.log('[Service Worker] HTML network failed, trying cache:', error)
+    const cachedResponse = await caches.match(request)
+    if (cachedResponse) return cachedResponse
+    // As a final fallback, try the root cached document (if any)
+    const cachedRoot = await caches.match('/')
+    if (cachedRoot) return cachedRoot
+    return new Response('Offline', { status: 503, statusText: 'Service Unavailable' })
+  }
+}
 
 // Cache First Strategy - check cache first, fallback to network
 async function cacheFirstStrategy(request, cacheName) {
