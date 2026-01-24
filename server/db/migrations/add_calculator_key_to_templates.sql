@@ -24,3 +24,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Ensure trigger exists (migration may run on DBs where triggers were dropped)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'ensure_single_default_template_trigger'
+  ) THEN
+    CREATE TRIGGER ensure_single_default_template_trigger
+      BEFORE INSERT OR UPDATE ON calculator_templates
+      FOR EACH ROW
+      EXECUTE FUNCTION ensure_single_default_template();
+  END IF;
+END;
+$$;
+
