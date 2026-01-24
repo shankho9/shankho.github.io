@@ -1,6 +1,16 @@
 export default defineNuxtRouteMiddleware(async (to, _from) => {
-  // Only check auth on client-side
+  const redirectToLogin = () =>
+    navigateTo('/auth/login?redirect=' + encodeURIComponent(to.fullPath))
+
+  // SSR: verify auth using request cookies so protected pages don't "half render" then redirect.
   if (import.meta.env.SSR) {
+    try {
+      const headers = useRequestHeaders(['cookie'])
+      const response = await $fetch<{ authenticated: boolean }>('/api/auth/me', { headers })
+      if (!response?.authenticated) return redirectToLogin()
+    } catch {
+      return redirectToLogin()
+    }
     return
   }
 
@@ -20,7 +30,7 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('auth_user')
       }
-      return navigateTo('/auth/login?redirect=' + encodeURIComponent(to.fullPath))
+      return redirectToLogin()
     }
   } catch (error) {
     // If checkAuth fails (network error, etc.), but user is in localStorage,
@@ -28,7 +38,7 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
     // This handles race conditions where session cookie might not be immediately available
     if (!isAuthenticated.value) {
       // No user in localStorage and checkAuth failed - redirect to login
-      return navigateTo('/auth/login?redirect=' + encodeURIComponent(to.fullPath))
+      return redirectToLogin()
     }
     // User is in localStorage but checkAuth failed - allow access but log the error
     console.warn('[Auth Middleware] Server verification failed, but user in localStorage:', error)
