@@ -567,7 +567,35 @@ const deleteTemplate = async (id: number) => {
 // ===== PDF Export (rich report like car lease calculator) =====
 const isExportingPDF = ref(false)
 
-type PdfDoc = InstanceType<typeof import('jspdf').default>
+// Minimal jsPDF surface we use (keeps types stable across jsPDF versions/builds)
+type PdfDoc = {
+  internal: { pageSize: { width: number; height: number } }
+  addPage: () => void
+  save: (filename: string) => void
+  setFontSize: (size: number) => void
+  setFont: (fontName: string, fontStyle: 'normal' | 'bold') => void
+  setTextColor: (r: number, g: number, b: number) => void
+  setFillColor: (r: number, g: number, b: number) => void
+  setDrawColor: (r: number, g: number, b: number) => void
+  text: (
+    text: string | string[],
+    x: number,
+    y: number,
+    options?: { align?: 'center' | 'left' | 'right' },
+  ) => void
+  line: (x1: number, y1: number, x2: number, y2: number) => void
+  rect: (x: number, y: number, w: number, h: number, style?: 'S' | 'F') => void
+  roundedRect: (
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    rx: number,
+    ry: number,
+    style?: 'S' | 'F',
+  ) => void
+  splitTextToSize: (text: string, maxWidth: number) => string[]
+}
 
 const formatCurrencyForPDF = (value: number) => {
   // jsPDF doesn't always play nicely with some currency symbols; for INR use "INR" prefix
