@@ -577,7 +577,12 @@ type PdfDoc = {
   setTextColor: (r: number, g: number, b: number) => void
   setFillColor: (r: number, g: number, b: number) => void
   setDrawColor: (r: number, g: number, b: number) => void
-  text: (text: string | string[], x: number, y: number, options?: { align?: 'center' | 'left' | 'right' }) => void
+  text: (
+    text: string | string[],
+    x: number,
+    y: number,
+    options?: { align?: 'center' | 'left' | 'right' },
+  ) => void
   line: (x1: number, y1: number, x2: number, y2: number) => void
   rect: (x: number, y: number, w: number, h: number, style?: 'S' | 'F') => void
   roundedRect: (
