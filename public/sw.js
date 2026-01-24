@@ -132,7 +132,11 @@ async function networkFirstHTMLStrategy(request, cacheName) {
     const networkResponse = await fetch(cacheBustedRequest)
     if (networkResponse.ok) {
       const cache = await caches.open(cacheName)
-      cache.put(request, networkResponse.clone())
+      try {
+        await cache.put(request, networkResponse.clone())
+      } catch (error) {
+        console.warn('[Service Worker] Failed to update HTML cache:', error)
+      }
     }
     return networkResponse
   } catch (error) {
