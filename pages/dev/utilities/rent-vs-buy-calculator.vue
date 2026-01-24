@@ -566,6 +566,8 @@ const deleteTemplate = async (id: number) => {
 // ===== PDF Export (rich report like car lease calculator) =====
 const isExportingPDF = ref(false)
 
+type PdfDoc = InstanceType<typeof import('jspdf').default>
+
 const formatCurrencyForPDF = (value: number) => {
   // jsPDF doesn't always play nicely with some currency symbols; for INR use "INR" prefix
   const code = assumptions.value.currency
@@ -578,7 +580,7 @@ const formatCurrencyForPDF = (value: number) => {
   return `${code} ${n}`
 }
 
-const checkPageBreak = (doc: any, y: number, neededHeight: number, margin: number) => {
+const checkPageBreak = (doc: PdfDoc, y: number, neededHeight: number, margin: number) => {
   const pageHeight = doc.internal.pageSize.height
   if (y + neededHeight > pageHeight - margin) {
     doc.addPage()
@@ -588,7 +590,7 @@ const checkPageBreak = (doc: any, y: number, neededHeight: number, margin: numbe
 }
 
 const addColoredBox = (
-  doc: any,
+  doc: PdfDoc,
   x: number,
   y: number,
   w: number,
@@ -601,7 +603,7 @@ const addColoredBox = (
   doc.setTextColor(textRgb[0], textRgb[1], textRgb[2])
 }
 
-const addSectionHeader = (doc: any, y: number, title: string, margin: number) => {
+const addSectionHeader = (doc: PdfDoc, y: number, title: string, margin: number) => {
   y = checkPageBreak(doc, y, 14, margin)
   doc.setFontSize(13)
   doc.setFont('helvetica', 'bold')
@@ -615,7 +617,7 @@ const addSectionHeader = (doc: any, y: number, title: string, margin: number) =>
 }
 
 const addKeyValueTable = (
-  doc: any,
+  doc: PdfDoc,
   y: number,
   title: string,
   rows: Array<[string, string]>,
