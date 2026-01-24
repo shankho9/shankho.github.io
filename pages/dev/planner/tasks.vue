@@ -2373,7 +2373,7 @@ onUnmounted(() => {
               >
                 <div
                   v-if="editingTaskId !== task.id"
-                  class="flex flex-row items-center gap-2 sm:gap-3"
+                  class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full min-w-0"
                 >
                   <!-- Done/Doing Toggle (square toggle) -->
                   <button
@@ -2397,7 +2397,9 @@ onUnmounted(() => {
 
                   <!-- Task Title and Notes (compact) -->
                   <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between gap-2 mb-1">
+                    <div
+                      class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1 min-w-0"
+                    >
                       <div
                         :class="[
                           'text-sm cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex-1',
@@ -2408,7 +2410,7 @@ onUnmounted(() => {
                         title="Click to edit"
                         @click.stop="startEdit(task)"
                       >
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-2 min-w-0">
                           <!-- Expand/Collapse Button for Parent Tasks -->
                           <button
                             v-if="getFilteredDependentTasks(task.id).length > 0"
@@ -2426,7 +2428,9 @@ onUnmounted(() => {
                             />
                           </button>
                           <span v-else class="w-4"></span>
-                          <span class="font-medium">{{ task.title }}</span>
+                          <span class="font-medium min-w-0 break-words">
+                            {{ task.title }}
+                          </span>
                           <!-- Rollover Counter -->
                           <span
                             v-if="task.rollover_count && task.rollover_count > 0"
@@ -2453,15 +2457,20 @@ onUnmounted(() => {
                             {{ getFilteredDependentTasks(task.id).length }}
                           </span>
                         </div>
-                        <span v-if="task.notes" class="text-gray-600 dark:text-gray-400 ml-2">
-                          – {{ task.notes }}
-                        </span>
+                        <div
+                          v-if="task.notes"
+                          class="text-gray-600 dark:text-gray-400 mt-1 sm:mt-0 sm:ml-2 min-w-0 break-words"
+                        >
+                          <span class="hidden sm:inline">– </span>{{ task.notes }}
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   <!-- Actions -->
-                  <div class="flex items-center gap-2 flex-shrink-0">
+                  <div
+                    class="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start mt-1 sm:mt-0"
+                  >
                     <!-- Date Tag (hidden for done tasks, clickable to edit) -->
                     <span
                       v-if="task.planned_date && task.status !== 'done'"
