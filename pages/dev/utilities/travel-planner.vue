@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { ref, computed, onMounted, watch, shallowRef, nextTick } from 'vue'
+import { ref, computed, onMounted, watch, shallowRef } from 'vue'
 import { seoData } from '~/data'
 import { useToast } from '~/composables/useToast'
 import { useDevUtilityAuth } from '~/composables/useDevUtilityAuth'
@@ -19,7 +19,8 @@ useHead({
   meta: [
     {
       name: 'description',
-      content: 'Plan trips, compare road vs flight costs, and find the most cost-effective travel option',
+      content:
+        'Plan trips, compare road vs flight costs, and find the most cost-effective travel option',
     },
     { property: 'og:site_name', content: seoData.mySite },
     { property: 'og:type', content: 'website' },
@@ -178,7 +179,16 @@ const defaultPlan = {
 }
 
 const plan = ref({ ...defaultPlan } as typeof defaultPlan)
-const activeTab = ref<'plan' | 'transport-costs' | 'accommodation-activities' | 'comparison' | 'itinerary' | 'expenses' | 'packing' | 'documents'>('plan')
+const activeTab = ref<
+  | 'plan'
+  | 'transport-costs'
+  | 'accommodation-activities'
+  | 'comparison'
+  | 'itinerary'
+  | 'expenses'
+  | 'packing'
+  | 'documents'
+>('plan')
 const isLoadingDistance = ref(false)
 const distanceError = ref('')
 const distanceData = ref<{
@@ -194,7 +204,7 @@ const directionsRenderer = ref<google.maps.DirectionsRenderer | null>(null)
 const routeStops = ref<Array<{ name: string; lat: number; lng: number }>>([])
 const isAnimatingRoute = ref(false)
 const carMarker = ref<google.maps.Marker | null>(null)
-const routePath = ref<google.maps.Polyline | null>(null)
+const _routePath = ref<google.maps.Polyline | null>(null)
 const routeCoordinates = ref<Array<{ lat: number; lng: number }>>([])
 const isRecordingGif = ref(false)
 const animationFrames = ref<ImageData[]>([])
@@ -230,7 +240,7 @@ const previousCurrency = ref<keyof typeof currencies>('INR')
 const draggedDestinationId = ref<string | null>(null)
 const showExportMenu = ref(false)
 const isExporting = ref(false)
-const showPrintView = ref(false)
+const _showPrintView = ref(false)
 
 const formatCurrency = (value: number) => {
   const curr = currencies[plan.value.currency] || currencies.INR
@@ -302,7 +312,10 @@ const applyBudgetPreset = () => {
   const travelers = Math.max(1, totalTravelers.value || 1)
   // Base preset is per person, multiply by number of travelers
   plan.value.budget = basePreset * travelers
-  showToast(`Budget set to ${formatCurrency(plan.value.budget)} for ${travelers} ${travelers === 1 ? 'traveler' : 'travelers'}`, 'success')
+  showToast(
+    `Budget set to ${formatCurrency(plan.value.budget)} for ${travelers} ${travelers === 1 ? 'traveler' : 'travelers'}`,
+    'success',
+  )
 }
 
 const toggleCurrencyMenu = () => {
@@ -343,14 +356,16 @@ const closeDurationMenu = () => {
 }
 
 const normalizePlan = (data: Partial<TravelPlan> & { tripMembers?: number }) => {
-  const fallbackMembers = Number.isFinite(data.tripMembers) ? Math.max(1, data.tripMembers || 1) : null
+  const fallbackMembers = Number.isFinite(data.tripMembers)
+    ? Math.max(1, data.tripMembers || 1)
+    : null
   return {
     ...defaultPlan,
     ...data,
     adults:
       Number.isFinite(data.adults) && data.adults !== undefined
         ? Math.max(0, data.adults as number)
-        : fallbackMembers ?? defaultPlan.adults,
+        : (fallbackMembers ?? defaultPlan.adults),
     kids:
       Number.isFinite(data.kids) && data.kids !== undefined
         ? Math.max(0, data.kids as number)
@@ -364,8 +379,12 @@ const normalizePlan = (data: Partial<TravelPlan> & { tripMembers?: number }) => 
     packing: { ...defaultPlan.packing, ...(data.packing || {}) },
     documents: { ...defaultPlan.documents, ...(data.documents || {}) },
     budget: Number.isFinite(data.budget) ? Math.max(0, data.budget as number) : defaultPlan.budget,
-    transportModes: Array.isArray(data.transportModes) ? (data.transportModes as TransportMode[]) : defaultPlan.transportModes,
-    stayCategories: Array.isArray(data.stayCategories) ? (data.stayCategories as StayCategory[]) : defaultPlan.stayCategories,
+    transportModes: Array.isArray(data.transportModes)
+      ? (data.transportModes as TransportMode[])
+      : defaultPlan.transportModes,
+    stayCategories: Array.isArray(data.stayCategories)
+      ? (data.stayCategories as StayCategory[])
+      : defaultPlan.stayCategories,
     destinations: Array.isArray(data.destinations)
       ? data.destinations.map((d) => ({
           id: d.id || Date.now().toString(),
@@ -390,8 +409,7 @@ const addDestination = () => {
 const removeDestination = (id: string) => {
   plan.value.destinations = plan.value.destinations.filter((d) => d.id !== id)
   if (destinationSuggestions.value[id]) {
-    const next = { ...destinationSuggestions.value }
-    delete next[id]
+    const { [id]: _, ...next } = destinationSuggestions.value
     destinationSuggestions.value = next
   }
 }
@@ -482,7 +500,12 @@ const calculateDistance = async () => {
     const stops = [plan.value.origin, ...plan.value.destinations.map((d) => d.name)]
     let totalDistance = 0
     let totalDuration = 0
-    const legs: Array<{ origin: string; destination: string; distanceText: string; durationText: string }> = []
+    const legs: Array<{
+      origin: string
+      destination: string
+      distanceText: string
+      durationText: string
+    }> = []
 
     for (let i = 0; i < stops.length - 1; i += 1) {
       const res = await $fetch<{
@@ -588,7 +611,6 @@ const estimatedSightseeingCost = computed(() => {
   // Estimate sightseeing cost based on number of destinations and days
   // Rough estimate: 5-10% of base trip cost per destination
   if (plan.value.destinations.length === 0 || totalDays.value === 0) return 0
-  const baseCost = estimatedFuelCost.value + estimatedTollsCost.value
   const costPerDestination: Record<keyof typeof currencies, number> = {
     INR: 500, // ₹500 per destination for sightseeing
     USD: 25, // $25 per destination
@@ -605,7 +627,7 @@ const roadTripCost = computed(() => {
   if (!r.enabled) return 0
 
   let cost = 0
-  
+
   // Fuel cost - use auto-calculated if enabled, otherwise use manual entry
   if (r.autoCalculateFuel && totalDistance.value > 0) {
     cost += estimatedFuelCost.value
@@ -613,14 +635,14 @@ const roadTripCost = computed(() => {
     const liters = totalDistance.value / r.mileage
     cost += liters * r.petrolPrice
   }
-  
+
   // Tolls - use auto-calculated if enabled, otherwise use manual entry
   if (r.autoCalculateTolls && totalDistance.value > 0) {
     cost += estimatedTollsCost.value
   } else {
     cost += r.tolls
   }
-  
+
   cost += r.parking + r.misc + r.sightseeing
 
   return cost
@@ -630,14 +652,14 @@ const publicTransportCost = computed(() => {
   if (!plan.value.publicTransport.enabled) return 0
   const travelers = Math.max(1, totalTravelers.value || 1)
   let totalCost = 0
-  
+
   plan.value.publicTransport.options.forEach((option) => {
     if (option.enabled) {
       const perPerson = option.cost + option.baggage
       totalCost += perPerson * travelers + option.transfer
     }
   })
-  
+
   return totalCost
 })
 
@@ -719,13 +741,39 @@ const stayCategoryIcons: Record<StayCategory, string> = {
 }
 
 const getStayCategoryColor = (category: StayCategory, selected: boolean) => {
-  const colors: Record<StayCategory, { border: string; bg: string; text: string; hover: string }> = {
-    hotel: { border: 'border-rose-500', bg: 'bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-900/30 dark:to-pink-900/30', text: 'text-rose-700 dark:text-rose-300', hover: 'hover:border-rose-300 hover:bg-rose-50/50 dark:hover:bg-rose-900/10' },
-    apartment: { border: 'border-indigo-500', bg: 'bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30', text: 'text-indigo-700 dark:text-indigo-300', hover: 'hover:border-indigo-300 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10' },
-    resort: { border: 'border-emerald-500', bg: 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30', text: 'text-emerald-700 dark:text-emerald-300', hover: 'hover:border-emerald-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10' },
-    hostel: { border: 'border-violet-500', bg: 'bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/30 dark:to-purple-900/30', text: 'text-violet-700 dark:text-violet-300', hover: 'hover:border-violet-300 hover:bg-violet-50/50 dark:hover:bg-violet-900/10' },
-    homestay: { border: 'border-lime-500', bg: 'bg-gradient-to-br from-lime-50 to-green-50 dark:from-lime-900/30 dark:to-green-900/30', text: 'text-lime-700 dark:text-lime-300', hover: 'hover:border-lime-300 hover:bg-lime-50/50 dark:hover:bg-lime-900/10' },
-  }
+  const colors: Record<StayCategory, { border: string; bg: string; text: string; hover: string }> =
+    {
+      hotel: {
+        border: 'border-rose-500',
+        bg: 'bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-900/30 dark:to-pink-900/30',
+        text: 'text-rose-700 dark:text-rose-300',
+        hover: 'hover:border-rose-300 hover:bg-rose-50/50 dark:hover:bg-rose-900/10',
+      },
+      apartment: {
+        border: 'border-indigo-500',
+        bg: 'bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30',
+        text: 'text-indigo-700 dark:text-indigo-300',
+        hover: 'hover:border-indigo-300 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10',
+      },
+      resort: {
+        border: 'border-emerald-500',
+        bg: 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30',
+        text: 'text-emerald-700 dark:text-emerald-300',
+        hover: 'hover:border-emerald-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10',
+      },
+      hostel: {
+        border: 'border-violet-500',
+        bg: 'bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/30 dark:to-purple-900/30',
+        text: 'text-violet-700 dark:text-violet-300',
+        hover: 'hover:border-violet-300 hover:bg-violet-50/50 dark:hover:bg-violet-900/10',
+      },
+      homestay: {
+        border: 'border-lime-500',
+        bg: 'bg-gradient-to-br from-lime-50 to-green-50 dark:from-lime-900/30 dark:to-green-900/30',
+        text: 'text-lime-700 dark:text-lime-300',
+        hover: 'hover:border-lime-300 hover:bg-lime-50/50 dark:hover:bg-lime-900/10',
+      },
+    }
   const color = colors[category]
   if (selected) {
     return `${color.border} ${color.bg} ${color.text}`
@@ -776,19 +824,19 @@ const foodCost = computed(() => {
   if (!plan.value.food.enabled) return 0
   const travelers = Math.max(1, totalTravelers.value || 1)
   let total = 0
-  
+
   // Sum daily costs
   Object.values(plan.value.food.dailyCosts).forEach((cost) => {
     total += cost * travelers
   })
-  
+
   // Sum custom meal costs
   Object.values(plan.value.food.customMeals).forEach((dayMeals) => {
     Object.values(dayMeals).forEach((cost) => {
       total += cost * travelers
     })
   })
-  
+
   return total
 })
 
@@ -799,11 +847,21 @@ const sitesCost = computed(() => {
 
 const stayCost = computed(() => {
   if (!plan.value.stay.includeStay) return 0
-  return plan.value.stay.costPerNight * plan.value.stay.nights * (plan.value.stay.rooms || estimateRooms.value)
+  return (
+    plan.value.stay.costPerNight *
+    plan.value.stay.nights *
+    (plan.value.stay.rooms || estimateRooms.value)
+  )
 })
 
 const totalTripCost = computed(() => {
-  return roadTripCost.value + publicTransportCost.value + foodCost.value + sitesCost.value + stayCost.value
+  return (
+    roadTripCost.value +
+    publicTransportCost.value +
+    foodCost.value +
+    sitesCost.value +
+    stayCost.value
+  )
 })
 
 const remainingBudget = computed(() => {
@@ -830,7 +888,7 @@ const budgetStatus = computed(() => {
 const addTransportOption = () => {
   const stops = [plan.value.origin, ...plan.value.destinations.map((d) => d.name)].filter(Boolean)
   // Allow adding transport options even without origin/destination - user can fill in later
-  
+
   // If there are multiple stops, let user choose which segment
   // For now, default to first to last, but allow multiple options
   const newOption = {
@@ -849,7 +907,9 @@ const addTransportOption = () => {
 }
 
 const removeTransportOption = (id: string) => {
-  plan.value.publicTransport.options = plan.value.publicTransport.options.filter((opt) => opt.id !== id)
+  plan.value.publicTransport.options = plan.value.publicTransport.options.filter(
+    (opt) => opt.id !== id,
+  )
 }
 
 const getTransportTypeLabel = (type: TransportType) => {
@@ -909,7 +969,7 @@ const removeSite = (id: string) => {
   plan.value.sites.sites = plan.value.sites.sites.filter((s) => s.id !== id)
 }
 
-const searchPlaces = async (query: string) => {
+const _searchPlaces = async (_query: string) => {
   // Placeholder for third-party integration (Google Places, TripAdvisor, etc.)
   // This would integrate with an API to fetch site details
   return []
@@ -964,7 +1024,7 @@ const durationPresetDays = computed(() => {
   return 9
 })
 
-const applyDurationPreset = () => {
+const _applyDurationPreset = () => {
   const destCount = plan.value.destinations.length
   if (!destCount) {
     showToast('Add destinations before applying a duration preset', 'error')
@@ -1042,7 +1102,7 @@ const hotelSearchUrl = computed(() => {
   return `https://www.booking.com/searchresults.html?ss=${dest}&checkin=${checkin}&checkout=${checkout}`
 })
 
-const flightSearchUrl = computed(() => {
+const _flightSearchUrl = computed(() => {
   if (!plan.value.startDate || !plan.value.origin || !lastDestination.value) return ''
   const dest = encodeURIComponent(lastDestination.value)
   const orig = encodeURIComponent(plan.value.origin)
@@ -1051,7 +1111,7 @@ const flightSearchUrl = computed(() => {
   return `https://www.google.com/travel/flights?q=Flights%20from%20${orig}%20to%20${dest}%20on%20${depart}%20return%20${ret}`
 })
 
-const kayakSearchUrl = computed(() => {
+const _kayakSearchUrl = computed(() => {
   if (!plan.value.startDate || !plan.value.origin || !lastDestination.value) return ''
   const dest = encodeURIComponent(lastDestination.value)
   const orig = encodeURIComponent(plan.value.origin)
@@ -1060,7 +1120,7 @@ const kayakSearchUrl = computed(() => {
   return `https://www.kayak.com/flights/${orig}-${dest}/${depart}/${ret}`
 })
 
-const skyscannerSearchUrl = computed(() => {
+const _skyscannerSearchUrl = computed(() => {
   if (!plan.value.startDate || !plan.value.origin || !lastDestination.value) return ''
   const dest = encodeURIComponent(lastDestination.value)
   const orig = encodeURIComponent(plan.value.origin)
@@ -1102,13 +1162,13 @@ const renderMapPreview = async (stops: string[]) => {
   if (!mapRef.value || stops.length === 0) return
   isLoadingMap.value = true
   mapError.value = ''
-  
+
   // Clear existing car marker
   if (carMarker.value) {
     carMarker.value.setMap(null)
     carMarker.value = null
   }
-  
+
   try {
     await loadGoogleMapsScript({ requirePlaces: true })
     if (!mapInstance.value) {
@@ -1138,10 +1198,14 @@ const renderMapPreview = async (stops: string[]) => {
     const route = result.routes[0]
     const points: Array<{ name: string; lat: number; lng: number }> = []
     const coordinates: Array<{ lat: number; lng: number }> = []
-    
+
     if (legs.length) {
-      points.push({ name: stops[0], lat: legs[0].start_location.lat(), lng: legs[0].start_location.lng() })
-      
+      points.push({
+        name: stops[0],
+        lat: legs[0].start_location.lat(),
+        lng: legs[0].start_location.lng(),
+      })
+
       // Extract all coordinates from the route overview path
       if (route?.overview_path) {
         route.overview_path.forEach((point: google.maps.LatLng) => {
@@ -1155,7 +1219,7 @@ const renderMapPreview = async (stops: string[]) => {
             lat: leg.end_location.lat(),
             lng: leg.end_location.lng(),
           })
-          
+
           // Extract path points from the leg steps
           if (leg.steps) {
             leg.steps.forEach((step) => {
@@ -1170,7 +1234,8 @@ const renderMapPreview = async (stops: string[]) => {
       }
     }
     routeStops.value = points
-    routeCoordinates.value = coordinates.length > 0 ? coordinates : points.map(p => ({ lat: p.lat, lng: p.lng }))
+    routeCoordinates.value =
+      coordinates.length > 0 ? coordinates : points.map((p) => ({ lat: p.lat, lng: p.lng }))
   } catch (e) {
     mapError.value = e instanceof Error ? e.message : 'Failed to load map preview'
     showToast(mapError.value, 'error')
@@ -1188,7 +1253,10 @@ const getTransportMode = () => {
     return 'transport'
   }
   // Fallback: determine based on costs and enabled status
-  if (plan.value.roadTrip.enabled && (!plan.value.publicTransport.enabled || roadTripCost.value < publicTransportCost.value)) {
+  if (
+    plan.value.roadTrip.enabled &&
+    (!plan.value.publicTransport.enabled || roadTripCost.value < publicTransportCost.value)
+  ) {
     return 'road'
   }
   if (plan.value.publicTransport.enabled) {
@@ -1228,9 +1296,9 @@ const captureFrame = async (): Promise<ImageData | null> => {
   if (!mapRef.value) return null
   try {
     // Use html2canvas if available, otherwise return null
-    const html2canvas = (window as any).html2canvas
+    const html2canvas = (window as Window & { html2canvas?: unknown }).html2canvas
     if (!html2canvas) return null
-    
+
     const canvas = await html2canvas(mapRef.value, {
       useCORS: true,
       logging: false,
@@ -1247,27 +1315,27 @@ const captureFrame = async (): Promise<ImageData | null> => {
 const addWatermark = (canvas: HTMLCanvasElement) => {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
-  
+
   const text = 'Nomadic Notions'
   ctx.save()
   ctx.font = 'bold 16px Arial, sans-serif'
   ctx.textAlign = 'right'
   ctx.textBaseline = 'bottom'
-  
+
   // Add semi-transparent background for better visibility
   const textMetrics = ctx.measureText(text)
   const padding = 8
   const x = canvas.width - 10
   const y = canvas.height - 10
-  
+
   ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'
   ctx.fillRect(
     x - textMetrics.width - padding,
     y - parseInt(ctx.font) - padding,
     textMetrics.width + padding * 2,
-    parseInt(ctx.font) + padding * 2
+    parseInt(ctx.font) + padding * 2,
   )
-  
+
   // Draw text with shadow for better visibility
   ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
   ctx.shadowBlur = 2
@@ -1275,7 +1343,7 @@ const addWatermark = (canvas: HTMLCanvasElement) => {
   ctx.shadowOffsetY = 1
   ctx.fillStyle = '#1e40af'
   ctx.fillText(text, x, y)
-  
+
   ctx.restore()
 }
 
@@ -1284,18 +1352,18 @@ const downloadGif = async () => {
     showToast('No animation frames captured', 'error')
     return
   }
-  
+
   try {
     // Wait a bit for libraries to load if needed
     await new Promise((resolve) => setTimeout(resolve, 500))
-    
+
     // Check if gif.js is available
-    const GIF = (window as any).GIF
+    const GIF = (window as Window & { GIF?: unknown }).GIF
     if (!GIF) {
       showToast('GIF library not loaded. Please refresh the page and try again.', 'error')
       return
     }
-    
+
     const firstFrame = animationFrames.value[0]
     const gif = new GIF({
       workers: 2,
@@ -1304,7 +1372,7 @@ const downloadGif = async () => {
       height: firstFrame.height,
       repeat: 0,
     })
-    
+
     // Process frames with watermark
     for (const frame of animationFrames.value) {
       const canvas = document.createElement('canvas')
@@ -1317,7 +1385,7 @@ const downloadGif = async () => {
         gif.addFrame(canvas, { delay: 150 })
       }
     }
-    
+
     gif.on('finished', (blob: Blob) => {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -1330,11 +1398,11 @@ const downloadGif = async () => {
       showToast('GIF downloaded successfully with watermark', 'success')
       animationFrames.value = []
     })
-    
+
     gif.on('progress', (p: number) => {
       console.log('GIF progress:', Math.round(p * 100) + '%')
     })
-    
+
     gif.render()
   } catch (error) {
     console.error('GIF creation error:', error)
@@ -1348,18 +1416,18 @@ const animateRoute = async (recordGif = false) => {
   isAnimatingRoute.value = true
   isRecordingGif.value = recordGif
   animationFrames.value = []
-  
+
   try {
     // Remove existing marker if any
     if (carMarker.value) {
       carMarker.value.setMap(null)
       carMarker.value = null
     }
-    
+
     // Determine transport mode and create appropriate marker
     const transportMode = getTransportMode()
     const iconConfig = getAnimationIcon(transportMode)
-    
+
     if (mapInstance.value) {
       const startPoint = routeCoordinates.value[0]
       carMarker.value = new google.maps.Marker({
@@ -1369,29 +1437,29 @@ const animateRoute = async (recordGif = false) => {
         zIndex: 1000,
       })
     }
-    
+
     if (!carMarker.value) return
-    
+
     // Animate along the route path
     const totalPoints = routeCoordinates.value.length
     const animationDuration = Math.min(15000, Math.max(5000, totalPoints * 20)) // 5-15 seconds
     const stepInterval = Math.max(10, animationDuration / totalPoints)
     const panInterval = Math.max(50, totalPoints / 20) // Pan every N points
     const captureInterval = Math.max(5, Math.floor(totalPoints / 30)) // Capture ~30 frames
-    
+
     for (let i = 0; i < totalPoints; i++) {
       const point = routeCoordinates.value[i]
       const nextPoint = routeCoordinates.value[i + 1]
-      
+
       // Update marker position
       carMarker.value.setPosition(new google.maps.LatLng(point.lat, point.lng))
-      
+
       // Calculate rotation angle if we have a next point
       if (nextPoint && google.maps.geometry) {
         try {
           const heading = google.maps.geometry.spherical.computeHeading(
             new google.maps.LatLng(point.lat, point.lng),
-            new google.maps.LatLng(nextPoint.lat, nextPoint.lng)
+            new google.maps.LatLng(nextPoint.lat, nextPoint.lng),
           )
           const icon = carMarker.value.getIcon()
           if (typeof icon === 'object' && icon !== null) {
@@ -1400,16 +1468,16 @@ const animateRoute = async (recordGif = false) => {
               rotation: heading,
             })
           }
-        } catch (e) {
+        } catch {
           // Geometry library might not be loaded, skip rotation
         }
       }
-      
+
       // Pan map to follow the marker periodically
       if (i % panInterval === 0 || i === totalPoints - 1) {
         mapInstance.value.panTo(new google.maps.LatLng(point.lat, point.lng))
       }
-      
+
       // Capture frame for GIF if recording
       if (recordGif && i % captureInterval === 0) {
         const frame = await captureFrame()
@@ -1417,10 +1485,10 @@ const animateRoute = async (recordGif = false) => {
           animationFrames.value.push(frame)
         }
       }
-      
+
       await new Promise((resolve) => setTimeout(resolve, stepInterval))
     }
-    
+
     // Capture final frame
     if (recordGif) {
       const frame = await captureFrame()
@@ -1428,14 +1496,14 @@ const animateRoute = async (recordGif = false) => {
         animationFrames.value.push(frame)
       }
     }
-    
+
     // Keep the marker visible at the end
     if (routeCoordinates.value.length > 0) {
       const lastPoint = routeCoordinates.value[routeCoordinates.value.length - 1]
       carMarker.value.setPosition(new google.maps.LatLng(lastPoint.lat, lastPoint.lng))
       mapInstance.value.panTo(new google.maps.LatLng(lastPoint.lat, lastPoint.lng))
     }
-    
+
     // If recording, create and download GIF
     if (recordGif && animationFrames.value.length > 0) {
       await downloadGif()
@@ -1452,9 +1520,12 @@ const animateRoute = async (recordGif = false) => {
 const loadTemplates = async () => {
   isLoadingTemplates.value = true
   try {
-    const res = await $fetch<{ success: boolean; plans: TravelPlanTemplate[]; error?: string }>('/api/travel/plans', {
-      params: { templates: 'true' },
-    })
+    const res = await $fetch<{ success: boolean; plans: TravelPlanTemplate[]; error?: string }>(
+      '/api/travel/plans',
+      {
+        params: { templates: 'true' },
+      },
+    )
     if (res.success && res.plans) {
       templates.value = res.plans || []
       // Auto-load default template if available and no plan is loaded
@@ -1511,10 +1582,13 @@ const saveTemplate = async () => {
         currentTemplateId.value = res.plan.id
       }
     } else {
-      const res = await $fetch<{ success: boolean; plan?: TravelPlanTemplate; error?: string }>('/api/travel/plans', {
-        method: 'POST',
-        body: payload,
-      })
+      const res = await $fetch<{ success: boolean; plan?: TravelPlanTemplate; error?: string }>(
+        '/api/travel/plans',
+        {
+          method: 'POST',
+          body: payload,
+        },
+      )
       if (res.success && res.plan) {
         // Clear currentTemplateId when saving as new
         if (saveAsNew.value) {
@@ -1556,7 +1630,7 @@ const applyTemplate = (tpl: TravelPlanTemplate) => {
 }
 
 const deleteTemplate = async (tpl: TravelPlanTemplate) => {
-  if (!confirm(`Delete template \"${tpl.name}\"?`)) return
+  if (!confirm(`Delete template "${tpl.name}"?`)) return
   try {
     await $fetch(`/api/travel/plans/${tpl.id}`, { method: 'DELETE' })
     if (currentTemplateId.value === tpl.id) currentTemplateId.value = null
@@ -1577,7 +1651,9 @@ const exportToCSV = () => {
     rows.push(`Origin,${plan.value.origin}`)
     rows.push(`Start Date,${plan.value.startDate || 'Not set'}`)
     rows.push(`Duration,${durationLabels[plan.value.duration]}`)
-    rows.push(`Travelers,${totalTravelers.value} (${plan.value.adults} adults, ${plan.value.kids} kids)`)
+    rows.push(
+      `Travelers,${totalTravelers.value} (${plan.value.adults} adults, ${plan.value.kids} kids)`,
+    )
     rows.push(`Budget,${formatCurrency(plan.value.budget)}`)
     rows.push(`Total Cost,${formatCurrency(totalTripCost.value)}`)
     rows.push(`Remaining,${formatCurrency(remainingBudget.value)}`)
@@ -1591,7 +1667,8 @@ const exportToCSV = () => {
     rows.push('Cost Breakdown')
     rows.push('Category,Amount')
     if (roadTripCost.value > 0) rows.push(`Road Trip,${formatCurrency(roadTripCost.value)}`)
-    if (publicTransportCost.value > 0) rows.push(`Public Transport,${formatCurrency(publicTransportCost.value)}`)
+    if (publicTransportCost.value > 0)
+      rows.push(`Public Transport,${formatCurrency(publicTransportCost.value)}`)
     if (stayCost.value > 0) rows.push(`Accommodation,${formatCurrency(stayCost.value)}`)
     if (foodCost.value > 0) rows.push(`Food,${formatCurrency(foodCost.value)}`)
     if (sitesCost.value > 0) rows.push(`Sites,${formatCurrency(sitesCost.value)}`)
@@ -1602,7 +1679,10 @@ const exportToCSV = () => {
     const link = document.createElement('a')
     const url = URL.createObjectURL(blob)
     link.setAttribute('href', url)
-    link.setAttribute('download', `${plan.value.tripName || 'travel-plan'}-${new Date().toISOString().split('T')[0]}.csv`)
+    link.setAttribute(
+      'download',
+      `${plan.value.tripName || 'travel-plan'}-${new Date().toISOString().split('T')[0]}.csv`,
+    )
     link.style.visibility = 'hidden'
     document.body.appendChild(link)
     link.click()
@@ -1697,7 +1777,9 @@ const addPackingItem = (category: keyof typeof plan.value.packing.lists) => {
 }
 
 const removePackingItem = (category: keyof typeof plan.value.packing.lists, id: string) => {
-  plan.value.packing.lists[category] = plan.value.packing.lists[category].filter((item) => item.id !== id)
+  plan.value.packing.lists[category] = plan.value.packing.lists[category].filter(
+    (item) => item.id !== id,
+  )
 }
 
 const packingProgress = computed(() => {
@@ -1710,12 +1792,21 @@ const packingProgress = computed(() => {
 // Cost breakdown data for visualization
 const costBreakdown = computed(() => {
   const breakdown = []
-  if (roadTripCost.value > 0) breakdown.push({ label: 'Road Trip', value: roadTripCost.value, color: '#f97316' })
-  if (publicTransportCost.value > 0) breakdown.push({ label: 'Public Transport', value: publicTransportCost.value, color: '#0ea5e9' })
-  if (stayCost.value > 0) breakdown.push({ label: 'Accommodation', value: stayCost.value, color: '#10b981' })
+  if (roadTripCost.value > 0)
+    breakdown.push({ label: 'Road Trip', value: roadTripCost.value, color: '#f97316' })
+  if (publicTransportCost.value > 0)
+    breakdown.push({
+      label: 'Public Transport',
+      value: publicTransportCost.value,
+      color: '#0ea5e9',
+    })
+  if (stayCost.value > 0)
+    breakdown.push({ label: 'Accommodation', value: stayCost.value, color: '#10b981' })
   if (foodCost.value > 0) breakdown.push({ label: 'Food', value: foodCost.value, color: '#f59e0b' })
-  if (sitesCost.value > 0) breakdown.push({ label: 'Sites', value: sitesCost.value, color: '#8b5cf6' })
-  if (totalExpenses.value > 0) breakdown.push({ label: 'Other Expenses', value: totalExpenses.value, color: '#6366f1' })
+  if (sitesCost.value > 0)
+    breakdown.push({ label: 'Sites', value: sitesCost.value, color: '#8b5cf6' })
+  if (totalExpenses.value > 0)
+    breakdown.push({ label: 'Other Expenses', value: totalExpenses.value, color: '#6366f1' })
   return breakdown
 })
 
@@ -1750,29 +1841,37 @@ const budgetAlerts = computed(() => {
   return alerts
 })
 
-watch([() => itineraryDays.value.length, () => plan.value.itinerary.blocksPerDay], syncItineraryNotes, {
-  immediate: true,
-})
-watch(() => plan.value.currency, (newCurrency, oldCurrency) => {
-  // Update hotel cost when currency changes if using tier preset
-  const curr = plan.value.currency
-  const presets = hotelTierPresets[curr] || hotelTierPresets.INR
-  const currentTier = plan.value.stay.tier
-  // Only update if the current cost matches the old preset (user hasn't customized)
-  const oldPresets = hotelTierPresets[previousCurrency.value] || hotelTierPresets.INR
-  if (plan.value.stay.costPerNight === oldPresets[currentTier]) {
-    plan.value.stay.costPerNight = presets[currentTier]
-  }
-  // Update budget preset if it matches the old preset
-  const oldBudgetPresets = budgetPresets[previousCurrency.value] || budgetPresets.INR
-  const newBudgetPresets = budgetPresets[curr] || budgetPresets.INR
-  if (plan.value.budget === oldBudgetPresets[plan.value.duration]) {
-    plan.value.budget = newBudgetPresets[plan.value.duration]
-  }
-  // Update previous currency for next change
-  previousCurrency.value = curr
-}, { immediate: false })
-const setActiveTab = (tab: typeof activeTab.value) => {
+watch(
+  [() => itineraryDays.value.length, () => plan.value.itinerary.blocksPerDay],
+  syncItineraryNotes,
+  {
+    immediate: true,
+  },
+)
+watch(
+  () => plan.value.currency,
+  () => {
+    // Update hotel cost when currency changes if using tier preset
+    const curr = plan.value.currency
+    const presets = hotelTierPresets[curr] || hotelTierPresets.INR
+    const currentTier = plan.value.stay.tier
+    // Only update if the current cost matches the old preset (user hasn't customized)
+    const oldPresets = hotelTierPresets[previousCurrency.value] || hotelTierPresets.INR
+    if (plan.value.stay.costPerNight === oldPresets[currentTier]) {
+      plan.value.stay.costPerNight = presets[currentTier]
+    }
+    // Update budget preset if it matches the old preset
+    const oldBudgetPresets = budgetPresets[previousCurrency.value] || budgetPresets.INR
+    const newBudgetPresets = budgetPresets[curr] || budgetPresets.INR
+    if (plan.value.budget === oldBudgetPresets[plan.value.duration]) {
+      plan.value.budget = newBudgetPresets[plan.value.duration]
+    }
+    // Update previous currency for next change
+    previousCurrency.value = curr
+  },
+  { immediate: false },
+)
+const _setActiveTab = (tab: typeof activeTab.value) => {
   activeTab.value = tab
 }
 
@@ -1826,19 +1925,31 @@ const toggleStayCategory = (category: StayCategory) => {
   }
 }
 
-watch(() => plan.value.stayCategories.length, (length) => {
-  plan.value.stay.includeStay = length > 0
-  // Auto-update budget when stay categories are added/removed
-  autoUpdateBudget()
-})
+watch(
+  () => plan.value.stayCategories.length,
+  (length) => {
+    plan.value.stay.includeStay = length > 0
+    // Auto-update budget when stay categories are added/removed
+    autoUpdateBudget()
+  },
+)
 
 // Auto-update budget based on selected options with approximations
 const autoUpdateBudget = () => {
   let estimatedCost = 0
   const travelers = Math.max(1, totalTravelers.value || 1)
-  const days = Math.max(1, totalDays.value || plan.value.duration === 'short' ? 3 : plan.value.duration === 'medium' ? 7 : plan.value.duration === 'long' ? 14 : 21)
+  const days = Math.max(
+    1,
+    totalDays.value || plan.value.duration === 'short'
+      ? 3
+      : plan.value.duration === 'medium'
+        ? 7
+        : plan.value.duration === 'long'
+          ? 14
+          : 21,
+  )
   const curr = plan.value.currency
-  
+
   // Estimate transport costs with approximations
   // Always provide approximations when transport modes are selected, even if not enabled or distance is 0
   if (plan.value.transportModes.includes('road')) {
@@ -1847,18 +1958,24 @@ const autoUpdateBudget = () => {
       estimatedCost += roadTripCost.value
     } else if (totalDistance.value > 0) {
       // Approximate road trip cost: fuel + tolls + misc based on distance
-      const fuelEstimate = totalDistance.value * 0.08 * (curr === 'INR' ? 100 : curr === 'USD' ? 3 : curr === 'EUR' ? 2.5 : 2.5) // ~8L/100km * fuel price
-      const tollsEstimate = totalDistance.value * (curr === 'INR' ? 2 : curr === 'USD' ? 0.05 : curr === 'EUR' ? 0.04 : 0.04) // ~2 INR per km
-      estimatedCost += fuelEstimate + tollsEstimate + (totalDistance.value * 0.1) // 10% for parking/misc
+      const fuelEstimate =
+        totalDistance.value *
+        0.08 *
+        (curr === 'INR' ? 100 : curr === 'USD' ? 3 : curr === 'EUR' ? 2.5 : 2.5) // ~8L/100km * fuel price
+      const tollsEstimate =
+        totalDistance.value *
+        (curr === 'INR' ? 2 : curr === 'USD' ? 0.05 : curr === 'EUR' ? 0.04 : 0.04) // ~2 INR per km
+      estimatedCost += fuelEstimate + tollsEstimate + totalDistance.value * 0.1 // 10% for parking/misc
     } else {
       // Base approximation for road trip without distance: ~500-2000 per person
-      const baseRoadTripCost = curr === 'INR' ? 3000 : curr === 'USD' ? 150 : curr === 'EUR' ? 120 : 120
+      const baseRoadTripCost =
+        curr === 'INR' ? 3000 : curr === 'USD' ? 150 : curr === 'EUR' ? 120 : 120
       estimatedCost += baseRoadTripCost * travelers
     }
   }
-  
+
   // Public transport approximations
-  const publicTransportModes = plan.value.transportModes.filter(m => m !== 'road')
+  const publicTransportModes = plan.value.transportModes.filter((m) => m !== 'road')
   if (publicTransportModes.length > 0) {
     if (plan.value.publicTransport.enabled && publicTransportCost.value > 0) {
       // Use actual calculated cost if available
@@ -1869,10 +1986,11 @@ const autoUpdateBudget = () => {
       const hasTrain = plan.value.transportModes.includes('train')
       const hasTaxi = plan.value.transportModes.includes('taxi')
       const hasCruise = plan.value.transportModes.includes('cruise')
-      
+
       if (hasFlight) {
         // Approximate flight cost: ~500-2000 per person depending on distance
-        const baseFlightCost = curr === 'INR' ? 8000 : curr === 'USD' ? 300 : curr === 'EUR' ? 250 : 250
+        const baseFlightCost =
+          curr === 'INR' ? 8000 : curr === 'USD' ? 300 : curr === 'EUR' ? 250 : 250
         estimatedCost += baseFlightCost * travelers
       }
       if (hasTrain) {
@@ -1887,12 +2005,13 @@ const autoUpdateBudget = () => {
       }
       if (hasCruise) {
         // Approximate cruise cost: ~1000-5000 per person
-        const baseCruiseCost = curr === 'INR' ? 15000 : curr === 'USD' ? 500 : curr === 'EUR' ? 400 : 400
+        const baseCruiseCost =
+          curr === 'INR' ? 15000 : curr === 'USD' ? 500 : curr === 'EUR' ? 400 : 400
         estimatedCost += baseCruiseCost * travelers
       }
     }
   }
-  
+
   // Estimate stay costs with approximations
   if (plan.value.stayCategories.length > 0) {
     if (plan.value.stay.includeStay && stayCost.value > 0) {
@@ -1905,7 +2024,7 @@ const autoUpdateBudget = () => {
       estimatedCost += baseStayCost * nights * rooms
     }
   }
-  
+
   // Estimate food costs with approximations
   if (plan.value.food.enabled) {
     if (foodCost.value > 0) {
@@ -1916,7 +2035,7 @@ const autoUpdateBudget = () => {
       estimatedCost += dailyFoodCost * days * travelers
     }
   }
-  
+
   // Estimate sites costs with approximations
   if (plan.value.sites.enabled) {
     if (sitesCost.value > 0) {
@@ -1927,7 +2046,7 @@ const autoUpdateBudget = () => {
       estimatedCost += dailySitesCost * days * travelers
     }
   }
-  
+
   // Update budget to be at least 20% more than estimated cost (buffer)
   if (estimatedCost > 0) {
     const suggestedBudget = Math.round(estimatedCost * 1.2)
@@ -1950,46 +2069,70 @@ const autoUpdateBudget = () => {
 }
 
 // Watch for transport mode and stay category changes to auto-update budget
-watch(() => plan.value.transportModes, () => {
-  autoUpdateBudget()
-}, { deep: true })
+watch(
+  () => plan.value.transportModes,
+  () => {
+    autoUpdateBudget()
+  },
+  { deep: true },
+)
 
-watch(() => plan.value.stayCategories, () => {
-  autoUpdateBudget()
-}, { deep: true })
+watch(
+  () => plan.value.stayCategories,
+  () => {
+    autoUpdateBudget()
+  },
+  { deep: true },
+)
 
 // Watch for cost changes and auto-update budget (with debounce to avoid too frequent updates)
 let budgetUpdateTimeout: ReturnType<typeof setTimeout> | null = null
-watch([() => roadTripCost.value, () => publicTransportCost.value, () => stayCost.value, () => foodCost.value, () => sitesCost.value], () => {
-  if (budgetUpdateTimeout) clearTimeout(budgetUpdateTimeout)
-  budgetUpdateTimeout = setTimeout(() => {
-    autoUpdateBudget()
-  }, 500) // Debounce by 500ms
-})
+watch(
+  [
+    () => roadTripCost.value,
+    () => publicTransportCost.value,
+    () => stayCost.value,
+    () => foodCost.value,
+    () => sitesCost.value,
+  ],
+  () => {
+    if (budgetUpdateTimeout) clearTimeout(budgetUpdateTimeout)
+    budgetUpdateTimeout = setTimeout(() => {
+      autoUpdateBudget()
+    }, 500) // Debounce by 500ms
+  },
+)
 
-watch(() => plan.value.duration, () => {
-  // Auto-update budget if it matches the current preset (factored by travelers)
-  const curr = plan.value.currency
-  const presets = budgetPresets[curr] || budgetPresets.INR
-  const oldPresets = budgetPresets.INR
-  const travelers = Math.max(1, totalTravelers.value || 1)
-  const expectedBudget = presets[plan.value.duration] * travelers
-  const oldExpectedBudget = oldPresets[plan.value.duration] * travelers
-  if (plan.value.budget === oldExpectedBudget || plan.value.budget === 0) {
-    plan.value.budget = expectedBudget
-  }
-}, { immediate: true })
-watch(() => totalTravelers.value, () => {
-  // Auto-update budget if it matches the preset pattern (base preset × old traveler count)
-  const basePreset = getBaseBudgetPreset()
-  const oldTravelers = Math.max(1, totalTravelers.value || 1)
-  // Only auto-update if budget matches the pattern of base preset × some traveler count
-  const budgetPerPerson = plan.value.budget / oldTravelers
-  if (Math.abs(budgetPerPerson - basePreset) < basePreset * 0.1) {
-    // Budget is close to base preset per person, update it
-    plan.value.budget = basePreset * Math.max(1, totalTravelers.value || 1)
-  }
-})
+watch(
+  () => plan.value.duration,
+  () => {
+    // Auto-update budget if it matches the current preset (factored by travelers)
+    const curr = plan.value.currency
+    const presets = budgetPresets[curr] || budgetPresets.INR
+    const oldPresets = budgetPresets.INR
+    const travelers = Math.max(1, totalTravelers.value || 1)
+    const expectedBudget = presets[plan.value.duration] * travelers
+    const oldExpectedBudget = oldPresets[plan.value.duration] * travelers
+    if (plan.value.budget === oldExpectedBudget || plan.value.budget === 0) {
+      plan.value.budget = expectedBudget
+    }
+  },
+  { immediate: true },
+)
+watch(
+  () => totalTravelers.value,
+  () => {
+    // Auto-update budget if it matches the preset pattern (base preset × old traveler count)
+    const basePreset = getBaseBudgetPreset()
+    const oldTravelers = Math.max(1, totalTravelers.value || 1)
+    // Only auto-update if budget matches the pattern of base preset × some traveler count
+    const budgetPerPerson = plan.value.budget / oldTravelers
+    if (Math.abs(budgetPerPerson - basePreset) < basePreset * 0.1) {
+      // Budget is close to base preset per person, update it
+      plan.value.budget = basePreset * Math.max(1, totalTravelers.value || 1)
+    }
+  },
+)
 onMounted(async () => {
   const ok = await ensureAuth()
   if (!ok) return
@@ -2050,8 +2193,8 @@ onMounted(async () => {
             <button
               type="button"
               class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"
-              @click="exportToCSV"
               :disabled="isExporting"
+              @click="exportToCSV"
             >
               <Icon icon="mdi:file-excel" class="text-green-600" />
               Export CSV
@@ -2059,8 +2202,8 @@ onMounted(async () => {
             <button
               type="button"
               class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"
-              @click="exportToPDF"
               :disabled="isExporting"
+              @click="exportToPDF"
             >
               <Icon icon="mdi:file-pdf" class="text-red-600" />
               Export PDF
@@ -2075,7 +2218,6 @@ onMounted(async () => {
         Plan your trip, compare road vs flight costs, and find the most cost-effective option
       </p>
     </div>
-
 
     <div
       class="mb-6 border-b border-gray-300 dark:border-slate-700 overflow-x-auto whitespace-nowrap w-full max-w-full min-w-0"
@@ -2206,7 +2348,13 @@ onMounted(async () => {
       >
         <div class="flex items-center gap-2">
           <Icon
-            :icon="alert.type === 'error' ? 'mdi:alert-circle' : alert.type === 'warning' ? 'mdi:alert' : 'mdi:information'"
+            :icon="
+              alert.type === 'error'
+                ? 'mdi:alert-circle'
+                : alert.type === 'warning'
+                  ? 'mdi:alert'
+                  : 'mdi:information'
+            "
             class="text-lg"
           />
           <span class="text-sm font-medium">{{ alert.message }}</span>
@@ -2214,12 +2362,20 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div class="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-800 min-w-0 overflow-x-hidden">
+    <div
+      class="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-800 min-w-0 overflow-x-hidden"
+    >
       <!-- Trip Plan Tab - ALL INPUTS HERE -->
       <div v-if="activeTab === 'plan'" class="space-y-6">
         <!-- Trip Summary Card -->
         <div
-          v-if="plan.tripName || plan.origin || (plan.destinations && plan.destinations.length > 0) || (plan.transportModes && plan.transportModes.length > 0) || (plan.stayCategories && plan.stayCategories.length > 0)"
+          v-if="
+            plan.tripName ||
+            plan.origin ||
+            (plan.destinations && plan.destinations.length > 0) ||
+            (plan.transportModes && plan.transportModes.length > 0) ||
+            (plan.stayCategories && plan.stayCategories.length > 0)
+          "
           class="rounded-lg border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 p-4 sm:p-5"
         >
           <div class="space-y-3">
@@ -2228,26 +2384,57 @@ onMounted(async () => {
                 <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">
                   {{ plan.tripName || 'Untitled Trip' }}
                 </h3>
-                <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
-                  <div v-if="plan.origin" class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-100/50 dark:bg-blue-900/30">
+                <div
+                  class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-300"
+                >
+                  <div
+                    v-if="plan.origin"
+                    class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-100/50 dark:bg-blue-900/30"
+                  >
                     <Icon icon="mdi:map-marker" class="text-blue-600 dark:text-blue-400 text-lg" />
                     <span class="font-medium">{{ plan.origin }}</span>
                   </div>
-                  <div v-if="plan.destinations && plan.destinations.length > 0" class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-100/50 dark:bg-indigo-900/30">
-                    <Icon icon="mdi:map-marker-multiple" class="text-indigo-600 dark:text-indigo-400 text-lg" />
-                    <span>{{ plan.destinations.length }} {{ plan.destinations.length === 1 ? 'destination' : 'destinations' }}</span>
+                  <div
+                    v-if="plan.destinations && plan.destinations.length > 0"
+                    class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-100/50 dark:bg-indigo-900/30"
+                  >
+                    <Icon
+                      icon="mdi:map-marker-multiple"
+                      class="text-indigo-600 dark:text-indigo-400 text-lg"
+                    />
+                    <span
+                      >{{ plan.destinations.length }}
+                      {{ plan.destinations.length === 1 ? 'destination' : 'destinations' }}</span
+                    >
                   </div>
-                  <div v-if="plan.startDate" class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-green-100/50 dark:bg-green-900/30">
+                  <div
+                    v-if="plan.startDate"
+                    class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-green-100/50 dark:bg-green-900/30"
+                  >
                     <Icon icon="mdi:calendar" class="text-green-600 dark:text-green-400 text-lg" />
                     <span>{{ new Date(plan.startDate).toLocaleDateString() }}</span>
                   </div>
-                  <div v-if="totalDays > 0" class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-100/50 dark:bg-purple-900/30">
-                    <Icon icon="mdi:clock-outline" class="text-purple-600 dark:text-purple-400 text-lg" />
+                  <div
+                    v-if="totalDays > 0"
+                    class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-100/50 dark:bg-purple-900/30"
+                  >
+                    <Icon
+                      icon="mdi:clock-outline"
+                      class="text-purple-600 dark:text-purple-400 text-lg"
+                    />
                     <span>{{ totalDays }} {{ totalDays === 1 ? 'day' : 'days' }}</span>
                   </div>
-                  <div class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-orange-100/50 dark:bg-orange-900/30">
-                    <Icon icon="mdi:account-group" class="text-orange-600 dark:text-orange-400 text-lg" />
-                    <span>{{ totalTravelers }} {{ totalTravelers === 1 ? 'traveler' : 'travelers' }}</span>
+                  <div
+                    class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-orange-100/50 dark:bg-orange-900/30"
+                  >
+                    <Icon
+                      icon="mdi:account-group"
+                      class="text-orange-600 dark:text-orange-400 text-lg"
+                    />
+                    <span
+                      >{{ totalTravelers }}
+                      {{ totalTravelers === 1 ? 'traveler' : 'travelers' }}</span
+                    >
                   </div>
                 </div>
               </div>
@@ -2263,7 +2450,13 @@ onMounted(async () => {
                   "
                 >
                   <Icon
-                    :icon="recommendation.recommended === 'Road Trip' ? 'mdi:car' : recommendation.recommended === 'Flight' ? 'mdi:airplane' : 'mdi:check-circle'"
+                    :icon="
+                      recommendation.recommended === 'Road Trip'
+                        ? 'mdi:car'
+                        : recommendation.recommended === 'Flight'
+                          ? 'mdi:airplane'
+                          : 'mdi:check-circle'
+                    "
                     class="text-sm"
                   />
                   {{ recommendation.recommended }}
@@ -2272,7 +2465,10 @@ onMounted(async () => {
             </div>
 
             <!-- Selected Options -->
-            <div v-if="plan.transportModes.length > 0 || plan.stayCategories.length > 0" class="pt-3 border-t border-blue-200 dark:border-blue-700">
+            <div
+              v-if="plan.transportModes.length > 0 || plan.stayCategories.length > 0"
+              class="pt-3 border-t border-blue-200 dark:border-blue-700"
+            >
               <div class="flex flex-wrap gap-3 text-sm">
                 <div v-if="plan.transportModes.length > 0" class="flex items-center gap-2">
                   <span class="text-gray-700 dark:text-gray-300 font-medium">Transport:</span>
@@ -2296,7 +2492,17 @@ onMounted(async () => {
                         "
                         class="text-xs"
                       />
-                      <span>{{ mode === 'road' ? 'Road Trip' : mode === 'flight' ? 'Flight' : mode === 'train' ? 'Train' : mode === 'taxi' ? 'Taxi' : 'Cruise' }}</span>
+                      <span>{{
+                        mode === 'road'
+                          ? 'Road Trip'
+                          : mode === 'flight'
+                            ? 'Flight'
+                            : mode === 'train'
+                              ? 'Train'
+                              : mode === 'taxi'
+                                ? 'Taxi'
+                                : 'Cruise'
+                      }}</span>
                     </span>
                   </div>
                 </div>
@@ -2318,9 +2524,13 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-800/40 p-3">
+        <div
+          class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-800/40 p-3"
+        >
           <div class="mb-2 flex items-center justify-between">
-            <h3 class="text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">
+            <h3
+              class="text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+            >
               Trip Basics
             </h3>
           </div>
@@ -2348,7 +2558,9 @@ onMounted(async () => {
                   Trip Budget
                 </label>
                 <div class="relative flex gap-1">
-                  <span class="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 dark:text-gray-400 pointer-events-none">
+                  <span
+                    class="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 dark:text-gray-400 pointer-events-none"
+                  >
                     {{ currencies[plan.currency].symbol }}
                   </span>
                   <input
@@ -2356,25 +2568,31 @@ onMounted(async () => {
                     type="text"
                     class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 pl-6 pr-2 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="0"
-                    @input="plan.budget = parseBudgetInput(($event.target as HTMLInputElement).value)"
-                    @blur="plan.budget = parseBudgetInput(($event.target as HTMLInputElement).value)"
+                    @input="
+                      plan.budget = parseBudgetInput(($event.target as HTMLInputElement).value)
+                    "
+                    @blur="
+                      plan.budget = parseBudgetInput(($event.target as HTMLInputElement).value)
+                    "
                   />
                   <button
                     type="button"
                     class="px-2 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                    @click="applyBudgetPreset"
                     title="Auto-calculate based on duration and travelers"
+                    @click="applyBudgetPreset"
                   >
                     <Icon icon="mdi:auto-fix" class="text-xs" />
                   </button>
                 </div>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   <span v-if="plan.budget > 0">
-                    Estimated total: {{ formatCurrency(totalTripCost) }} | 
-                    Buffer: {{ formatCurrency(plan.budget - totalTripCost) }}
+                    Estimated total: {{ formatCurrency(totalTripCost) }} | Buffer:
+                    {{ formatCurrency(plan.budget - totalTripCost) }}
                   </span>
                   <span v-else>
-                    Base: {{ formatCurrency(getBaseBudgetPreset()) }}/person × {{ totalTravelers }} = {{ formatCurrency(getBaseBudgetPreset() * totalTravelers) }}
+                    Base: {{ formatCurrency(getBaseBudgetPreset()) }}/person ×
+                    {{ totalTravelers }} =
+                    {{ formatCurrency(getBaseBudgetPreset() * totalTravelers) }}
                   </span>
                 </p>
               </div>
@@ -2386,7 +2604,9 @@ onMounted(async () => {
               <div>
                 <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Transport Options
-                  <span class="text-gray-400 font-normal">(Click to select/deselect all applicable)</span>
+                  <span class="text-gray-400 font-normal"
+                    >(Click to select/deselect all applicable)</span
+                  >
                 </label>
                 <div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                   <button
@@ -2486,7 +2706,9 @@ onMounted(async () => {
               <div>
                 <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Accommodation Options
-                  <span class="text-gray-400 font-normal">(Click to select/deselect all applicable)</span>
+                  <span class="text-gray-400 font-normal"
+                    >(Click to select/deselect all applicable)</span
+                  >
                 </label>
                 <div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                   <button
@@ -2501,7 +2723,10 @@ onMounted(async () => {
                     "
                     @click="toggleStayCategory(category)"
                   >
-                    <Icon :icon="stayCategoryIcons[category]" :class="getStayCategoryIconClass(category)" />
+                    <Icon
+                      :icon="stayCategoryIcons[category]"
+                      :class="getStayCategoryIconClass(category)"
+                    />
                     <span class="font-medium leading-tight">{{ label }}</span>
                     <Icon
                       v-if="plan.stayCategories.includes(category)"
@@ -2572,7 +2797,9 @@ onMounted(async () => {
                     @blur="closeCurrencyMenu"
                   >
                     <span class="flex items-center gap-1">
-                      <span class="text-xs font-medium">{{ currencies[plan.currency].symbol }}</span>
+                      <span class="text-xs font-medium">{{
+                        currencies[plan.currency].symbol
+                      }}</span>
                       <span class="text-xs">{{ currencies[plan.currency].code }}</span>
                     </span>
                     <Icon icon="mdi:chevron-down" class="text-xs shrink-0" />
@@ -2602,30 +2829,34 @@ onMounted(async () => {
                 </label>
                 <div class="grid grid-cols-2 gap-1.5">
                   <div class="relative">
-                  <input
-                    id="adults"
-                    v-model.number="plan.adults"
-                    type="number"
-                    min="0"
-                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 pr-6 text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="0"
-                    aria-label="Number of adult travelers"
-                  />
-                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+                    <input
+                      id="adults"
+                      v-model.number="plan.adults"
+                      type="number"
+                      min="0"
+                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 pr-6 text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="0"
+                      aria-label="Number of adult travelers"
+                    />
+                    <span
+                      class="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none"
+                    >
                       <Icon icon="mdi:account" class="text-xs" />
                     </span>
                   </div>
                   <div class="relative">
-                  <input
-                    id="kids"
-                    v-model.number="plan.kids"
-                    type="number"
-                    min="0"
-                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 pr-6 text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="0"
-                    aria-label="Number of child travelers (12+)"
-                  />
-                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+                    <input
+                      id="kids"
+                      v-model.number="plan.kids"
+                      type="number"
+                      min="0"
+                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 pr-6 text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="0"
+                      aria-label="Number of child travelers (12+)"
+                    />
+                    <span
+                      class="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none"
+                    >
                       <Icon icon="mdi:account-child" class="text-xs" />
                     </span>
                   </div>
@@ -2638,9 +2869,13 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5">
+        <div
+          class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+        >
           <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">
+            <h3
+              class="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+            >
               Route & Stops
             </h3>
             <button
@@ -2693,7 +2928,10 @@ onMounted(async () => {
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Destinations
               </label>
-              <div v-if="!plan.destinations || plan.destinations.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
+              <div
+                v-if="!plan.destinations || plan.destinations.length === 0"
+                class="text-sm text-gray-500 dark:text-gray-400"
+              >
                 No stops added yet.
               </div>
               <div v-else class="space-y-3">
@@ -2717,7 +2955,12 @@ onMounted(async () => {
                           type="text"
                           class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           placeholder="Stop name"
-                          @input="handleDestinationInput(dest.id, ($event.target as HTMLInputElement).value)"
+                          @input="
+                            handleDestinationInput(
+                              dest.id,
+                              ($event.target as HTMLInputElement).value,
+                            )
+                          "
                           @focus="handleDestinationInput(dest.id, dest.name)"
                           @blur="clearDestinationSuggestions(dest.id)"
                         />
@@ -2773,8 +3016,8 @@ onMounted(async () => {
             type="button"
             :disabled="isLoadingDistance"
             class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-            @click="calculateDistance"
             aria-label="Calculate distance and travel time between origin and destinations"
+            @click="calculateDistance"
           >
             <span v-if="!isLoadingDistance">Calculate Distance & Time</span>
             <span v-else class="flex items-center justify-center">
@@ -2787,22 +3030,31 @@ onMounted(async () => {
           </p>
           <div v-if="distanceData" class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
             <p class="text-sm">
-              <span class="font-medium">Total Distance:</span> {{ distanceData.total.distance.text }}
+              <span class="font-medium">Total Distance:</span>
+              {{ distanceData.total.distance.text }}
             </p>
             <p class="text-sm">
-              <span class="font-medium">Total Duration:</span> {{ distanceData.total.duration.text }}
+              <span class="font-medium">Total Duration:</span>
+              {{ distanceData.total.duration.text }}
             </p>
-            <div v-if="distanceData.legs.length" class="mt-3 space-y-1 text-xs text-gray-600 dark:text-gray-300">
+            <div
+              v-if="distanceData.legs.length"
+              class="mt-3 space-y-1 text-xs text-gray-600 dark:text-gray-300"
+            >
               <div class="font-medium">Legs:</div>
               <div v-for="(leg, idx) in distanceData.legs" :key="idx">
-                {{ leg.origin }} → {{ leg.destination }} ({{ leg.distanceText }}, {{ leg.durationText }})
+                {{ leg.origin }} → {{ leg.destination }} ({{ leg.distanceText }},
+                {{ leg.durationText }})
               </div>
             </div>
           </div>
         </div>
 
         <!-- Road Trip Inputs (if road transport selected) -->
-        <div v-if="plan.transportModes.includes('road')" class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5">
+        <div
+          v-if="plan.transportModes.includes('road')"
+          class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+        >
           <div class="mb-4 flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Icon icon="mdi:car" class="text-orange-600 dark:text-orange-400" />
@@ -2816,7 +3068,10 @@ onMounted(async () => {
                 class="rounded border-gray-300"
                 aria-label="Enable road trip option"
               />
-              <label for="roadEnabledPlan" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label
+                for="roadEnabledPlan"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
                 Enable
               </label>
             </div>
@@ -2824,9 +3079,13 @@ onMounted(async () => {
 
           <div v-if="plan.roadTrip.enabled" class="space-y-4">
             <!-- Fuel Cost -->
-            <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 p-4">
+            <div
+              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 p-4"
+            >
               <div class="flex items-center justify-between mb-3">
-                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                <h4
+                  class="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2"
+                >
                   <Icon icon="mdi:gas-station" class="text-blue-600 dark:text-blue-400" />
                   Fuel Cost
                 </h4>
@@ -2838,12 +3097,17 @@ onMounted(async () => {
                     class="rounded border-gray-300"
                     aria-label="Auto-calculate fuel cost"
                   />
-                  <label for="autoFuelPlan" class="text-xs text-gray-600 dark:text-gray-400">Auto-calculate</label>
+                  <label for="autoFuelPlan" class="text-xs text-gray-600 dark:text-gray-400"
+                    >Auto-calculate</label
+                  >
                 </div>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label for="petrolPrice" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label
+                    for="petrolPrice"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  >
                     Petrol Price (per liter)
                   </label>
                   <input
@@ -2861,7 +3125,10 @@ onMounted(async () => {
                   </p>
                 </div>
                 <div>
-                  <label for="mileage" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label
+                    for="mileage"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  >
                     Mileage (km per liter)
                   </label>
                   <input
@@ -2879,17 +3146,27 @@ onMounted(async () => {
                   </p>
                 </div>
               </div>
-              <div v-if="totalDistance > 0 && plan.roadTrip.mileage > 0" class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
+              <div
+                v-if="totalDistance > 0 && plan.roadTrip.mileage > 0"
+                class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700"
+              >
                 <p class="text-sm text-gray-600 dark:text-gray-400">
-                  Estimated Fuel Cost: <span class="font-bold text-gray-900 dark:text-white">{{ formatCurrency(estimatedFuelCost) }}</span>
+                  Estimated Fuel Cost:
+                  <span class="font-bold text-gray-900 dark:text-white">{{
+                    formatCurrency(estimatedFuelCost)
+                  }}</span>
                 </p>
               </div>
             </div>
 
             <!-- Tolls -->
-            <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 p-4">
+            <div
+              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 p-4"
+            >
               <div class="flex items-center justify-between mb-3">
-                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                <h4
+                  class="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2"
+                >
                   <Icon icon="mdi:road" class="text-green-600 dark:text-green-400" />
                   Tolls
                 </h4>
@@ -2901,11 +3178,16 @@ onMounted(async () => {
                     class="rounded border-gray-300"
                     aria-label="Auto-calculate tolls"
                   />
-                  <label for="autoTollsPlan" class="text-xs text-gray-600 dark:text-gray-400">Auto-calculate</label>
+                  <label for="autoTollsPlan" class="text-xs text-gray-600 dark:text-gray-400"
+                    >Auto-calculate</label
+                  >
                 </div>
               </div>
               <div>
-                <label for="tolls" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  for="tolls"
+                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Tolls (manual entry)
                 </label>
                 <input
@@ -2917,9 +3199,15 @@ onMounted(async () => {
                   class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
-              <div v-if="totalDistance > 0" class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
+              <div
+                v-if="totalDistance > 0"
+                class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700"
+              >
                 <p class="text-sm text-gray-600 dark:text-gray-400">
-                  Estimated Tolls: <span class="font-bold text-gray-900 dark:text-white">{{ formatCurrency(estimatedTollsCost) }}</span>
+                  Estimated Tolls:
+                  <span class="font-bold text-gray-900 dark:text-white">{{
+                    formatCurrency(estimatedTollsCost)
+                  }}</span>
                 </p>
               </div>
             </div>
@@ -2927,7 +3215,10 @@ onMounted(async () => {
             <!-- Other Road Expenses -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label for="parking" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  for="parking"
+                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Parking
                 </label>
                 <input
@@ -2939,7 +3230,10 @@ onMounted(async () => {
                 />
               </div>
               <div>
-                <label for="miscRoad" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  for="miscRoad"
+                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Misc Expenses
                 </label>
                 <input
@@ -2951,7 +3245,10 @@ onMounted(async () => {
                 />
               </div>
               <div>
-                <label for="sightseeing" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  for="sightseeing"
+                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Sightseeing/Detours
                 </label>
                 <input
@@ -2967,7 +3264,10 @@ onMounted(async () => {
         </div>
 
         <!-- Public Transport Inputs (if transport modes selected) -->
-        <div v-if="plan.transportModes.some(m => m !== 'road')" class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5">
+        <div
+          v-if="plan.transportModes.some((m) => m !== 'road')"
+          class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+        >
           <div class="mb-4 flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Icon icon="mdi:airplane" class="text-sky-600 dark:text-sky-400" />
@@ -2981,7 +3281,10 @@ onMounted(async () => {
                 class="rounded border-gray-300"
                 aria-label="Enable public transport options"
               />
-              <label for="transportEnabledPlan" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label
+                for="transportEnabledPlan"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
                 Enable
               </label>
             </div>
@@ -2995,15 +3298,18 @@ onMounted(async () => {
               <button
                 type="button"
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                @click="addTransportOption"
                 aria-label="Add new transport option"
+                @click="addTransportOption"
               >
                 <Icon icon="mdi:plus" class="text-base" />
                 Add Option
               </button>
             </div>
 
-            <div v-if="plan.publicTransport.options.length === 0" class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+            <div
+              v-if="plan.publicTransport.options.length === 0"
+              class="text-sm text-gray-500 dark:text-gray-400 text-center py-4"
+            >
               No transport options added yet. Click "Add Option" to start.
             </div>
 
@@ -3022,23 +3328,33 @@ onMounted(async () => {
                       class="rounded border-gray-300"
                       :aria-label="`Enable ${option.type} transport option`"
                     />
-                    <label :for="`transportEnabled_${option.id}`" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ option.type.charAt(0).toUpperCase() + option.type.slice(1) }} Option {{ idx + 1 }}
+                    <label
+                      :for="`transportEnabled_${option.id}`"
+                      class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{ option.type.charAt(0).toUpperCase() + option.type.slice(1) }} Option
+                      {{ idx + 1 }}
                     </label>
                   </div>
                   <button
                     type="button"
                     class="px-2 py-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
-                    @click="removeTransportOption(option.id)"
                     :aria-label="`Remove ${option.type} transport option`"
+                    @click="removeTransportOption(option.id)"
                   >
                     <Icon icon="mdi:delete" />
                   </button>
                 </div>
 
-                <div v-if="option.enabled" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div
+                  v-if="option.enabled"
+                  class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+                >
                   <div>
-                    <label :for="`transportType_${option.id}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      :for="`transportType_${option.id}`"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Type
                     </label>
                     <select
@@ -3053,7 +3369,10 @@ onMounted(async () => {
                     </select>
                   </div>
                   <div>
-                    <label :for="`transportFrom_${option.id}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      :for="`transportFrom_${option.id}`"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       From
                     </label>
                     <input
@@ -3065,7 +3384,10 @@ onMounted(async () => {
                     />
                   </div>
                   <div>
-                    <label :for="`transportTo_${option.id}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      :for="`transportTo_${option.id}`"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       To
                     </label>
                     <input
@@ -3077,7 +3399,10 @@ onMounted(async () => {
                     />
                   </div>
                   <div>
-                    <label :for="`transportCost_${option.id}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      :for="`transportCost_${option.id}`"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Cost (per person)
                     </label>
                     <input
@@ -3089,7 +3414,10 @@ onMounted(async () => {
                     />
                   </div>
                   <div>
-                    <label :for="`transportTransfer_${option.id}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      :for="`transportTransfer_${option.id}`"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Transfer/Station Fees
                     </label>
                     <input
@@ -3101,7 +3429,10 @@ onMounted(async () => {
                     />
                   </div>
                   <div>
-                    <label :for="`transportBaggage_${option.id}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      :for="`transportBaggage_${option.id}`"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Baggage/Extra Fees
                     </label>
                     <input
@@ -3113,7 +3444,10 @@ onMounted(async () => {
                     />
                   </div>
                   <div>
-                    <label :for="`transportHours_${option.id}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      :for="`transportHours_${option.id}`"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Travel Time (hours)
                     </label>
                     <input
@@ -3132,7 +3466,10 @@ onMounted(async () => {
         </div>
 
         <!-- Stay/Accommodation Inputs (if stay categories selected) -->
-        <div v-if="plan.stayCategories.length > 0" class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5">
+        <div
+          v-if="plan.stayCategories.length > 0"
+          class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+        >
           <div class="mb-4 flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Icon icon="mdi:bed" class="text-emerald-600 dark:text-emerald-400" />
@@ -3146,7 +3483,10 @@ onMounted(async () => {
                 class="rounded border-gray-300"
                 aria-label="Include accommodation costs"
               />
-              <label for="includeStayPlan" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label
+                for="includeStayPlan"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
                 Include Stay
               </label>
             </div>
@@ -3154,7 +3494,10 @@ onMounted(async () => {
 
           <div v-if="plan.stay.includeStay" class="space-y-4">
             <div>
-              <label for="stayCategory" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label
+                for="stayCategory"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
                 Primary Stay Category
               </label>
               <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -3168,18 +3511,27 @@ onMounted(async () => {
                       ? getStayCategoryColor(category, true)
                       : getStayCategoryColor(category, false)
                   "
-                  @click="plan.stay.category = category"
                   :aria-label="`Select ${label} as primary stay category`"
+                  @click="plan.stay.category = category"
                 >
-                  <Icon :icon="stayCategoryIcons[category]" :class="getStayCategoryIconClass(category)" />
+                  <Icon
+                    :icon="stayCategoryIcons[category]"
+                    :class="getStayCategoryIconClass(category)"
+                  />
                   <span class="font-medium">{{ label }}</span>
                 </button>
               </div>
             </div>
 
-            <div v-if="plan.stay.category === 'hotel' || plan.stay.category === 'resort'" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div
+              v-if="plan.stay.category === 'hotel' || plan.stay.category === 'resort'"
+              class="grid grid-cols-1 sm:grid-cols-2 gap-3"
+            >
               <div>
-                <label for="stayTier" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  for="stayTier"
+                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Tier
                 </label>
                 <select
@@ -3194,7 +3546,10 @@ onMounted(async () => {
                 </select>
               </div>
               <div>
-                <label for="stayCostPerNight" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  for="stayCostPerNight"
+                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Cost per Night
                 </label>
                 <input
@@ -3206,7 +3561,10 @@ onMounted(async () => {
                 />
               </div>
               <div>
-                <label for="stayNights" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  for="stayNights"
+                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Number of Nights
                 </label>
                 <input
@@ -3216,10 +3574,15 @@ onMounted(async () => {
                   min="0"
                   class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Total trip days: {{ totalDays }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Total trip days: {{ totalDays }}
+                </p>
               </div>
               <div>
-                <label for="stayRooms" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  for="stayRooms"
+                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Number of Rooms
                 </label>
                 <input
@@ -3229,13 +3592,18 @@ onMounted(async () => {
                   min="1"
                   class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Estimated: {{ estimateRooms }} rooms</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Estimated: {{ estimateRooms }} rooms
+                </p>
               </div>
             </div>
 
             <div v-else class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label for="stayCostPerNightOther" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  for="stayCostPerNightOther"
+                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Cost per Night
                 </label>
                 <input
@@ -3247,7 +3615,10 @@ onMounted(async () => {
                 />
               </div>
               <div>
-                <label for="stayNightsOther" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  for="stayNightsOther"
+                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Number of Nights
                 </label>
                 <input
@@ -3259,7 +3630,10 @@ onMounted(async () => {
                 />
               </div>
               <div>
-                <label for="stayRoomsOther" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  for="stayRoomsOther"
+                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Number of Rooms
                 </label>
                 <input
@@ -3274,12 +3648,16 @@ onMounted(async () => {
           </div>
         </div>
 
-
-
         <!-- Recommendation Card -->
-        <div v-if="recommendation && plan.origin && plan.destinations && plan.destinations.length > 0" class="rounded-lg border-2 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-500 dark:border-green-600 p-4">
+        <div
+          v-if="recommendation && plan.origin && plan.destinations && plan.destinations.length > 0"
+          class="rounded-lg border-2 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-500 dark:border-green-600 p-4"
+        >
           <div class="flex items-start gap-3">
-            <Icon icon="mdi:lightbulb-on" class="text-2xl text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+            <Icon
+              icon="mdi:lightbulb-on"
+              class="text-2xl text-green-600 dark:text-green-400 shrink-0 mt-0.5"
+            />
             <div class="flex-1">
               <h4 class="font-bold text-green-700 dark:text-green-300 mb-1">
                 Recommendation: {{ recommendation.recommended }}
@@ -3292,7 +3670,9 @@ onMounted(async () => {
         </div>
 
         <!-- Food Inputs -->
-        <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5">
+        <div
+          class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+        >
           <div class="mb-4 flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Icon icon="mdi:food" class="text-amber-600 dark:text-amber-400" />
@@ -3306,7 +3686,10 @@ onMounted(async () => {
                 class="rounded border-gray-300"
                 aria-label="Include food costs"
               />
-              <label for="foodEnabledPlan" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label
+                for="foodEnabledPlan"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
                 Include Food
               </label>
             </div>
@@ -3317,8 +3700,15 @@ onMounted(async () => {
               Set daily food costs. You can customize costs per day or use a default daily amount.
             </p>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div v-for="day in itineraryDays" :key="day.day" class="p-3 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
-                <label :for="`foodDay_${day.day}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <div
+                v-for="day in itineraryDays"
+                :key="day.day"
+                class="p-3 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800"
+              >
+                <label
+                  :for="`foodDay_${day.day}`"
+                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Day {{ day.day }} ({{ day.location }})
                 </label>
                 <input
@@ -3331,14 +3721,19 @@ onMounted(async () => {
                 />
               </div>
             </div>
-            <div v-if="itineraryDays.length === 0" class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+            <div
+              v-if="itineraryDays.length === 0"
+              class="text-sm text-gray-500 dark:text-gray-400 text-center py-4"
+            >
               Add destinations to set daily food costs
             </div>
           </div>
         </div>
 
         <!-- Sites & Attractions Inputs -->
-        <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5">
+        <div
+          class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+        >
           <div class="mb-4 flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Icon icon="mdi:camera" class="text-purple-600 dark:text-purple-400" />
@@ -3352,7 +3747,10 @@ onMounted(async () => {
                 class="rounded border-gray-300"
                 aria-label="Include sites and attractions costs"
               />
-              <label for="sitesEnabledPlan" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label
+                for="sitesEnabledPlan"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
                 Include Sites
               </label>
             </div>
@@ -3366,15 +3764,18 @@ onMounted(async () => {
               <button
                 type="button"
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                @click="addSite"
                 aria-label="Add new site or attraction"
+                @click="addSite"
               >
                 <Icon icon="mdi:plus" class="text-base" />
                 Add Site
               </button>
             </div>
 
-            <div v-if="plan.sites.sites.length === 0" class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+            <div
+              v-if="plan.sites.sites.length === 0"
+              class="text-sm text-gray-500 dark:text-gray-400 text-center py-4"
+            >
               No sites added yet. Click "Add Site" to start.
             </div>
 
@@ -3386,7 +3787,10 @@ onMounted(async () => {
               >
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
                   <div>
-                    <label :for="`siteName_${site.id}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      :for="`siteName_${site.id}`"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Site Name
                     </label>
                     <input
@@ -3398,7 +3802,10 @@ onMounted(async () => {
                     />
                   </div>
                   <div>
-                    <label :for="`siteLocation_${site.id}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      :for="`siteLocation_${site.id}`"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Location
                     </label>
                     <input
@@ -3410,7 +3817,10 @@ onMounted(async () => {
                     />
                   </div>
                   <div>
-                    <label :for="`siteCost_${site.id}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      :for="`siteCost_${site.id}`"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Cost
                     </label>
                     <input
@@ -3422,7 +3832,10 @@ onMounted(async () => {
                     />
                   </div>
                   <div>
-                    <label :for="`siteDay_${site.id}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      :for="`siteDay_${site.id}`"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Day
                     </label>
                     <input
@@ -3436,7 +3849,10 @@ onMounted(async () => {
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                   <div>
-                    <label :for="`siteDescription_${site.id}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      :for="`siteDescription_${site.id}`"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Description
                     </label>
                     <input
@@ -3448,7 +3864,10 @@ onMounted(async () => {
                     />
                   </div>
                   <div>
-                    <label :for="`siteSource_${site.id}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      :for="`siteSource_${site.id}`"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Source/URL
                     </label>
                     <input
@@ -3464,8 +3883,8 @@ onMounted(async () => {
                   <button
                     type="button"
                     class="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
-                    @click="removeSite(site.id)"
                     :aria-label="`Remove ${site.name || 'site'}`"
+                    @click="removeSite(site.id)"
                   >
                     <Icon icon="mdi:delete" class="inline mr-1" />
                     Remove
@@ -3515,414 +3934,491 @@ onMounted(async () => {
       </div>
 
       <!-- Transport Costs Tab - Consolidated Road Trip + Public Transport -->
-      <div v-if="activeTab === 'transport-costs' && plan.transportModes.length > 0" class="space-y-6">
+      <div
+        v-if="activeTab === 'transport-costs' && plan.transportModes.length > 0"
+        class="space-y-6"
+      >
         <!-- Road Trip Section -->
         <div v-if="plan.transportModes.includes('road')" class="space-y-6">
           <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Icon icon="mdi:car" class="text-orange-600 dark:text-orange-400" />
             Road Trip Costs
           </h2>
-        <div class="flex items-center gap-2">
-          <input
-            id="roadEnabled"
-            v-model="plan.roadTrip.enabled"
-            type="checkbox"
-            class="rounded border-gray-300"
-            aria-label="Enable road trip option for calculations"
-          />
-          <label for="roadEnabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Enable Road Trip Option
-          </label>
-        </div>
+          <div class="flex items-center gap-2">
+            <input
+              id="roadEnabled"
+              v-model="plan.roadTrip.enabled"
+              type="checkbox"
+              class="rounded border-gray-300"
+              aria-label="Enable road trip option for calculations"
+            />
+            <label for="roadEnabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Enable Road Trip Option
+            </label>
+          </div>
 
-        <template v-if="plan.roadTrip.enabled">
-          <!-- Fuel Cost Section -->
-          <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 p-4">
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-2">
-                <Icon icon="mdi:gas-station" class="text-lg text-blue-600 dark:text-blue-400" />
-                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200">Fuel Cost</h4>
+          <template v-if="plan.roadTrip.enabled">
+            <!-- Fuel Cost Section -->
+            <div
+              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 p-4"
+            >
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <Icon icon="mdi:gas-station" class="text-lg text-blue-600 dark:text-blue-400" />
+                  <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200">Fuel Cost</h4>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input
+                    id="autoFuel"
+                    v-model="plan.roadTrip.autoCalculateFuel"
+                    type="checkbox"
+                    class="rounded border-gray-300"
+                  />
+                  <label for="autoFuel" class="text-xs text-gray-600 dark:text-gray-400"
+                    >Auto-calculate</label
+                  >
+                  <button
+                    type="button"
+                    class="px-2 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    @click="autoCalculateFuel"
+                  >
+                    <Icon icon="mdi:calculator" class="text-sm" />
+                  </button>
+                </div>
               </div>
-              <div class="flex items-center gap-2">
-                <input
-                  id="autoFuel"
-                  v-model="plan.roadTrip.autoCalculateFuel"
-                  type="checkbox"
-                  class="rounded border-gray-300"
-                />
-                <label for="autoFuel" class="text-xs text-gray-600 dark:text-gray-400">Auto-calculate</label>
-                <button
-                  type="button"
-                  class="px-2 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  @click="autoCalculateFuel"
-                >
-                  <Icon icon="mdi:calculator" class="text-sm" />
-                </button>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Petrol Price (per liter)
+                  </label>
+                  <input
+                    v-model.number="plan.roadTrip.petrolPrice"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    :disabled="plan.roadTrip.autoCalculateFuel"
+                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Mileage (km per liter)
+                  </label>
+                  <input
+                    v-model.number="plan.roadTrip.mileage"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    :disabled="plan.roadTrip.autoCalculateFuel"
+                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                </div>
+              </div>
+              <div
+                v-if="totalDistance > 0"
+                class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700"
+              >
+                <div class="flex justify-between items-center text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">
+                    {{ plan.roadTrip.autoCalculateFuel ? 'Calculated' : 'Estimated' }} Fuel Cost:
+                  </span>
+                  <span class="font-bold text-gray-900 dark:text-white">
+                    {{ formatCurrency(estimatedFuelCost) }}
+                  </span>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Distance: {{ totalDistance.toFixed(1) }} km
+                  <span v-if="plan.roadTrip.mileage > 0">
+                    • Fuel needed: {{ (totalDistance / plan.roadTrip.mileage).toFixed(1) }} liters
+                  </span>
+                </p>
               </div>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            <!-- Tolls Section -->
+            <div
+              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 p-4"
+            >
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <Icon icon="mdi:road" class="text-lg text-green-600 dark:text-green-400" />
+                  <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200">Tolls</h4>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input
+                    id="autoTolls"
+                    v-model="plan.roadTrip.autoCalculateTolls"
+                    type="checkbox"
+                    class="rounded border-gray-300"
+                  />
+                  <label for="autoTolls" class="text-xs text-gray-600 dark:text-gray-400"
+                    >Auto-calculate</label
+                  >
+                  <button
+                    type="button"
+                    class="px-2 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700"
+                    @click="autoCalculateTolls"
+                  >
+                    <Icon icon="mdi:calculator" class="text-sm" />
+                  </button>
+                </div>
+              </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Petrol Price (per liter)
+                  Tolls (manual entry)
                 </label>
                 <input
-                  v-model.number="plan.roadTrip.petrolPrice"
+                  v-model.number="plan.roadTrip.tolls"
                   type="number"
                   min="0"
-                  step="0.01"
-                  :disabled="plan.roadTrip.autoCalculateFuel"
+                  :disabled="plan.roadTrip.autoCalculateTolls"
                   class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
+              <div
+                v-if="totalDistance > 0"
+                class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700"
+              >
+                <div class="flex justify-between items-center text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">
+                    {{ plan.roadTrip.autoCalculateTolls ? 'Calculated' : 'Estimated' }} Tolls:
+                  </span>
+                  <span class="font-bold text-gray-900 dark:text-white">
+                    {{ formatCurrency(estimatedTollsCost) }}
+                  </span>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Based on distance: {{ totalDistance.toFixed(1) }} km
+                </p>
+              </div>
+            </div>
+
+            <!-- Other Expenses -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Mileage (km per liter)
+                  Parking
                 </label>
                 <input
-                  v-model.number="plan.roadTrip.mileage"
+                  v-model.number="plan.roadTrip.parking"
                   type="number"
                   min="0"
-                  step="0.1"
-                  :disabled="plan.roadTrip.autoCalculateFuel"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
-            </div>
-            <div v-if="totalDistance > 0" class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
-              <div class="flex justify-between items-center text-sm">
-                <span class="text-gray-600 dark:text-gray-400">
-                  {{ plan.roadTrip.autoCalculateFuel ? 'Calculated' : 'Estimated' }} Fuel Cost:
-                </span>
-                <span class="font-bold text-gray-900 dark:text-white">
-                  {{ formatCurrency(estimatedFuelCost) }}
-                </span>
-              </div>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Distance: {{ totalDistance.toFixed(1) }} km
-                <span v-if="plan.roadTrip.mileage > 0">
-                  • Fuel needed: {{ (totalDistance / plan.roadTrip.mileage).toFixed(1) }} liters
-                </span>
-              </p>
-            </div>
-          </div>
-
-          <!-- Tolls Section -->
-          <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 p-4">
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-2">
-                <Icon icon="mdi:road" class="text-lg text-green-600 dark:text-green-400" />
-                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200">Tolls</h4>
-              </div>
-              <div class="flex items-center gap-2">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Misc Expenses
+                </label>
                 <input
-                  id="autoTolls"
-                  v-model="plan.roadTrip.autoCalculateTolls"
-                  type="checkbox"
-                  class="rounded border-gray-300"
-                />
-                <label for="autoTolls" class="text-xs text-gray-600 dark:text-gray-400">Auto-calculate</label>
-                <button
-                  type="button"
-                  class="px-2 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700"
-                  @click="autoCalculateTolls"
-                >
-                  <Icon icon="mdi:calculator" class="text-sm" />
-                </button>
-              </div>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Tolls (manual entry)
-              </label>
-              <input
-                v-model.number="plan.roadTrip.tolls"
-                type="number"
-                min="0"
-                :disabled="plan.roadTrip.autoCalculateTolls"
-                class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-            </div>
-            <div v-if="totalDistance > 0" class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
-              <div class="flex justify-between items-center text-sm">
-                <span class="text-gray-600 dark:text-gray-400">
-                  {{ plan.roadTrip.autoCalculateTolls ? 'Calculated' : 'Estimated' }} Tolls:
-                </span>
-                <span class="font-bold text-gray-900 dark:text-white">
-                  {{ formatCurrency(estimatedTollsCost) }}
-                </span>
-              </div>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Based on distance: {{ totalDistance.toFixed(1) }} km
-              </p>
-            </div>
-          </div>
-
-          <!-- Other Expenses -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Parking
-              </label>
-              <input
-                v-model.number="plan.roadTrip.parking"
-                type="number"
-                min="0"
-                class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Misc Expenses
-              </label>
-              <input
-                v-model.number="plan.roadTrip.misc"
-                type="number"
-                min="0"
-                class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Sightseeing/Detours
-              </label>
-              <div class="flex gap-2">
-                <input
-                  v-model.number="plan.roadTrip.sightseeing"
+                  v-model.number="plan.roadTrip.misc"
                   type="number"
                   min="0"
-                  class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
-                <button
-                  type="button"
-                  class="px-2 py-1 text-xs bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                  @click="autoCalculateSightseeing"
-                  title="Estimate based on destinations"
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Sightseeing/Detours
+                </label>
+                <div class="flex gap-2">
+                  <input
+                    v-model.number="plan.roadTrip.sightseeing"
+                    type="number"
+                    min="0"
+                    class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    class="px-2 py-1 text-xs bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                    title="Estimate based on destinations"
+                    @click="autoCalculateSightseeing"
+                  >
+                    <Icon icon="mdi:auto-fix" class="text-sm" />
+                  </button>
+                </div>
+                <p
+                  v-if="plan.destinations.length > 0"
+                  class="text-xs text-gray-500 dark:text-gray-400 mt-1"
                 >
-                  <Icon icon="mdi:auto-fix" class="text-sm" />
-                </button>
+                  Estimated: {{ formatCurrency(estimatedSightseeingCost) }}
+                </p>
               </div>
-              <p v-if="plan.destinations.length > 0" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Estimated: {{ formatCurrency(estimatedSightseeingCost) }}
-              </p>
             </div>
-          </div>
 
-          <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
-            <div class="space-y-2">
-              <div class="flex justify-between items-center">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Estimated Road Trip Cost:
-                </span>
-                <span class="text-lg font-bold text-gray-900 dark:text-white">
-                  {{ formatCurrency(roadTripCost) }}
-                </span>
-              </div>
-              <div v-if="totalDistance > 0" class="text-xs text-gray-500 dark:text-gray-400 space-y-1 pl-4 border-l-2 border-gray-200 dark:border-slate-700">
-                <div class="flex justify-between">
-                  <span>Fuel:</span>
-                  <span>{{ formatCurrency(plan.roadTrip.autoCalculateFuel ? estimatedFuelCost : (totalDistance > 0 && plan.roadTrip.mileage > 0 && plan.roadTrip.petrolPrice > 0 ? (totalDistance / plan.roadTrip.mileage) * plan.roadTrip.petrolPrice : 0)) }}</span>
+            <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
+              <div class="space-y-2">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Estimated Road Trip Cost:
+                  </span>
+                  <span class="text-lg font-bold text-gray-900 dark:text-white">
+                    {{ formatCurrency(roadTripCost) }}
+                  </span>
                 </div>
-                <div class="flex justify-between">
-                  <span>Tolls:</span>
-                  <span>{{ formatCurrency(plan.roadTrip.autoCalculateTolls ? estimatedTollsCost : plan.roadTrip.tolls) }}</span>
-                </div>
-                <div v-if="plan.roadTrip.parking > 0" class="flex justify-between">
-                  <span>Parking:</span>
-                  <span>{{ formatCurrency(plan.roadTrip.parking) }}</span>
-                </div>
-                <div v-if="plan.roadTrip.sightseeing > 0" class="flex justify-between">
-                  <span>Sightseeing:</span>
-                  <span>{{ formatCurrency(plan.roadTrip.sightseeing) }}</span>
-                </div>
-                <div v-if="plan.roadTrip.misc > 0" class="flex justify-between">
-                  <span>Misc:</span>
-                  <span>{{ formatCurrency(plan.roadTrip.misc) }}</span>
+                <div
+                  v-if="totalDistance > 0"
+                  class="text-xs text-gray-500 dark:text-gray-400 space-y-1 pl-4 border-l-2 border-gray-200 dark:border-slate-700"
+                >
+                  <div class="flex justify-between">
+                    <span>Fuel:</span>
+                    <span>{{
+                      formatCurrency(
+                        plan.roadTrip.autoCalculateFuel
+                          ? estimatedFuelCost
+                          : totalDistance > 0 &&
+                              plan.roadTrip.mileage > 0 &&
+                              plan.roadTrip.petrolPrice > 0
+                            ? (totalDistance / plan.roadTrip.mileage) * plan.roadTrip.petrolPrice
+                            : 0,
+                      )
+                    }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span>Tolls:</span>
+                    <span>{{
+                      formatCurrency(
+                        plan.roadTrip.autoCalculateTolls ? estimatedTollsCost : plan.roadTrip.tolls,
+                      )
+                    }}</span>
+                  </div>
+                  <div v-if="plan.roadTrip.parking > 0" class="flex justify-between">
+                    <span>Parking:</span>
+                    <span>{{ formatCurrency(plan.roadTrip.parking) }}</span>
+                  </div>
+                  <div v-if="plan.roadTrip.sightseeing > 0" class="flex justify-between">
+                    <span>Sightseeing:</span>
+                    <span>{{ formatCurrency(plan.roadTrip.sightseeing) }}</span>
+                  </div>
+                  <div v-if="plan.roadTrip.misc > 0" class="flex justify-between">
+                    <span>Misc:</span>
+                    <span>{{ formatCurrency(plan.roadTrip.misc) }}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </template>
+          </template>
         </div>
 
         <!-- Public Transport Section -->
-        <div v-if="plan.transportModes.some(m => m !== 'road')" class="space-y-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+        <div
+          v-if="plan.transportModes.some((m) => m !== 'road')"
+          class="space-y-6 pt-6 border-t border-gray-200 dark:border-slate-700"
+        >
           <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Icon icon="mdi:airplane" class="text-sky-600 dark:text-sky-400" />
             Public Transport Costs
           </h2>
-        <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <input
-              id="transportEnabled"
-              v-model="plan.publicTransport.enabled"
-              type="checkbox"
-              class="rounded border-gray-300"
-              aria-label="Enable public transport options for calculations"
-            />
-            <label for="transportEnabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Enable Public Transport Options
-            </label>
-          </div>
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            @click="addTransportOption"
-          >
-            <Icon icon="mdi:plus" class="text-base" />
-            Add Transport Option
-          </button>
-        </div>
-
-        <template v-if="plan.publicTransport.enabled">
-          <div v-if="plan.publicTransport.options.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
-            <Icon icon="mdi:train" class="text-4xl mb-2 mx-auto opacity-50" />
-            <p class="text-sm">No transport options added yet. Click "Add Transport Option" to get started.</p>
-          </div>
-
-          <div v-else class="space-y-4">
-            <div
-              v-for="(option, idx) in plan.publicTransport.options"
-              :key="option.id"
-              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <input
+                id="transportEnabled"
+                v-model="plan.publicTransport.enabled"
+                type="checkbox"
+                class="rounded border-gray-300"
+                aria-label="Enable public transport options for calculations"
+              />
+              <label
+                for="transportEnabled"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Enable Public Transport Options
+              </label>
+            </div>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              @click="addTransportOption"
             >
-              <div class="flex items-start justify-between mb-4">
-                <div class="flex items-center gap-3">
-                  <input
-                    :id="`transportEnabled_${option.id}`"
-                    v-model="option.enabled"
-                    type="checkbox"
-                    class="rounded border-gray-300 mt-1"
-                  />
-                  <div>
-                    <label :for="`transportEnabled_${option.id}`" class="text-sm font-semibold text-gray-900 dark:text-white">
-                      Transport Option {{ idx + 1 }}
-                    </label>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                      {{ option.from }} → {{ option.to }}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  class="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md p-1.5"
-                  @click="removeTransportOption(option.id)"
-                >
-                  <Icon icon="mdi:delete" />
-                </button>
-              </div>
+              <Icon icon="mdi:plus" class="text-base" />
+              Add Transport Option
+            </button>
+          </div>
 
-              <template v-if="option.enabled">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Transport Type
-                    </label>
-                    <div class="grid grid-cols-4 gap-2">
-                      <button
-                        v-for="transportType in ['flight', 'cruise', 'train', 'taxi'] as TransportType[]"
-                        :key="transportType"
-                        type="button"
-                        class="flex flex-col items-center gap-1 px-3 py-2 rounded-md border transition-colors"
-                        :class="
-                          option.type === transportType
-                            ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                            : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-400'
-                        "
-                        @click="option.type = transportType"
+          <template v-if="plan.publicTransport.enabled">
+            <div
+              v-if="plan.publicTransport.options.length === 0"
+              class="text-center py-8 text-gray-500 dark:text-gray-400"
+            >
+              <Icon icon="mdi:train" class="text-4xl mb-2 mx-auto opacity-50" />
+              <p class="text-sm">
+                No transport options added yet. Click "Add Transport Option" to get started.
+              </p>
+            </div>
+
+            <div v-else class="space-y-4">
+              <div
+                v-for="(option, idx) in plan.publicTransport.options"
+                :key="option.id"
+                class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+              >
+                <div class="flex items-start justify-between mb-4">
+                  <div class="flex items-center gap-3">
+                    <input
+                      :id="`transportEnabled_${option.id}`"
+                      v-model="option.enabled"
+                      type="checkbox"
+                      class="rounded border-gray-300 mt-1"
+                    />
+                    <div>
+                      <label
+                        :for="`transportEnabled_${option.id}`"
+                        class="text-sm font-semibold text-gray-900 dark:text-white"
                       >
-                        <Icon :icon="getTransportTypeIcon(transportType)" class="text-lg" />
-                        <span class="text-xs font-medium">{{ getTransportTypeLabel(transportType) }}</span>
-                      </button>
+                        Transport Option {{ idx + 1 }}
+                      </label>
+                      <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        {{ option.from }} → {{ option.to }}
+                      </p>
                     </div>
                   </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Base Cost (per person)
-                    </label>
-                    <input
-                      v-model.number="option.cost"
-                      type="number"
-                      min="0"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Transfer/Station Fees
-                    </label>
-                    <input
-                      v-model.number="option.transfer"
-                      type="number"
-                      min="0"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Baggage/Extra Fees
-                    </label>
-                    <input
-                      v-model.number="option.baggage"
-                      type="number"
-                      min="0"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Travel Time (hours)
-                    </label>
-                    <input
-                      v-model.number="option.travelHours"
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Est. Cost per km
-                    </label>
-                    <input
-                      v-model.number="option.costPerKm"
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                  </div>
+                  <button
+                    type="button"
+                    class="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md p-1.5"
+                    @click="removeTransportOption(option.id)"
+                  >
+                    <Icon icon="mdi:delete" />
+                  </button>
                 </div>
 
-                <div class="pt-3 border-t border-gray-200 dark:border-slate-700">
-                  <div class="flex justify-between items-center text-sm">
-                    <span class="text-gray-600 dark:text-gray-400">Option Cost:</span>
-                    <span class="font-bold text-gray-900 dark:text-white">
-                      {{ formatCurrency((option.cost + option.baggage) * totalTravelers + option.transfer) }}
-                    </span>
+                <template v-if="option.enabled">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                      >
+                        Transport Type
+                      </label>
+                      <div class="grid grid-cols-4 gap-2">
+                        <button
+                          v-for="transportType in [
+                            'flight',
+                            'cruise',
+                            'train',
+                            'taxi',
+                          ] as TransportType[]"
+                          :key="transportType"
+                          type="button"
+                          class="flex flex-col items-center gap-1 px-3 py-2 rounded-md border transition-colors"
+                          :class="
+                            option.type === transportType
+                              ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                              : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-400'
+                          "
+                          @click="option.type = transportType"
+                        >
+                          <Icon :icon="getTransportTypeIcon(transportType)" class="text-lg" />
+                          <span class="text-xs font-medium">{{
+                            getTransportTypeLabel(transportType)
+                          }}</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                      >
+                        Base Cost (per person)
+                      </label>
+                      <input
+                        v-model.number="option.cost"
+                        type="number"
+                        min="0"
+                        class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                      >
+                        Transfer/Station Fees
+                      </label>
+                      <input
+                        v-model.number="option.transfer"
+                        type="number"
+                        min="0"
+                        class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                      >
+                        Baggage/Extra Fees
+                      </label>
+                      <input
+                        v-model.number="option.baggage"
+                        type="number"
+                        min="0"
+                        class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                      >
+                        Travel Time (hours)
+                      </label>
+                      <input
+                        v-model.number="option.travelHours"
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                      >
+                        Est. Cost per km
+                      </label>
+                      <input
+                        v-model.number="option.costPerKm"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
                   </div>
-                </div>
-              </template>
-            </div>
-          </div>
 
-          <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
-            <div class="flex justify-between items-center">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Total Public Transport Cost:
-              </span>
-              <span class="text-lg font-bold text-gray-900 dark:text-white">
-                {{ formatCurrency(publicTransportCost) }}
-              </span>
+                  <div class="pt-3 border-t border-gray-200 dark:border-slate-700">
+                    <div class="flex justify-between items-center text-sm">
+                      <span class="text-gray-600 dark:text-gray-400">Option Cost:</span>
+                      <span class="font-bold text-gray-900 dark:text-white">
+                        {{
+                          formatCurrency(
+                            (option.cost + option.baggage) * totalTravelers + option.transfer,
+                          )
+                        }}
+                      </span>
+                    </div>
+                  </div>
+                </template>
+              </div>
             </div>
-            <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Total Travel Time: {{ publicTransportTime.toFixed(1) }} hours
+
+            <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Total Public Transport Cost:
+                </span>
+                <span class="text-lg font-bold text-gray-900 dark:text-white">
+                  {{ formatCurrency(publicTransportCost) }}
+                </span>
+              </div>
+              <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                Total Travel Time: {{ publicTransportTime.toFixed(1) }} hours
+              </div>
+              <div
+                v-if="estimatedTransportCost > 0"
+                class="mt-1 text-xs text-gray-500 dark:text-gray-400"
+              >
+                Estimated cost (based on distance): {{ formatCurrency(estimatedTransportCost) }}
+              </div>
             </div>
-            <div v-if="estimatedTransportCost > 0" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Estimated cost (based on distance): {{ formatCurrency(estimatedTransportCost) }}
-            </div>
-          </div>
-        </template>
+          </template>
         </div>
       </div>
 
@@ -3934,508 +4430,613 @@ onMounted(async () => {
             <Icon icon="mdi:bed" class="text-emerald-600 dark:text-emerald-400" />
             Accommodation Costs
           </h2>
-        <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <Icon icon="mdi:bed" class="text-2xl text-emerald-600 dark:text-emerald-400" />
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Stay & Accommodation</h2>
-          </div>
-          <div class="flex items-center gap-2">
-            <input
-              id="includeStayTab"
-              v-model="plan.stay.includeStay"
-              type="checkbox"
-              class="rounded border-gray-300"
-              aria-label="Include accommodation costs in calculations"
-            />
-            <label for="includeStayTab" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Include Stay
-            </label>
-          </div>
-        </div>
-
-        <div v-if="plan.stay.includeStay" class="space-y-6">
-          <!-- Selected Stay Categories -->
-          <div class="rounded-lg border-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-4">
-            <h3 class="text-sm font-semibold text-emerald-900 dark:text-emerald-200 mb-3">Selected Accommodation Types</h3>
-            <div class="flex flex-wrap gap-2">
-              <span
-                v-for="category in plan.stayCategories"
-                :key="category"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-100 dark:bg-emerald-800/50 text-emerald-800 dark:text-emerald-200"
-              >
-                <Icon :icon="stayCategoryIcons[category]" class="text-sm" />
-                <span class="font-medium">{{ stayCategoryLabels[category] }}</span>
-              </span>
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <Icon icon="mdi:bed" class="text-2xl text-emerald-600 dark:text-emerald-400" />
+              <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Stay & Accommodation</h2>
             </div>
-            <p class="text-xs text-emerald-700 dark:text-emerald-300 mt-2">
-              Configure costs for each selected accommodation type below. You can manage multiple stay options.
+            <div class="flex items-center gap-2">
+              <input
+                id="includeStayTab"
+                v-model="plan.stay.includeStay"
+                type="checkbox"
+                class="rounded border-gray-300"
+                aria-label="Include accommodation costs in calculations"
+              />
+              <label
+                for="includeStayTab"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Include Stay
+              </label>
+            </div>
+          </div>
+
+          <div v-if="plan.stay.includeStay" class="space-y-6">
+            <!-- Selected Stay Categories -->
+            <div
+              class="rounded-lg border-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-4"
+            >
+              <h3 class="text-sm font-semibold text-emerald-900 dark:text-emerald-200 mb-3">
+                Selected Accommodation Types
+              </h3>
+              <div class="flex flex-wrap gap-2">
+                <span
+                  v-for="category in plan.stayCategories"
+                  :key="category"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-100 dark:bg-emerald-800/50 text-emerald-800 dark:text-emerald-200"
+                >
+                  <Icon :icon="stayCategoryIcons[category]" class="text-sm" />
+                  <span class="font-medium">{{ stayCategoryLabels[category] }}</span>
+                </span>
+              </div>
+              <p class="text-xs text-emerald-700 dark:text-emerald-300 mt-2">
+                Configure costs for each selected accommodation type below. You can manage multiple
+                stay options.
+              </p>
+            </div>
+
+            <!-- Stay Category Selection for Primary Category -->
+            <div
+              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+            >
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Primary Stay Category (for cost calculation)
+              </label>
+              <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                <button
+                  v-for="(label, category) in stayCategoryLabels"
+                  :key="category"
+                  type="button"
+                  class="flex flex-col items-center gap-1 px-2 py-1.5 rounded-md border-2 transition-all text-xs relative shadow-sm hover:shadow-md"
+                  :class="
+                    plan.stay.category === category
+                      ? getStayCategoryColor(category, true)
+                      : getStayCategoryColor(category, false)
+                  "
+                  @click="plan.stay.category = category"
+                >
+                  <Icon
+                    :icon="stayCategoryIcons[category]"
+                    :class="getStayCategoryIconClass(category)"
+                  />
+                  <span class="font-medium">{{ label }}</span>
+                  <Icon
+                    v-if="plan.stay.category === category"
+                    icon="mdi:check-circle"
+                    :class="getStayCategoryCheckClass(category)"
+                  />
+                </button>
+              </div>
+            </div>
+
+            <!-- Stay Details (only show tier for Hotel, Resort) -->
+            <div
+              v-if="plan.stay.category === 'hotel' || plan.stay.category === 'resort'"
+              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+            >
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                {{ plan.stay.category === 'hotel' ? 'Hotel' : 'Resort' }} Cost Details
+              </h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {{ plan.stay.category === 'hotel' ? 'Hotel' : 'Resort' }} Tier
+                  </label>
+                  <select
+                    v-model="plan.stay.tier"
+                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    @change="updateStayTier(plan.stay.tier)"
+                  >
+                    <option value="budget">Budget</option>
+                    <option value="mid">Mid-range</option>
+                    <option value="luxury">Luxury</option>
+                  </select>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {{ getHotelTierLabel(plan.stay.tier) }}/night
+                  </p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Cost per Night
+                  </label>
+                  <input
+                    v-model.number="plan.stay.costPerNight"
+                    type="number"
+                    min="0"
+                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Number of Nights
+                  </label>
+                  <input
+                    v-model.number="plan.stay.nights"
+                    type="number"
+                    min="0"
+                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Total trip days: {{ totalDays }}
+                  </p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Number of Rooms/Units
+                  </label>
+                  <input
+                    v-model.number="plan.stay.rooms"
+                    type="number"
+                    min="1"
+                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Estimated: {{ estimateRooms }} (based on {{ totalTravelers }} travelers)
+                  </p>
+                </div>
+              </div>
+              <div class="mt-4 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  class="inline-flex items-center px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
+                  @click="autoEstimateStayCost"
+                >
+                  <Icon icon="mdi:hotel" class="mr-1.5 text-base" />
+                  Auto price by destination
+                </button>
+                <a
+                  v-if="
+                    hotelSearchUrl &&
+                    (plan.stay.category === 'hotel' || plan.stay.category === 'resort')
+                  "
+                  :href="hotelSearchUrl"
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex items-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  <Icon icon="mdi:bed" class="mr-1.5 text-base" />
+                  Search {{ plan.stay.category === 'hotel' ? 'Hotels' : 'Resorts' }}
+                </a>
+              </div>
+            </div>
+
+            <!-- Stay Details for other categories (Apartment, Hostel, Homestay, Friends & Family) -->
+            <div
+              v-else
+              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+            >
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                {{ stayCategoryLabels[plan.stay.category] }} Cost Details
+              </h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Cost per Night
+                  </label>
+                  <input
+                    v-model.number="plan.stay.costPerNight"
+                    type="number"
+                    min="0"
+                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <p
+                    v-if="plan.stay.category === 'friends_family'"
+                    class="text-xs text-gray-500 dark:text-gray-400 mt-1"
+                  >
+                    Enter 0 if staying for free
+                  </p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Number of Nights
+                  </label>
+                  <input
+                    v-model.number="plan.stay.nights"
+                    type="number"
+                    min="0"
+                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Total trip days: {{ totalDays }}
+                  </p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Number of Rooms/Units
+                  </label>
+                  <input
+                    v-model.number="plan.stay.rooms"
+                    type="number"
+                    min="1"
+                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Estimated: {{ estimateRooms }} (based on {{ totalTravelers }} travelers)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cost Summary -->
+            <div
+              class="rounded-lg border-2 border-emerald-300 dark:border-emerald-700 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-4"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-semibold text-emerald-900 dark:text-emerald-200 mb-1">
+                    Estimated Stay Cost
+                  </h3>
+                  <p class="text-xs text-emerald-700 dark:text-emerald-300">
+                    {{ plan.stay.nights }} nights ×
+                    {{ formatCurrency(plan.stay.costPerNight) }}/night ×
+                    {{ plan.stay.rooms || estimateRooms }}
+                    {{ (plan.stay.rooms || estimateRooms) === 1 ? 'room' : 'rooms' }}
+                  </p>
+                </div>
+                <div class="text-right">
+                  <div class="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                    {{ formatCurrency(stayCost) }}
+                  </div>
+                  <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                    Total accommodation cost
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-else
+            class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 p-8 text-center"
+          >
+            <Icon
+              icon="mdi:bed-outline"
+              class="text-4xl text-gray-400 dark:text-gray-500 mx-auto mb-3"
+            />
+            <p class="text-gray-600 dark:text-gray-400">
+              Enable "Include Stay" above to configure accommodation costs
             </p>
           </div>
-
-          <!-- Stay Category Selection for Primary Category -->
-          <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              Primary Stay Category (for cost calculation)
-            </label>
-            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-              <button
-                v-for="(label, category) in stayCategoryLabels"
-                :key="category"
-                type="button"
-                class="flex flex-col items-center gap-1 px-2 py-1.5 rounded-md border-2 transition-all text-xs relative shadow-sm hover:shadow-md"
-                :class="
-                  plan.stay.category === category
-                    ? getStayCategoryColor(category, true)
-                    : getStayCategoryColor(category, false)
-                "
-                @click="plan.stay.category = category"
-              >
-                <Icon :icon="stayCategoryIcons[category]" :class="getStayCategoryIconClass(category)" />
-                <span class="font-medium">{{ label }}</span>
-                <Icon
-                  v-if="plan.stay.category === category"
-                  icon="mdi:check-circle"
-                  :class="getStayCategoryCheckClass(category)"
-                />
-              </button>
-            </div>
-          </div>
-
-          <!-- Stay Details (only show tier for Hotel, Resort) -->
-          <div v-if="plan.stay.category === 'hotel' || plan.stay.category === 'resort'" class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              {{ plan.stay.category === 'hotel' ? 'Hotel' : 'Resort' }} Cost Details
-            </h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {{ plan.stay.category === 'hotel' ? 'Hotel' : 'Resort' }} Tier
-                </label>
-                <select
-                  v-model="plan.stay.tier"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  @change="updateStayTier(plan.stay.tier)"
-                >
-                  <option value="budget">Budget</option>
-                  <option value="mid">Mid-range</option>
-                  <option value="luxury">Luxury</option>
-                </select>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {{ getHotelTierLabel(plan.stay.tier) }}/night
-                </p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Cost per Night
-                </label>
-                <input
-                  v-model.number="plan.stay.costPerNight"
-                  type="number"
-                  min="0"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Number of Nights
-                </label>
-                <input
-                  v-model.number="plan.stay.nights"
-                  type="number"
-                  min="0"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Total trip days: {{ totalDays }}
-                </p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Number of Rooms/Units
-                </label>
-                <input
-                  v-model.number="plan.stay.rooms"
-                  type="number"
-                  min="1"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Estimated: {{ estimateRooms }} (based on {{ totalTravelers }} travelers)
-                </p>
-              </div>
-            </div>
-            <div class="mt-4 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                class="inline-flex items-center px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
-                @click="autoEstimateStayCost"
-              >
-                <Icon icon="mdi:hotel" class="mr-1.5 text-base" />
-                Auto price by destination
-              </button>
-              <a
-                v-if="hotelSearchUrl && (plan.stay.category === 'hotel' || plan.stay.category === 'resort')"
-                :href="hotelSearchUrl"
-                target="_blank"
-                rel="noopener"
-                class="inline-flex items-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                <Icon icon="mdi:bed" class="mr-1.5 text-base" />
-                Search {{ plan.stay.category === 'hotel' ? 'Hotels' : 'Resorts' }}
-              </a>
-            </div>
-          </div>
-
-          <!-- Stay Details for other categories (Apartment, Hostel, Homestay, Friends & Family) -->
-          <div v-else class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              {{ stayCategoryLabels[plan.stay.category] }} Cost Details
-            </h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Cost per Night
-                </label>
-                <input
-                  v-model.number="plan.stay.costPerNight"
-                  type="number"
-                  min="0"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-                <p v-if="plan.stay.category === 'friends_family'" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Enter 0 if staying for free
-                </p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Number of Nights
-                </label>
-                <input
-                  v-model.number="plan.stay.nights"
-                  type="number"
-                  min="0"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Total trip days: {{ totalDays }}
-                </p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Number of Rooms/Units
-                </label>
-                <input
-                  v-model.number="plan.stay.rooms"
-                  type="number"
-                  min="1"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Estimated: {{ estimateRooms }} (based on {{ totalTravelers }} travelers)
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Cost Summary -->
-          <div class="rounded-lg border-2 border-emerald-300 dark:border-emerald-700 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-sm font-semibold text-emerald-900 dark:text-emerald-200 mb-1">Estimated Stay Cost</h3>
-                <p class="text-xs text-emerald-700 dark:text-emerald-300">
-                  {{ plan.stay.nights }} nights × {{ formatCurrency(plan.stay.costPerNight) }}/night × {{ plan.stay.rooms || estimateRooms }} {{ (plan.stay.rooms || estimateRooms) === 1 ? 'room' : 'rooms' }}
-                </p>
-              </div>
-              <div class="text-right">
-                <div class="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                  {{ formatCurrency(stayCost) }}
-                </div>
-                <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
-                  Total accommodation cost
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-else class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 p-8 text-center">
-          <Icon icon="mdi:bed-outline" class="text-4xl text-gray-400 dark:text-gray-500 mx-auto mb-3" />
-          <p class="text-gray-600 dark:text-gray-400">
-            Enable "Include Stay" above to configure accommodation costs
-          </p>
-        </div>
         </div>
 
         <!-- Food Section -->
-        <div v-if="plan.food.enabled" class="space-y-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+        <div
+          v-if="plan.food.enabled"
+          class="space-y-6 pt-6 border-t border-gray-200 dark:border-slate-700"
+        >
           <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Icon icon="mdi:food" class="text-amber-600 dark:text-amber-400" />
             Food & Dining Costs
           </h2>
-        <div class="flex items-center gap-2">
-          <input
-            id="foodEnabled"
-            v-model="plan.food.enabled"
-            type="checkbox"
-            class="rounded border-gray-300"
-          />
-          <label for="foodEnabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Enable Food Cost Tracking
-          </label>
-        </div>
-
-        <template v-if="plan.food.enabled">
-          <div v-if="itineraryDays.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
-            <Icon icon="mdi:food" class="text-4xl mb-2 mx-auto opacity-50" />
-            <p class="text-sm">Add destinations to your trip to start tracking food costs.</p>
+          <div class="flex items-center gap-2">
+            <input
+              id="foodEnabled"
+              v-model="plan.food.enabled"
+              type="checkbox"
+              class="rounded border-gray-300"
+            />
+            <label for="foodEnabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Enable Food Cost Tracking
+            </label>
           </div>
 
-          <div v-else class="space-y-4">
+          <template v-if="plan.food.enabled">
             <div
-              v-for="day in itineraryDays"
-              :key="day.day"
-              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+              v-if="itineraryDays.length === 0"
+              class="text-center py-8 text-gray-500 dark:text-gray-400"
             >
-              <div class="mb-4 flex items-center justify-between">
-                <div>
-                  <h4 class="font-semibold text-gray-900 dark:text-white">Day {{ day.day }}</h4>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">{{ day.location }}</p>
-                </div>
-                <div class="text-right">
-                  <div class="text-xs text-gray-500 dark:text-gray-400">Total for day</div>
-                  <div class="font-bold text-gray-900 dark:text-white">
-                    {{ formatCurrency((getFoodDailyCost(day.day) + Object.values(plan.food.customMeals[String(day.day)] || {}).reduce((sum, cost) => sum + cost, 0)) * totalTravelers) }}
+              <Icon icon="mdi:food" class="text-4xl mb-2 mx-auto opacity-50" />
+              <p class="text-sm">Add destinations to your trip to start tracking food costs.</p>
+            </div>
+
+            <div v-else class="space-y-4">
+              <div
+                v-for="day in itineraryDays"
+                :key="day.day"
+                class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+              >
+                <div class="mb-4 flex items-center justify-between">
+                  <div>
+                    <h4 class="font-semibold text-gray-900 dark:text-white">Day {{ day.day }}</h4>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ day.location }}</p>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-xs text-gray-500 dark:text-gray-400">Total for day</div>
+                    <div class="font-bold text-gray-900 dark:text-white">
+                      {{
+                        formatCurrency(
+                          (getFoodDailyCost(day.day) +
+                            Object.values(plan.food.customMeals[String(day.day)] || {}).reduce(
+                              (sum, cost) => sum + cost,
+                              0,
+                            )) *
+                            totalTravelers,
+                        )
+                      }}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Daily Food Budget (per person)
-                  </label>
-                  <input
-                    :value="getFoodDailyCost(day.day)"
-                    type="number"
-                    min="0"
-                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="0"
-                    @input="updateFoodDailyCost(day.day, Number(($event.target as HTMLInputElement).value))"
-                  />
-                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Total: {{ formatCurrency(getFoodDailyCost(day.day) * totalTravelers) }}
-                  </p>
-                </div>
-              </div>
-
-              <div class="border-t border-gray-200 dark:border-slate-700 pt-4">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Custom Meal Costs (per person)
-                </label>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div
-                    v-for="mealType in plan.food.mealTypes"
-                    :key="mealType"
-                    class="flex flex-col"
-                  >
-                    <label class="text-xs text-gray-500 dark:text-gray-400 mb-1 capitalize">
-                      {{ mealType }}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Daily Food Budget (per person)
                     </label>
                     <input
-                      :value="getFoodMealCost(day.day, mealType)"
+                      :value="getFoodDailyCost(day.day)"
                       type="number"
                       min="0"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       placeholder="0"
-                      @input="updateFoodMealCost(day.day, mealType, Number(($event.target as HTMLInputElement).value))"
+                      @input="
+                        updateFoodDailyCost(
+                          day.day,
+                          Number(($event.target as HTMLInputElement).value),
+                        )
+                      "
                     />
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Total: {{ formatCurrency(getFoodDailyCost(day.day) * totalTravelers) }}
+                    </p>
                   </div>
                 </div>
-                <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                  Custom meals total: {{ formatCurrency(Object.values(plan.food.customMeals[String(day.day)] || {}).reduce((sum, cost) => sum + cost, 0) * totalTravelers) }}
+
+                <div class="border-t border-gray-200 dark:border-slate-700 pt-4">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Custom Meal Costs (per person)
+                  </label>
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div
+                      v-for="mealType in plan.food.mealTypes"
+                      :key="mealType"
+                      class="flex flex-col"
+                    >
+                      <label class="text-xs text-gray-500 dark:text-gray-400 mb-1 capitalize">
+                        {{ mealType }}
+                      </label>
+                      <input
+                        :value="getFoodMealCost(day.day, mealType)"
+                        type="number"
+                        min="0"
+                        class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                        placeholder="0"
+                        @input="
+                          updateFoodMealCost(
+                            day.day,
+                            mealType,
+                            Number(($event.target as HTMLInputElement).value),
+                          )
+                        "
+                      />
+                    </div>
+                  </div>
+                  <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                    Custom meals total:
+                    {{
+                      formatCurrency(
+                        Object.values(plan.food.customMeals[String(day.day)] || {}).reduce(
+                          (sum, cost) => sum + cost,
+                          0,
+                        ) * totalTravelers,
+                      )
+                    }}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
-            <div class="flex justify-between items-center">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Total Food Cost:
-              </span>
-              <span class="text-lg font-bold text-gray-900 dark:text-white">
-                {{ formatCurrency(foodCost) }}
-              </span>
+            <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Total Food Cost:
+                </span>
+                <span class="text-lg font-bold text-gray-900 dark:text-white">
+                  {{ formatCurrency(foodCost) }}
+                </span>
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                For {{ totalTravelers }} {{ totalTravelers === 1 ? 'traveler' : 'travelers' }} over
+                {{ itineraryDays.length }} {{ itineraryDays.length === 1 ? 'day' : 'days' }}
+              </p>
             </div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              For {{ totalTravelers }} {{ totalTravelers === 1 ? 'traveler' : 'travelers' }} over {{ itineraryDays.length }} {{ itineraryDays.length === 1 ? 'day' : 'days' }}
-            </p>
-          </div>
-        </template>
+          </template>
         </div>
 
         <!-- Sites Section -->
-        <div v-if="plan.sites.enabled" class="space-y-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+        <div
+          v-if="plan.sites.enabled"
+          class="space-y-6 pt-6 border-t border-gray-200 dark:border-slate-700"
+        >
           <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Icon icon="mdi:camera" class="text-purple-600 dark:text-purple-400" />
             Sites & Attractions Costs
           </h2>
-        <div class="flex items-center justify-between gap-2 mb-4">
-          <div class="flex items-center gap-2">
-            <input
-              id="sitesEnabled"
-              v-model="plan.sites.enabled"
-              type="checkbox"
-              class="rounded border-gray-300"
-            />
-            <label for="sitesEnabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Enable Sites & Attractions
-            </label>
-          </div>
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            @click="addSite"
-          >
-            <Icon icon="mdi:plus" class="text-base" />
-            Add Site
-          </button>
-        </div>
-
-        <template v-if="plan.sites.enabled">
-          <div v-if="plan.sites.sites.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
-            <Icon icon="mdi:map-marker-star" class="text-4xl mb-2 mx-auto opacity-50" />
-            <p class="text-sm">No sites added yet. Click "Add Site" to get started.</p>
-            <p class="text-xs mt-2 text-gray-400 dark:text-gray-500">
-              You can add sites manually or import from third-party apps (coming soon)
-            </p>
-          </div>
-
-          <div v-else class="space-y-4">
-            <div
-              v-for="site in plan.sites.sites"
-              :key="site.id"
-              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+          <div class="flex items-center justify-between gap-2 mb-4">
+            <div class="flex items-center gap-2">
+              <input
+                id="sitesEnabled"
+                v-model="plan.sites.enabled"
+                type="checkbox"
+                class="rounded border-gray-300"
+              />
+              <label
+                for="sitesEnabled"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Enable Sites & Attractions
+              </label>
+            </div>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              @click="addSite"
             >
-              <div class="flex items-start justify-between mb-4">
-                <div class="flex-1">
-                  <div class="flex items-center gap-2 mb-2">
-                    <Icon icon="mdi:map-marker-star" class="text-lg text-blue-600 dark:text-blue-400" />
+              <Icon icon="mdi:plus" class="text-base" />
+              Add Site
+            </button>
+          </div>
+
+          <template v-if="plan.sites.enabled">
+            <div
+              v-if="plan.sites.sites.length === 0"
+              class="text-center py-8 text-gray-500 dark:text-gray-400"
+            >
+              <Icon icon="mdi:map-marker-star" class="text-4xl mb-2 mx-auto opacity-50" />
+              <p class="text-sm">No sites added yet. Click "Add Site" to get started.</p>
+              <p class="text-xs mt-2 text-gray-400 dark:text-gray-500">
+                You can add sites manually or import from third-party apps (coming soon)
+              </p>
+            </div>
+
+            <div v-else class="space-y-4">
+              <div
+                v-for="site in plan.sites.sites"
+                :key="site.id"
+                class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
+              >
+                <div class="flex items-start justify-between mb-4">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                      <Icon
+                        icon="mdi:map-marker-star"
+                        class="text-lg text-blue-600 dark:text-blue-400"
+                      />
+                      <input
+                        v-model="site.name"
+                        type="text"
+                        class="flex-1 text-lg font-semibold bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 text-gray-900 dark:text-white"
+                        placeholder="Site name"
+                      />
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1"
+                          >Location</label
+                        >
+                        <input
+                          v-model="site.location"
+                          type="text"
+                          class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                          placeholder="City, Country"
+                        />
+                      </div>
+                      <div>
+                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1"
+                          >Day</label
+                        >
+                        <input
+                          v-model.number="site.day"
+                          type="number"
+                          min="1"
+                          :max="itineraryDays.length || 1"
+                          class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md p-1.5 ml-2"
+                    @click="removeSite(site.id)"
+                  >
+                    <Icon icon="mdi:delete" />
+                  </button>
+                </div>
+
+                <div class="mb-3">
+                  <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1"
+                    >Description</label
+                  >
+                  <textarea
+                    v-model="site.description"
+                    rows="2"
+                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                    placeholder="Add description or notes about this site"
+                  />
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1"
+                      >Cost (per person)</label
+                    >
                     <input
-                      v-model="site.name"
-                      type="text"
-                      class="flex-1 text-lg font-semibold bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 text-gray-900 dark:text-white"
-                      placeholder="Site name"
+                      v-model.number="site.cost"
+                      type="number"
+                      min="0"
+                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                      placeholder="0"
                     />
                   </div>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Location</label>
-                      <input
-                        v-model="site.location"
-                        type="text"
-                        class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                        placeholder="City, Country"
-                      />
-                    </div>
-                    <div>
-                      <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Day</label>
-                      <input
-                        v-model.number="site.day"
-                        type="number"
-                        min="1"
-                        :max="itineraryDays.length || 1"
-                        class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                      />
-                    </div>
+                  <div>
+                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1"
+                      >Source</label
+                    >
+                    <select
+                      v-model="site.source"
+                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                    >
+                      <option value="manual">Manual Entry</option>
+                      <option value="google">Google Places</option>
+                      <option value="tripadvisor">TripAdvisor</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1"
+                      >URL (optional)</label
+                    >
+                    <input
+                      v-model="site.url"
+                      type="url"
+                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                      placeholder="https://..."
+                    />
                   </div>
                 </div>
-                <button
-                  type="button"
-                  class="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md p-1.5 ml-2"
-                  @click="removeSite(site.id)"
-                >
-                  <Icon icon="mdi:delete" />
-                </button>
-              </div>
 
-              <div class="mb-3">
-                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Description</label>
-                <textarea
-                  v-model="site.description"
-                  rows="2"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                  placeholder="Add description or notes about this site"
-                />
-              </div>
-
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Cost (per person)</label>
-                  <input
-                    v-model.number="site.cost"
-                    type="number"
-                    min="0"
-                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Source</label>
-                  <select
-                    v-model="site.source"
-                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                  >
-                    <option value="manual">Manual Entry</option>
-                    <option value="google">Google Places</option>
-                    <option value="tripadvisor">TripAdvisor</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">URL (optional)</label>
-                  <input
-                    v-model="site.url"
-                    type="url"
-                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                    placeholder="https://..."
-                  />
-                </div>
-              </div>
-
-              <div class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
-                <div class="flex justify-between items-center text-sm">
-                  <span class="text-gray-600 dark:text-gray-400">Total Cost:</span>
-                  <span class="font-bold text-gray-900 dark:text-white">
-                    {{ formatCurrency(site.cost * totalTravelers) }}
-                  </span>
+                <div class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
+                  <div class="flex justify-between items-center text-sm">
+                    <span class="text-gray-600 dark:text-gray-400">Total Cost:</span>
+                    <span class="font-bold text-gray-900 dark:text-white">
+                      {{ formatCurrency(site.cost * totalTravelers) }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
-            <div class="flex justify-between items-center">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Total Sites Cost:
-              </span>
-              <span class="text-lg font-bold text-gray-900 dark:text-white">
-                {{ formatCurrency(sitesCost) }}
-              </span>
+            <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Total Sites Cost:
+                </span>
+                <span class="text-lg font-bold text-gray-900 dark:text-white">
+                  {{ formatCurrency(sitesCost) }}
+                </span>
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {{ plan.sites.sites.length }}
+                {{ plan.sites.sites.length === 1 ? 'site' : 'sites' }} for {{ totalTravelers }}
+                {{ totalTravelers === 1 ? 'traveler' : 'travelers' }}
+              </p>
             </div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {{ plan.sites.sites.length }} {{ plan.sites.sites.length === 1 ? 'site' : 'sites' }} for {{ totalTravelers }} {{ totalTravelers === 1 ? 'traveler' : 'travelers' }}
-            </p>
-          </div>
-        </template>
+          </template>
         </div>
       </div>
 
       <!-- Comparison Tab -->
       <div v-if="activeTab === 'comparison'" class="space-y-6">
-        <div v-if="recommendation" class="p-6 rounded-lg border-2 bg-green-50 dark:bg-green-900/20 border-green-500">
+        <div
+          v-if="recommendation"
+          class="p-6 rounded-lg border-2 bg-green-50 dark:bg-green-900/20 border-green-500"
+        >
           <div class="flex items-start gap-4">
-            <Icon icon="mdi:check-circle" class="text-3xl text-green-600 dark:text-green-400 shrink-0" />
+            <Icon
+              icon="mdi:check-circle"
+              class="text-3xl text-green-600 dark:text-green-400 shrink-0"
+            />
             <div>
               <h3 class="text-xl font-bold text-green-700 dark:text-green-300 mb-2">
                 Recommended: {{ recommendation.recommended }}
@@ -4483,7 +5084,9 @@ onMounted(async () => {
               </div>
               <div v-if="plan.publicTransport.options.length > 0" class="flex justify-between">
                 <span class="text-gray-600 dark:text-gray-400">Options:</span>
-                <span class="font-medium">{{ plan.publicTransport.options.filter(o => o.enabled).length }} active</span>
+                <span class="font-medium"
+                  >{{ plan.publicTransport.options.filter((o) => o.enabled).length }} active</span
+                >
               </div>
             </div>
           </div>
@@ -4538,15 +5141,16 @@ onMounted(async () => {
         </div>
 
         <!-- Cost Breakdown Visualization -->
-        <div v-if="costBreakdown.length > 0" class="pt-4 border-t border-gray-200 dark:border-slate-700">
+        <div
+          v-if="costBreakdown.length > 0"
+          class="pt-4 border-t border-gray-200 dark:border-slate-700"
+        >
           <h4 class="font-semibold text-gray-900 dark:text-white mb-4">Cost Breakdown</h4>
           <div class="space-y-3">
-            <div
-              v-for="item in costBreakdown"
-              :key="item.label"
-              class="flex items-center gap-3"
-            >
-              <div class="w-24 text-sm text-gray-600 dark:text-gray-400 font-medium">{{ item.label }}</div>
+            <div v-for="item in costBreakdown" :key="item.label" class="flex items-center gap-3">
+              <div class="w-24 text-sm text-gray-600 dark:text-gray-400 font-medium">
+                {{ item.label }}
+              </div>
               <div class="flex-1 relative">
                 <div class="h-6 rounded-md overflow-hidden bg-gray-200 dark:bg-gray-700">
                   <div
@@ -4556,7 +5160,10 @@ onMounted(async () => {
                       backgroundColor: item.color,
                     }"
                   >
-                    <span class="text-xs font-medium text-white" v-if="(item.value / totalTripCost) * 100 > 10">
+                    <span
+                      v-if="(item.value / totalTripCost) * 100 > 10"
+                      class="text-xs font-medium text-white"
+                    >
                       {{ ((item.value / totalTripCost) * 100).toFixed(0) }}%
                     </span>
                   </div>
@@ -4580,18 +5187,47 @@ onMounted(async () => {
               </span>
             </div>
 
-            <div v-if="plan.budget > 0" class="rounded-lg p-4" :class="budgetStatus?.type === 'success' ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'">
+            <div
+              v-if="plan.budget > 0"
+              class="rounded-lg p-4"
+              :class="
+                budgetStatus?.type === 'success'
+                  ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                  : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
+              "
+            >
               <div class="flex items-center justify-between">
                 <div>
-                  <div class="text-sm font-medium" :class="budgetStatus?.type === 'success' ? 'text-green-700 dark:text-green-300' : 'text-yellow-700 dark:text-yellow-300'">
+                  <div
+                    class="text-sm font-medium"
+                    :class="
+                      budgetStatus?.type === 'success'
+                        ? 'text-green-700 dark:text-green-300'
+                        : 'text-yellow-700 dark:text-yellow-300'
+                    "
+                  >
                     Budget: {{ formatCurrency(plan.budget) }}
                   </div>
-                  <div class="text-xs mt-1" :class="budgetStatus?.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'">
+                  <div
+                    class="text-xs mt-1"
+                    :class="
+                      budgetStatus?.type === 'success'
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-yellow-600 dark:text-yellow-400'
+                    "
+                  >
                     {{ budgetStatus?.message }}
                   </div>
                 </div>
                 <div class="text-right">
-                  <div class="text-2xl font-bold" :class="budgetStatus?.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'">
+                  <div
+                    class="text-2xl font-bold"
+                    :class="
+                      budgetStatus?.type === 'success'
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-yellow-600 dark:text-yellow-400'
+                    "
+                  >
                     {{ formatCurrency(remainingBudget) }}
                   </div>
                   <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -4603,12 +5239,17 @@ onMounted(async () => {
                 <div
                   class="h-full transition-all"
                   :class="budgetStatus?.type === 'success' ? 'bg-green-500' : 'bg-yellow-500'"
-                  :style="{ width: `${Math.min(100, Math.max(0, (totalTripCost / plan.budget) * 100))}%` }"
+                  :style="{
+                    width: `${Math.min(100, Math.max(0, (totalTripCost / plan.budget) * 100))}%`,
+                  }"
                 ></div>
               </div>
             </div>
 
-            <div v-if="roadTripCost > 0 && publicTransportCost > 0" class="pt-2 border-t border-gray-200 dark:border-slate-700">
+            <div
+              v-if="roadTripCost > 0 && publicTransportCost > 0"
+              class="pt-2 border-t border-gray-200 dark:border-slate-700"
+            >
               <div class="flex justify-between items-center">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Transport Cost Difference:
@@ -4622,7 +5263,11 @@ onMounted(async () => {
                   "
                 >
                   {{ formatCurrency(Math.abs(roadTripCost - publicTransportCost)) }}
-                  {{ roadTripCost < publicTransportCost ? 'saved by road' : 'saved by public transport' }}
+                  {{
+                    roadTripCost < publicTransportCost
+                      ? 'saved by road'
+                      : 'saved by public transport'
+                  }}
                 </span>
               </div>
             </div>
@@ -4637,7 +5282,11 @@ onMounted(async () => {
           <button
             type="button"
             class="px-2.5 py-1.5 text-xs rounded-md border"
-            :class="plan.itinerary.blocksPerDay === 2 ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300'"
+            :class="
+              plan.itinerary.blocksPerDay === 2
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300'
+            "
             @click="setBlockMode(2)"
           >
             2 blocks
@@ -4645,7 +5294,11 @@ onMounted(async () => {
           <button
             type="button"
             class="px-2.5 py-1.5 text-xs rounded-md border"
-            :class="plan.itinerary.blocksPerDay === 3 ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300'"
+            :class="
+              plan.itinerary.blocksPerDay === 3
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300'
+            "
             @click="setBlockMode(3)"
           >
             3 blocks
@@ -4653,7 +5306,11 @@ onMounted(async () => {
           <button
             type="button"
             class="px-2.5 py-1.5 text-xs rounded-md border"
-            :class="plan.itinerary.blocksPerDay === 4 ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300'"
+            :class="
+              plan.itinerary.blocksPerDay === 4
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300'
+            "
             @click="setBlockMode(4)"
           >
             4 blocks
@@ -4706,7 +5363,10 @@ onMounted(async () => {
             Add Expense
           </button>
         </div>
-        <div v-if="plan.expenses.items.length === 0" class="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
+        <div
+          v-if="plan.expenses.items.length === 0"
+          class="text-sm text-gray-500 dark:text-gray-400 text-center py-8"
+        >
           No expenses added yet. Click "Add Expense" to start tracking.
         </div>
         <div v-else class="space-y-3">
@@ -4717,7 +5377,9 @@ onMounted(async () => {
           >
             <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Category</label>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
+                  >Category</label
+                >
                 <select
                   v-model="expense.category"
                   class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -4731,7 +5393,9 @@ onMounted(async () => {
                 </select>
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Description</label>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
+                  >Description</label
+                >
                 <input
                   v-model="expense.description"
                   type="text"
@@ -4740,7 +5404,9 @@ onMounted(async () => {
                 />
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Amount</label>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
+                  >Amount</label
+                >
                 <input
                   v-model.number="expense.amount"
                   type="number"
@@ -4751,7 +5417,9 @@ onMounted(async () => {
               </div>
               <div class="flex gap-2">
                 <div class="flex-1">
-                  <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Date</label>
+                  <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
+                    >Date</label
+                  >
                   <input
                     v-model="expense.date"
                     type="date"
@@ -4777,10 +5445,15 @@ onMounted(async () => {
             </div>
           </div>
         </div>
-        <div v-if="plan.expenses.items.length > 0" class="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+        <div
+          v-if="plan.expenses.items.length > 0"
+          class="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800"
+        >
           <div class="flex justify-between items-center">
             <span class="font-medium text-emerald-900 dark:text-emerald-200">Total Expenses:</span>
-            <span class="text-lg font-bold text-emerald-700 dark:text-emerald-300">{{ formatCurrency(totalExpenses) }}</span>
+            <span class="text-lg font-bold text-emerald-700 dark:text-emerald-300">{{
+              formatCurrency(totalExpenses)
+            }}</span>
           </div>
         </div>
       </div>
@@ -4791,7 +5464,11 @@ onMounted(async () => {
           <div>
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Packing List</h3>
             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Progress: {{ packingProgress }}% ({{ Object.values(plan.packing.lists).flat().filter(i => i.packed).length }}/{{ Object.values(plan.packing.lists).flat().length }})
+              Progress: {{ packingProgress }}% ({{
+                Object.values(plan.packing.lists)
+                  .flat()
+                  .filter((i) => i.packed).length
+              }}/{{ Object.values(plan.packing.lists).flat().length }})
             </p>
           </div>
         </div>
@@ -4849,7 +5526,9 @@ onMounted(async () => {
       <!-- Documents Tab -->
       <div v-if="activeTab === 'documents'" class="space-y-6">
         <div>
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Travel Documents Checklist</h3>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            Travel Documents Checklist
+          </h3>
           <p class="text-sm text-gray-500 dark:text-gray-400">
             Check off items as you prepare them for your trip
           </p>
@@ -4866,7 +5545,10 @@ onMounted(async () => {
               class="rounded border-gray-300 dark:border-gray-600 w-5 h-5"
             />
             <div class="flex-1">
-              <span class="font-medium text-gray-900 dark:text-white" :class="doc.checked ? 'line-through text-gray-400' : ''">
+              <span
+                class="font-medium text-gray-900 dark:text-white"
+                :class="doc.checked ? 'line-through text-gray-400' : ''"
+              >
                 {{ doc.name }}
               </span>
               <span
@@ -4878,11 +5560,16 @@ onMounted(async () => {
             </div>
           </div>
         </div>
-        <div class="p-4 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800">
+        <div
+          class="p-4 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800"
+        >
           <div class="flex items-center gap-2">
             <Icon icon="mdi:information" class="text-teal-600 dark:text-teal-400" />
             <span class="text-sm text-teal-800 dark:text-teal-200">
-              {{ plan.documents.checklist.filter(d => d.checked).length }}/{{ plan.documents.checklist.length }} documents prepared
+              {{ plan.documents.checklist.filter((d) => d.checked).length }}/{{
+                plan.documents.checklist.length
+              }}
+              documents prepared
             </span>
           </div>
         </div>
