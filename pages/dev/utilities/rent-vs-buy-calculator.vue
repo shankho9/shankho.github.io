@@ -6,7 +6,7 @@ import { useAuth } from '~/composables/useAuth'
 import { useToast } from '~/composables/useToast'
 
 definePageMeta({
-  middleware: 'auth-calculator',
+  middleware: ['auth-utilities', 'utility-access'],
 })
 
 const { checkAuth } = useAuth()
@@ -286,10 +286,19 @@ const buyModel = computed(() => {
   // NPV: monthly outflows + add upfront (treated as month 1 cashflow for NPV approximation) - equity as inflow at end
   // Use formula for large periods to save memory
   const r = discountMonthly(discount)
-  const npvOutflows = useFormula
-    ? (monthlyOutflow * (1 - Math.pow(1 + r, -months))) / r + upfront / (1 + r)
-    : npvMonthly(cashflows, discount) + upfront / Math.pow(1 + r, 1)
-  const equityPV = equityEnd / Math.pow(1 + discountMonthly(discount), months)
+  let npvOutflows: number
+  // Handle r = 0 case to avoid division by zero (when discount rate is 0%)
+  if (Math.abs(r) < 1e-10) {
+    // When discount rate is 0%, NPV is simply the sum of cashflows (no discounting)
+    npvOutflows = useFormula
+      ? monthlyOutflow * months + upfront
+      : npvMonthly(cashflows, discount) + upfront
+  } else {
+    npvOutflows = useFormula
+      ? (monthlyOutflow * (1 - Math.pow(1 + r, -months))) / r + upfront / (1 + r)
+      : npvMonthly(cashflows, discount) + upfront / Math.pow(1 + r, 1)
+  }
+  const equityPV = Math.abs(r) < 1e-10 ? equityEnd : equityEnd / Math.pow(1 + r, months)
   const npvNetCost = npvOutflows - equityPV
 
   // Opportunity: if you rent instead, you can invest the upfront amount; show it as comparison helper
@@ -435,7 +444,11 @@ const runScenario = (overrides: Partial<typeof defaultAssumptions>) => {
 
   // Calculate NPV without creating full cashflow array (memory efficient)
   const r = discountMonthly(discount)
-  const npvOutflows = (monthlyOutflow * (1 - Math.pow(1 + r, -months))) / r + upfront / (1 + r)
+  // Handle r = 0 case to avoid division by zero (when discount rate is 0%)
+  const npvOutflows =
+    Math.abs(r) < 1e-10
+      ? monthlyOutflow * months + upfront // When discount rate is 0%, NPV is simply the sum
+      : (monthlyOutflow * (1 - Math.pow(1 + r, -months))) / r + upfront / (1 + r)
 
   const appreciation = clamp(Number(merged.homeAppreciation) || 0, -10, 20) / 100
   const homeValueEnd = homePrice * Math.pow(1 + appreciation, years)
@@ -1037,40 +1050,39 @@ watch(
 </script>
 
 <template>
-  <div class="py-6 sm:py-10 container mx-auto max-w-7xl px-3 sm:px-6 w-full">
+  <div class="py-6 sm:py-10 container mx-auto max-w-7xl px-3 sm:px-6 w-full overflow-x-hidden">
     <!-- Header -->
     <div class="text-center mb-8 sm:mb-12">
-      <div
-        class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-4 mb-4"
-      >
+      <div class="flex flex-row flex-wrap items-center justify-center gap-1.5 sm:gap-2 mb-3">
         <NuxtLink
           to="/dev"
-          class="inline-flex items-center justify-center sm:justify-start text-sky-600 dark:text-sky-400 hover:underline"
+          class="inline-flex items-center text-sm text-sky-600 dark:text-sky-400 hover:underline"
         >
-          <Icon icon="mdi:arrow-left" class="mr-2" />
+          <Icon icon="mdi:arrow-left" class="mr-1.5 text-base" />
           Back to Utilities
         </NuxtLink>
+        <span class="hidden sm:inline text-gray-300 dark:text-slate-600">|</span>
         <button
-          class="inline-flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors w-full sm:w-auto"
+          class="inline-flex items-center px-2.5 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
           @click="showTemplatesModal = true"
         >
-          <Icon icon="mdi:file-multiple" class="mr-2" />
+          <Icon icon="mdi:file-multiple" class="mr-1.5 text-base" />
           Templates
         </button>
         <button
-          class="inline-flex items-center justify-center px-3 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors w-full sm:w-auto"
+          class="inline-flex items-center px-2.5 py-1.5 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors"
           @click="showSaveModal = true"
         >
-          <Icon icon="mdi:content-save" class="mr-2" />
-          Save Template
+          <Icon icon="mdi:content-save" class="mr-1.5 text-base" />
+          Save
         </button>
         <button
           :disabled="isExportingPDF"
-          class="inline-flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 w-full sm:w-auto"
+          class="inline-flex items-center px-2.5 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           @click="exportToPDF"
         >
-          <Icon icon="mdi:file-pdf-box" class="mr-2" />
-          {{ isExportingPDF ? 'Exporting...' : 'Export PDF' }}
+          <Icon icon="mdi:file-pdf-box" class="mr-1.5 text-base" />
+          {{ isExportingPDF ? 'Exporting…' : 'PDF' }}
         </button>
       </div>
       <h1 class="text-3xl sm:text-4xl font-bold mb-3 text-zinc-800 dark:text-zinc-200">
@@ -1101,7 +1113,7 @@ watch(
               : 'text-blue-600 dark:text-blue-400'
           "
         />
-        <div class="flex-1">
+        <div class="flex-1 min-w-0">
           <h2 class="text-2xl font-bold mb-2">
             <span
               :class="
@@ -1117,17 +1129,17 @@ watch(
             <span class="font-semibold">Estimated advantage (NPV):</span>
             {{ formatCurrency(recommendation.savings) }}
           </p>
-          <p class="text-sm opacity-90">{{ recommendation.explanation }}</p>
+          <p class="text-sm opacity-90 break-words">{{ recommendation.explanation }}</p>
         </div>
       </div>
     </div>
 
     <!-- Tabs -->
     <div
-      class="mb-6 border-b border-gray-300 dark:border-slate-700 -mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto whitespace-nowrap"
+      class="mb-6 border-b border-gray-300 dark:border-slate-700 mx-0 sm:-mx-3 px-0 sm:px-0 overflow-x-auto whitespace-nowrap w-full max-w-full min-w-0"
       style="scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch"
     >
-      <div class="flex gap-2 min-w-max">
+      <div class="flex gap-2 min-w-max w-max">
         <button
           v-for="tab in [
             { id: 'assumptions', label: '01 Assumptions', icon: 'mdi:cog' },
@@ -1152,7 +1164,7 @@ watch(
 
     <!-- Content -->
     <div
-      class="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-800"
+      class="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-800 min-w-0 overflow-x-hidden"
     >
       <!-- Assumptions -->
       <div v-show="activeTab === 'assumptions'" class="space-y-6">
@@ -1516,7 +1528,7 @@ watch(
           </div>
         </div>
 
-        <div class="overflow-x-auto -mx-3 sm:mx-0">
+        <div class="overflow-x-auto mx-0 sm:-mx-3 min-w-0 max-w-full">
           <table class="w-full border-collapse text-sm min-w-[520px] sm:min-w-0">
             <tbody>
               <tr>
@@ -1641,7 +1653,7 @@ watch(
           </div>
         </div>
 
-        <div class="overflow-x-auto -mx-3 sm:mx-0">
+        <div class="overflow-x-auto mx-0 sm:-mx-3 min-w-0 max-w-full">
           <table class="w-full border-collapse text-sm min-w-[520px] sm:min-w-0">
             <tbody>
               <tr>
@@ -1698,19 +1710,29 @@ watch(
           >
             <h3 class="font-semibold text-lg mb-3 text-zinc-800 dark:text-zinc-200">Buy</h3>
             <div class="space-y-2">
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">NPV net cost:</span>
-                <span class="font-bold text-lg">{{ formatCurrency(buyModel.npvNetCost) }}</span>
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
+                  >NPV net cost:</span
+                >
+                <span class="font-bold text-lg text-right min-w-0 break-all">{{
+                  formatCurrency(buyModel.npvNetCost)
+                }}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400"
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
                   >Monthly outflow (est.):</span
                 >
-                <span class="font-semibold">{{ formatCurrency(buyModel.monthlyOutflow) }}</span>
+                <span class="font-semibold text-right min-w-0 break-all">{{
+                  formatCurrency(buyModel.monthlyOutflow)
+                }}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Equity at end:</span>
-                <span class="font-semibold">{{ formatCurrency(buyModel.equityEnd) }}</span>
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
+                  >Equity at end:</span
+                >
+                <span class="font-semibold text-right min-w-0 break-all">{{
+                  formatCurrency(buyModel.equityEnd)
+                }}</span>
               </div>
             </div>
           </div>
@@ -1720,17 +1742,29 @@ watch(
           >
             <h3 class="font-semibold text-lg mb-3 text-zinc-800 dark:text-zinc-200">Rent</h3>
             <div class="space-y-2">
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">NPV net cost:</span>
-                <span class="font-bold text-lg">{{ formatCurrency(rentModel.npvNetCost) }}</span>
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
+                  >NPV net cost:</span
+                >
+                <span class="font-bold text-lg text-right min-w-0 break-all">{{
+                  formatCurrency(rentModel.npvNetCost)
+                }}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Avg monthly (est.):</span>
-                <span class="font-semibold">{{ formatCurrency(rentModel.avgMonthly) }}</span>
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
+                  >Avg monthly (est.):</span
+                >
+                <span class="font-semibold text-right min-w-0 break-all">{{
+                  formatCurrency(rentModel.avgMonthly)
+                }}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Investment at end:</span>
-                <span class="font-semibold">{{ formatCurrency(rentModel.investFinal) }}</span>
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
+                  >Investment at end:</span
+                >
+                <span class="font-semibold text-right min-w-0 break-all">{{
+                  formatCurrency(rentModel.investFinal)
+                }}</span>
               </div>
             </div>
           </div>
@@ -1743,7 +1777,7 @@ watch(
           <p class="text-xs text-gray-600 dark:text-gray-400 mb-3">
             Quick “what-if” checks so you can see when the decision flips.
           </p>
-          <div class="overflow-x-auto -mx-3 sm:mx-0">
+          <div class="overflow-x-auto mx-0 sm:-mx-3 min-w-0 max-w-full">
             <table class="w-full border-collapse text-sm min-w-[720px] sm:min-w-0">
               <thead>
                 <tr class="bg-gray-100 dark:bg-slate-800">

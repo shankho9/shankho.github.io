@@ -1,5 +1,7 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+  <div
+    class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 overflow-x-hidden"
+  >
     <div class="max-w-md w-full space-y-8 p-8">
       <div v-if="isLoading" class="text-center">
         <Icon name="svg-spinners:180-ring" class="text-4xl text-gray-900 dark:text-white mb-4" />

@@ -8,7 +8,7 @@ import { useToast } from '~/composables/useToast'
 import CarSelector from '~/components/calculator/CarSelector.vue'
 
 definePageMeta({
-  middleware: 'auth-calculator',
+  middleware: ['auth-utilities', 'utility-access'],
 })
 
 const { checkAuth } = useAuth()
@@ -3148,54 +3148,53 @@ const activeTab = ref('assumptions')
 </script>
 
 <template>
-  <div class="py-6 sm:py-10 container mx-auto max-w-7xl px-3 sm:px-6 w-full">
+  <div class="py-6 sm:py-10 container mx-auto max-w-7xl px-3 sm:px-6 w-full overflow-x-hidden">
     <!-- Header -->
     <div class="text-center mb-8 sm:mb-12">
-      <div
-        class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-4 mb-4"
-      >
+      <div class="flex flex-row flex-wrap items-center justify-center gap-1.5 sm:gap-2 mb-3">
         <NuxtLink
           to="/dev"
-          class="inline-flex items-center justify-center sm:justify-start text-sky-600 dark:text-sky-400 hover:underline"
+          class="inline-flex items-center text-sm text-sky-600 dark:text-sky-400 hover:underline"
         >
-          <Icon icon="mdi:arrow-left" class="mr-2" />
+          <Icon icon="mdi:arrow-left" class="mr-1.5 text-base" />
           Back to Utilities
         </NuxtLink>
+        <span class="hidden sm:inline text-gray-300 dark:text-slate-600">|</span>
         <button
-          class="inline-flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors w-full sm:w-auto"
+          class="inline-flex items-center px-2.5 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
           @click="showTemplatesModal = true"
         >
-          <Icon icon="mdi:file-multiple" class="mr-2" />
+          <Icon icon="mdi:file-multiple" class="mr-1.5 text-base" />
           Templates
         </button>
         <button
-          class="inline-flex items-center justify-center px-3 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors w-full sm:w-auto"
+          class="inline-flex items-center px-2.5 py-1.5 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors"
           @click="showSaveModal = true"
         >
-          <Icon icon="mdi:content-save" class="mr-2" />
-          Save Template
+          <Icon icon="mdi:content-save" class="mr-1.5 text-base" />
+          Save
         </button>
         <button
           :disabled="isExportingPDF"
-          class="inline-flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 w-full sm:w-auto"
+          class="inline-flex items-center px-2.5 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           @click="exportToPDF"
         >
-          <Icon icon="mdi:file-pdf-box" class="mr-2" />
-          {{ isExportingPDF ? 'Exporting...' : 'Export PDF' }}
+          <Icon icon="mdi:file-pdf-box" class="mr-1.5 text-base" />
+          {{ isExportingPDF ? 'Exporting…' : 'PDF' }}
         </button>
         <button
-          class="inline-flex items-center justify-center px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors w-full sm:w-auto"
+          class="inline-flex items-center px-2.5 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
           title="Reset all fields to blank defaults"
           @click="resetToDefaults"
         >
-          <Icon icon="mdi:refresh" class="mr-2" />
-          Reset to Defaults
+          <Icon icon="mdi:refresh" class="mr-1.5 text-base" />
+          Reset
         </button>
       </div>
-      <h1 class="text-4xl font-bold mb-4 text-zinc-800 dark:text-zinc-200">
+      <h1 class="text-3xl sm:text-4xl font-bold mb-4 text-zinc-800 dark:text-zinc-200">
         Car Ownership vs Lease Calculator
       </h1>
-      <p class="text-lg text-zinc-600 dark:text-zinc-400 max-w-3xl mx-auto">
+      <p class="text-base sm:text-lg text-zinc-600 dark:text-zinc-400 max-w-3xl mx-auto">
         Advanced calculator with multi-currency support, depreciation models, dynamic lease options,
         and template comparison
       </p>
@@ -3231,7 +3230,7 @@ const activeTab = ref('assumptions')
               : 'text-blue-600 dark:text-blue-400'
           "
         />
-        <div class="flex-1">
+        <div class="flex-1 min-w-0">
           <h2 class="text-2xl font-bold mb-2">
             <span
               :class="
@@ -3247,17 +3246,17 @@ const activeTab = ref('assumptions')
             <span class="font-semibold">Net {{ assumptions.analysisPeriod }}-Year Cost:</span>
             {{ formatCurrency(recommendation.netCost) }}
           </p>
-          <p class="text-base opacity-90">{{ recommendation.explanation }}</p>
+          <p class="text-base opacity-90 break-words">{{ recommendation.explanation }}</p>
         </div>
       </div>
     </div>
 
     <!-- Tabs Navigation -->
     <div
-      class="mb-6 border-b border-gray-300 dark:border-slate-700 -mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto whitespace-nowrap"
+      class="mb-6 border-b border-gray-300 dark:border-slate-700 mx-0 sm:-mx-3 px-0 sm:px-0 overflow-x-auto whitespace-nowrap w-full max-w-full min-w-0"
       style="scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch"
     >
-      <div class="flex gap-2 min-w-max">
+      <div class="flex gap-2 min-w-max w-max">
         <button
           v-for="tab in [
             { id: 'assumptions', label: '01 Assumptions', icon: 'mdi:cog' },
@@ -3283,7 +3282,7 @@ const activeTab = ref('assumptions')
 
     <!-- Tab Content -->
     <div
-      class="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-800"
+      class="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-800 min-w-0 overflow-x-hidden"
     >
       <!-- 01 ASSUMPTIONS -->
       <div v-show="activeTab === 'assumptions'" class="space-y-4">
@@ -4799,7 +4798,7 @@ const activeTab = ref('assumptions')
           </div>
         </div>
 
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto min-w-0 max-w-full">
           <table class="w-full border-collapse">
             <thead>
               <tr class="bg-gray-100 dark:bg-slate-800">
@@ -4922,33 +4921,35 @@ const activeTab = ref('assumptions')
                 Operating Costs ({{ assumptions.analysisPeriod }} years)
               </p>
               <div class="space-y-1 text-sm">
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Fuel:</span>
-                  <span class="font-semibold">{{
+                <div class="flex justify-between gap-2 items-baseline">
+                  <span class="text-gray-600 dark:text-gray-400 flex-shrink-0">Fuel:</span>
+                  <span class="font-semibold text-right min-w-0 break-all">{{
                     formatCurrency(ownershipCosts.years.reduce((sum, y) => sum + y.fuelCost, 0))
                   }}</span>
                 </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Insurance:</span>
-                  <span class="font-semibold">{{
+                <div class="flex justify-between gap-2 items-baseline">
+                  <span class="text-gray-600 dark:text-gray-400 flex-shrink-0">Insurance:</span>
+                  <span class="font-semibold text-right min-w-0 break-all">{{
                     formatCurrency(ownershipCosts.years.reduce((sum, y) => sum + y.insurance, 0))
                   }}</span>
                 </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Service & Maintenance:</span>
-                  <span class="font-semibold">{{
+                <div class="flex justify-between gap-2 items-baseline">
+                  <span class="text-gray-600 dark:text-gray-400 flex-shrink-0"
+                    >Service & Maintenance:</span
+                  >
+                  <span class="font-semibold text-right min-w-0 break-all">{{
                     formatCurrency(ownershipCosts.years.reduce((sum, y) => sum + y.service, 0))
                   }}</span>
                 </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Repairs:</span>
-                  <span class="font-semibold">{{
+                <div class="flex justify-between gap-2 items-baseline">
+                  <span class="text-gray-600 dark:text-gray-400 flex-shrink-0">Repairs:</span>
+                  <span class="font-semibold text-right min-w-0 break-all">{{
                     formatCurrency(ownershipCosts.years.reduce((sum, y) => sum + y.repairs, 0))
                   }}</span>
                 </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Depreciation:</span>
-                  <span class="font-semibold">{{
+                <div class="flex justify-between gap-2 items-baseline">
+                  <span class="text-gray-600 dark:text-gray-400 flex-shrink-0">Depreciation:</span>
+                  <span class="font-semibold text-right min-w-0 break-all">{{
                     formatCurrency(ownershipCosts.totalDepreciation)
                   }}</span>
                 </div>
@@ -4959,27 +4960,37 @@ const activeTab = ref('assumptions')
                 Financial Summary
               </p>
               <div class="space-y-1 text-sm">
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Total Spent:</span>
-                  <span class="font-semibold">{{ formatCurrency(ownershipCosts.totalCosts) }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Asset Value at End:</span>
-                  <span class="font-semibold text-green-600 dark:text-green-400">{{
-                    formatCurrency(ownershipCosts.resaleValue)
+                <div class="flex justify-between gap-2 items-baseline">
+                  <span class="text-gray-600 dark:text-gray-400 flex-shrink-0">Total Spent:</span>
+                  <span class="font-semibold text-right min-w-0 break-all">{{
+                    formatCurrency(ownershipCosts.totalCosts)
                   }}</span>
+                </div>
+                <div class="flex justify-between gap-2 items-baseline">
+                  <span class="text-gray-600 dark:text-gray-400 flex-shrink-0"
+                    >Asset Value at End:</span
+                  >
+                  <span
+                    class="font-semibold text-green-600 dark:text-green-400 text-right min-w-0 break-all"
+                    >{{ formatCurrency(ownershipCosts.resaleValue) }}</span
+                  >
                 </div>
                 <div
-                  class="flex justify-between pt-2 border-t border-gray-300 dark:border-slate-700"
+                  class="flex justify-between gap-2 items-baseline pt-2 border-t border-gray-300 dark:border-slate-700"
                 >
-                  <span class="font-semibold text-gray-800 dark:text-gray-200">Net Cost:</span>
-                  <span class="font-bold text-lg text-zinc-800 dark:text-zinc-200">{{
-                    formatCurrency(ownershipCosts.netOwnershipCost)
-                  }}</span>
+                  <span class="font-semibold text-gray-800 dark:text-gray-200 flex-shrink-0"
+                    >Net Cost:</span
+                  >
+                  <span
+                    class="font-bold text-lg text-zinc-800 dark:text-zinc-200 text-right min-w-0 break-all"
+                    >{{ formatCurrency(ownershipCosts.netOwnershipCost) }}</span
+                  >
                 </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Average Monthly:</span>
-                  <span class="font-semibold">{{
+                <div class="flex justify-between gap-2 items-baseline">
+                  <span class="text-gray-600 dark:text-gray-400 flex-shrink-0"
+                    >Average Monthly:</span
+                  >
+                  <span class="font-semibold text-right min-w-0 break-all">{{
                     formatCurrency(
                       ownershipCosts.netOwnershipCost / (assumptions.analysisPeriod * 12),
                     )
@@ -5014,7 +5025,7 @@ const activeTab = ref('assumptions')
               </p>
             </div>
           </div>
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto min-w-0 max-w-full">
             <table class="w-full border-collapse">
               <thead>
                 <tr class="bg-white dark:bg-slate-900">
@@ -5069,7 +5080,7 @@ const activeTab = ref('assumptions')
           </div>
         </div>
 
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto min-w-0 max-w-full">
           <table class="w-full border-collapse">
             <thead>
               <tr class="bg-gray-100 dark:bg-slate-800">
@@ -5364,7 +5375,7 @@ const activeTab = ref('assumptions')
           {{ assumptions.analysisPeriod }} years.
         </p>
 
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto min-w-0 max-w-full">
           <table class="w-full border-collapse">
             <thead>
               <tr class="bg-gray-100 dark:bg-slate-800">
@@ -5543,37 +5554,43 @@ const activeTab = ref('assumptions')
             Assumptions snapshot
           </h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
-            <div class="flex justify-between gap-3">
-              <span class="text-gray-600 dark:text-gray-400">Annual km</span>
-              <span class="font-medium">{{
+            <div class="flex justify-between gap-3 items-baseline">
+              <span class="text-gray-600 dark:text-gray-400 flex-shrink-0">Annual km</span>
+              <span class="font-medium text-right min-w-0 break-all">{{
                 Number(assumptions.annualDistance || 0).toLocaleString()
               }}</span>
             </div>
-            <div class="flex justify-between gap-3">
-              <span class="text-gray-600 dark:text-gray-400">Mileage</span>
-              <span class="font-medium">{{
+            <div class="flex justify-between gap-3 items-baseline">
+              <span class="text-gray-600 dark:text-gray-400 flex-shrink-0">Mileage</span>
+              <span class="font-medium text-right min-w-0 break-all">{{
                 Number(assumptions.mileage || 0).toLocaleString()
               }}</span>
             </div>
-            <div class="flex justify-between gap-3">
-              <span class="text-gray-600 dark:text-gray-400">Fuel price</span>
-              <span class="font-medium">{{
+            <div class="flex justify-between gap-3 items-baseline">
+              <span class="text-gray-600 dark:text-gray-400 flex-shrink-0">Fuel price</span>
+              <span class="font-medium text-right min-w-0 break-all">{{
                 formatCurrency(Number(assumptions.fuelPrice || 0))
               }}</span>
             </div>
-            <div class="flex justify-between gap-3">
-              <span class="text-gray-600 dark:text-gray-400">Tax rate (lease EMI)</span>
-              <span class="font-medium">{{ Number(assumptions.effectiveTaxRate || 0) }}%</span>
+            <div class="flex justify-between gap-3 items-baseline">
+              <span class="text-gray-600 dark:text-gray-400 flex-shrink-0"
+                >Tax rate (lease EMI)</span
+              >
+              <span class="font-medium text-right min-w-0 break-all"
+                >{{ Number(assumptions.effectiveTaxRate || 0) }}%</span
+              >
             </div>
-            <div class="flex justify-between gap-3">
-              <span class="text-gray-600 dark:text-gray-400">ROI used</span>
-              <span class="font-medium"
+            <div class="flex justify-between gap-3 items-baseline">
+              <span class="text-gray-600 dark:text-gray-400 flex-shrink-0">ROI used</span>
+              <span class="font-medium text-right min-w-0 break-all"
                 >{{ Number(assumptions.returnOnInvestedCapital || 0) }}%</span
               >
             </div>
-            <div class="flex justify-between gap-3">
-              <span class="text-gray-600 dark:text-gray-400">Post‑lease</span>
-              <span class="font-medium">{{ assumptions.postLeaseScenario }}</span>
+            <div class="flex justify-between gap-3 items-baseline">
+              <span class="text-gray-600 dark:text-gray-400 flex-shrink-0">Post‑lease</span>
+              <span class="font-medium text-right min-w-0 break-all">{{
+                assumptions.postLeaseScenario
+              }}</span>
             </div>
           </div>
         </div>
@@ -5585,23 +5602,30 @@ const activeTab = ref('assumptions')
           >
             <h3 class="font-semibold text-lg mb-3 text-zinc-800 dark:text-zinc-200">Owned Car</h3>
             <div class="space-y-2">
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Net Cost:</span>
-                <span class="font-bold text-lg">{{
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
+                  >Net Cost:</span
+                >
+                <span class="font-bold text-lg text-right min-w-0 break-all">{{
                   formatCurrency(finalComparison.ownedCar.netCost)
                 }}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Monthly Cost:</span>
-                <span class="font-semibold">{{
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
+                  >Monthly Cost:</span
+                >
+                <span class="font-semibold text-right min-w-0 break-all">{{
                   formatCurrency(finalComparison.ownedCar.avgMonthlyCost)
                 }}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Asset at End:</span>
-                <span class="font-semibold text-green-600 dark:text-green-400">{{
-                  formatCurrency(finalComparison.ownedCar.assetAtEnd)
-                }}</span>
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
+                  >Asset at End:</span
+                >
+                <span
+                  class="font-semibold text-green-600 dark:text-green-400 text-right min-w-0 break-all"
+                  >{{ formatCurrency(finalComparison.ownedCar.assetAtEnd) }}</span
+                >
               </div>
             </div>
           </div>
@@ -5618,39 +5642,46 @@ const activeTab = ref('assumptions')
               </span>
             </h3>
             <div class="space-y-2">
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Net Cost (cash):</span>
-                <span class="font-bold text-lg">{{
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
+                  >Net Cost (cash):</span
+                >
+                <span class="font-bold text-lg text-right min-w-0 break-all">{{
                   formatCurrency(finalComparison.leasedCar.netCost)
                 }}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400"
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
                   >Net Cost (after investment):</span
                 >
-                <span class="font-bold text-lg">{{
+                <span class="font-bold text-lg text-right min-w-0 break-all">{{
                   formatCurrency(finalComparison.leasedCar.netCostAfterInvestment)
                 }}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Monthly (cash):</span>
-                <span class="font-semibold">{{
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
+                  >Monthly (cash):</span
+                >
+                <span class="font-semibold text-right min-w-0 break-all">{{
                   formatCurrency(finalComparison.leasedCar.avgMonthlyCost)
                 }}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400"
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
                   >Monthly (after investment):</span
                 >
-                <span class="font-semibold">{{
+                <span class="font-semibold text-right min-w-0 break-all">{{
                   formatCurrency(finalComparison.leasedCar.avgMonthlyCostAfterInvestment)
                 }}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Asset at End:</span>
-                <span class="font-semibold text-green-600 dark:text-green-400">{{
-                  formatCurrency(finalComparison.leasedCar.assetAtEnd)
-                }}</span>
+              <div class="flex justify-between gap-2 items-baseline">
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0"
+                  >Asset at End:</span
+                >
+                <span
+                  class="font-semibold text-green-600 dark:text-green-400 text-right min-w-0 break-all"
+                  >{{ formatCurrency(finalComparison.leasedCar.assetAtEnd) }}</span
+                >
               </div>
               <div
                 v-if="bestLeaseOption && bestLeaseOption.postLeaseYears > 0"
@@ -5676,7 +5707,7 @@ const activeTab = ref('assumptions')
             model and compares ownership vs best lease
             <span class="font-semibold">after investment</span>.
           </p>
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto min-w-0 max-w-full">
             <table class="w-full border-collapse">
               <thead>
                 <tr class="bg-gray-100 dark:bg-slate-800">
@@ -5728,7 +5759,7 @@ const activeTab = ref('assumptions')
           </div>
         </div>
 
-        <div v-if="finalComparison" class="overflow-x-auto">
+        <div v-if="finalComparison" class="overflow-x-auto min-w-0 max-w-full">
           <table class="w-full border-collapse">
             <thead>
               <tr class="bg-gray-100 dark:bg-slate-800">
@@ -6258,29 +6289,35 @@ const activeTab = ref('assumptions')
                 Owned Car Breakdown
               </h4>
               <div class="space-y-1 text-sm">
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Purchase Price:</span>
-                  <span class="font-semibold">{{
+                <div class="flex justify-between gap-2 items-baseline">
+                  <span class="text-gray-600 dark:text-gray-400 flex-shrink-0"
+                    >Purchase Price:</span
+                  >
+                  <span class="font-semibold text-right min-w-0 break-all">{{
                     formatCurrency(finalComparison.ownedCar.purchasePrice)
                   }}</span>
                 </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Operating Costs:</span>
-                  <span class="font-semibold">{{
+                <div class="flex justify-between gap-2 items-baseline">
+                  <span class="text-gray-600 dark:text-gray-400 flex-shrink-0"
+                    >Operating Costs:</span
+                  >
+                  <span class="font-semibold text-right min-w-0 break-all">{{
                     formatCurrency(finalComparison.ownedCar.operatingCost)
                   }}</span>
                 </div>
-                <div class="flex justify-between text-green-600 dark:text-green-400">
-                  <span>Resale Value (Credit):</span>
-                  <span class="font-semibold"
+                <div
+                  class="flex justify-between gap-2 items-baseline text-green-600 dark:text-green-400"
+                >
+                  <span class="flex-shrink-0">Resale Value (Credit):</span>
+                  <span class="font-semibold text-right min-w-0 break-all"
                     >-{{ formatCurrency(Math.abs(finalComparison.ownedCar.resaleGain)) }}</span
                   >
                 </div>
                 <div
-                  class="flex justify-between pt-2 border-t border-gray-300 dark:border-slate-700"
+                  class="flex justify-between gap-2 items-baseline pt-2 border-t border-gray-300 dark:border-slate-700"
                 >
-                  <span class="font-semibold">Net Cost:</span>
-                  <span class="font-bold text-lg">{{
+                  <span class="font-semibold flex-shrink-0">Net Cost:</span>
+                  <span class="font-bold text-lg text-right min-w-0 break-all">{{
                     formatCurrency(finalComparison.ownedCar.netCost)
                   }}</span>
                 </div>
@@ -6298,34 +6335,36 @@ const activeTab = ref('assumptions')
                 </span>
               </h4>
               <div class="space-y-1 text-sm">
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Lease Cost:</span>
-                  <span class="font-semibold">{{
+                <div class="flex justify-between gap-2 items-baseline">
+                  <span class="text-gray-600 dark:text-gray-400 flex-shrink-0">Lease Cost:</span>
+                  <span class="font-semibold text-right min-w-0 break-all">{{
                     formatCurrency(finalComparison.leasedCar.operatingCost)
                   }}</span>
                 </div>
                 <div
                   v-if="bestLeaseOption && bestLeaseOption.postLeaseYears > 0"
-                  class="flex justify-between text-orange-600 dark:text-orange-400"
+                  class="flex justify-between gap-2 items-baseline text-orange-600 dark:text-orange-400"
                 >
-                  <span class="text-xs"
+                  <span class="text-xs flex-shrink-0"
                     >Post-Lease ({{ bestLeaseOption.postLeaseYears }} years):</span
                   >
-                  <span class="font-semibold text-xs">{{
+                  <span class="font-semibold text-xs text-right min-w-0 break-all">{{
                     formatCurrency(bestLeaseOption.postLeaseCost)
                   }}</span>
                 </div>
-                <div class="flex justify-between text-green-600 dark:text-green-400">
-                  <span>Investment Gain (Credit):</span>
-                  <span class="font-semibold"
+                <div
+                  class="flex justify-between gap-2 items-baseline text-green-600 dark:text-green-400"
+                >
+                  <span class="flex-shrink-0">Investment Gain (Credit):</span>
+                  <span class="font-semibold text-right min-w-0 break-all"
                     >-{{ formatCurrency(finalComparison.leasedCar.investmentGain) }}</span
                   >
                 </div>
                 <div
-                  class="flex justify-between pt-2 border-t border-gray-300 dark:border-slate-700"
+                  class="flex justify-between gap-2 items-baseline pt-2 border-t border-gray-300 dark:border-slate-700"
                 >
-                  <span class="font-semibold">Net Cost:</span>
-                  <span class="font-bold text-lg">{{
+                  <span class="font-semibold flex-shrink-0">Net Cost:</span>
+                  <span class="font-bold text-lg text-right min-w-0 break-all">{{
                     formatCurrency(finalComparison.leasedCar.netCost)
                   }}</span>
                 </div>
@@ -6336,8 +6375,8 @@ const activeTab = ref('assumptions')
           <div
             class="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800"
           >
-            <div class="flex justify-between items-center">
-              <span class="font-semibold text-green-800 dark:text-green-200">
+            <div class="flex justify-between gap-2 items-center">
+              <span class="font-semibold text-green-800 dark:text-green-200 flex-shrink-0">
                 {{
                   finalComparison.leasedCar.netCost < finalComparison.ownedCar.netCost
                     ? 'Savings with Leasing:'
@@ -6345,7 +6384,7 @@ const activeTab = ref('assumptions')
                 }}
               </span>
               <span
-                class="font-bold text-xl"
+                class="font-bold text-xl text-right min-w-0 break-all"
                 :class="
                   finalComparison.leasedCar.netCost < finalComparison.ownedCar.netCost
                     ? 'text-green-700 dark:text-green-300'
@@ -6555,7 +6594,7 @@ const activeTab = ref('assumptions')
 
           <div v-if="selectedTemplates.length > 0" class="mt-6">
             <h3 class="text-xl font-bold mb-4">Comparison Table</h3>
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto min-w-0 max-w-full">
               <table class="w-full border-collapse">
                 <thead>
                   <tr class="bg-gray-100 dark:bg-slate-800">

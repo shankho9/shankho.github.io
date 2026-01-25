@@ -262,7 +262,7 @@ try {
 </script>
 
 <template>
-  <main class="container max-w-5xl mx-auto text-zinc-600">
+  <main class="container max-w-5xl mx-auto text-zinc-600 overflow-x-hidden px-3 sm:px-6">
     <PersonalSpaceHero />
 
     <!-- LifeLines Content (Visible to All, Auth Required for Details) -->

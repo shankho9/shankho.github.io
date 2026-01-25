@@ -12,15 +12,14 @@ import {
   type TaskWithQuadrant,
   type Quadrant,
 } from '~/utils/planner/eisenhower'
-import { useAuth } from '~/composables/useAuth'
+import { useDevUtilityAuth } from '~/composables/useDevUtilityAuth'
 
 definePageMeta({
   layout: 'default',
-  middleware: 'auth-planner',
+  middleware: ['auth-utilities', 'utility-access'],
 })
 
-// Check authentication
-const { isAuthenticated, checkAuth } = useAuth()
+const { isAuthenticated, ensureAuth } = useDevUtilityAuth()
 
 const { fetchTasks, fetchThemes } = useTasks()
 
@@ -135,14 +134,8 @@ const handleClickOutside = (event: MouseEvent) => {
 }
 
 onMounted(async () => {
-  await checkAuth()
-
-  // Only load data if authenticated
-  // (Middleware will redirect if not, but we check here for UI state)
-  if (isAuthenticated.value) {
-    loadData()
-  }
-
+  const ok = await ensureAuth()
+  if (ok) loadData()
   document.addEventListener('click', handleClickOutside)
 })
 
@@ -225,92 +218,55 @@ watch(selectedDate, () => {
             Overview of your tasks and progress
           </p>
         </div>
-        <!-- Desktop: Large buttons with labels and back button -->
-        <div class="hidden sm:flex items-center gap-2 flex-wrap">
+        <!-- Compact action buttons -->
+        <div class="flex flex-row flex-wrap items-center gap-1.5 sm:gap-2">
           <NuxtLink
             to="/dev"
-            class="px-4 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
+            class="inline-flex items-center px-2.5 py-1.5 text-sm bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors touch-manipulation"
           >
-            <Icon name="mdi:arrow-left" size="20" />
-            <span>Back to Dev Tools</span>
+            <Icon name="mdi:arrow-left" class="mr-1.5 text-base" />
+            Back to Utilities
           </NuxtLink>
+          <span class="hidden sm:inline text-gray-300 dark:text-slate-600">|</span>
           <button
             type="button"
-            class="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
+            class="inline-flex items-center px-2.5 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors touch-manipulation"
             @click="navigateTo('/dev/planner/tasks')"
           >
-            <Icon name="mdi:format-list-checkbox" size="20" />
-            <span>Manage Tasks</span>
+            <Icon name="mdi:format-list-checkbox" class="mr-1.5 text-base" />
+            Tasks
           </button>
           <NuxtLink
             to="/dev/planner/review"
-            class="px-4 py-2.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
+            class="inline-flex items-center px-2.5 py-1.5 text-sm bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors touch-manipulation"
           >
-            <Icon name="mdi:chart-line" size="20" />
-            <span>Review</span>
+            <Icon name="mdi:chart-line" class="mr-1.5 text-base" />
+            Review
           </NuxtLink>
           <div class="relative menu-container">
             <button
-              class="px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
+              class="inline-flex items-center px-2.5 py-1.5 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors touch-manipulation"
               @click.stop="showExportMenu = !showExportMenu"
             >
-              <Icon name="mdi:file-export" size="20" />
-              <span>Export/Print</span>
-              <Icon name="mdi:chevron-down" size="16" />
+              <Icon name="mdi:file-export" class="mr-1.5 text-base" />
+              Export
+              <Icon name="mdi:chevron-down" class="ml-0.5 text-sm" />
             </button>
-            <!-- Export/Print Dropdown -->
             <div
               v-if="showExportMenu"
-              class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+              class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50"
               @click.stop
             >
               <NuxtLink
                 :to="`/dev/planner/print/today?date=${selectedDate}`"
-                class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
+                class="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-sm rounded-t-md"
                 @click="showExportMenu = false"
               >
-                <Icon name="mdi:printer" size="20" />
-                <span>Print Summary</span>
+                <Icon name="mdi:printer" size="18" />
+                Print Summary
               </NuxtLink>
             </div>
           </div>
-        </div>
-
-        <!-- Mobile: Horizontal Button Row -->
-        <div class="sm:hidden flex items-center gap-1.5 flex-wrap">
-          <NuxtLink
-            to="/dev"
-            class="px-2.5 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
-            style="touch-action: manipulation; min-height: 32px"
-          >
-            <Icon name="mdi:arrow-left" size="16" />
-            <span>Back</span>
-          </NuxtLink>
-          <button
-            type="button"
-            class="px-2.5 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
-            style="touch-action: manipulation; min-height: 32px"
-            @click="navigateTo('/dev/planner/tasks')"
-          >
-            <Icon name="mdi:format-list-checkbox" size="16" />
-            <span>Tasks</span>
-          </button>
-          <NuxtLink
-            to="/dev/planner/review"
-            class="px-2.5 py-1.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
-            style="touch-action: manipulation; min-height: 32px"
-          >
-            <Icon name="mdi:chart-line" size="16" />
-            <span>Review</span>
-          </NuxtLink>
-          <NuxtLink
-            :to="`/dev/planner/print/today?date=${selectedDate}`"
-            class="px-2.5 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
-            style="touch-action: manipulation; min-height: 32px"
-          >
-            <Icon name="mdi:printer" size="16" />
-            <span>Print</span>
-          </NuxtLink>
         </div>
       </div>
     </div>

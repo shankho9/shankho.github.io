@@ -10,7 +10,7 @@ import {
 
 definePageMeta({
   layout: 'default',
-  middleware: 'auth-planner',
+  middleware: ['auth-utilities', 'utility-access'],
 })
 
 const { fetchTasks, deleteTask } = useTasks()
@@ -692,80 +692,56 @@ onUnmounted(() => {
             Planner Review
           </h1>
 
-          <!-- Desktop: Button Row -->
-          <div class="hidden sm:flex items-center gap-3">
+          <!-- Compact action buttons -->
+          <div class="flex flex-row flex-wrap items-center gap-1.5 sm:gap-2">
             <NuxtLink
               to="/dev/planner"
-              class="px-4 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
+              class="inline-flex items-center px-2.5 py-1.5 text-sm bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors touch-manipulation"
             >
-              <Icon name="mdi:view-dashboard" size="20" />
-              <span>Dashboard</span>
+              <Icon name="mdi:view-dashboard" class="mr-1.5 text-base" />
+              Dashboard
             </NuxtLink>
+            <span class="hidden sm:inline text-gray-300 dark:text-slate-600">|</span>
             <NuxtLink
               to="/dev/planner/tasks"
-              class="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
+              class="inline-flex items-center px-2.5 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors touch-manipulation"
             >
-              <Icon name="mdi:format-list-checkbox" size="20" />
-              <span>Manage Tasks</span>
+              <Icon name="mdi:format-list-checkbox" class="mr-1.5 text-base" />
+              Tasks
             </NuxtLink>
             <div class="relative menu-container">
               <button
-                class="px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center justify-center gap-2"
+                class="inline-flex items-center px-2.5 py-1.5 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors touch-manipulation"
                 @click.stop="showExportMenu = !showExportMenu"
               >
-                <Icon name="mdi:file-export" size="20" />
-                <span>Export/Print</span>
-                <Icon name="mdi:chevron-down" size="16" />
+                <Icon name="mdi:file-export" class="mr-1.5 text-base" />
+                Export
+                <Icon name="mdi:chevron-down" class="ml-0.5 text-sm" />
               </button>
               <div
                 v-if="showExportMenu"
-                class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+                class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50"
                 @click.stop
               >
                 <button
-                  class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
+                  class="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-sm rounded-t-md"
                   @click="handlePrintReport"
                 >
-                  <Icon name="mdi:printer" size="20" />
-                  <span>Print Summary</span>
+                  <Icon name="mdi:printer" size="18" />
+                  Print Summary
                 </button>
               </div>
             </div>
-          </div>
-
-          <!-- Mobile: Horizontal Button Row -->
-          <div class="sm:hidden flex items-center gap-1.5 flex-wrap">
-            <NuxtLink
-              to="/dev/planner"
-              class="px-2.5 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
-              style="touch-action: manipulation; min-height: 32px"
-            >
-              <Icon name="mdi:view-dashboard" size="16" />
-              <span>Dashboard</span>
-            </NuxtLink>
-            <NuxtLink
-              to="/dev/planner/tasks"
-              class="px-2.5 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
-              style="touch-action: manipulation; min-height: 32px"
-            >
-              <Icon name="mdi:format-list-checkbox" size="16" />
-              <span>Tasks</span>
-            </NuxtLink>
-            <button
-              class="px-2.5 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors touch-manipulation flex items-center gap-1.5 text-xs font-medium whitespace-nowrap"
-              style="touch-action: manipulation; min-height: 32px"
-              @click="handlePrintReport"
-            >
-              <Icon name="mdi:printer" size="16" />
-              <span>Print</span>
-            </button>
           </div>
         </div>
       </div>
 
       <!-- Loading State -->
-      <div v-if="isLoading || isLoadingArchive" class="text-center py-8">
-        <div class="text-gray-600 dark:text-gray-400">Loading...</div>
+      <div v-if="isLoading || isLoadingArchive" class="text-center py-12">
+        <div
+          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"
+        />
+        <p class="mt-2 text-gray-600 dark:text-gray-400">Loading…</p>
       </div>
 
       <!-- Main Content -->
@@ -1497,11 +1473,11 @@ onUnmounted(() => {
               <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Closed Tasks</h3>
               <button
                 v-if="selectedTasks.length > 0"
-                class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+                class="inline-flex items-center px-2.5 py-1.5 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors gap-1.5"
                 @click="handleBulkDelete"
               >
-                <Icon name="mdi:delete" size="20" />
-                <span>Delete Selected ({{ selectedTasks.length }})</span>
+                <Icon name="mdi:delete" size="18" />
+                <span>Delete ({{ selectedTasks.length }})</span>
               </button>
             </div>
 

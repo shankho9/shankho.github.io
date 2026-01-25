@@ -407,7 +407,7 @@ try {
 </script>
 
 <template>
-  <main class="container max-w-5xl mx-auto text-zinc-600">
+  <main class="container max-w-5xl mx-auto text-zinc-600 overflow-x-hidden px-3 sm:px-6">
     <ArchiveHero :title="blogsPage.title" :description="blogsPage.description" />
 
     <!-- Stats Section -->

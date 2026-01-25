@@ -17,6 +17,7 @@ export default defineEventHandler(async (event) => {
       picture: user.picture,
       auth_provider: user.auth_provider,
       mfa_enabled: user.mfa_enabled,
+      role: user.role,
     },
   }
 })
