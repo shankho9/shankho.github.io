@@ -487,7 +487,8 @@ type SensitivityResult = Array<{
 let sensitivityCache: { key: string; result: SensitivityResult } | null = null
 
 const sensitivity = computed((): SensitivityResult => {
-  // Create cache key from relevant assumption values
+  // Create cache key from ALL relevant assumption values that affect calculations
+  // Missing fields would cause stale cache hits when these values change
   const cacheKey = [
     assumptions.value.analysisYears,
     assumptions.value.homePrice,
@@ -495,9 +496,16 @@ const sensitivity = computed((): SensitivityResult => {
     assumptions.value.loanRate,
     assumptions.value.loanTenureYears,
     assumptions.value.discountRate,
+    assumptions.value.closingCostsPct, // Used in buy model calculation
+    assumptions.value.propertyTaxPct, // Used in buy model calculation
+    assumptions.value.maintenancePct, // Used in buy model calculation
+    assumptions.value.homeInsuranceAnnual, // Used in buy model calculation
     assumptions.value.homeAppreciation,
+    assumptions.value.sellingCostsPct, // Used in buy model calculation
     assumptions.value.rentMonthly,
     assumptions.value.rentEscalation,
+    assumptions.value.renterInsuranceAnnual, // Used in rent model calculation
+    assumptions.value.securityDepositMonths, // Used in rent model calculation
     assumptions.value.investmentReturn,
   ].join('|')
 
