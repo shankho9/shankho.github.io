@@ -8,6 +8,7 @@ interface User {
   picture: string | null
   auth_provider: 'email' | 'google' | 'apple' | 'outlook' | 'github'
   mfa_enabled: boolean
+  role: 'visitor' | 'admin'
 }
 
 // Shared state
@@ -78,6 +79,7 @@ export const useAuth = () => {
   const isLoading = sharedIsLoading
   const isChecking = sharedIsChecking
   const isAuthenticated = computed(() => !!user.value)
+  const isAdmin = computed(() => user.value?.role === 'admin')
 
   /**
    * Check authentication status
@@ -502,8 +504,9 @@ export const useAuth = () => {
       sharedLastCheck.value = 0
 
       if (typeof window !== 'undefined') {
-        // Clear utility passcode verification flag on logout
+        // Clear passcode verification flags on logout (visitor and admin are distinct)
         sessionStorage.removeItem('utility_passcode_verified')
+        sessionStorage.removeItem('admin_passcode_verified')
 
         // Clear Google OAuth initialization flag to allow re-initialization on next login
         sessionStorage.removeItem('google_oauth_initialized')
@@ -575,7 +578,7 @@ export const useAuth = () => {
   }
 
   /**
-   * Check utility passcode status
+   * Check utility passcode status (visitor passcode; distinct from admin passcode)
    */
   const checkUtilityPasscodeStatus = async () => {
     try {
@@ -592,11 +595,52 @@ export const useAuth = () => {
     }
   }
 
+  /**
+   * Verify admin passcode (distinct from visitor/utility passcode)
+   */
+  const verifyAdminPasscode = async (passcode: string) => {
+    try {
+      const response = await $fetch<{ success: boolean; error?: string }>(
+        '/api/auth/admin-passcode/verify',
+        { method: 'POST', body: { passcode } },
+      )
+      return response
+    } catch (error: unknown) {
+      const data =
+        error && typeof error === 'object' && 'data' in error
+          ? (error.data as { error?: string })
+          : null
+      return {
+        success: false,
+        error: data?.error || (error instanceof Error ? error.message : 'Verification failed'),
+      }
+    }
+  }
+
+  /**
+   * Check admin passcode status
+   */
+  const checkAdminPasscodeStatus = async () => {
+    try {
+      const response = await $fetch<{
+        authenticated: boolean
+        isSet: boolean
+        needsRotation: boolean
+        expiresAt: string | null
+      }>('/api/auth/admin-passcode/status')
+      return response
+    } catch (error) {
+      console.error('[Auth] Failed to check admin passcode status:', error)
+      return { authenticated: false, isSet: false, needsRotation: false, expiresAt: null }
+    }
+  }
+
   return {
     user,
     isLoading,
     isChecking,
     isAuthenticated,
+    isAdmin,
     checkAuth,
     register,
     login,
@@ -611,5 +655,7 @@ export const useAuth = () => {
     loadStoredUser,
     verifyUtilityPasscode,
     checkUtilityPasscodeStatus,
+    verifyAdminPasscode,
+    checkAdminPasscodeStatus,
   }
 }

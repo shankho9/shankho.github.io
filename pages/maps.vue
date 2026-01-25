@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-4xl mx-auto p-6">
+  <div class="max-w-4xl mx-auto p-3 sm:p-6 overflow-x-hidden">
     <h1 class="text-2xl font-bold mb-4">Places I've Visited</h1>
 
     <!-- Centered Legend Above Map -->

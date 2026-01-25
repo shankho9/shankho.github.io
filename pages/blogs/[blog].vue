@@ -114,7 +114,9 @@ useHead({
     />
 
     <ReadingProgress />
-    <div class="px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12">
+    <div
+      class="px-3 sm:px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12 overflow-x-hidden"
+    >
       <div class="col-span-12 lg:col-span-9 blog-content-container">
         <div class="flex items-center justify-between mb-4 gap-4 flex-wrap">
           <div class="flex items-center gap-2">

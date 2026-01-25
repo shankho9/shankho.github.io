@@ -931,7 +931,7 @@ try {
   <div
     class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-900 dark:to-slate-800"
   >
-    <div class="container mx-auto max-w-7xl px-6 py-10">
+    <div class="container mx-auto max-w-7xl px-3 sm:px-6 py-10 overflow-x-hidden">
       <!-- Header -->
       <div class="text-center mb-10">
         <h1

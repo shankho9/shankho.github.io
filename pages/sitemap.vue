@@ -152,7 +152,7 @@ useHead({
 </script>
 
 <template>
-  <div class="container max-w-5xl mx-auto px-4 py-8">
+  <div class="container max-w-5xl mx-auto px-3 sm:px-4 py-8 overflow-x-hidden">
     <h1 class="text-4xl font-bold mb-6 text-black dark:text-zinc-300">Sitemap</h1>
     <p class="text-gray-600 dark:text-gray-400 mb-8">
       Navigate through all pages and blog posts on this site. Some content requires authentication.

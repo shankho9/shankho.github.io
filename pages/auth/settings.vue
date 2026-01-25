@@ -1,10 +1,12 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+  <div
+    class="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 overflow-x-hidden"
+  >
     <div class="max-w-3xl mx-auto">
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Account Settings</h1>
         <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          Manage your account settings, password, and utility passcode
+          Manage your account, password, and passcodes (utilities and admin)
         </p>
       </div>
 
@@ -243,22 +245,26 @@
           </div>
         </div>
 
-        <!-- Utility Passcode -->
-        <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-          <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Utility Passcode</h2>
+        <!-- Utilities Passcode (all users): for passcode-required utilities -->
+        <div id="utilities-passcode" class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+          <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Utilities Passcode</h2>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Set a passcode to access dev utilities (planner, location manager). This passcode must
-            be rotated every 3 months.
+            For access to:
+            <span v-if="passcodeUtilities.visitor.length">
+              {{ passcodeUtilities.visitor.join(', ') }}.
+            </span>
+            <span v-else>utilities that require passcode (configured in Access Control).</span>
+            This passcode must be rotated every 3 months.
           </p>
           <div
             v-if="route.query.passcode === 'setup' && !passcodeStatus.isSet"
             class="rounded-md bg-blue-50 dark:bg-blue-900/20 p-4 mb-4"
           >
             <div class="flex">
-              <Icon name="mdi:information" class="h-5 w-5 text-blue-400" />
+              <Icon name="mdi:information" class="h-5 w-5 text-blue-400 shrink-0" />
               <div class="ml-3">
                 <p class="text-sm font-medium text-blue-800 dark:text-blue-200">
-                  You need to set up a utility passcode to access dev utilities.
+                  Set up a utilities passcode to access those utilities.
                 </p>
               </div>
             </div>
@@ -268,10 +274,10 @@
             class="rounded-md bg-yellow-50 dark:bg-yellow-900/20 p-4 mb-4"
           >
             <div class="flex">
-              <Icon name="mdi:alert" class="h-5 w-5 text-yellow-400" />
+              <Icon name="mdi:alert" class="h-5 w-5 text-yellow-400 shrink-0" />
               <div class="ml-3 flex-1">
                 <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                  Your utility passcode needs to be rotated
+                  Utilities passcode needs rotation
                   <span v-if="passcodeStatus.expiresAt">
                     (expires {{ formatDate(passcodeStatus.expiresAt) }})
                   </span>
@@ -280,23 +286,23 @@
                   to="/auth/passcode-rotate"
                   class="mt-2 inline-block text-sm font-medium text-yellow-800 hover:text-yellow-900 dark:text-yellow-200 dark:hover:text-yellow-100 underline"
                 >
-                  Rotate Passcode →
+                  Rotate utilities passcode →
                 </NuxtLink>
               </div>
             </div>
           </div>
           <div v-if="passcodeStatus.isSet && !passcodeStatus.needsRotation" class="mb-4">
             <p class="text-sm text-gray-600 dark:text-gray-400">
-              Your utility passcode is set and active.
+              Utilities passcode is set and active.
               <span v-if="passcodeStatus.expiresAt">
-                It expires on {{ formatDate(passcodeStatus.expiresAt) }}.
+                Expires {{ formatDate(passcodeStatus.expiresAt) }}.
               </span>
             </p>
             <NuxtLink
               to="/auth/passcode-rotate"
               class="mt-2 inline-block text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
             >
-              Rotate Passcode →
+              Rotate utilities passcode →
             </NuxtLink>
           </div>
           <form
@@ -309,7 +315,7 @@
                 for="passcode"
                 class="block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
-                {{ passcodeStatus.isSet ? 'New Passcode' : 'Set Passcode' }}
+                {{ passcodeStatus.isSet ? 'New utilities passcode' : 'Set utilities passcode' }}
               </label>
               <input
                 id="passcode"
@@ -326,7 +332,7 @@
                 for="confirmPasscode"
                 class="block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
-                Confirm Passcode
+                Confirm passcode
               </label>
               <input
                 id="confirmPasscode"
@@ -349,7 +355,132 @@
                 :disabled="isSettingPasscode"
                 class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
               >
-                <span v-if="!isSettingPasscode">Set Passcode</span>
+                <span v-if="!isSettingPasscode">Set utilities passcode</span>
+                <span v-else class="flex items-center">
+                  <Icon name="mdi:loading" class="animate-spin h-4 w-4 mr-2" />
+                  Setting...
+                </span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Admin Passcode (admin only): for admin-only utilities -->
+        <div
+          v-if="isAdmin"
+          id="admin-passcode"
+          class="bg-white dark:bg-gray-800 shadow rounded-lg p-6"
+        >
+          <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Admin Passcode</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            For access to: {{ passcodeUtilities.admin.join(', ') }}. Distinct from utilities
+            passcode; rotate separately. Must be rotated every 3 months.
+          </p>
+          <div
+            v-if="route.query.passcode === 'admin-setup' && !adminPasscodeStatus.isSet"
+            class="rounded-md bg-blue-50 dark:bg-blue-900/20 p-4 mb-4"
+          >
+            <div class="flex">
+              <Icon name="mdi:information" class="h-5 w-5 text-blue-400 shrink-0" />
+              <div class="ml-3">
+                <p class="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  Set up an admin passcode to access admin-only utilities.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div
+            v-if="adminPasscodeStatus.needsRotation && adminPasscodeStatus.isSet"
+            class="rounded-md bg-yellow-50 dark:bg-yellow-900/20 p-4 mb-4"
+          >
+            <div class="flex">
+              <Icon name="mdi:alert" class="h-5 w-5 text-yellow-400 shrink-0" />
+              <div class="ml-3 flex-1">
+                <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                  Admin passcode needs rotation
+                  <span v-if="adminPasscodeStatus.expiresAt">
+                    (expires {{ formatDate(adminPasscodeStatus.expiresAt) }})
+                  </span>
+                </p>
+                <NuxtLink
+                  to="/auth/admin-passcode-rotate"
+                  class="mt-2 inline-block text-sm font-medium text-yellow-800 hover:text-yellow-900 dark:text-yellow-200 dark:hover:text-yellow-100 underline"
+                >
+                  Rotate admin passcode →
+                </NuxtLink>
+              </div>
+            </div>
+          </div>
+          <div v-if="adminPasscodeStatus.isSet && !adminPasscodeStatus.needsRotation" class="mb-4">
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              Admin passcode is set and active.
+              <span v-if="adminPasscodeStatus.expiresAt">
+                Expires {{ formatDate(adminPasscodeStatus.expiresAt) }}.
+              </span>
+            </p>
+            <NuxtLink
+              to="/auth/admin-passcode-rotate"
+              class="mt-2 inline-block text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+            >
+              Rotate admin passcode →
+            </NuxtLink>
+          </div>
+          <form
+            v-if="!adminPasscodeStatus.isSet || adminPasscodeStatus.needsRotation"
+            class="space-y-4"
+            @submit.prevent="handleSetAdminPasscode"
+          >
+            <div>
+              <label
+                for="adminPasscode"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                {{ adminPasscodeStatus.isSet ? 'New admin passcode' : 'Set admin passcode' }}
+              </label>
+              <input
+                id="adminPasscode"
+                v-model="adminPasscodeForm.passcode"
+                type="password"
+                required
+                minlength="6"
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="Enter admin passcode (min. 6 characters)"
+              />
+            </div>
+            <div>
+              <label
+                for="confirmAdminPasscode"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Confirm admin passcode
+              </label>
+              <input
+                id="confirmAdminPasscode"
+                v-model="adminPasscodeForm.confirmPasscode"
+                type="password"
+                required
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="Confirm admin passcode"
+              />
+            </div>
+            <div v-if="adminPasscodeError" class="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
+              <p class="text-sm text-red-800 dark:text-red-200">{{ adminPasscodeError }}</p>
+            </div>
+            <div
+              v-if="adminPasscodeSuccess"
+              class="rounded-md bg-green-50 dark:bg-green-900/20 p-4"
+            >
+              <p class="text-sm text-green-800 dark:text-green-200">
+                {{ adminPasscodeSuccess }}
+              </p>
+            </div>
+            <div>
+              <button
+                type="submit"
+                :disabled="isSettingAdminPasscode"
+                class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                <span v-if="!isSettingAdminPasscode">Set admin passcode</span>
                 <span v-else class="flex items-center">
                   <Icon name="mdi:loading" class="animate-spin h-4 w-4 mr-2" />
                   Setting...
@@ -373,7 +504,14 @@ definePageMeta({
 })
 
 const route = useRoute()
-const { user, isAuthenticated, checkAuth, checkUtilityPasscodeStatus } = useAuth()
+const {
+  user,
+  isAuthenticated,
+  isAdmin,
+  checkAuth,
+  checkUtilityPasscodeStatus,
+  checkAdminPasscodeStatus,
+} = useAuth()
 
 const passwordForm = ref({
   currentPassword: '',
@@ -384,10 +522,7 @@ const passwordError = ref('')
 const passwordSuccess = ref('')
 const isChangingPassword = ref(false)
 
-const passcodeForm = ref({
-  passcode: '',
-  confirmPasscode: '',
-})
+const passcodeForm = ref({ passcode: '', confirmPasscode: '' })
 const passcodeError = ref('')
 const passcodeSuccess = ref('')
 const isSettingPasscode = ref(false)
@@ -395,10 +530,21 @@ const passcodeStatus = ref<{
   isSet: boolean
   needsRotation: boolean
   expiresAt: string | null
-}>({
-  isSet: false,
-  needsRotation: false,
-  expiresAt: null,
+}>({ isSet: false, needsRotation: false, expiresAt: null })
+
+const adminPasscodeForm = ref({ passcode: '', confirmPasscode: '' })
+const adminPasscodeError = ref('')
+const adminPasscodeSuccess = ref('')
+const isSettingAdminPasscode = ref(false)
+const adminPasscodeStatus = ref<{
+  isSet: boolean
+  needsRotation: boolean
+  expiresAt: string | null
+}>({ isSet: false, needsRotation: false, expiresAt: null })
+
+const passcodeUtilities = ref<{ visitor: string[]; admin: string[] }>({
+  visitor: [],
+  admin: [],
 })
 
 const showMFAQR = ref(false)
@@ -485,19 +631,12 @@ const handleSetPasscode = async () => {
     )
 
     if (response.success) {
-      passcodeSuccess.value = 'Utility passcode set successfully'
-      passcodeForm.value = {
-        passcode: '',
-        confirmPasscode: '',
-      }
-      // Clear any existing verification flag since passcode was changed
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('utility_passcode_verified')
-      }
-      // Refresh status
+      passcodeSuccess.value = 'Utilities passcode set successfully'
+      passcodeForm.value = { passcode: '', confirmPasscode: '' }
+      if (typeof window !== 'undefined') sessionStorage.removeItem('utility_passcode_verified')
       await loadPasscodeStatus()
     } else {
-      passcodeError.value = response.error || 'Failed to set passcode'
+      passcodeError.value = response.error || 'Failed to set utilities passcode'
     }
   } catch (error: unknown) {
     const errorData =
@@ -602,6 +741,55 @@ const loadPasscodeStatus = async () => {
   }
 }
 
+const loadAdminPasscodeStatus = async () => {
+  const status = await checkAdminPasscodeStatus()
+  adminPasscodeStatus.value = {
+    isSet: status.isSet,
+    needsRotation: status.needsRotation,
+    expiresAt: status.expiresAt,
+  }
+}
+
+const handleSetAdminPasscode = async () => {
+  adminPasscodeError.value = ''
+  adminPasscodeSuccess.value = ''
+  if (adminPasscodeForm.value.passcode !== adminPasscodeForm.value.confirmPasscode) {
+    adminPasscodeError.value = 'Passcodes do not match'
+    return
+  }
+  if (adminPasscodeForm.value.passcode.length < 6) {
+    adminPasscodeError.value = 'Admin passcode must be at least 6 characters long'
+    return
+  }
+  isSettingAdminPasscode.value = true
+  try {
+    const response = await $fetch<{ success: boolean; error?: string; message?: string }>(
+      '/api/auth/admin-passcode/set',
+      {
+        method: 'POST',
+        body: { passcode: adminPasscodeForm.value.passcode },
+      },
+    )
+    if (response.success) {
+      adminPasscodeSuccess.value = 'Admin passcode set successfully'
+      adminPasscodeForm.value = { passcode: '', confirmPasscode: '' }
+      if (typeof window !== 'undefined') sessionStorage.removeItem('admin_passcode_verified')
+      await loadAdminPasscodeStatus()
+    } else {
+      adminPasscodeError.value = response.error || 'Failed to set admin passcode'
+    }
+  } catch (error: unknown) {
+    const data =
+      error && typeof error === 'object' && 'data' in error
+        ? (error.data as { error?: string })
+        : null
+    adminPasscodeError.value =
+      data?.error || (error instanceof Error ? error.message : 'An error occurred')
+  } finally {
+    isSettingAdminPasscode.value = false
+  }
+}
+
 const formatDate = (dateString: string | null) => {
   if (!dateString) return ''
   return new Date(dateString).toLocaleDateString()
@@ -611,6 +799,18 @@ onMounted(async () => {
   await checkAuth()
   if (isAuthenticated.value) {
     await loadPasscodeStatus()
+    try {
+      const res = await $fetch<{ visitor: string[]; admin: string[] }>(
+        '/api/auth/passcode-utilities',
+      )
+      passcodeUtilities.value = {
+        visitor: res?.visitor ?? [],
+        admin: res?.admin ?? [],
+      }
+    } catch {
+      passcodeUtilities.value = { visitor: [], admin: [] }
+    }
+    if (isAdmin.value) await loadAdminPasscodeStatus()
   }
 })
 </script>

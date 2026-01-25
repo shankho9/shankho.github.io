@@ -32,6 +32,7 @@ export interface User {
   github_id: string | null
   mfa_enabled: boolean
   email_verified: boolean
+  role: 'visitor' | 'admin'
   created_at: Date
   last_login_at: Date | null
 }
@@ -276,7 +277,7 @@ export async function getCurrentUser(event: H3Event): Promise<User | null> {
   }
 
   const users = await query<User>(
-    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE id = $1',
+    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, role, created_at, last_login_at FROM users WHERE id = $1',
     [session.user_id],
   )
   return users.length > 0 ? users[0] : null
@@ -313,7 +314,7 @@ export function clearSessionCookie(event: H3Event): void {
  */
 export async function getUserByEmail(email: string): Promise<User | null> {
   const users = await query<User>(
-    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE email = $1',
+    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, role, created_at, last_login_at FROM users WHERE email = $1',
     [email.toLowerCase()],
   )
   return users.length > 0 ? users[0] : null
@@ -324,7 +325,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
  */
 export async function getUserByGoogleSub(googleSub: string): Promise<User | null> {
   const users = await query<User>(
-    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE google_sub = $1',
+    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, role, created_at, last_login_at FROM users WHERE google_sub = $1',
     [googleSub],
   )
   return users.length > 0 ? users[0] : null
@@ -335,7 +336,7 @@ export async function getUserByGoogleSub(googleSub: string): Promise<User | null
  */
 export async function getUserByAppleSub(appleSub: string): Promise<User | null> {
   const users = await query<User>(
-    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE apple_sub = $1',
+    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, role, created_at, last_login_at FROM users WHERE apple_sub = $1',
     [appleSub],
   )
   return users.length > 0 ? users[0] : null
@@ -346,7 +347,7 @@ export async function getUserByAppleSub(appleSub: string): Promise<User | null> 
  */
 export async function getUserByOutlookId(outlookId: string): Promise<User | null> {
   const users = await query<User>(
-    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE outlook_id = $1',
+    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, role, created_at, last_login_at FROM users WHERE outlook_id = $1',
     [outlookId],
   )
   return users.length > 0 ? users[0] : null
@@ -357,7 +358,7 @@ export async function getUserByOutlookId(outlookId: string): Promise<User | null
  */
 export async function getUserByGitHubId(githubId: string): Promise<User | null> {
   const users = await query<User>(
-    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at FROM users WHERE github_id = $1',
+    'SELECT id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, role, created_at, last_login_at FROM users WHERE github_id = $1',
     [githubId],
   )
   return users.length > 0 ? users[0] : null
@@ -387,9 +388,9 @@ export async function createUser(data: {
     const emailVerified = ['google', 'apple', 'outlook', 'github'].includes(data.authProvider)
 
     const result = await query<User>(
-      `INSERT INTO users (email, name, picture, password_hash, auth_provider, google_sub, apple_sub, outlook_id, github_id, email_verified)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, created_at, last_login_at`,
+      `INSERT INTO users (email, name, picture, password_hash, auth_provider, google_sub, apple_sub, outlook_id, github_id, email_verified, role)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING id, email, name, picture, password_hash, mfa_secret, auth_provider, google_sub, apple_sub, outlook_id, github_id, mfa_enabled, email_verified, role, created_at, last_login_at`,
       [
         data.email.toLowerCase(),
         data.name || null,
@@ -401,6 +402,7 @@ export async function createUser(data: {
         data.outlookId || null,
         data.githubId || null,
         emailVerified,
+        'visitor', // Default role for all new users
       ],
     )
 
@@ -461,8 +463,6 @@ export async function verifyUtilityPasscode(userId: number, passcode: string): P
   }
 
   const passcodeData = passcodes[0]
-
-  // Check if expired
   if (new Date(passcodeData.expires_at) < new Date()) {
     return false
   }
@@ -495,11 +495,7 @@ export async function needsUtilityPasscodeRotation(userId: number): Promise<bool
     [userId],
   )
 
-  if (passcodes.length === 0) {
-    return true // No passcode set, needs setup
-  }
-
-  // Check if expires within 7 days
+  if (passcodes.length === 0) return true
   const expiresAt = new Date(passcodes[0].expires_at)
   const daysUntilExpiry = (expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
 
@@ -516,4 +512,46 @@ export async function getUtilityPasscodeExpiry(userId: number): Promise<Date | n
   )
 
   return passcodes.length > 0 ? passcodes[0].expires_at : null
+}
+
+/** Admin passcode (admin_passcodes table). */
+
+export async function verifyAdminPasscode(userId: number, passcode: string): Promise<boolean> {
+  const rows = await query<{ passcode_hash: string; expires_at: Date }>(
+    'SELECT passcode_hash, expires_at FROM admin_passcodes WHERE user_id = $1',
+    [userId],
+  )
+  if (rows.length === 0) return false
+  const d = rows[0]
+  if (new Date(d.expires_at) < new Date()) return false
+  return verifyPassword(passcode, d.passcode_hash)
+}
+
+export async function setAdminPasscode(userId: number, passcode: string): Promise<void> {
+  const hash = await hashPassword(passcode)
+  const expiresAt = new Date(Date.now() + UTILITY_PASSCODE_DURATION_MS)
+  await query(
+    `INSERT INTO admin_passcodes (user_id, passcode_hash, expires_at)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (user_id) DO UPDATE SET passcode_hash = $2, expires_at = $3, updated_at = CURRENT_TIMESTAMP`,
+    [userId, hash, expiresAt],
+  )
+}
+
+export async function needsAdminPasscodeRotation(userId: number): Promise<boolean> {
+  const rows = await query<{ expires_at: Date }>(
+    'SELECT expires_at FROM admin_passcodes WHERE user_id = $1',
+    [userId],
+  )
+  if (rows.length === 0) return true
+  const days = (new Date(rows[0].expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+  return days <= 7
+}
+
+export async function getAdminPasscodeExpiry(userId: number): Promise<Date | null> {
+  const rows = await query<{ expires_at: Date }>(
+    'SELECT expires_at FROM admin_passcodes WHERE user_id = $1',
+    [userId],
+  )
+  return rows.length > 0 ? rows[0].expires_at : null
 }

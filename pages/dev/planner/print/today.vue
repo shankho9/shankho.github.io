@@ -9,7 +9,7 @@ import { groupTasksByQuadrant, enrichTaskWithQuadrant } from '~/utils/planner/ei
 
 definePageMeta({
   layout: false, // No layout for print page
-  middleware: 'auth-planner',
+  middleware: ['auth-utilities', 'utility-access'],
 })
 
 const { fetchTasks } = useTasks()
@@ -110,7 +110,10 @@ onUnmounted(() => {
 
     <!-- Loading State -->
     <div v-if="isLoading" class="loading">
-      <div>Loading...</div>
+      <div class="flex flex-col items-center gap-2">
+        <div class="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-gray-900" />
+        <div>Loading…</div>
+      </div>
     </div>
 
     <!-- Main Content -->

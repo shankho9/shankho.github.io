@@ -349,7 +349,7 @@ try {
 </script>
 
 <template>
-  <div class="py-10 container mx-auto max-w-7xl px-6">
+  <div class="py-10 container mx-auto max-w-7xl px-3 sm:px-6 overflow-x-hidden">
     <!-- Header -->
     <div class="text-center mb-8">
       <h1 class="text-4xl font-bold mb-4 text-zinc-800 dark:text-zinc-200">Gallery</h1>

@@ -45,7 +45,7 @@ const socialIcons = {
 </script>
 
 <template>
-  <div class="py-10 container mx-auto max-w-6xl">
+  <div class="py-10 container mx-auto max-w-6xl overflow-x-hidden px-3 sm:px-6">
     <h1 class="text-3xl font-bold pb-5 text-center">{{ aboutPage.title }}</h1>
 
     <div class="flex flex-col sm:flex-row justify-between items-center gap-5">

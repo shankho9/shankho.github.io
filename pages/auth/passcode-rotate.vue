@@ -1,12 +1,15 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-12">
+  <div
+    class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-12 overflow-x-hidden"
+  >
     <div class="max-w-md w-full space-y-8">
       <div>
         <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-          Rotate Utility Passcode
+          Rotate Utilities Passcode
         </h2>
         <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-          Enter your current passcode and set a new one
+          Enter your current utilities passcode and set a new one. This passcode unlocks
+          passcode-protected utilities (e.g. Planner, calculators).
         </p>
       </div>
 
@@ -75,7 +78,7 @@
             class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
             @click="requestEmailReset"
           >
-            Forgot your passcode? Reset via email
+            Forgot your utilities passcode? Reset via email
           </button>
         </div>
 
@@ -161,10 +164,10 @@
             <Icon name="mdi:email" class="h-5 w-5 text-blue-400" />
             <div class="ml-3">
               <p class="text-sm font-medium text-blue-800 dark:text-blue-200">
-                Passcode reset email sent!
+                Utilities passcode reset email sent!
               </p>
               <p class="mt-1 text-sm text-blue-700 dark:text-blue-300">
-                Please check your email and click the link to reset your passcode.
+                Please check your email and click the link to reset your utilities passcode.
               </p>
             </div>
           </div>

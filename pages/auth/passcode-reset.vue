@@ -1,15 +1,17 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-12">
+  <div
+    class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-12 overflow-x-hidden"
+  >
     <div class="max-w-md w-full space-y-8">
       <div>
         <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-          Reset Utility Passcode
+          Reset Utilities Passcode
         </h2>
         <p v-if="!tokenValid" class="mt-2 text-center text-sm text-red-600 dark:text-red-400">
           Invalid or expired reset link. Please request a new one.
         </p>
         <p v-else class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-          Enter your new utility passcode
+          Enter your new utilities passcode
         </p>
       </div>
 
@@ -78,7 +80,7 @@
             :disabled="isLoading"
             class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span v-if="!isLoading">Reset Passcode</span>
+            <span v-if="!isLoading">Reset utilities passcode</span>
             <span v-else class="flex items-center">
               <Icon name="mdi:loading" class="animate-spin h-5 w-5 mr-2" />
               Resetting...
@@ -151,7 +153,7 @@ const handleResetPasscode = async () => {
     )
 
     if (response.success) {
-      successMessage.value = response.message || 'Passcode reset successfully!'
+      successMessage.value = response.message || 'Utilities passcode reset successfully!'
       // Clear verification flag since passcode changed
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('utility_passcode_verified')
@@ -160,7 +162,7 @@ const handleResetPasscode = async () => {
         router.push('/auth/settings')
       }, 2000)
     } else {
-      errorMessage.value = response.error || 'Failed to reset passcode.'
+      errorMessage.value = response.error || 'Failed to reset utilities passcode.'
       if (response.error?.includes('Invalid or expired')) {
         tokenValid.value = false
       }
