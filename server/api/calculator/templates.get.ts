@@ -37,6 +37,27 @@ export default defineEventHandler(async (event) => {
     }
   } catch (error) {
     console.error('[Calculator Templates] Error fetching templates:', error)
+
+    // Check if it's a database schema error (table or column doesn't exist)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    if (
+      errorMessage.includes('does not exist') ||
+      errorMessage.includes('relation') ||
+      errorMessage.includes('column') ||
+      errorMessage.includes('42P01') || // PostgreSQL: undefined_table
+      errorMessage.includes('42703') // PostgreSQL: undefined_column
+    ) {
+      throw createError({
+        statusCode: 500,
+        message: 'Database schema needs updating. Please run the calculator templates migration.',
+        data: {
+          error: 'schema_missing',
+          details:
+            'The calculator_templates table or calculator_key column may not exist. Run: npm run migrate:calculator-templates:prod',
+        },
+      })
+    }
+
     throw createError({
       statusCode: 500,
       message: 'Failed to fetch templates',

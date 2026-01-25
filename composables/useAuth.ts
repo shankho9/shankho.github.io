@@ -89,11 +89,14 @@ export const useAuth = () => {
       return true
     }
 
-    // If already checking, wait for it
+    // If already checking, wait for it (with timeout to prevent infinite waiting)
     if (sharedIsChecking.value) {
       return new Promise((resolve) => {
+        let attempts = 0
+        const maxAttempts = 50 // 50 * 100ms = 5 seconds max wait
         const checkInterval = setInterval(() => {
-          if (!sharedIsChecking.value) {
+          attempts++
+          if (!sharedIsChecking.value || attempts >= maxAttempts) {
             clearInterval(checkInterval)
             resolve(!!user.value)
           }
@@ -103,7 +106,10 @@ export const useAuth = () => {
 
     sharedIsChecking.value = true
     try {
-      const response = await $fetch<{ authenticated: boolean; user: User | null }>('/api/auth/me')
+      // Add timeout to prevent hanging (5 seconds)
+      const response = await $fetch<{ authenticated: boolean; user: User | null }>('/api/auth/me', {
+        timeout: 5000, // 5 second timeout
+      })
       sharedIsChecking.value = false
       sharedLastCheck.value = now
 
