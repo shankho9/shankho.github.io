@@ -262,7 +262,10 @@ const buyModel = computed(() => {
   const monthlyInsurance = homeInsuranceAnnual / 12
 
   const monthlyOutflow = derived.value.emi + monthlyTax + monthlyMaint + monthlyInsurance
-  const cashflows: number[] = Array.from({ length: months }, () => monthlyOutflow)
+  // Optimize: Calculate NPV directly without creating large array (saves memory for long analysis periods)
+  // For months > 240 (20 years), use formula instead of array
+  const useFormula = months > 240
+  const cashflows: number[] = useFormula ? [] : Array.from({ length: months }, () => monthlyOutflow)
 
   // Home value after N years
   const appreciation = clamp(Number(assumptions.value.homeAppreciation) || 0, -10, 20) / 100
@@ -281,8 +284,11 @@ const buyModel = computed(() => {
   const equityEnd = Math.max(0, homeValueEnd - bal - sellingCosts)
 
   // NPV: monthly outflows + add upfront (treated as month 1 cashflow for NPV approximation) - equity as inflow at end
-  const npvOutflows =
-    npvMonthly(cashflows, discount) + upfront / Math.pow(1 + discountMonthly(discount), 1)
+  // Use formula for large periods to save memory
+  const r = discountMonthly(discount)
+  const npvOutflows = useFormula
+    ? (monthlyOutflow * (1 - Math.pow(1 + r, -months))) / r + upfront / (1 + r)
+    : npvMonthly(cashflows, discount) + upfront / Math.pow(1 + r, 1)
   const equityPV = equityEnd / Math.pow(1 + discountMonthly(discount), months)
   const npvNetCost = npvOutflows - equityPV
 
@@ -323,11 +329,15 @@ const rentModel = computed(() => {
   const deposit = rent0 * depositMonths
 
   // Monthly rent escalates annually
-  const cashflows: number[] = []
-  for (let m = 0; m < months; m++) {
-    const yearIndex = Math.floor(m / 12)
-    const rent = rent0 * Math.pow(1 + esc, yearIndex)
-    cashflows.push(rent + monthlyRenterInsurance)
+  // Optimize: Calculate NPV directly for long periods to save memory
+  const useFormula = months > 240
+  const cashflows: number[] = useFormula ? [] : []
+  if (!useFormula) {
+    for (let m = 0; m < months; m++) {
+      const yearIndex = Math.floor(m / 12)
+      const rent = rent0 * Math.pow(1 + esc, yearIndex)
+      cashflows.push(rent + monthlyRenterInsurance)
+    }
   }
 
   // Invest the "buy upfront" amount (down payment + closing) if renting
@@ -335,13 +345,30 @@ const rentModel = computed(() => {
   const investFinal = investBase * Math.pow(1 + investReturn / 100, derived.value.years)
   const investGain = investFinal - investBase
 
-  const npvOutflows =
-    npvMonthly(cashflows, discount) + deposit / Math.pow(1 + discountMonthly(discount), 1)
-  const depositPV = deposit / Math.pow(1 + discountMonthly(discount), months) // returned
-  const investPV = investFinal / Math.pow(1 + discountMonthly(discount), months)
-  const npvNetCost = npvOutflows - depositPV - investPV
+  // Calculate NPV - use formula for long periods, array method for short periods
+  const r = discountMonthly(discount)
+  let npvOutflows: number
+  let avgMonthly: number
 
-  const avgMonthly = cashflows.reduce((a, b) => a + b, 0) / Math.max(1, cashflows.length)
+  if (useFormula) {
+    // Calculate NPV using formula (memory efficient for long periods)
+    npvOutflows = deposit / (1 + r)
+    for (let m = 0; m < months; m++) {
+      const yearIndex = Math.floor(m / 12)
+      const rent = rent0 * Math.pow(1 + esc, yearIndex)
+      npvOutflows += (rent + monthlyRenterInsurance) / Math.pow(1 + r, m + 1)
+    }
+    // Approximate average monthly (for display only)
+    const finalYearRent = rent0 * Math.pow(1 + esc, Math.floor((months - 1) / 12))
+    avgMonthly = (rent0 + finalYearRent) / 2 + monthlyRenterInsurance
+  } else {
+    npvOutflows = npvMonthly(cashflows, discount) + deposit / Math.pow(1 + r, 1)
+    avgMonthly = cashflows.reduce((a, b) => a + b, 0) / Math.max(1, cashflows.length)
+  }
+
+  const depositPV = deposit / Math.pow(1 + r, months) // returned
+  const investPV = investFinal / Math.pow(1 + r, months)
+  const npvNetCost = npvOutflows - depositPV - investPV
 
   return {
     months,
@@ -378,26 +405,115 @@ const recommendation = computed(() => {
 // ===== Sensitivity =====
 type Scenario = { id: string; label: string; overrides: Partial<typeof defaultAssumptions> }
 
+// Optimized scenario runner - avoids deep cloning and minimizes memory usage
 const runScenario = (overrides: Partial<typeof defaultAssumptions>) => {
-  const a = {
-    ...JSON.parse(JSON.stringify(defaultAssumptions)),
-    ...JSON.parse(JSON.stringify(assumptions.value)),
-    ...overrides,
+  // Create shallow merge instead of deep clone to save memory
+  const merged = { ...assumptions.value, ...overrides }
+
+  // Calculate directly without swapping assumptions (more memory efficient)
+  const years = clamp(Number(merged.analysisYears) || 1, 1, 40)
+  const months = years * 12
+  const homePrice = Math.max(0, Number(merged.homePrice) || 0)
+  const downPct = clamp(Number(merged.downPaymentPct) || 0, 0, 100)
+  const downPayment = homePrice * (downPct / 100)
+  const loanPrincipal = Math.max(0, homePrice - downPayment)
+  const loanRate = Number(merged.loanRate) || 0
+  const loanTenureYears = Number(merged.loanTenureYears) || 1
+
+  // Calculate EMI
+  const emi = pmt(loanPrincipal, loanRate, loanTenureYears)
+
+  // Buy model calculation (simplified, only what we need for NPV)
+  const discount = clamp(Number(merged.discountRate) || 0, 0, 30)
+  const closingCosts = homePrice * (clamp(Number(merged.closingCostsPct) || 0, 0, 20) / 100)
+  const propertyTaxAnnual = homePrice * (clamp(Number(merged.propertyTaxPct) || 0, 0, 10) / 100)
+  const maintenanceAnnual = homePrice * (clamp(Number(merged.maintenancePct) || 0, 0, 15) / 100)
+  const homeInsuranceAnnual = Math.max(0, Number(merged.homeInsuranceAnnual) || 0)
+  const upfront = downPayment + closingCosts
+  const monthlyOutflow =
+    emi + propertyTaxAnnual / 12 + maintenanceAnnual / 12 + homeInsuranceAnnual / 12
+
+  // Calculate NPV without creating full cashflow array (memory efficient)
+  const r = discountMonthly(discount)
+  const npvOutflows = (monthlyOutflow * (1 - Math.pow(1 + r, -months))) / r + upfront / (1 + r)
+
+  const appreciation = clamp(Number(merged.homeAppreciation) || 0, -10, 20) / 100
+  const homeValueEnd = homePrice * Math.pow(1 + appreciation, years)
+  const bal = remainingBalance(loanPrincipal, loanRate, loanTenureYears, months)
+  const sellingCosts = homeValueEnd * (clamp(Number(merged.sellingCostsPct) || 0, 0, 10) / 100)
+  const equityEnd = Math.max(0, homeValueEnd - bal - sellingCosts)
+  const equityPV = equityEnd / Math.pow(1 + r, months)
+  const buyNPV = npvOutflows - equityPV
+
+  // Rent model calculation (simplified)
+  const rent0 = Math.max(0, Number(merged.rentMonthly) || 0)
+  const esc = clamp(Number(merged.rentEscalation) || 0, -10, 20) / 100
+  const renterInsuranceAnnual = Math.max(0, Number(merged.renterInsuranceAnnual) || 0)
+  const monthlyRenterInsurance = renterInsuranceAnnual / 12
+  const depositMonths = clamp(Number(merged.securityDepositMonths) || 0, 0, 24)
+  const deposit = rent0 * depositMonths
+  const investReturn = clamp(Number(merged.investmentReturn) || 0, 0, 30)
+  const investFinal = upfront * Math.pow(1 + investReturn / 100, years)
+
+  // Calculate rent NPV without creating full cashflow array
+  let rentNPV = 0
+  for (let m = 0; m < months; m++) {
+    const yearIndex = Math.floor(m / 12)
+    const rent = rent0 * Math.pow(1 + esc, yearIndex)
+    rentNPV += (rent + monthlyRenterInsurance) / Math.pow(1 + r, m + 1)
   }
-  // minimal recompute by temporarily swapping assumptions
-  const prev = assumptions.value
-  assumptions.value = a as typeof defaultAssumptions
-  const result = {
-    buy: buyModel.value.npvNetCost,
-    rent: rentModel.value.npvNetCost,
-    rec: recommendation.value.recommended,
-    savings: recommendation.value.savings,
+  rentNPV +=
+    deposit / (1 + r) - deposit / Math.pow(1 + r, months) - investFinal / Math.pow(1 + r, months)
+
+  const diff = buyNPV - rentNPV
+  const recommended = diff < 0 ? 'Buy' : 'Rent'
+  const savings = Math.abs(diff)
+
+  return {
+    buy: buyNPV,
+    rent: rentNPV,
+    rec: recommended,
+    savings,
   }
-  assumptions.value = prev
-  return result
 }
 
-const sensitivity = computed(() => {
+// Memoize sensitivity calculation to avoid recomputing on every change
+type SensitivityResult = Array<{
+  id: string
+  label: string
+  overrides: Partial<typeof defaultAssumptions>
+  result: ReturnType<typeof runScenario>
+}>
+let sensitivityCache: { key: string; result: SensitivityResult } | null = null
+
+const sensitivity = computed((): SensitivityResult => {
+  // Create cache key from ALL relevant assumption values that affect calculations
+  // Missing fields would cause stale cache hits when these values change
+  const cacheKey = [
+    assumptions.value.analysisYears,
+    assumptions.value.homePrice,
+    assumptions.value.downPaymentPct,
+    assumptions.value.loanRate,
+    assumptions.value.loanTenureYears,
+    assumptions.value.discountRate,
+    assumptions.value.closingCostsPct, // Used in buy model calculation
+    assumptions.value.propertyTaxPct, // Used in buy model calculation
+    assumptions.value.maintenancePct, // Used in buy model calculation
+    assumptions.value.homeInsuranceAnnual, // Used in buy model calculation
+    assumptions.value.homeAppreciation,
+    assumptions.value.sellingCostsPct, // Used in buy model calculation
+    assumptions.value.rentMonthly,
+    assumptions.value.rentEscalation,
+    assumptions.value.renterInsuranceAnnual, // Used in rent model calculation
+    assumptions.value.securityDepositMonths, // Used in rent model calculation
+    assumptions.value.investmentReturn,
+  ].join('|')
+
+  // Return cached result if assumptions haven't changed
+  if (sensitivityCache && sensitivityCache.key === cacheKey) {
+    return sensitivityCache.result
+  }
+
   const scenarios: Scenario[] = [
     {
       id: 'base',
@@ -426,10 +542,15 @@ const sensitivity = computed(() => {
     },
   ]
 
-  return scenarios.map((s) => ({
+  const result = scenarios.map((s) => ({
     ...s,
     result: runScenario(s.overrides),
   }))
+
+  // Cache the result
+  sensitivityCache = { key: cacheKey, result }
+
+  return result
 })
 
 // ===== Templates (synced per user via DB) =====
@@ -461,11 +582,39 @@ const loadTemplates = async () => {
   try {
     const response = await $fetch<{ success: boolean; templates: Template[] }>(
       `/api/calculator/templates?calculatorKey=${CALCULATOR_KEY}`,
+      {
+        // Add timeout to prevent hanging
+        timeout: 10000, // 10 seconds
+      },
     )
     if (response.success) savedTemplates.value = response.templates
   } catch (e) {
-    console.error(e)
-    showToast('Failed to load templates', 'error')
+    console.error('[Rent vs Buy Calculator] Failed to load templates:', e)
+    // Check if it's a database schema error (table might not exist)
+    const errorData =
+      e && typeof e === 'object' && 'data' in e
+        ? (e as { data?: { error?: string; details?: string } }).data
+        : null
+    const errorMessage =
+      e && typeof e === 'object' && 'message' in e
+        ? String((e as { message: string }).message)
+        : 'Unknown error'
+
+    if (
+      errorData?.error === 'schema_missing' ||
+      errorMessage.includes('schema needs updating') ||
+      errorMessage.includes('does not exist') ||
+      errorMessage.includes('relation') ||
+      errorMessage.includes('column')
+    ) {
+      showToast(
+        errorData?.details ||
+          'Database migration required. Run: npm run migrate:calculator-templates:prod',
+        'error',
+      )
+    } else {
+      showToast('Failed to load templates. Please try again.', 'error')
+    }
   } finally {
     isLoadingTemplates.value = false
   }
@@ -862,8 +1011,21 @@ const exportToPDF = async () => {
 
 // ===== Lifecycle =====
 onMounted(async () => {
-  await checkAuth()
+  // Sync money inputs first so page renders immediately
   syncMoneyInputsFromAssumptions()
+
+  // Check auth with timeout to prevent hanging
+  try {
+    const authPromise = checkAuth()
+    const timeoutPromise = new Promise<boolean>((resolve) => {
+      setTimeout(() => resolve(false), 5000) // 5 second timeout
+    })
+
+    await Promise.race([authPromise, timeoutPromise])
+  } catch (error) {
+    console.warn('[Rent vs Buy Calculator] Auth check failed, but continuing:', error)
+    // Don't block page load if auth check fails
+  }
 })
 
 watch(

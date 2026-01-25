@@ -6,7 +6,10 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
   if (import.meta.env.SSR) {
     try {
       const headers = useRequestHeaders(['cookie'])
-      const response = await $fetch<{ authenticated: boolean }>('/api/auth/me', { headers })
+      const response = await $fetch<{ authenticated: boolean }>('/api/auth/me', {
+        headers,
+        timeout: 5000, // 5 second timeout to prevent hanging
+      })
       if (!response?.authenticated) return redirectToLogin()
     } catch {
       return redirectToLogin()
@@ -21,8 +24,17 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
 
   // Always verify with server to ensure session is still valid
   // This prevents revoked sessions from accessing protected routes
+  // Add timeout to prevent middleware from hanging indefinitely
   try {
-    const isAuth = await checkAuth()
+    const authPromise = checkAuth()
+    const timeoutPromise = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        console.warn('[Auth Middleware] Auth check timed out after 5 seconds')
+        resolve(false)
+      }, 5000) // 5 second timeout
+    })
+
+    const isAuth = await Promise.race([authPromise, timeoutPromise])
 
     // If server says user is not authenticated, clear localStorage and redirect
     if (!isAuth || !isAuthenticated.value) {
