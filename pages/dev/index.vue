@@ -53,6 +53,34 @@
           </button>
         </div>
 
+        <div v-if="!allowedLoaded" class="space-y-8 animate-pulse">
+          <div class="space-y-4">
+            <div class="h-4 w-48 rounded bg-gray-200 dark:bg-slate-700"></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+              <div class="h-28 rounded-xl bg-gray-200 dark:bg-slate-800"></div>
+              <div class="h-28 rounded-xl bg-gray-200 dark:bg-slate-800"></div>
+              <div class="h-28 rounded-xl bg-gray-200 dark:bg-slate-800"></div>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <div class="h-4 w-56 rounded bg-gray-200 dark:bg-slate-700"></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+              <div class="h-28 rounded-xl bg-gray-200 dark:bg-slate-800"></div>
+              <div class="h-28 rounded-xl bg-gray-200 dark:bg-slate-800"></div>
+              <div class="h-28 rounded-xl bg-gray-200 dark:bg-slate-800"></div>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <div class="h-4 w-40 rounded bg-gray-200 dark:bg-slate-700"></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+              <div class="h-28 rounded-xl bg-gray-200 dark:bg-slate-800"></div>
+              <div class="h-28 rounded-xl bg-gray-200 dark:bg-slate-800"></div>
+              <div class="h-28 rounded-xl bg-gray-200 dark:bg-slate-800"></div>
+            </div>
+          </div>
+        </div>
+
+        <template v-else>
         <!-- Section: Analytics & Insights (Admin only) -->
         <section v-if="isAdmin">
           <h2
@@ -572,8 +600,42 @@
                 Daily planner with Kanban board, weekly reviews, and printable plans
               </p>
             </NuxtLink>
+            <NuxtLink
+              v-if="canAccess('travel-planner')"
+              to="/dev/utilities/travel-planner"
+              class="group flex flex-col rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm transition-all hover:border-indigo-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-indigo-600 active:scale-[0.99] touch-manipulation"
+            >
+              <div class="flex items-center gap-3 mb-3">
+                <div
+                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/50"
+                >
+                  <Icon
+                    name="mdi:map-marker-path"
+                    size="22"
+                    class="text-indigo-600 dark:text-indigo-400"
+                  />
+                </div>
+                <div class="min-w-0">
+                  <h3 class="font-semibold text-gray-900 dark:text-gray-100">Travel Planner</h3>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Road vs flight comparison
+                    <span
+                      v-if="requiresPasscode('travel-planner')"
+                      class="ml-2 text-amber-600 dark:text-amber-400"
+                    >
+                      · Passcode required
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                Plan trips, compare road vs flight costs, calculate distances, and find the most
+                cost-effective travel option. Save plans as templates.
+              </p>
+            </NuxtLink>
           </div>
         </section>
+        </template>
       </div>
     </div>
   </div>
@@ -585,7 +647,7 @@ import { useAuth } from '~/composables/useAuth'
 import { useUtilityAccess } from '~/composables/useUtilityAccess'
 
 const { isAuthenticated, isAdmin, checkAuth, signOut } = useAuth()
-const { canAccess, requiresPasscode, fetchAllowed } = useUtilityAccess()
+const { canAccess, requiresPasscode, fetchAllowed, allowedLoaded } = useUtilityAccess()
 
 const handleLogout = async () => {
   await signOut()
