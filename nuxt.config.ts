@@ -170,6 +170,8 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    googleMapsServerApiKey:
+      process.env.GOOGLE_MAPS_SERVER_API_KEY || process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY,
     public: {
       // CRITICAL: Always ensure siteUrl is a string, never undefined
       siteUrl: String(process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app'),

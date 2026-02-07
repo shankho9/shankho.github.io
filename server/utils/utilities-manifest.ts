@@ -83,6 +83,12 @@ export const UTILITIES_MANIFEST: UtilityManifestItem[] = [
     route: '/dev/utilities/rent-vs-buy-calculator',
     section: 'Calculators',
   },
+  {
+    id: 'travel-planner',
+    name: 'Travel Planner',
+    route: '/dev/utilities/travel-planner',
+    section: 'Planning',
+  },
 ]
 
 export function getUtilityIdByRoute(route: string): string | null {
