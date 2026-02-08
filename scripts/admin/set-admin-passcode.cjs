@@ -42,10 +42,9 @@ async function run() {
   })
 
   try {
-    const userRes = await pool.query(
-      'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
-      [ADMIN_EMAIL]
-    )
+    const userRes = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [
+      ADMIN_EMAIL,
+    ])
     if (userRes.rows.length === 0) {
       console.error(`❌ User not found: ${ADMIN_EMAIL}`)
       process.exit(1)
@@ -62,7 +61,7 @@ async function run() {
          passcode_hash = EXCLUDED.passcode_hash,
          expires_at = EXCLUDED.expires_at,
          updated_at = CURRENT_TIMESTAMP`,
-      [userId, hash.trim(), expiresAt]
+      [userId, hash.trim(), expiresAt],
     )
 
     console.log(`✅ Admin passcode set for ${ADMIN_EMAIL} (user_id=${userId})`)

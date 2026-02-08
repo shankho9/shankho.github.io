@@ -715,7 +715,7 @@ const roadTripDistance = computed(() => {
   return legs.reduce((sum, l) => sum + (l.distanceValue || 0), 0) / 1000
 })
 
-const roadTripLegs = computed(() => plan.value.roadTrip.legs || [])
+const _roadTripLegs = computed(() => plan.value.roadTrip.legs || [])
 
 const totalTravelers = computed(() => {
   const adults = Math.max(0, Number(plan.value.adults) || 0)
@@ -1131,7 +1131,7 @@ const _searchPlaces = async (_query: string) => {
   return []
 }
 
-const autoCalculateFuel = () => {
+const _autoCalculateFuel = () => {
   if (roadTripDistance.value <= 0) {
     showToast('Please calculate legs first', 'error')
     return
@@ -1154,7 +1154,7 @@ const autoCalculateFuel = () => {
   showToast('Fuel cost calculated automatically', 'success')
 }
 
-const autoCalculateTolls = () => {
+const _autoCalculateTolls = () => {
   if (roadTripDistance.value <= 0) {
     showToast('Please calculate legs first', 'error')
     return
@@ -1163,7 +1163,7 @@ const autoCalculateTolls = () => {
   showToast('Tolls calculated automatically', 'success')
 }
 
-const autoCalculateSightseeing = () => {
+const _autoCalculateSightseeing = () => {
   if (plan.value.destinations.length === 0) {
     showToast('Please add destinations first', 'error')
     return

@@ -318,11 +318,7 @@ onUnmounted(() => {
             aria-label="Navigation menu"
           >
             <!-- Backdrop -->
-            <div
-              class="absolute inset-0 bg-black/50"
-              aria-hidden="true"
-              @click="closeMobileMenu"
-            />
+            <div class="absolute inset-0 bg-black/50" aria-hidden="true" @click="closeMobileMenu" />
 
             <!-- Menu panel -->
             <div
@@ -351,7 +347,9 @@ onUnmounted(() => {
                 <NuxtLink
                   to="/personalSpace"
                   class="px-4 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors touch-manipulation text-base font-medium"
-                  :class="{ 'bg-gray-200 dark:bg-slate-800 font-semibold': isActive('/personalSpace') }"
+                  :class="{
+                    'bg-gray-200 dark:bg-slate-800 font-semibold': isActive('/personalSpace'),
+                  }"
                   @click="closeMobileMenu"
                 >
                   LifeLines
@@ -376,7 +374,9 @@ onUnmounted(() => {
                 <NuxtLink
                   to="/about"
                   class="px-4 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors touch-manipulation text-base font-medium"
-                  :class="{ 'bg-gray-200 dark:bg-slate-800 font-semibold': $route.path === '/about' }"
+                  :class="{
+                    'bg-gray-200 dark:bg-slate-800 font-semibold': $route.path === '/about',
+                  }"
                   @click="closeMobileMenu"
                 >
                   About
@@ -414,7 +414,9 @@ onUnmounted(() => {
                 <div class="px-4 py-3 border-t dark:border-gray-800">
                   <ClientOnly>
                     <div v-if="isAuthenticated && user" class="user-dropdown-container">
-                      <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-200/50 dark:bg-slate-800/50">
+                      <div
+                        class="flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-200/50 dark:bg-slate-800/50"
+                      >
                         <img
                           v-if="user.picture"
                           :src="user.picture"
@@ -422,7 +424,9 @@ onUnmounted(() => {
                           class="w-10 h-10 rounded-full border-2 border-sky-700 dark:border-sky-400"
                         />
                         <div class="flex-1 min-w-0">
-                          <p class="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">
+                          <p
+                            class="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate"
+                          >
                             {{ user.name }}
                           </p>
                           <p class="text-xs text-zinc-500 dark:text-zinc-400 truncate">
@@ -442,7 +446,10 @@ onUnmounted(() => {
                       </NuxtLink>
                       <button
                         class="w-full text-left px-4 py-3 mt-1 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors text-base font-medium text-red-600 dark:text-red-400 flex items-center gap-2"
-                        @click="handleSignOut(); closeMobileMenu()"
+                        @click="
+                          handleSignOut()
+                          closeMobileMenu()
+                        "
                       >
                         <Icon name="mdi:logout" size="20" />
                         Sign Out
@@ -451,7 +458,10 @@ onUnmounted(() => {
                     <button
                       v-else
                       class="w-full px-4 py-3 rounded-lg bg-sky-700 dark:bg-sky-600 hover:bg-sky-800 dark:hover:bg-sky-700 text-white text-base font-semibold transition-colors flex items-center justify-center gap-2"
-                      @click="openLoginModal(); closeMobileMenu()"
+                      @click="
+                        openLoginModal()
+                        closeMobileMenu()
+                      "
                     >
                       <Icon name="mdi:login" size="22" />
                       Login
