@@ -49,6 +49,16 @@ const openLoginModal = () => {
   showLoginModal.value = true
 }
 
+const onSignOutClick = () => {
+  handleSignOut()
+  closeMobileMenu()
+}
+
+const onLoginClick = () => {
+  openLoginModal()
+  closeMobileMenu()
+}
+
 const closeLoginModal = () => {
   showLoginModal.value = false
 }
@@ -446,10 +456,7 @@ onUnmounted(() => {
                       </NuxtLink>
                       <button
                         class="w-full text-left px-4 py-3 mt-1 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors text-base font-medium text-red-600 dark:text-red-400 flex items-center gap-2"
-                        @click="
-                          handleSignOut()
-                          closeMobileMenu()
-                        "
+                        @click="onSignOutClick"
                       >
                         <Icon name="mdi:logout" size="20" />
                         Sign Out
@@ -458,10 +465,7 @@ onUnmounted(() => {
                     <button
                       v-else
                       class="w-full px-4 py-3 rounded-lg bg-sky-700 dark:bg-sky-600 hover:bg-sky-800 dark:hover:bg-sky-700 text-white text-base font-semibold transition-colors flex items-center justify-center gap-2"
-                      @click="
-                        openLoginModal()
-                        closeMobileMenu()
-                      "
+                      @click="onLoginClick"
                     >
                       <Icon name="mdi:login" size="22" />
                       Login
