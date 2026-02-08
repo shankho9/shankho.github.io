@@ -97,9 +97,7 @@ const defaultPlan = {
     parking: 0, // 0 = use estimated, > 0 = override
     misc: 0,
     sightseeing: 0,
-    legs: [
-      { id: 'leg-1', from: '', to: '' },
-    ] as Array<{
+    legs: [{ id: 'leg-1', from: '', to: '' }] as Array<{
       id: string
       from: string
       to: string
@@ -625,7 +623,11 @@ const handleLegFromInput = async (legId: string, value: string) => {
   const list = await fetchPlaceSuggestions(value)
   legSuggestions.value = {
     ...legSuggestions.value,
-    [legId]: { ...legSuggestions.value[legId], from: list, to: legSuggestions.value[legId]?.to ?? [] },
+    [legId]: {
+      ...legSuggestions.value[legId],
+      from: list,
+      to: legSuggestions.value[legId]?.to ?? [],
+    },
   }
 }
 
@@ -633,20 +635,30 @@ const handleLegToInput = async (legId: string, value: string) => {
   const list = await fetchPlaceSuggestions(value)
   legSuggestions.value = {
     ...legSuggestions.value,
-    [legId]: { from: legSuggestions.value[legId]?.from ?? [], ...legSuggestions.value[legId], to: list },
+    [legId]: {
+      from: legSuggestions.value[legId]?.from ?? [],
+      ...legSuggestions.value[legId],
+      to: list,
+    },
   }
 }
 
 const selectLegFromSuggestion = (legId: string, suggestion: PlaceSuggestion) => {
   const leg = plan.value.roadTrip.legs.find((l) => l.id === legId)
   if (leg) leg.from = suggestion.description
-  legSuggestions.value = { ...legSuggestions.value, [legId]: { ...legSuggestions.value[legId], from: [] } }
+  legSuggestions.value = {
+    ...legSuggestions.value,
+    [legId]: { ...legSuggestions.value[legId], from: [] },
+  }
 }
 
 const selectLegToSuggestion = (legId: string, suggestion: PlaceSuggestion) => {
   const leg = plan.value.roadTrip.legs.find((l) => l.id === legId)
   if (leg) leg.to = suggestion.description
-  legSuggestions.value = { ...legSuggestions.value, [legId]: { ...legSuggestions.value[legId], to: [] } }
+  legSuggestions.value = {
+    ...legSuggestions.value,
+    [legId]: { ...legSuggestions.value[legId], to: [] },
+  }
 }
 
 const clearLegFromSuggestions = (legId: string) => {
@@ -3753,7 +3765,12 @@ onMounted(async () => {
                       type="text"
                       class="w-full rounded px-2 py-2 text-sm border"
                       placeholder="Start location"
-                      @input="(e) => { leg.from = (e.target as HTMLInputElement).value; handleLegFromInput(leg.id, (e.target as HTMLInputElement).value) }"
+                      @input="
+                        (e) => {
+                          leg.from = (e.target as HTMLInputElement).value
+                          handleLegFromInput(leg.id, (e.target as HTMLInputElement).value)
+                        }
+                      "
                       @focus="handleLegFromInput(leg.id, leg.from)"
                       @blur="clearLegFromSuggestions(leg.id)"
                     />
@@ -3779,7 +3796,12 @@ onMounted(async () => {
                       type="text"
                       class="w-full rounded px-2 py-2 text-sm border"
                       placeholder="End location"
-                      @input="(e) => { leg.to = (e.target as HTMLInputElement).value; handleLegToInput(leg.id, (e.target as HTMLInputElement).value) }"
+                      @input="
+                        (e) => {
+                          leg.to = (e.target as HTMLInputElement).value
+                          handleLegToInput(leg.id, (e.target as HTMLInputElement).value)
+                        }
+                      "
                       @focus="handleLegToInput(leg.id, leg.to)"
                       @blur="clearLegToSuggestions(leg.id)"
                     />
@@ -3809,37 +3831,90 @@ onMounted(async () => {
             <div class="flex flex-wrap items-end gap-x-3 gap-y-2">
               <div class="min-w-[65px]">
                 <label class="block text-xs mb-0.5">Petrol/L</label>
-                <input v-model.number="plan.roadTrip.petrolPrice" type="number" min="0" step="0.01" class="w-full rounded px-2 py-1 text-sm border" placeholder="0" />
+                <input
+                  v-model.number="plan.roadTrip.petrolPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  class="w-full rounded px-2 py-1 text-sm border"
+                  placeholder="0"
+                />
               </div>
               <div class="min-w-[55px]">
                 <label class="block text-xs mb-0.5">Mileage</label>
-                <input v-model.number="plan.roadTrip.mileage" type="number" min="0" step="0.1" class="w-full rounded px-2 py-1 text-sm border" placeholder="0" />
+                <input
+                  v-model.number="plan.roadTrip.mileage"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  class="w-full rounded px-2 py-1 text-sm border"
+                  placeholder="0"
+                />
               </div>
               <div class="min-w-[75px]">
                 <label class="block text-xs mb-0.5">Fuel</label>
-                <input v-model.number="plan.roadTrip.fuelOverride" type="number" min="0" class="w-full rounded px-2 py-1 text-sm border" :placeholder="roadTripDistance > 0 && plan.roadTrip.mileage > 0 && plan.roadTrip.petrolPrice > 0 ? formatCurrency(estimatedFuelCost) : 'Auto'" />
+                <input
+                  v-model.number="plan.roadTrip.fuelOverride"
+                  type="number"
+                  min="0"
+                  class="w-full rounded px-2 py-1 text-sm border"
+                  :placeholder="
+                    roadTripDistance > 0 &&
+                    plan.roadTrip.mileage > 0 &&
+                    plan.roadTrip.petrolPrice > 0
+                      ? formatCurrency(estimatedFuelCost)
+                      : 'Auto'
+                  "
+                />
               </div>
               <div class="min-w-[75px]">
                 <label class="block text-xs mb-0.5">Tolls</label>
-                <input v-model.number="plan.roadTrip.tolls" type="number" min="0" class="w-full rounded px-2 py-1 text-sm border" :placeholder="roadTripDistance > 0 ? formatCurrency(estimatedTollsCost) : 'Auto'" />
+                <input
+                  v-model.number="plan.roadTrip.tolls"
+                  type="number"
+                  min="0"
+                  class="w-full rounded px-2 py-1 text-sm border"
+                  :placeholder="roadTripDistance > 0 ? formatCurrency(estimatedTollsCost) : 'Auto'"
+                />
               </div>
               <div class="min-w-[75px]">
                 <label class="block text-xs mb-0.5">Parking</label>
-                <input v-model.number="plan.roadTrip.parking" type="number" min="0" class="w-full rounded px-2 py-1 text-sm border" :placeholder="roadTripDistance > 0 ? formatCurrency(estimatedParkingCost) : 'Auto'" />
+                <input
+                  v-model.number="plan.roadTrip.parking"
+                  type="number"
+                  min="0"
+                  class="w-full rounded px-2 py-1 text-sm border"
+                  :placeholder="
+                    roadTripDistance > 0 ? formatCurrency(estimatedParkingCost) : 'Auto'
+                  "
+                />
               </div>
               <div class="min-w-[60px]">
                 <label class="block text-xs mb-0.5">Misc</label>
-                <input v-model.number="plan.roadTrip.misc" type="number" min="0" class="w-full rounded px-2 py-1 text-sm border" placeholder="0" />
+                <input
+                  v-model.number="plan.roadTrip.misc"
+                  type="number"
+                  min="0"
+                  class="w-full rounded px-2 py-1 text-sm border"
+                  placeholder="0"
+                />
               </div>
             </div>
 
             <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
               <div class="space-y-2">
                 <div class="flex justify-between items-center">
-                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Estimated Road Trip Cost:</span>
-                  <span class="text-lg font-bold text-gray-900 dark:text-white">{{ formatCurrency(roadTripCost) }}</span>
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >Estimated Road Trip Cost:</span
+                  >
+                  <span class="text-lg font-bold text-gray-900 dark:text-white">{{
+                    formatCurrency(roadTripCost)
+                  }}</span>
                 </div>
-                <div v-if="roadTripDistance > 0" class="text-xs text-gray-500 dark:text-gray-400 space-y-1 pl-4 border-l-2 border-gray-200 dark:border-slate-700">
+                <div
+                  v-if="roadTripDistance > 0"
+                  class="text-xs text-gray-500 dark:text-gray-400 space-y-1 pl-4 border-l-2 border-gray-200 dark:border-slate-700"
+                >
                   <div class="flex justify-between">
                     <span>Fuel:</span>
                     <span>{{
@@ -3854,11 +3929,19 @@ onMounted(async () => {
                   </div>
                   <div class="flex justify-between">
                     <span>Tolls:</span>
-                    <span>{{ formatCurrency(plan.roadTrip.tolls > 0 ? plan.roadTrip.tolls : estimatedTollsCost) }}</span>
+                    <span>{{
+                      formatCurrency(
+                        plan.roadTrip.tolls > 0 ? plan.roadTrip.tolls : estimatedTollsCost,
+                      )
+                    }}</span>
                   </div>
                   <div class="flex justify-between">
                     <span>Parking:</span>
-                    <span>{{ formatCurrency(plan.roadTrip.parking > 0 ? plan.roadTrip.parking : estimatedParkingCost) }}</span>
+                    <span>{{
+                      formatCurrency(
+                        plan.roadTrip.parking > 0 ? plan.roadTrip.parking : estimatedParkingCost,
+                      )
+                    }}</span>
                   </div>
                   <div v-if="plan.roadTrip.sightseeing > 0" class="flex justify-between">
                     <span>Sightseeing:</span>
