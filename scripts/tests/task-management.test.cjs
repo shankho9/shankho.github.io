@@ -12,7 +12,7 @@
  * This script tests the API endpoints directly to ensure all validation logic is tested.
  *
  * Run with: npm run test:tasks
- * Or: node scripts/tests/task-management.test.js
+ * Or: node scripts/tests/task-management.test.cjs
  *
  * Note: Requires a running Nuxt server or direct database access
  */

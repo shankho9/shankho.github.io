@@ -2,9 +2,9 @@
 /**
  * Check and compare users table structure between localhost and production
  * Usage:
- *   Check localhost: node scripts/check-table-structure.js
- *   Check production: NODE_ENV=production node scripts/check-table-structure.js
- *   Compare both: node scripts/check-table-structure.js (requires DATABASE_URL_PROD in .env.production)
+ *   Check localhost: node scripts/check-table-structure.cjs
+ *   Check production: NODE_ENV=production node scripts/check-table-structure.cjs
+ *   Compare both: node scripts/check-table-structure.cjs (requires DATABASE_URL_PROD in .env.production)
  */
 
 const { existsSync } = require('fs')

@@ -146,16 +146,16 @@ const highlightedDescription = computed(() => {
 
 <template>
   <article
-    class="group border dark:border-gray-800 m-2 rounded-2xl overflow-hidden shadow-sm text-zinc-700 dark:text-zinc-300"
+    class="group border dark:border-gray-800 m-2 rounded-2xl overflow-hidden shadow-sm text-zinc-700 dark:text-zinc-300 min-w-0"
   >
     <NuxtLink
       :to="normalizedPath"
-      class="grid grid-cols-1 sm:grid-cols-10 gap-1 touch-manipulation"
+      class="grid grid-cols-1 sm:grid-cols-10 gap-1 touch-manipulation min-w-0"
       style="touch-action: manipulation; -webkit-tap-highlight-color: transparent"
     >
-      <div class="sm:col-span-3">
+      <div class="sm:col-span-3 min-w-0 overflow-hidden">
         <NuxtImg
-          class="h-full w-full object-cover object-center rounded-t-2xl sm:rounded-l-2xl sm:rounded-t-none shadow-lg group-hover:scale-[1.02] transition-all duration-500"
+          class="h-full w-full max-w-full object-cover object-center rounded-t-2xl sm:rounded-l-2xl sm:rounded-t-none shadow-lg group-hover:scale-[1.02] transition-all duration-500"
           width="300"
           :src="image"
           :alt="alt"
@@ -164,13 +164,16 @@ const highlightedDescription = computed(() => {
           format="webp"
         />
       </div>
-      <div class="sm:col-span-7 p-5">
+      <div class="sm:col-span-7 p-5 min-w-0 overflow-hidden">
         <!-- eslint-disable vue/no-v-html -->
         <h2
-          class="text-xl font-semibold text-black dark:text-zinc-300 pb-1 group-hover:text-sky-700 dark:group-hover:text-sky-400"
+          class="text-xl font-semibold text-black dark:text-zinc-300 pb-1 group-hover:text-sky-700 dark:group-hover:text-sky-400 break-words overflow-hidden"
           v-html="highlightedTitle"
         ></h2>
-        <p class="text-ellipsis line-clamp-2" v-html="highlightedDescription"></p>
+        <p
+          class="text-ellipsis line-clamp-2 break-words overflow-hidden"
+          v-html="highlightedDescription"
+        ></p>
         <!-- eslint-enable vue/no-v-html -->
         <div class="text-black dark:text-zinc-300 text-sm mt-2 mb-1 md:flex md:space-x-6">
           <div class="flex items-center">

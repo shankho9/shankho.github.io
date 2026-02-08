@@ -5,7 +5,7 @@
  * Output: Hashed password to use in ADMIN_PASSWORD_HASH environment variable
  */
 
-const bcrypt = require('bcrypt')
+import bcrypt from 'bcrypt'
 
 const plainPassword = process.argv[2]
 

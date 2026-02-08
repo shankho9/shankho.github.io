@@ -92,12 +92,20 @@ const defaultPlan = {
     enabled: true,
     petrolPrice: 0,
     mileage: 0, // km per liter
-    tolls: 0,
-    parking: 0,
+    fuelOverride: 0, // 0 = use calculated, > 0 = override
+    tolls: 0, // 0 = use estimated, > 0 = override
+    parking: 0, // 0 = use estimated, > 0 = override
     misc: 0,
-    sightseeing: 0, // Additional cost for sightseeing/detours
-    autoCalculateFuel: false,
-    autoCalculateTolls: false,
+    sightseeing: 0,
+    legs: [{ id: 'leg-1', from: '', to: '' }] as Array<{
+      id: string
+      from: string
+      to: string
+      distanceText?: string
+      durationText?: string
+      distanceValue?: number
+      durationValue?: number
+    }>,
   },
   publicTransport: {
     enabled: true,
@@ -210,6 +218,7 @@ const isRecordingGif = ref(false)
 const animationFrames = ref<ImageData[]>([])
 const originSuggestions = ref<PlaceSuggestion[]>([])
 const destinationSuggestions = ref<Record<string, PlaceSuggestion[]>>({})
+const legSuggestions = ref<Record<string, { from: PlaceSuggestion[]; to: PlaceSuggestion[] }>>({})
 const autocompleteService = shallowRef<google.maps.places.AutocompleteService | null>(null)
 
 type TravelPlan = typeof defaultPlan
@@ -370,7 +379,21 @@ const normalizePlan = (data: Partial<TravelPlan> & { tripMembers?: number }) => 
       Number.isFinite(data.kids) && data.kids !== undefined
         ? Math.max(0, data.kids as number)
         : defaultPlan.kids,
-    roadTrip: { ...defaultPlan.roadTrip, ...(data.roadTrip || {}) },
+    roadTrip: (() => {
+      const merged = { ...defaultPlan.roadTrip, ...(data.roadTrip || {}) }
+      const legs = Array.isArray(merged.legs) ? merged.legs : defaultPlan.roadTrip.legs
+      merged.legs = legs.length > 0 ? legs : [{ id: `leg-${Date.now()}`, from: '', to: '' }]
+      delete (merged as Record<string, unknown>).originOverride
+      delete (merged as Record<string, unknown>).useOriginOverride
+      delete (merged as Record<string, unknown>).legDetails
+      delete (merged as Record<string, unknown>).autoCalculateFuel
+      delete (merged as Record<string, unknown>).autoCalculateTolls
+      delete (merged as Record<string, unknown>).autoCalculateParking
+      if (typeof (merged as Record<string, unknown>).fuelOverride !== 'number') {
+        ;(merged as Record<string, unknown>).fuelOverride = 0
+      }
+      return merged
+    })(),
     publicTransport: { ...defaultPlan.publicTransport, ...(data.publicTransport || {}) },
     food: { ...defaultPlan.food, ...(data.food || {}) },
     sites: { ...defaultPlan.sites, ...(data.sites || {}) },
@@ -564,10 +587,147 @@ const calculateDistance = async () => {
   }
 }
 
+const syncRoadTripLegsFromRoute = () => {
+  const origin = plan.value.origin?.trim()
+  const destinations = (plan.value.destinations || []).filter((d) => d.name?.trim())
+  if (!origin || destinations.length === 0) return
+
+  const stops = [origin, ...destinations.map((d) => d.name.trim())]
+  const legs: Array<{ id: string; from: string; to: string }> = []
+  for (let i = 0; i < stops.length - 1; i += 1) {
+    legs.push({
+      id: `leg-${Date.now()}-${i}`,
+      from: stops[i],
+      to: stops[i + 1],
+    })
+  }
+  plan.value.roadTrip.legs = legs
+}
+
+const addRoadTripLeg = () => {
+  const id = `leg-${Date.now()}`
+  plan.value.roadTrip.legs.push({ id, from: '', to: '' })
+}
+
+const removeRoadTripLeg = (id: string) => {
+  if (plan.value.roadTrip.legs.length <= 1) {
+    showToast('At least one leg is required', 'error')
+    return
+  }
+  plan.value.roadTrip.legs = plan.value.roadTrip.legs.filter((l) => l.id !== id)
+  const { [id]: _, ...rest } = legSuggestions.value
+  legSuggestions.value = rest
+}
+
+const handleLegFromInput = async (legId: string, value: string) => {
+  const list = await fetchPlaceSuggestions(value)
+  legSuggestions.value = {
+    ...legSuggestions.value,
+    [legId]: {
+      ...legSuggestions.value[legId],
+      from: list,
+      to: legSuggestions.value[legId]?.to ?? [],
+    },
+  }
+}
+
+const handleLegToInput = async (legId: string, value: string) => {
+  const list = await fetchPlaceSuggestions(value)
+  legSuggestions.value = {
+    ...legSuggestions.value,
+    [legId]: {
+      from: legSuggestions.value[legId]?.from ?? [],
+      ...legSuggestions.value[legId],
+      to: list,
+    },
+  }
+}
+
+const selectLegFromSuggestion = (legId: string, suggestion: PlaceSuggestion) => {
+  const leg = plan.value.roadTrip.legs.find((l) => l.id === legId)
+  if (leg) leg.from = suggestion.description
+  legSuggestions.value = {
+    ...legSuggestions.value,
+    [legId]: { ...legSuggestions.value[legId], from: [] },
+  }
+}
+
+const selectLegToSuggestion = (legId: string, suggestion: PlaceSuggestion) => {
+  const leg = plan.value.roadTrip.legs.find((l) => l.id === legId)
+  if (leg) leg.to = suggestion.description
+  legSuggestions.value = {
+    ...legSuggestions.value,
+    [legId]: { ...legSuggestions.value[legId], to: [] },
+  }
+}
+
+const clearLegFromSuggestions = (legId: string) => {
+  setTimeout(() => {
+    legSuggestions.value = {
+      ...legSuggestions.value,
+      [legId]: { ...legSuggestions.value[legId], from: [] },
+    }
+  }, 150)
+}
+
+const clearLegToSuggestions = (legId: string) => {
+  setTimeout(() => {
+    legSuggestions.value = {
+      ...legSuggestions.value,
+      [legId]: { ...legSuggestions.value[legId], to: [] },
+    }
+  }, 150)
+}
+
+const calculateRoadTripLegs = async () => {
+  const legs = plan.value.roadTrip.legs.filter((l) => l.from?.trim() && l.to?.trim())
+  if (!legs.length) {
+    showToast('Enter From and To for at least one leg', 'error')
+    return
+  }
+  isLoadingDistance.value = true
+  distanceError.value = ''
+  try {
+    for (const leg of legs) {
+      const res = await $fetch<{
+        success: boolean
+        distance?: { text: string; value: number }
+        duration?: { text: string; value: number }
+        error?: string
+      }>('/api/travel/distance', {
+        params: { origin: leg.from.trim(), destination: leg.to.trim(), mode: 'driving' },
+      })
+      if (!res.success || !res.distance || !res.duration) {
+        throw new Error(res.error || `Failed: ${leg.from} → ${leg.to}`)
+      }
+      leg.distanceText = res.distance.text
+      leg.durationText = res.duration.text
+      leg.distanceValue = res.distance.value
+      leg.durationValue = res.duration.value
+    }
+    showToast('Road trip legs calculated', 'success')
+  } catch (e: unknown) {
+    const err = e as { data?: { error?: string }; message?: string }
+    const msg = err?.data?.error || err?.message || 'Failed to calculate road trip legs'
+    distanceError.value = msg
+    showToast(msg, 'error')
+  } finally {
+    isLoadingDistance.value = false
+  }
+}
+
 const totalDistance = computed(() => {
   if (!distanceData.value) return 0
   return distanceData.value.total.distance.value / 1000
 })
+
+// Road trip distance from legs (sum of leg distances)
+const roadTripDistance = computed(() => {
+  const legs = plan.value.roadTrip.legs || []
+  return legs.reduce((sum, l) => sum + (l.distanceValue || 0), 0) / 1000
+})
+
+const _roadTripLegs = computed(() => plan.value.roadTrip.legs || [])
 
 const totalTravelers = computed(() => {
   const adults = Math.max(0, Number(plan.value.adults) || 0)
@@ -587,24 +747,35 @@ const estimateRooms = computed(() => {
 
 const estimatedFuelCost = computed(() => {
   const r = plan.value.roadTrip
-  if (totalDistance.value <= 0 || r.mileage <= 0 || r.petrolPrice <= 0) return 0
-  const liters = totalDistance.value / r.mileage
+  if (roadTripDistance.value <= 0 || r.mileage <= 0 || r.petrolPrice <= 0) return 0
+  const liters = roadTripDistance.value / r.mileage
   return liters * r.petrolPrice
 })
 
 const estimatedTollsCost = computed(() => {
-  // Estimate tolls based on distance: approximately 0.5-2% of distance in km as toll cost
-  // This varies by region, using a conservative estimate
-  if (totalDistance.value <= 0) return 0
+  if (roadTripDistance.value <= 0) return 0
   const tollsPerKm: Record<keyof typeof currencies, number> = {
-    INR: 1.5, // ~₹1.5 per km average in India
-    USD: 0.08, // ~$0.08 per km average in US
-    EUR: 0.07, // ~€0.07 per km average in Europe
-    GBP: 0.06, // ~£0.06 per km average in UK
+    INR: 1.5,
+    USD: 0.08,
+    EUR: 0.07,
+    GBP: 0.06,
   }
   const curr = plan.value.currency
   const rate = tollsPerKm[curr] || tollsPerKm.INR
-  return totalDistance.value * rate
+  return roadTripDistance.value * rate
+})
+
+const estimatedParkingCost = computed(() => {
+  if (roadTripDistance.value <= 0) return 0
+  const parkingPerKm: Record<keyof typeof currencies, number> = {
+    INR: 0.5,
+    USD: 0.03,
+    EUR: 0.025,
+    GBP: 0.02,
+  }
+  const curr = plan.value.currency
+  const rate = parkingPerKm[curr] || parkingPerKm.INR
+  return roadTripDistance.value * rate
 })
 
 const estimatedSightseeingCost = computed(() => {
@@ -628,22 +799,18 @@ const roadTripCost = computed(() => {
 
   let cost = 0
 
-  // Fuel cost - use auto-calculated if enabled, otherwise use manual entry
-  if (r.autoCalculateFuel && totalDistance.value > 0) {
+  // Fuel: override if set, else auto-calculate from petrol/mileage
+  if (r.fuelOverride > 0) {
+    cost += r.fuelOverride
+  } else if (roadTripDistance.value > 0 && r.mileage > 0 && r.petrolPrice > 0) {
     cost += estimatedFuelCost.value
-  } else if (totalDistance.value > 0 && r.mileage > 0 && r.petrolPrice > 0) {
-    const liters = totalDistance.value / r.mileage
-    cost += liters * r.petrolPrice
   }
 
-  // Tolls - use auto-calculated if enabled, otherwise use manual entry
-  if (r.autoCalculateTolls && totalDistance.value > 0) {
-    cost += estimatedTollsCost.value
-  } else {
-    cost += r.tolls
-  }
-
-  cost += r.parking + r.misc + r.sightseeing
+  // Tolls: override if set, else use estimated
+  cost += r.tolls > 0 ? r.tolls : estimatedTollsCost.value
+  // Parking: override if set, else use estimated
+  cost += r.parking > 0 ? r.parking : estimatedParkingCost.value
+  cost += r.misc + r.sightseeing
 
   return cost
 })
@@ -671,8 +838,9 @@ const publicTransportTime = computed(() => {
 })
 
 const roadTripTime = computed(() => {
-  if (!distanceData.value) return 0
-  return distanceData.value.total.duration.value / 3600
+  const legs = plan.value.roadTrip.legs || []
+  const totalSec = legs.reduce((sum, l) => sum + (l.durationValue || 0), 0)
+  return totalSec / 3600
 })
 
 const estimatedTransportCost = computed(() => {
@@ -975,12 +1143,12 @@ const _searchPlaces = async (_query: string) => {
   return []
 }
 
-const autoCalculateFuel = () => {
-  if (totalDistance.value <= 0) {
-    showToast('Please calculate distance first', 'error')
+const _autoCalculateFuel = () => {
+  if (roadTripDistance.value <= 0) {
+    showToast('Please calculate legs first', 'error')
     return
   }
-  plan.value.roadTrip.autoCalculateFuel = true
+  plan.value.roadTrip.fuelOverride = 0
   if (plan.value.roadTrip.mileage <= 0) {
     // Set default mileage if not set (typical car: 12-15 km/L)
     plan.value.roadTrip.mileage = 13
@@ -998,17 +1166,16 @@ const autoCalculateFuel = () => {
   showToast('Fuel cost calculated automatically', 'success')
 }
 
-const autoCalculateTolls = () => {
-  if (totalDistance.value <= 0) {
-    showToast('Please calculate distance first', 'error')
+const _autoCalculateTolls = () => {
+  if (roadTripDistance.value <= 0) {
+    showToast('Please calculate legs first', 'error')
     return
   }
-  plan.value.roadTrip.autoCalculateTolls = true
-  plan.value.roadTrip.tolls = estimatedTollsCost.value
+  plan.value.roadTrip.tolls = 0
   showToast('Tolls calculated automatically', 'success')
 }
 
-const autoCalculateSightseeing = () => {
+const _autoCalculateSightseeing = () => {
   if (plan.value.destinations.length === 0) {
     showToast('Please add destinations first', 'error')
     return
@@ -2078,6 +2245,16 @@ watch(
 )
 
 watch(
+  () => [plan.value.origin, plan.value.destinations],
+  () => {
+    if (plan.value.transportModes.includes('road')) {
+      syncRoadTripLegsFromRoute()
+    }
+  },
+  { deep: true },
+)
+
+watch(
   () => plan.value.stayCategories,
   () => {
     autoUpdateBudget()
@@ -2248,7 +2425,7 @@ onMounted(async () => {
           @click="activeTab = 'transport-costs'"
         >
           <Icon icon="mdi:car-multiple" class="inline mr-1.5" />
-          Transport Costs
+          Transport
         </button>
         <button
           v-if="plan.stayCategories.length > 0 || plan.food.enabled || plan.sites.enabled"
@@ -3050,421 +3227,6 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Road Trip Inputs (if road transport selected) -->
-        <div
-          v-if="plan.transportModes.includes('road')"
-          class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
-        >
-          <div class="mb-4 flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Icon icon="mdi:car" class="text-orange-600 dark:text-orange-400" />
-              Road Trip Details
-            </h3>
-            <div class="flex items-center gap-2">
-              <input
-                id="roadEnabledPlan"
-                v-model="plan.roadTrip.enabled"
-                type="checkbox"
-                class="rounded border-gray-300"
-                aria-label="Enable road trip option"
-              />
-              <label
-                for="roadEnabledPlan"
-                class="text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Enable
-              </label>
-            </div>
-          </div>
-
-          <div v-if="plan.roadTrip.enabled" class="space-y-4">
-            <!-- Fuel Cost -->
-            <div
-              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 p-4"
-            >
-              <div class="flex items-center justify-between mb-3">
-                <h4
-                  class="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2"
-                >
-                  <Icon icon="mdi:gas-station" class="text-blue-600 dark:text-blue-400" />
-                  Fuel Cost
-                </h4>
-                <div class="flex items-center gap-2">
-                  <input
-                    id="autoFuelPlan"
-                    v-model="plan.roadTrip.autoCalculateFuel"
-                    type="checkbox"
-                    class="rounded border-gray-300"
-                    aria-label="Auto-calculate fuel cost"
-                  />
-                  <label for="autoFuelPlan" class="text-xs text-gray-600 dark:text-gray-400"
-                    >Auto-calculate</label
-                  >
-                </div>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label
-                    for="petrolPrice"
-                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Petrol Price (per liter)
-                  </label>
-                  <input
-                    id="petrolPrice"
-                    v-model.number="plan.roadTrip.petrolPrice"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    :disabled="plan.roadTrip.autoCalculateFuel"
-                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    aria-describedby="petrolPriceHelp"
-                  />
-                  <p id="petrolPriceHelp" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Current fuel price in your area
-                  </p>
-                </div>
-                <div>
-                  <label
-                    for="mileage"
-                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Mileage (km per liter)
-                  </label>
-                  <input
-                    id="mileage"
-                    v-model.number="plan.roadTrip.mileage"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    :disabled="plan.roadTrip.autoCalculateFuel"
-                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    aria-describedby="mileageHelp"
-                  />
-                  <p id="mileageHelp" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Your vehicle's fuel efficiency
-                  </p>
-                </div>
-              </div>
-              <div
-                v-if="totalDistance > 0 && plan.roadTrip.mileage > 0"
-                class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700"
-              >
-                <p class="text-sm text-gray-600 dark:text-gray-400">
-                  Estimated Fuel Cost:
-                  <span class="font-bold text-gray-900 dark:text-white">{{
-                    formatCurrency(estimatedFuelCost)
-                  }}</span>
-                </p>
-              </div>
-            </div>
-
-            <!-- Tolls -->
-            <div
-              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 p-4"
-            >
-              <div class="flex items-center justify-between mb-3">
-                <h4
-                  class="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2"
-                >
-                  <Icon icon="mdi:road" class="text-green-600 dark:text-green-400" />
-                  Tolls
-                </h4>
-                <div class="flex items-center gap-2">
-                  <input
-                    id="autoTollsPlan"
-                    v-model="plan.roadTrip.autoCalculateTolls"
-                    type="checkbox"
-                    class="rounded border-gray-300"
-                    aria-label="Auto-calculate tolls"
-                  />
-                  <label for="autoTollsPlan" class="text-xs text-gray-600 dark:text-gray-400"
-                    >Auto-calculate</label
-                  >
-                </div>
-              </div>
-              <div>
-                <label
-                  for="tolls"
-                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >
-                  Tolls (manual entry)
-                </label>
-                <input
-                  id="tolls"
-                  v-model.number="plan.roadTrip.tolls"
-                  type="number"
-                  min="0"
-                  :disabled="plan.roadTrip.autoCalculateTolls"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
-              <div
-                v-if="totalDistance > 0"
-                class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700"
-              >
-                <p class="text-sm text-gray-600 dark:text-gray-400">
-                  Estimated Tolls:
-                  <span class="font-bold text-gray-900 dark:text-white">{{
-                    formatCurrency(estimatedTollsCost)
-                  }}</span>
-                </p>
-              </div>
-            </div>
-
-            <!-- Other Road Expenses -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label
-                  for="parking"
-                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >
-                  Parking
-                </label>
-                <input
-                  id="parking"
-                  v-model.number="plan.roadTrip.parking"
-                  type="number"
-                  min="0"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label
-                  for="miscRoad"
-                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >
-                  Misc Expenses
-                </label>
-                <input
-                  id="miscRoad"
-                  v-model.number="plan.roadTrip.misc"
-                  type="number"
-                  min="0"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label
-                  for="sightseeing"
-                  class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >
-                  Sightseeing/Detours
-                </label>
-                <input
-                  id="sightseeing"
-                  v-model.number="plan.roadTrip.sightseeing"
-                  type="number"
-                  min="0"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Public Transport Inputs (if transport modes selected) -->
-        <div
-          v-if="plan.transportModes.some((m) => m !== 'road')"
-          class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5"
-        >
-          <div class="mb-4 flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Icon icon="mdi:airplane" class="text-sky-600 dark:text-sky-400" />
-              Public Transport Details
-            </h3>
-            <div class="flex items-center gap-2">
-              <input
-                id="transportEnabledPlan"
-                v-model="plan.publicTransport.enabled"
-                type="checkbox"
-                class="rounded border-gray-300"
-                aria-label="Enable public transport options"
-              />
-              <label
-                for="transportEnabledPlan"
-                class="text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Enable
-              </label>
-            </div>
-          </div>
-
-          <div v-if="plan.publicTransport.enabled" class="space-y-4">
-            <div class="flex items-center justify-between mb-3">
-              <p class="text-sm text-gray-600 dark:text-gray-400">
-                Add transport options for your selected modes (Flight, Train, Taxi, Cruise)
-              </p>
-              <button
-                type="button"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                aria-label="Add new transport option"
-                @click="addTransportOption"
-              >
-                <Icon icon="mdi:plus" class="text-base" />
-                Add Option
-              </button>
-            </div>
-
-            <div
-              v-if="plan.publicTransport.options.length === 0"
-              class="text-sm text-gray-500 dark:text-gray-400 text-center py-4"
-            >
-              No transport options added yet. Click "Add Option" to start.
-            </div>
-
-            <div v-else class="space-y-4">
-              <div
-                v-for="(option, idx) in plan.publicTransport.options"
-                :key="option.id"
-                class="p-4 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800"
-              >
-                <div class="flex items-center justify-between mb-3">
-                  <div class="flex items-center gap-2">
-                    <input
-                      :id="`transportEnabled_${option.id}`"
-                      v-model="option.enabled"
-                      type="checkbox"
-                      class="rounded border-gray-300"
-                      :aria-label="`Enable ${option.type} transport option`"
-                    />
-                    <label
-                      :for="`transportEnabled_${option.id}`"
-                      class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >
-                      {{ option.type.charAt(0).toUpperCase() + option.type.slice(1) }} Option
-                      {{ idx + 1 }}
-                    </label>
-                  </div>
-                  <button
-                    type="button"
-                    class="px-2 py-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
-                    :aria-label="`Remove ${option.type} transport option`"
-                    @click="removeTransportOption(option.id)"
-                  >
-                    <Icon icon="mdi:delete" />
-                  </button>
-                </div>
-
-                <div
-                  v-if="option.enabled"
-                  class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
-                >
-                  <div>
-                    <label
-                      :for="`transportType_${option.id}`"
-                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                    >
-                      Type
-                    </label>
-                    <select
-                      :id="`transportType_${option.id}`"
-                      v-model="option.type"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    >
-                      <option value="flight">Flight</option>
-                      <option value="train">Train</option>
-                      <option value="taxi">Taxi</option>
-                      <option value="cruise">Cruise</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label
-                      :for="`transportFrom_${option.id}`"
-                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                    >
-                      From
-                    </label>
-                    <input
-                      :id="`transportFrom_${option.id}`"
-                      v-model="option.from"
-                      type="text"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      placeholder="Origin"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      :for="`transportTo_${option.id}`"
-                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                    >
-                      To
-                    </label>
-                    <input
-                      :id="`transportTo_${option.id}`"
-                      v-model="option.to"
-                      type="text"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      placeholder="Destination"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      :for="`transportCost_${option.id}`"
-                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                    >
-                      Cost (per person)
-                    </label>
-                    <input
-                      :id="`transportCost_${option.id}`"
-                      v-model.number="option.cost"
-                      type="number"
-                      min="0"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      :for="`transportTransfer_${option.id}`"
-                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                    >
-                      Transfer/Station Fees
-                    </label>
-                    <input
-                      :id="`transportTransfer_${option.id}`"
-                      v-model.number="option.transfer"
-                      type="number"
-                      min="0"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      :for="`transportBaggage_${option.id}`"
-                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                    >
-                      Baggage/Extra Fees
-                    </label>
-                    <input
-                      :id="`transportBaggage_${option.id}`"
-                      v-model.number="option.baggage"
-                      type="number"
-                      min="0"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      :for="`transportHours_${option.id}`"
-                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                    >
-                      Travel Time (hours)
-                    </label>
-                    <input
-                      :id="`transportHours_${option.id}`"
-                      v-model.number="option.travelHours"
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Stay/Accommodation Inputs (if stay categories selected) -->
         <div
           v-if="plan.stayCategories.length > 0"
@@ -3933,7 +3695,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Transport Costs Tab - Consolidated Road Trip + Public Transport -->
+      <!-- Transport Tab - Road Trip + Public Transport -->
       <div
         v-if="activeTab === 'transport-costs' && plan.transportModes.length > 0"
         class="space-y-6"
@@ -3942,7 +3704,7 @@ onMounted(async () => {
         <div v-if="plan.transportModes.includes('road')" class="space-y-6">
           <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Icon icon="mdi:car" class="text-orange-600 dark:text-orange-400" />
-            Road Trip Costs
+            Road Trip
           </h2>
           <div class="flex items-center gap-2">
             <input
@@ -3958,218 +3720,209 @@ onMounted(async () => {
           </div>
 
           <template v-if="plan.roadTrip.enabled">
-            <!-- Fuel Cost Section -->
-            <div
-              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 p-4"
-            >
-              <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-2">
-                  <Icon icon="mdi:gas-station" class="text-lg text-blue-600 dark:text-blue-400" />
-                  <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200">Fuel Cost</h4>
-                </div>
-                <div class="flex items-center gap-2">
-                  <input
-                    id="autoFuel"
-                    v-model="plan.roadTrip.autoCalculateFuel"
-                    type="checkbox"
-                    class="rounded border-gray-300"
-                  />
-                  <label for="autoFuel" class="text-xs text-gray-600 dark:text-gray-400"
-                    >Auto-calculate</label
-                  >
+            <!-- Legs (same as Plan tab - uses shared plan.roadTrip.legs) -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200">Legs</h4>
+                <div class="flex gap-2">
                   <button
                     type="button"
-                    class="px-2 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    @click="autoCalculateFuel"
+                    class="px-2 py-1 text-sm bg-orange-600 text-white rounded-md hover:bg-orange-700"
+                    @click="calculateRoadTripLegs"
                   >
-                    <Icon icon="mdi:calculator" class="text-sm" />
+                    {{ isLoadingDistance ? 'Calculating...' : 'Calculate' }}
                   </button>
-                </div>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Petrol Price (per liter)
-                  </label>
-                  <input
-                    v-model.number="plan.roadTrip.petrolPrice"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    :disabled="plan.roadTrip.autoCalculateFuel"
-                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Mileage (km per liter)
-                  </label>
-                  <input
-                    v-model.number="plan.roadTrip.mileage"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    :disabled="plan.roadTrip.autoCalculateFuel"
-                    class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
+                  <button
+                    type="button"
+                    class="px-2 py-1 text-sm border border-orange-600 text-orange-600 rounded-md"
+                    @click="addRoadTripLeg"
+                  >
+                    <Icon icon="mdi:plus" class="text-sm" /> Add Leg
+                  </button>
                 </div>
               </div>
               <div
-                v-if="totalDistance > 0"
-                class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700"
+                v-for="(leg, idx) in plan.roadTrip.legs"
+                :key="leg.id"
+                class="rounded-lg border border-gray-200 dark:border-slate-700 p-3 bg-gray-50/50 dark:bg-slate-800/50"
               >
-                <div class="flex justify-between items-center text-sm">
-                  <span class="text-gray-600 dark:text-gray-400">
-                    {{ plan.roadTrip.autoCalculateFuel ? 'Calculated' : 'Estimated' }} Fuel Cost:
-                  </span>
-                  <span class="font-bold text-gray-900 dark:text-white">
-                    {{ formatCurrency(estimatedFuelCost) }}
-                  </span>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-sm font-medium">Leg {{ idx + 1 }}</span>
+                  <button
+                    v-if="plan.roadTrip.legs.length > 1"
+                    type="button"
+                    class="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                    @click="removeRoadTripLeg(leg.id)"
+                  >
+                    <Icon icon="mdi:delete" class="text-base" />
+                  </button>
                 </div>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Distance: {{ totalDistance.toFixed(1) }} km
-                  <span v-if="plan.roadTrip.mileage > 0">
-                    • Fuel needed: {{ (totalDistance / plan.roadTrip.mileage).toFixed(1) }} liters
-                  </span>
-                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div class="relative">
+                    <label class="block text-xs font-medium mb-1">From</label>
+                    <input
+                      :value="leg.from"
+                      type="text"
+                      class="w-full rounded px-2 py-2 text-sm border"
+                      placeholder="Start location"
+                      @input="
+                        (e) => {
+                          leg.from = (e.target as HTMLInputElement).value
+                          handleLegFromInput(leg.id, (e.target as HTMLInputElement).value)
+                        }
+                      "
+                      @focus="handleLegFromInput(leg.id, leg.from)"
+                      @blur="clearLegFromSuggestions(leg.id)"
+                    />
+                    <div
+                      v-if="legSuggestions[leg.id]?.from?.length"
+                      class="absolute z-20 mt-1 w-full rounded border bg-white dark:bg-slate-800 shadow-lg max-h-40 overflow-y-auto"
+                    >
+                      <button
+                        v-for="s in legSuggestions[leg.id].from"
+                        :key="s.placeId"
+                        type="button"
+                        class="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100"
+                        @mousedown.prevent="selectLegFromSuggestion(leg.id, s)"
+                      >
+                        {{ s.description }}
+                      </button>
+                    </div>
+                  </div>
+                  <div class="relative">
+                    <label class="block text-xs font-medium mb-1">To</label>
+                    <input
+                      :value="leg.to"
+                      type="text"
+                      class="w-full rounded px-2 py-2 text-sm border"
+                      placeholder="End location"
+                      @input="
+                        (e) => {
+                          leg.to = (e.target as HTMLInputElement).value
+                          handleLegToInput(leg.id, (e.target as HTMLInputElement).value)
+                        }
+                      "
+                      @focus="handleLegToInput(leg.id, leg.to)"
+                      @blur="clearLegToSuggestions(leg.id)"
+                    />
+                    <div
+                      v-if="legSuggestions[leg.id]?.to?.length"
+                      class="absolute z-20 mt-1 w-full rounded border bg-white dark:bg-slate-800 shadow-lg max-h-40 overflow-y-auto"
+                    >
+                      <button
+                        v-for="s in legSuggestions[leg.id].to"
+                        :key="s.placeId"
+                        type="button"
+                        class="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100"
+                        @mousedown.prevent="selectLegToSuggestion(leg.id, s)"
+                      >
+                        {{ s.description }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="leg.distanceText || leg.durationText" class="text-xs text-gray-500 mt-1">
+                  {{ leg.distanceText || '-' }}, {{ leg.durationText || '-' }}
+                </div>
               </div>
             </div>
 
-            <!-- Tolls Section -->
-            <div
-              class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 p-4"
-            >
-              <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-2">
-                  <Icon icon="mdi:road" class="text-lg text-green-600 dark:text-green-400" />
-                  <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200">Tolls</h4>
-                </div>
-                <div class="flex items-center gap-2">
-                  <input
-                    id="autoTolls"
-                    v-model="plan.roadTrip.autoCalculateTolls"
-                    type="checkbox"
-                    class="rounded border-gray-300"
-                  />
-                  <label for="autoTolls" class="text-xs text-gray-600 dark:text-gray-400"
-                    >Auto-calculate</label
-                  >
-                  <button
-                    type="button"
-                    class="px-2 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700"
-                    @click="autoCalculateTolls"
-                  >
-                    <Icon icon="mdi:calculator" class="text-sm" />
-                  </button>
-                </div>
+            <!-- Cost inputs: single row, auto by default, override to edit -->
+            <div class="flex flex-wrap items-end gap-x-3 gap-y-2">
+              <div class="min-w-[65px]">
+                <label class="block text-xs mb-0.5">Petrol/L</label>
+                <input
+                  v-model.number="plan.roadTrip.petrolPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  class="w-full rounded px-2 py-1 text-sm border"
+                  placeholder="0"
+                />
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Tolls (manual entry)
-                </label>
+              <div class="min-w-[55px]">
+                <label class="block text-xs mb-0.5">Mileage</label>
+                <input
+                  v-model.number="plan.roadTrip.mileage"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  class="w-full rounded px-2 py-1 text-sm border"
+                  placeholder="0"
+                />
+              </div>
+              <div class="min-w-[75px]">
+                <label class="block text-xs mb-0.5">Fuel</label>
+                <input
+                  v-model.number="plan.roadTrip.fuelOverride"
+                  type="number"
+                  min="0"
+                  class="w-full rounded px-2 py-1 text-sm border"
+                  :placeholder="
+                    roadTripDistance > 0 &&
+                    plan.roadTrip.mileage > 0 &&
+                    plan.roadTrip.petrolPrice > 0
+                      ? formatCurrency(estimatedFuelCost)
+                      : 'Auto'
+                  "
+                />
+              </div>
+              <div class="min-w-[75px]">
+                <label class="block text-xs mb-0.5">Tolls</label>
                 <input
                   v-model.number="plan.roadTrip.tolls"
                   type="number"
                   min="0"
-                  :disabled="plan.roadTrip.autoCalculateTolls"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="w-full rounded px-2 py-1 text-sm border"
+                  :placeholder="roadTripDistance > 0 ? formatCurrency(estimatedTollsCost) : 'Auto'"
                 />
               </div>
-              <div
-                v-if="totalDistance > 0"
-                class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700"
-              >
-                <div class="flex justify-between items-center text-sm">
-                  <span class="text-gray-600 dark:text-gray-400">
-                    {{ plan.roadTrip.autoCalculateTolls ? 'Calculated' : 'Estimated' }} Tolls:
-                  </span>
-                  <span class="font-bold text-gray-900 dark:text-white">
-                    {{ formatCurrency(estimatedTollsCost) }}
-                  </span>
-                </div>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Based on distance: {{ totalDistance.toFixed(1) }} km
-                </p>
-              </div>
-            </div>
-
-            <!-- Other Expenses -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Parking
-                </label>
+              <div class="min-w-[75px]">
+                <label class="block text-xs mb-0.5">Parking</label>
                 <input
                   v-model.number="plan.roadTrip.parking"
                   type="number"
                   min="0"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  class="w-full rounded px-2 py-1 text-sm border"
+                  :placeholder="
+                    roadTripDistance > 0 ? formatCurrency(estimatedParkingCost) : 'Auto'
+                  "
                 />
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Misc Expenses
-                </label>
+              <div class="min-w-[60px]">
+                <label class="block text-xs mb-0.5">Misc</label>
                 <input
                   v-model.number="plan.roadTrip.misc"
                   type="number"
                   min="0"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  class="w-full rounded px-2 py-1 text-sm border"
+                  placeholder="0"
                 />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Sightseeing/Detours
-                </label>
-                <div class="flex gap-2">
-                  <input
-                    v-model.number="plan.roadTrip.sightseeing"
-                    type="number"
-                    min="0"
-                    class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                  <button
-                    type="button"
-                    class="px-2 py-1 text-xs bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                    title="Estimate based on destinations"
-                    @click="autoCalculateSightseeing"
-                  >
-                    <Icon icon="mdi:auto-fix" class="text-sm" />
-                  </button>
-                </div>
-                <p
-                  v-if="plan.destinations.length > 0"
-                  class="text-xs text-gray-500 dark:text-gray-400 mt-1"
-                >
-                  Estimated: {{ formatCurrency(estimatedSightseeingCost) }}
-                </p>
               </div>
             </div>
 
             <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
               <div class="space-y-2">
                 <div class="flex justify-between items-center">
-                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Estimated Road Trip Cost:
-                  </span>
-                  <span class="text-lg font-bold text-gray-900 dark:text-white">
-                    {{ formatCurrency(roadTripCost) }}
-                  </span>
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >Estimated Road Trip Cost:</span
+                  >
+                  <span class="text-lg font-bold text-gray-900 dark:text-white">{{
+                    formatCurrency(roadTripCost)
+                  }}</span>
                 </div>
                 <div
-                  v-if="totalDistance > 0"
+                  v-if="roadTripDistance > 0"
                   class="text-xs text-gray-500 dark:text-gray-400 space-y-1 pl-4 border-l-2 border-gray-200 dark:border-slate-700"
                 >
                   <div class="flex justify-between">
                     <span>Fuel:</span>
                     <span>{{
                       formatCurrency(
-                        plan.roadTrip.autoCalculateFuel
-                          ? estimatedFuelCost
-                          : totalDistance > 0 &&
-                              plan.roadTrip.mileage > 0 &&
-                              plan.roadTrip.petrolPrice > 0
-                            ? (totalDistance / plan.roadTrip.mileage) * plan.roadTrip.petrolPrice
+                        plan.roadTrip.fuelOverride > 0
+                          ? plan.roadTrip.fuelOverride
+                          : plan.roadTrip.mileage > 0 && plan.roadTrip.petrolPrice > 0
+                            ? estimatedFuelCost
                             : 0,
                       )
                     }}</span>
@@ -4178,13 +3931,17 @@ onMounted(async () => {
                     <span>Tolls:</span>
                     <span>{{
                       formatCurrency(
-                        plan.roadTrip.autoCalculateTolls ? estimatedTollsCost : plan.roadTrip.tolls,
+                        plan.roadTrip.tolls > 0 ? plan.roadTrip.tolls : estimatedTollsCost,
                       )
                     }}</span>
                   </div>
-                  <div v-if="plan.roadTrip.parking > 0" class="flex justify-between">
+                  <div class="flex justify-between">
                     <span>Parking:</span>
-                    <span>{{ formatCurrency(plan.roadTrip.parking) }}</span>
+                    <span>{{
+                      formatCurrency(
+                        plan.roadTrip.parking > 0 ? plan.roadTrip.parking : estimatedParkingCost,
+                      )
+                    }}</span>
                   </div>
                   <div v-if="plan.roadTrip.sightseeing > 0" class="flex justify-between">
                     <span>Sightseeing:</span>
@@ -4207,7 +3964,7 @@ onMounted(async () => {
         >
           <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Icon icon="mdi:airplane" class="text-sky-600 dark:text-sky-400" />
-            Public Transport Costs
+            Public Transport
           </h2>
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2">

@@ -47,7 +47,7 @@ useHead({
 <template>
   <Analytics />
   <SpeedInsights />
-  <div class="bg-[#F1F2F4] dark:text-zinc-300 dark:bg-slate-950">
+  <div class="bg-[#F1F2F4] dark:text-zinc-300 dark:bg-slate-950 overflow-x-hidden min-w-0">
     <NuxtLoadingIndicator />
     <NuxtLayout>
       <NuxtPage />
@@ -109,16 +109,33 @@ article > a {
 
 /* Improve mobile text readability */
 @media (max-width: 640px) {
+  html,
   body {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
-  /* Ensure proper spacing on mobile */
+  /* Ensure proper spacing on mobile - prevent horizontal scroll */
   .container {
     padding-left: 1rem;
     padding-right: 1rem;
+    max-width: 100%;
   }
+}
+
+/* Prose content - prevent code blocks and tables from causing horizontal scroll */
+.prose pre,
+.prose pre code {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.prose table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 /* Image Protection Styles - imported from assets/css/image-protection.css */
