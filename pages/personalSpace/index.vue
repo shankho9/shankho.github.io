@@ -262,17 +262,19 @@ try {
 </script>
 
 <template>
-  <main class="container max-w-5xl mx-auto text-zinc-600 overflow-x-hidden px-3 sm:px-6">
+  <main
+    class="container max-w-5xl mx-auto text-zinc-600 overflow-x-hidden px-3 sm:px-6 w-full min-w-0"
+  >
     <PersonalSpaceHero />
 
     <!-- LifeLines Content (Visible to All, Auth Required for Details) -->
     <div>
       <!-- Stats Section -->
-      <div class="px-6 mb-6">
+      <div class="px-3 sm:px-6 mb-6">
         <div
-          class="flex flex-row justify-around sm:justify-around gap-2 sm:gap-4 p-3 sm:p-4 bg-[#F1F2F4] dark:bg-slate-900 rounded-2xl"
+          class="flex flex-row justify-around gap-2 sm:gap-4 p-3 sm:p-4 bg-[#F1F2F4] dark:bg-slate-900 rounded-2xl min-w-0 overflow-hidden"
         >
-          <div class="text-center flex-1">
+          <div class="text-center flex-1 min-w-0">
             <div class="text-2xl sm:text-3xl font-bold text-sky-700 dark:text-sky-400">
               {{ stats.totalPosts }}
             </div>
@@ -280,7 +282,7 @@ try {
               Total Lifelines
             </div>
           </div>
-          <div class="text-center flex-1">
+          <div class="text-center flex-1 min-w-0">
             <div class="text-2xl sm:text-3xl font-bold text-sky-700 dark:text-sky-400">
               {{ stats.totalTags }}
             </div>
@@ -290,7 +292,7 @@ try {
       </div>
 
       <!-- Controls Section -->
-      <div class="px-6 mb-6 space-y-4">
+      <div class="px-3 sm:px-6 mb-6 space-y-4 min-w-0">
         <!-- Search and View Toggle -->
         <div class="flex flex-col sm:flex-row gap-4 items-center">
           <div class="flex-1 w-full">
@@ -336,7 +338,7 @@ try {
             <select
               id="sort"
               v-model="sortBy"
-              class="bg-[#F1F2F4] dark:bg-slate-900 text-zinc-700 dark:text-zinc-300 rounded-md border-gray-300 dark:border-gray-800 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 px-3 py-2 pr-8 text-sm min-w-[160px]"
+              class="bg-[#F1F2F4] dark:bg-slate-900 text-zinc-700 dark:text-zinc-300 rounded-md border-gray-300 dark:border-gray-800 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 px-3 py-2 pr-8 text-sm min-w-0 max-w-full sm:min-w-[160px]"
             >
               <option value="date-desc">Newest First</option>
               <option value="date-asc">Oldest First</option>
@@ -378,7 +380,7 @@ try {
       </div>
 
       <!-- Results Count -->
-      <div class="px-6 mb-4">
+      <div class="px-3 sm:px-6 mb-4 min-w-0">
         <p class="text-sm text-zinc-600 dark:text-zinc-400">
           Showing {{ paginatedData.length }} of {{ sortedData.length }} lifelines
           <span v-if="selectedTags.length > 0 || searchTest.trim()"> (filtered) </span>
@@ -386,11 +388,11 @@ try {
       </div>
 
       <!-- Lifelines Posts -->
-      <div v-auto-animate class="px-4 mb-6">
+      <div v-auto-animate class="px-2 sm:px-4 mb-6 min-w-0 overflow-hidden">
         <!-- Grid View -->
         <div
           v-if="viewMode === 'grid'"
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 min-w-0"
         >
           <template v-for="post in paginatedData" :key="post.path">
             <PersonalSpaceCard
@@ -411,7 +413,7 @@ try {
         </div>
 
         <!-- List View -->
-        <div v-else class="space-y-5">
+        <div v-else class="space-y-5 min-w-0">
           <template v-for="post in paginatedData" :key="post.path">
             <ArchiveCard
               :path="post.path"
@@ -433,7 +435,7 @@ try {
       </div>
 
       <!-- Pagination -->
-      <div v-if="totalPage > 1" class="px-6 mb-6">
+      <div v-if="totalPage > 1" class="px-3 sm:px-6 mb-6">
         <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
           <!-- Previous Button -->
           <button

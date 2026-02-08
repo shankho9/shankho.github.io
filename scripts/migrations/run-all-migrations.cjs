@@ -4,10 +4,10 @@
  * (destructive; recreates entire DB). Requires create_auth_tables etc. to exist.
  *
  * Usage:
- *   node scripts/migrations/run-all-migrations.js
- *   node scripts/migrations/run-all-migrations.js --recreate
- *   NODE_ENV=production node scripts/migrations/run-all-migrations.js
- *   NODE_ENV=production node scripts/migrations/run-all-migrations.js --recreate
+ *   node scripts/migrations/run-all-migrations.cjs
+ *   node scripts/migrations/run-all-migrations.cjs --recreate
+ *   NODE_ENV=production node scripts/migrations/run-all-migrations.cjs
+ *   NODE_ENV=production node scripts/migrations/run-all-migrations.cjs --recreate
  */
 
 const { readFileSync, existsSync } = require('fs')

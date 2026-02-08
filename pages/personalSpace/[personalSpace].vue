@@ -171,11 +171,11 @@ try {
 </script>
 
 <template>
-  <div>
+  <div class="overflow-x-hidden min-w-0 w-full">
     <ReadingProgress />
 
     <!-- Authentication Required Message -->
-    <div v-if="!isAuthenticated" class="max-w-2xl mx-auto mt-12 px-6">
+    <div v-if="!isAuthenticated" class="max-w-2xl mx-auto mt-12 px-4 sm:px-6">
       <div
         class="bg-white dark:bg-slate-800 rounded-xl p-8 text-center border border-gray-200 dark:border-slate-700 shadow-lg"
       >
@@ -195,8 +195,11 @@ try {
     </div>
 
     <!-- LifeLine Content (Authenticated Users Only) -->
-    <div v-else class="px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12">
-      <div class="col-span-12 lg:col-span-9 blog-content-container">
+    <div
+      v-else
+      class="px-3 sm:px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12 overflow-x-hidden w-full"
+    >
+      <div class="col-span-12 lg:col-span-9 blog-content-container min-w-0">
         <div class="flex items-center justify-between mb-4 gap-4 flex-wrap">
           <div class="flex items-center gap-2">
             <FocusMode />
@@ -204,7 +207,9 @@ try {
           </div>
         </div>
 
-        <article class="prose prose-lg dark:prose-invert max-w-none">
+        <article
+          class="prose prose-lg dark:prose-invert max-w-full prose-pre:overflow-x-auto prose-pre:max-w-full prose-img:max-w-full"
+        >
           <ContentRenderer :value="articles" />
         </article>
 

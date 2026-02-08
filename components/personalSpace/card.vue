@@ -28,20 +28,20 @@ withDefaults(defineProps<Props>(), {
 
 <template>
   <article
-    class="group border dark:border-gray-800 m-2 overflow-hidden rounded-2xl shadow-sm text-zinc-700 dark:text-zinc-300"
+    class="group border dark:border-gray-800 m-2 overflow-hidden rounded-2xl shadow-sm text-zinc-700 dark:text-zinc-300 min-w-0"
   >
     <NuxtLink
       :to="path"
-      class="block touch-manipulation"
+      class="block touch-manipulation min-w-0 overflow-hidden"
       style="touch-action: manipulation; -webkit-tap-highlight-color: transparent"
     >
       <NuxtImg
-        class="lg:h-48 md:h-36 w-full object-cover object-center rounded-t-2xl shadow-lg group-hover:scale-[1.02] transition-all duration-500"
+        class="lg:h-48 md:h-36 w-full max-w-full object-cover object-center rounded-t-2xl shadow-lg group-hover:scale-[1.02] transition-all duration-500"
         width="300"
         :src="image"
         :alt="alt"
       />
-      <div class="px-3 pb-4">
+      <div class="px-3 pb-4 min-w-0 overflow-hidden">
         <div class="text-black dark:text-zinc-300 pt-3 pb-2">
           <div class="flex items-center">
             <LogoDate />
@@ -57,11 +57,11 @@ withDefaults(defineProps<Props>(), {
           </div>
         </div>
         <h2
-          class="text-xl font-semibold text-black dark:text-zinc-300 pb-1 group-hover:text-sky-700 dark:group-hover:text-sky-400"
+          class="text-xl font-semibold text-black dark:text-zinc-300 pb-1 group-hover:text-sky-700 dark:group-hover:text-sky-400 break-words overflow-hidden"
         >
           {{ title }}
         </h2>
-        <p class="text-ellipsis line-clamp-2 text-base">
+        <p class="text-ellipsis line-clamp-2 text-base break-words overflow-hidden">
           {{ description }}
         </p>
         <div class="flex group-hover:underline text-sky-700 dark:text-sky-400 items-center py-2">

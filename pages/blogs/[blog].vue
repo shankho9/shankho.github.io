@@ -103,7 +103,7 @@ useHead({
 </script>
 
 <template>
-  <div>
+  <div class="overflow-x-hidden min-w-0">
     <!-- Structured Data for Blog Post SEO -->
     <SeoBlogPostSchema
       :title="data.title"
@@ -115,9 +115,9 @@ useHead({
 
     <ReadingProgress />
     <div
-      class="px-3 sm:px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12 overflow-x-hidden"
+      class="px-3 sm:px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12 overflow-x-hidden w-full"
     >
-      <div class="col-span-12 lg:col-span-9 blog-content-container">
+      <div class="col-span-12 lg:col-span-9 blog-content-container min-w-0">
         <div class="flex items-center justify-between mb-4 gap-4 flex-wrap">
           <div class="flex items-center gap-2">
             <FocusMode />
@@ -141,7 +141,7 @@ useHead({
         </div>
 
         <div
-          class="prose prose-pre:max-w-xs sm:prose-pre:max-w-full prose-sm sm:prose-base md:prose-lg prose-h1:no-underline max-w-5xl mx-auto prose-zinc dark:prose-invert prose-img:rounded-lg"
+          class="prose prose-pre:max-w-full prose-pre:overflow-x-auto prose-sm sm:prose-base md:prose-lg prose-h1:no-underline max-w-full prose-zinc dark:prose-invert prose-img:rounded-lg prose-img:max-w-full"
         >
           <ContentRenderer v-if="articles" :value="articles">
             <template #empty>
@@ -171,7 +171,7 @@ useHead({
       <!-- Share Icons -->
       <div class="col-span-12 lg:col-span-9 mt-10 mb-8">
         <h3 class="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-4">Share using</h3>
-        <div class="flex flex-row flex-wrap md:flex-nowrap gap-2">
+        <div class="flex flex-row flex-wrap gap-2 min-w-0">
           <div
             v-for="network in ['facebook', 'twitter', 'linkedin', 'whatsapp', 'email']"
             :key="network"

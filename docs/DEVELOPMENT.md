@@ -23,7 +23,7 @@ npm run migrate:recreate
 npm run migrate:recreate:prod
 ```
 
-Requires `DATABASE_URL` in `.env` or `.env.production`. Migrations live in `server/db/migrations/`. Order and skip logic are in `scripts/migrations/run-all-migrations.js`.
+Requires `DATABASE_URL` in `.env` or `.env.production`. Migrations live in `server/db/migrations/`. Order and skip logic are in `scripts/migrations/run-all-migrations.cjs`.
 
 ---
 

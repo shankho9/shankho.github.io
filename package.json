@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "license": "MIT",
+  "type": "module",
   "imports": {
     "#internal/nuxt/paths": "./internal/nuxt/paths.mjs"
   },
@@ -17,14 +18,14 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --check ./",
     "format:fix": "prettier --write ./",
-    "migrate": "node scripts/migrations/run-all-migrations.js",
-    "migrate:prod": "NODE_ENV=production node scripts/migrations/run-all-migrations.js",
-    "migrate:recreate": "node scripts/migrations/run-all-migrations.js --recreate",
-    "migrate:recreate:prod": "NODE_ENV=production node scripts/migrations/run-all-migrations.js --recreate",
-    "check:db:structure": "node scripts/check-table-structure.js",
-    "check:db:structure:prod": "NODE_ENV=production node scripts/check-table-structure.js",
-    "test:tasks": "node scripts/tests/task-management.test.js",
-    "test:tasks:prod": "NODE_ENV=production node scripts/tests/task-management.test.js"
+    "migrate": "node scripts/migrations/run-all-migrations.cjs",
+    "migrate:prod": "NODE_ENV=production node scripts/migrations/run-all-migrations.cjs",
+    "migrate:recreate": "node scripts/migrations/run-all-migrations.cjs --recreate",
+    "migrate:recreate:prod": "NODE_ENV=production node scripts/migrations/run-all-migrations.cjs --recreate",
+    "check:db:structure": "node scripts/check-table-structure.cjs",
+    "check:db:structure:prod": "NODE_ENV=production node scripts/check-table-structure.cjs",
+    "test:tasks": "node scripts/tests/task-management.test.cjs",
+    "test:tasks:prod": "NODE_ENV=production node scripts/tests/task-management.test.cjs"
   },
   "devDependencies": {
     "@formkit/auto-animate": "^0.8.2",
