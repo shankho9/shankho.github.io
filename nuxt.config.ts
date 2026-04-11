@@ -221,6 +221,13 @@ export default defineNuxtConfig({
     strict: true,
   },
 
+  // nuxt-og-image v6: pin Satori so CI does not require optional @takumi-rs/* peers
+  ogImage: {
+    defaults: {
+      renderer: 'satori',
+    },
+  },
+
   image: {
     // Allow @nuxt/image to optimize images from ImageKit domains
     domains: ['ik.imagekit.io', 'imagekit.io'],

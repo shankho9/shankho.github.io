@@ -1,23 +1,20 @@
-import { defineCollection, defineContentConfig } from '@nuxt/content'
+import { defineCollection, defineContentConfig, z } from '@nuxt/content'
 import { asRobotsCollection } from '@nuxtjs/robots/content'
 import { asSitemapCollection } from '@nuxtjs/sitemap/content'
-import { asOgImageCollection } from 'nuxt-og-image/content'
+import { defineOgImageSchema } from 'nuxt-og-image/content'
 
 export default defineContentConfig({
   collections: {
-    content: defineCollection({
-      ...asRobotsCollection({
-        type: 'page',
-        source: '**/*.md',
-      }),
-      ...asSitemapCollection({
-        type: 'page',
-        source: '**/*.md',
-      }),
-      ...asOgImageCollection({
-        type: 'page',
-        source: '**/*.md',
-      }),
-    }),
+    content: defineCollection(
+      asSitemapCollection(
+        asRobotsCollection({
+          type: 'page',
+          source: '**/*.md',
+          schema: z.object({
+            ogImage: defineOgImageSchema({ z }),
+          }),
+        }),
+      ),
+    ),
   },
 })
