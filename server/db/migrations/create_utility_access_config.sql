@@ -17,8 +17,7 @@ INSERT INTO utility_access_config (utility_id, roles_allowed) VALUES
   ('car-manager', '["visitor","admin"]'),
   ('locations', '["visitor","admin"]'),
   ('car-lease-calculator', '["visitor","admin"]'),
-  ('rent-vs-buy-calculator', '["visitor","admin"]'),
-  ('planner', '["visitor","admin"]')
+  ('rent-vs-buy-calculator', '["visitor","admin"]')
 ON CONFLICT (utility_id) DO NOTHING;
 
 CREATE INDEX IF NOT EXISTS idx_utility_access_config_utility_id ON utility_access_config(utility_id);

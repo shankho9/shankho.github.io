@@ -112,7 +112,7 @@ const handleVerify = async () => {
       sessionStorage.setItem('utility_passcode_verified', 'true')
 
       // Redirect to intended page or default
-      const redirect = (route.query.redirect as string) || '/dev/planner'
+      const redirect = (route.query.redirect as string) || '/dev'
       await router.push(redirect)
     } else {
       errorMessage.value = result.error || 'Invalid passcode'

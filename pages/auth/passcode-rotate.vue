@@ -9,7 +9,7 @@
         </h2>
         <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
           Enter your current utilities passcode and set a new one. This passcode unlocks
-          passcode-protected utilities (e.g. Planner, calculators).
+          passcode-protected utilities (e.g. calculators).
         </p>
       </div>
 

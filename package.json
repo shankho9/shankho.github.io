@@ -23,9 +23,7 @@
     "migrate:recreate": "node scripts/migrations/run-all-migrations.cjs --recreate",
     "migrate:recreate:prod": "NODE_ENV=production node scripts/migrations/run-all-migrations.cjs --recreate",
     "check:db:structure": "node scripts/check-table-structure.cjs",
-    "check:db:structure:prod": "NODE_ENV=production node scripts/check-table-structure.cjs",
-    "test:tasks": "node scripts/tests/task-management.test.cjs",
-    "test:tasks:prod": "NODE_ENV=production node scripts/tests/task-management.test.cjs"
+    "check:db:structure:prod": "NODE_ENV=production node scripts/check-table-structure.cjs"
   },
   "devDependencies": {
     "@formkit/auto-animate": "^0.8.2",
@@ -65,7 +63,6 @@
   },
   "dependencies": {
     "@nuxtjs/google-analytics": "^2.4.0",
-    "@shankho/nuxt-blog": "file:",
     "@types/bcrypt": "^6.0.0",
     "@types/qrcode": "^1.5.6",
     "@vercel/analytics": "^1.5.0",

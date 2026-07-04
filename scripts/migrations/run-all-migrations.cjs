@@ -32,12 +32,6 @@ const MIGRATION_ORDER = [
   'add_user_role.sql',
   'add-oauth-providers.sql',
   'update_auth_provider_constraint.sql',
-  'create_planner_tables.sql',
-  'add_theme_to_tasks.sql',
-  'add_rollover_count_to_tasks.sql',
-  'add_task_dependencies.sql',
-  'add_task_archival.sql',
-  'add_task_performance_indexes.sql',
   'create_comments_table.sql',
   'create_comment_reactions_table.sql',
   'update_comment_reactions_one_per_user.sql',
@@ -55,6 +49,7 @@ const MIGRATION_ORDER = [
   'create_travel_places.sql',
   'create_travel_plans_table.sql',
   'add_travel_planner_utility.sql',
+  'drop_planner_tables.sql',
 ]
 
 async function run() {

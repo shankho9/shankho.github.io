@@ -1,4 +1,10 @@
 {
+  "npm.exclude": ["**/.output/**", "**/.nuxt/**", "**/.data/**"],
+  "files.watcherExclude": {
+    "**/.output/**": true,
+    "**/.nuxt/**": true,
+    "**/.data/**": true
+  },
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.codeActionsOnSave": {

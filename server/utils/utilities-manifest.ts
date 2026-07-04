@@ -70,7 +70,6 @@ export const UTILITIES_MANIFEST: UtilityManifestItem[] = [
     route: '/dev/locations',
     section: 'Content & Data Managers',
   },
-  { id: 'planner', name: 'Personal Planner', route: '/dev/planner', section: 'Planning' },
   {
     id: 'car-lease-calculator',
     name: 'Car Lease Calculator',

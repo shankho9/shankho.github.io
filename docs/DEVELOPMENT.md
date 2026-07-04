@@ -63,12 +63,6 @@ Unified auth: email/password (with MFA) and Google OAuth. Sessions in DB; httpOn
 
 ---
 
-## Planner
-
-Task planner at `/dev/planner`. Eisenhower-style quadrants, MIT flag, planned dates. Uses `tasks` and `weekly_reviews` tables.
-
----
-
 ## Notion (Library Resources)
 
 - Create integration at notion.so/my-integrations; share DB with it.

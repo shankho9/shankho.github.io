@@ -582,38 +582,6 @@
             </h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
               <NuxtLink
-                v-if="canAccess('planner')"
-                to="/dev/planner"
-                class="group flex flex-col rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm transition-all hover:border-orange-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-orange-600 active:scale-[0.99] touch-manipulation"
-              >
-                <div class="flex items-center gap-3 mb-3">
-                  <div
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/50"
-                  >
-                    <Icon
-                      name="mdi:calendar-check"
-                      size="22"
-                      class="text-orange-600 dark:text-orange-400"
-                    />
-                  </div>
-                  <div class="min-w-0">
-                    <h3 class="font-semibold text-gray-900 dark:text-gray-100">Personal Planner</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                      Daily planning & tasks
-                      <span
-                        v-if="requiresPasscode('planner')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
-                    </p>
-                  </div>
-                </div>
-                <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                  Daily planner with Kanban board, weekly reviews, and printable plans
-                </p>
-              </NuxtLink>
-              <NuxtLink
                 v-if="canAccess('travel-planner')"
                 to="/dev/utilities/travel-planner"
                 class="group flex flex-col rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm transition-all hover:border-indigo-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-indigo-600 active:scale-[0.99] touch-manipulation"
