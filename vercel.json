@@ -2,6 +2,6 @@
   "framework": "nuxtjs",
   "regions": ["iad1"],
   "env": {
-    "NUXT_PUBLIC_SITE_URL": "https://www.nomadic-noions.co.in"
+    "NUXT_PUBLIC_SITE_URL": "https://www.nomadic-notions.co.in"
   }
 }

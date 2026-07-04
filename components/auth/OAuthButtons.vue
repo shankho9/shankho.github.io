@@ -39,7 +39,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import type { OAuthProvider } from '~/types/oauth'
-import { getEnabledProviders, getProviderConfig } from '~/utils/oauth/providers'
+import { getEnabledProvidersFromConfig, getProviderConfig } from '~/utils/oauth/providers'
+import { resolvePublicOAuthConfig } from '~/composables/usePublicOAuthConfig'
 import { useOAuth } from '~/composables/useOAuth'
 import { useAuth } from '~/composables/useAuth'
 
@@ -127,25 +128,31 @@ const iconSize = computed(() => {
   }
 })
 
-const enabledProviders = computed(() => {
-  try {
-    return getEnabledProviders()
-  } catch {
-    // Return empty array if there's an error - better than crashing
-    return []
+const enabledProviders = ref<OAuthProvider[]>([])
+
+onMounted(async () => {
+  const oauthConfig = await resolvePublicOAuthConfig()
+  enabledProviders.value = getEnabledProvidersFromConfig(oauthConfig)
+
+  for (const provider of enabledProviders.value) {
+    try {
+      await initializeProvider(provider)
+    } catch (error) {
+      console.warn(`[OAuthButtons] Failed to initialize ${provider}:`, error)
+    }
   }
 })
 
 const handleProviderClick = async (provider: OAuthProvider) => {
   try {
     await initializeProvider(provider)
+    const oauthConfig = await resolvePublicOAuthConfig()
 
     switch (provider) {
       case 'google':
         // For Google, use the credential flow with a popup trigger
         if (typeof window !== 'undefined' && window.google?.accounts?.id) {
-          const config = useRuntimeConfig()
-          const clientId = config.public.googleClientId
+          const clientId = oauthConfig.googleClientId
           if (!clientId) {
             throw new Error('Google Client ID not configured')
           }
@@ -231,17 +238,6 @@ const handleProviderClick = async (provider: OAuthProvider) => {
     emit('error', errorMessage)
   }
 }
-
-// Initialize all enabled providers on mount
-onMounted(async () => {
-  for (const provider of enabledProviders.value) {
-    try {
-      await initializeProvider(provider)
-    } catch (error) {
-      console.warn(`[OAuthButtons] Failed to initialize ${provider}:`, error)
-    }
-  }
-})
 
 onUnmounted(() => {
   // Clean up all temporary containers when component is unmounted

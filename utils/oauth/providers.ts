@@ -24,23 +24,15 @@ export const oauthProviders: Record<OAuthProvider, OAuthProviderConfig> = {
 }
 
 /**
- * Get enabled OAuth providers based on runtime config
+ * Get enabled OAuth providers from resolved client IDs.
  */
-export function getEnabledProviders(): OAuthProvider[] {
-  const config = useRuntimeConfig()
+export function getEnabledProvidersFromConfig(config: {
+  googleClientId?: string
+  githubClientId?: string
+}): OAuthProvider[] {
   const enabled: OAuthProvider[] = []
-
-  // Check each provider's configuration
-  // Trim values to handle any accidental whitespace
-  const googleId = config.public.googleClientId?.trim()
-  let githubId = config.public.githubClientId?.trim()
-
-  // Fallback: If runtime config doesn't have it but process.env does, use process.env
-  // This handles cases where the server hasn't fully loaded the config yet
-  // NOTE: This only works on server-side, not client-side
-  if (!githubId && typeof process !== 'undefined' && process.env.NUXT_PUBLIC_GITHUB_CLIENT_ID) {
-    githubId = process.env.NUXT_PUBLIC_GITHUB_CLIENT_ID.trim()
-  }
+  const googleId = config.googleClientId?.trim()
+  const githubId = config.githubClientId?.trim()
 
   if (googleId) {
     enabled.push('google')
@@ -50,6 +42,24 @@ export function getEnabledProviders(): OAuthProvider[] {
   }
 
   return enabled
+}
+
+/**
+ * Get enabled OAuth providers based on runtime config (sync; may be empty on client until resolved).
+ */
+export function getEnabledProviders(): OAuthProvider[] {
+  const config = useRuntimeConfig()
+  let githubId = config.public.githubClientId?.trim()
+
+  // Server-only fallback when runtime config is not yet hydrated
+  if (!githubId && typeof process !== 'undefined' && process.env.NUXT_PUBLIC_GITHUB_CLIENT_ID) {
+    githubId = process.env.NUXT_PUBLIC_GITHUB_CLIENT_ID.trim()
+  }
+
+  return getEnabledProvidersFromConfig({
+    googleClientId: config.public.googleClientId,
+    githubClientId: githubId,
+  })
 }
 
 /**

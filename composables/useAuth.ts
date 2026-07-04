@@ -452,13 +452,14 @@ export const useAuth = () => {
   /**
    * Sign in with Google (prompts user)
    */
-  const signIn = () => {
+  const signIn = async () => {
     if (typeof window === 'undefined' || !window.google) {
       console.error('[Auth] Google Identity Services not loaded')
       return
     }
 
-    const clientId = useRuntimeConfig().public.googleClientId
+    const oauthConfig = await resolvePublicOAuthConfig()
+    const clientId = oauthConfig.googleClientId
     if (!clientId) {
       console.error('[Auth] Google Client ID not configured')
       return

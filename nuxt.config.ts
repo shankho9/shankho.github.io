@@ -11,7 +11,7 @@ export default defineNuxtConfig({
   // CRITICAL: Always ensure url is a string, never undefined
   // nuxt-og-image calls .replace() on this, so it must be a string
   site: {
-    url: String(process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app'),
+    url: String(process.env.NUXT_PUBLIC_SITE_URL || 'https://www.nomadic-notions.co.in'),
     name: "Sid's Blog | Nomadic Notions",
   },
 
@@ -30,7 +30,7 @@ export default defineNuxtConfig({
           // Set production URL to override buildEnv auto-detection
           // Prevents localhost warnings during build
           // CRITICAL: Always ensure url is a string
-          url: String(process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app'),
+          url: String(process.env.NUXT_PUBLIC_SITE_URL || 'https://www.nomadic-notions.co.in'),
         },
         routes: [
           '/',
@@ -174,7 +174,7 @@ export default defineNuxtConfig({
       process.env.GOOGLE_MAPS_SERVER_API_KEY || process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY,
     public: {
       // CRITICAL: Always ensure siteUrl is a string, never undefined
-      siteUrl: String(process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app'),
+      siteUrl: String(process.env.NUXT_PUBLIC_SITE_URL || 'https://www.nomadic-notions.co.in'),
       googleAnalytics: {
         id: process.env.NUXT_PUBLIC_GOOGLE_ANALYTICS_ID,
         debug: process.env.NODE_ENV !== 'production',

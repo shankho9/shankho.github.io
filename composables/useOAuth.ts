@@ -116,8 +116,8 @@ export const useOAuth = () => {
       return { success: false, error: 'Window is not available' }
     }
 
-    const config = useRuntimeConfig()
-    const clientId = config.public.githubClientId
+    const oauthConfig = await resolvePublicOAuthConfig()
+    const clientId = oauthConfig.githubClientId
 
     if (!clientId) {
       return { success: false, error: 'GitHub Client ID not configured' }

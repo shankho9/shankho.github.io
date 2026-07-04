@@ -1421,7 +1421,7 @@ onMounted(async () => {
     const maxRetries = 50
     const retryInterval = 100
 
-    const attemptRender = () => {
+    const attemptRender = async () => {
       if (typeof window === 'undefined' || !window.google || !window.google.accounts) {
         if (retryCount < maxRetries) {
           retryCount++
@@ -1430,7 +1430,8 @@ onMounted(async () => {
         return
       }
 
-      const clientId = useRuntimeConfig().public.googleClientId
+      const oauthConfig = await resolvePublicOAuthConfig()
+      const clientId = oauthConfig.googleClientId
       if (!clientId) {
         console.error('[Locations] Google Client ID not configured')
         return
@@ -1515,14 +1516,15 @@ watch(isAuthenticated, async (newValue) => {
     checkAndLoad()
   } else if (typeof window !== 'undefined') {
     // When not authenticated, render sign-in button
-    nextTick(() => {
+    nextTick(async () => {
       if (typeof window === 'undefined' || !window.google || !window.google.accounts) return
 
       const buttonElement = document.getElementById('google-signin-button-locations')
       if (!buttonElement) return
 
       buttonElement.innerHTML = ''
-      const clientId = useRuntimeConfig().public.googleClientId
+      const oauthConfig = await resolvePublicOAuthConfig()
+      const clientId = oauthConfig.googleClientId
       if (!clientId) {
         console.error('[Locations] Google Client ID not configured')
         return
