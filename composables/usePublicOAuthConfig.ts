@@ -3,6 +3,12 @@ export interface PublicOAuthConfig {
   githubClientId: string
 }
 
+let resolvePromise: Promise<PublicOAuthConfig> | null = null
+
+function getConfigState() {
+  return useState<PublicOAuthConfig | null>('public-oauth-config', () => null)
+}
+
 function readFromRuntimeConfig(): PublicOAuthConfig {
   const runtime = useRuntimeConfig().public
   return {
@@ -11,11 +17,10 @@ function readFromRuntimeConfig(): PublicOAuthConfig {
   }
 }
 
-const configState = useState<PublicOAuthConfig | null>('public-oauth-config', () => null)
-let resolvePromise: Promise<PublicOAuthConfig> | null = null
-
 /** Resolve OAuth client IDs from build-time config or /api/config/public at runtime. */
 export async function resolvePublicOAuthConfig(): Promise<PublicOAuthConfig> {
+  const configState = getConfigState()
+
   if (configState.value) {
     return configState.value
   }
@@ -40,8 +45,8 @@ export async function resolvePublicOAuthConfig(): Promise<PublicOAuthConfig> {
     try {
       const fetched = await $fetch<PublicOAuthConfig>('/api/config/public')
       configState.value = {
-        googleClientId: fetched.googleClientId?.trim() || fromRuntime.googleClientId,
-        githubClientId: fetched.githubClientId?.trim() || fromRuntime.githubClientId,
+        googleClientId: fromRuntime.googleClientId || fetched.googleClientId?.trim() || '',
+        githubClientId: fromRuntime.githubClientId || fetched.githubClientId?.trim() || '',
       }
     } catch (error) {
       console.warn('[OAuth] Failed to load public config from API:', error)
@@ -60,7 +65,7 @@ export async function resolvePublicOAuthConfig(): Promise<PublicOAuthConfig> {
 
 export function usePublicOAuthConfig() {
   return {
-    config: configState,
+    config: getConfigState(),
     resolvePublicOAuthConfig,
   }
 }
