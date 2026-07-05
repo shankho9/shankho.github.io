@@ -1092,6 +1092,8 @@ try {
         </div>
       </div>
 
+      <LibraryIntegrationNote v-if="isAuthenticated || !currentTabRequiresAuth" :tab="activeTab" />
+
       <LibraryShareBar
         v-if="
           activeTab === 'videos' ||
@@ -1138,8 +1140,6 @@ try {
       </div>
 
       <!-- Tab Content -->
-      <LibraryIntegrationNote v-if="isAuthenticated || !currentTabRequiresAuth" :tab="activeTab" />
-
       <Transition
         mode="out-in"
         enter-active-class="transition-all duration-300 ease-out"

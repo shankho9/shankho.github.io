@@ -319,12 +319,24 @@
                 Expires {{ formatDate(adminPasscodeStatus.expiresAt) }}.
               </span>
             </p>
-            <NuxtLink
-              to="/auth/admin-passcode-rotate"
-              class="mt-2 inline-block text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
-            >
-              Rotate admin passcode →
-            </NuxtLink>
+            <div class="mt-3 flex flex-wrap gap-3">
+              <NuxtLink
+                :to="{
+                  path: '/auth/admin-passcode',
+                  query: { redirect: (route.query.redirect as string) || '/dev' },
+                }"
+                class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                <Icon name="mdi:tools" size="18" />
+                Open Utilities
+              </NuxtLink>
+              <NuxtLink
+                to="/auth/admin-passcode-rotate"
+                class="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+              >
+                Rotate admin passcode →
+              </NuxtLink>
+            </div>
           </div>
           <form
             v-if="!adminPasscodeStatus.isSet || adminPasscodeStatus.needsRotation"
@@ -399,6 +411,11 @@
 import { ref, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
+import {
+  isApiSuccessResponse,
+  readApiErrorMessage,
+  readFetchErrorMessage,
+} from '~/utils/fetchError'
 
 definePageMeta({
   layout: 'default',
@@ -591,38 +608,57 @@ const handleSetAdminPasscode = async () => {
     adminPasscodeError.value = 'Admin passcode must be at least 6 characters long'
     return
   }
+
+  const passcodeJustSet = adminPasscodeForm.value.passcode
+  const redirectTarget = (route.query.redirect as string | undefined) || '/dev'
   isSettingAdminPasscode.value = true
   try {
     const response = await $fetch<{ success: boolean; error?: string; message?: string }>(
       '/api/auth/admin-passcode/set',
       {
         method: 'POST',
-        body: { passcode: adminPasscodeForm.value.passcode },
+        body: { passcode: passcodeJustSet },
       },
     )
-    if (response.success) {
-      adminPasscodeSuccess.value = 'Admin passcode set successfully'
+    if (isApiSuccessResponse(response)) {
+      adminPasscodeSuccess.value = readApiErrorMessage(
+        response.message,
+        'Admin passcode set successfully',
+      )
       adminPasscodeForm.value = { passcode: '', confirmPasscode: '' }
-      if (typeof window !== 'undefined') sessionStorage.removeItem('admin_passcode_verified')
+
+      try {
+        const verify = await $fetch<{ success: boolean }>('/api/auth/admin-passcode/verify', {
+          method: 'POST',
+          body: { passcode: passcodeJustSet },
+        })
+        if (verify.success && typeof window !== 'undefined') {
+          sessionStorage.setItem('admin_passcode_verified', 'true')
+        }
+      } catch {
+        if (typeof window !== 'undefined') sessionStorage.removeItem('admin_passcode_verified')
+      }
+
       await loadAdminPasscodeStatus()
 
-      const redirect = route.query.redirect as string | undefined
-      if (redirect) {
-        await navigateTo({
-          path: '/auth/admin-passcode',
-          query: { redirect },
-        })
+      if (!adminPasscodeStatus.value.isSet) {
+        adminPasscodeError.value =
+          'Passcode may have saved but could not be confirmed. Run the create_admin_passcodes.sql migration on your database, then try again.'
+        return
       }
-    } else {
-      adminPasscodeError.value = response.error || 'Failed to set admin passcode'
+
+      await navigateTo(redirectTarget)
+      return
     }
+
+    adminPasscodeError.value = readApiErrorMessage(
+      typeof response === 'object' && response !== null
+        ? (response as { error?: unknown }).error
+        : undefined,
+      'Failed to set admin passcode',
+    )
   } catch (error: unknown) {
-    const data =
-      error && typeof error === 'object' && 'data' in error
-        ? (error.data as { error?: string })
-        : null
-    adminPasscodeError.value =
-      data?.error || (error instanceof Error ? error.message : 'An error occurred')
+    adminPasscodeError.value = readFetchErrorMessage(error, 'Failed to set admin passcode')
   } finally {
     isSettingAdminPasscode.value = false
   }

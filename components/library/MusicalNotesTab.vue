@@ -9,6 +9,8 @@ import MusicListRow, {
 type MusicTab = 'lyrics' | 'instrumental' | 'notation'
 
 const { isAdmin } = useAuth()
+const config = useRuntimeConfig()
+const tinaConfigured = computed(() => Boolean(config.public.tinaClientId))
 
 const activeMusicTab = ref<MusicTab>('lyrics')
 const searchQuery = ref('')
@@ -96,8 +98,9 @@ defineExpose({ items, loadMusic, isLoading })
 
 <template>
   <div>
-    <div v-if="isAdmin" class="mb-4 flex justify-end">
+    <div v-if="isAdmin" class="mb-4 flex flex-col items-end gap-2 sm:flex-row sm:justify-end">
       <a
+        v-if="tinaConfigured"
         href="/admin#/collections/music"
         target="_blank"
         rel="noopener noreferrer"
@@ -106,6 +109,13 @@ defineExpose({ items, loadMusic, isLoading })
         <Icon name="mdi:pencil" size="18" />
         Edit in Tina
       </a>
+      <p
+        v-else
+        class="max-w-md rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-right text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100"
+      >
+        Tina editor: set <code class="font-mono">NUXT_PUBLIC_TINA_CLIENT_ID</code> and
+        <code class="font-mono">TINA_TOKEN</code> on Vercel, then redeploy.
+      </p>
     </div>
 
     <div v-if="isLoading" class="py-12 text-center">

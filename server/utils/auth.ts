@@ -450,13 +450,17 @@ export async function updateUserLastLogin(userId: number): Promise<void> {
 
 /** Admin passcode (admin_passcodes table). */
 
+function passcodeUserIdParam(userId: string | number): string {
+  return String(userId)
+}
+
 export async function verifyAdminPasscode(
   userId: string | number,
   passcode: string,
 ): Promise<boolean> {
   const rows = await query<{ passcode_hash: string; expires_at: Date }>(
-    'SELECT passcode_hash, expires_at FROM admin_passcodes WHERE user_id = $1',
-    [userId],
+    'SELECT passcode_hash, expires_at FROM admin_passcodes WHERE user_id::text = $1',
+    [passcodeUserIdParam(userId)],
   )
   if (rows.length === 0) return false
   const d = rows[0]
@@ -477,8 +481,8 @@ export async function setAdminPasscode(userId: string | number, passcode: string
 
 export async function needsAdminPasscodeRotation(userId: string | number): Promise<boolean> {
   const rows = await query<{ expires_at: Date }>(
-    'SELECT expires_at FROM admin_passcodes WHERE user_id = $1',
-    [userId],
+    'SELECT expires_at FROM admin_passcodes WHERE user_id::text = $1',
+    [passcodeUserIdParam(userId)],
   )
   if (rows.length === 0) return true
   const days = (new Date(rows[0].expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
@@ -487,8 +491,8 @@ export async function needsAdminPasscodeRotation(userId: string | number): Promi
 
 export async function getAdminPasscodeExpiry(userId: string | number): Promise<Date | null> {
   const rows = await query<{ expires_at: Date }>(
-    'SELECT expires_at FROM admin_passcodes WHERE user_id = $1',
-    [userId],
+    'SELECT expires_at FROM admin_passcodes WHERE user_id::text = $1',
+    [passcodeUserIdParam(userId)],
   )
   return rows.length > 0 ? rows[0].expires_at : null
 }
