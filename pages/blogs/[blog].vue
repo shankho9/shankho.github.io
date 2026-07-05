@@ -138,6 +138,7 @@ useHead({
         </div>
 
         <div
+          data-article-prose
           class="prose prose-pre:max-w-full prose-pre:overflow-x-auto prose-sm sm:prose-base md:prose-lg prose-h1:no-underline max-w-full prose-zinc dark:prose-invert prose-img:rounded-lg prose-img:max-w-full"
         >
           <ContentRenderer v-if="articles" :value="articles">

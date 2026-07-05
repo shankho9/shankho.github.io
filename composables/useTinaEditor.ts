@@ -37,6 +37,7 @@ export function useTinaEditor() {
   })
 
   const musicCollectionUrl = '/admin/index.html#/collections/music'
+  const adminHomeUrl = '/admin/index.html'
 
   function musicDocumentUrl(slug: string): string {
     const file = `content/music/${slug}.mdx`
@@ -52,6 +53,7 @@ export function useTinaEditor() {
     adminReachable,
     adminCheckDone,
     musicCollectionUrl,
+    adminHomeUrl,
     musicDocumentUrl,
     editorUnavailableHint,
     checkAdminReachable,

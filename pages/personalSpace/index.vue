@@ -260,7 +260,7 @@ try {
 
 <template>
   <main
-    class="container max-w-5xl mx-auto text-zinc-600 overflow-x-hidden px-3 sm:px-6 w-full min-w-0"
+    class="container max-w-6xl mx-auto text-zinc-600 overflow-x-hidden px-3 sm:px-6 w-full min-w-0"
   >
     <PersonalSpaceHero />
 

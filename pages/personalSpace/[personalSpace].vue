@@ -188,7 +188,7 @@ useHead({
     <!-- LifeLine Content (Authenticated Users Only) -->
     <div
       v-else
-      class="px-3 sm:px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12 overflow-x-hidden w-full"
+      class="px-3 sm:px-6 container max-w-6xl mx-auto sm:grid grid-cols-12 gap-x-12 overflow-x-hidden w-full"
     >
       <div class="col-span-12 lg:col-span-9 blog-content-container min-w-0">
         <BlogHeader
@@ -206,7 +206,8 @@ useHead({
         <BlogPostShare compact class="mb-6 lg:hidden" />
 
         <article
-          class="prose prose-lg dark:prose-invert max-w-full prose-pre:overflow-x-auto prose-pre:max-w-full prose-img:max-w-full"
+          data-article-prose
+          class="prose prose-lg md:prose-xl dark:prose-invert max-w-full prose-pre:overflow-x-auto prose-pre:max-w-full prose-img:max-w-full"
         >
           <ContentRenderer :value="articles" />
         </article>

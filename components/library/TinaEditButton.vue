@@ -25,10 +25,10 @@ const {
 
 const editorUrl = computed(() => props.href || musicCollectionUrl)
 
-const showButton = computed(() => isAdmin.value && tinaConfigured.value && adminReachable.value)
+const showButton = computed(() => isAdmin.value && tinaConfigured.value)
 
-const showUnavailable = computed(
-  () => isAdmin.value && tinaConfigured.value && adminCheckDone.value && !adminReachable.value,
+const showUnreachableHint = computed(
+  () => showButton.value && adminCheckDone.value && !adminReachable.value,
 )
 
 const buttonClass = computed(() =>
@@ -39,33 +39,25 @@ const buttonClass = computed(() =>
 </script>
 
 <template>
-  <a
-    v-if="showButton"
-    :href="editorUrl"
-    target="_blank"
-    rel="noopener noreferrer"
-    :class="[
-      'inline-flex items-center justify-center gap-1.5 rounded-lg transition-colors',
-      buttonClass,
-    ]"
-  >
-    <Icon name="mdi:pencil" size="16" />
-    Edit in Tina
-  </a>
-  <p
-    v-else-if="showUnavailable"
-    class="max-w-md text-xs leading-relaxed text-amber-800 dark:text-amber-200"
-    :title="editorUnavailableHint"
-  >
-    Tina editor unavailable on this deploy.
+  <div v-if="showButton" class="inline-flex flex-col items-end gap-1">
     <a
-      href="https://app.tina.io"
+      :href="editorUrl"
       target="_blank"
       rel="noopener noreferrer"
-      class="font-medium underline hover:text-amber-900 dark:hover:text-amber-100"
+      :class="[
+        'inline-flex items-center justify-center gap-1.5 rounded-lg transition-colors',
+        buttonClass,
+      ]"
     >
-      Open TinaCloud
+      <Icon name="mdi:pencil" size="16" />
+      Edit in Tina
     </a>
-    or redeploy after adding <code class="font-mono">main</code> on TinaCloud.
-  </p>
+    <p
+      v-if="showUnreachableHint"
+      class="max-w-xs text-right text-[10px] leading-snug text-amber-700 dark:text-amber-300"
+      :title="editorUnavailableHint"
+    >
+      Editor may be unavailable on this deploy.
+    </p>
+  </div>
 </template>

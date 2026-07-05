@@ -136,6 +136,30 @@
                 Promote or demote users; changes verified via email
               </p>
             </NuxtLink>
+            <NuxtLink
+              to="/admin"
+              class="group flex flex-col rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm transition-all hover:border-rose-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-rose-600 active:scale-[0.99] touch-manipulation"
+            >
+              <div class="flex items-center gap-3 mb-3">
+                <div
+                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-900/50"
+                >
+                  <Icon
+                    name="mdi:music-clef-treble"
+                    size="22"
+                    class="text-rose-600 dark:text-rose-400"
+                  />
+                </div>
+                <div class="min-w-0">
+                  <h3 class="font-semibold text-gray-900 dark:text-gray-100">Tina CMS</h3>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Musical Notes editor</p>
+                </div>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                Open the Tina content editor at <code class="text-xs">/admin</code> to manage
+                lyrics, notation, and library music
+              </p>
+            </NuxtLink>
           </div>
         </section>
 

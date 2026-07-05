@@ -150,13 +150,13 @@ const highlightedDescription = computed(() => {
   >
     <NuxtLink
       :to="normalizedPath"
-      class="grid grid-cols-1 sm:grid-cols-10 gap-1 touch-manipulation min-w-0"
+      class="grid grid-cols-1 sm:grid-cols-12 gap-0 touch-manipulation min-w-0"
       style="touch-action: manipulation; -webkit-tap-highlight-color: transparent"
     >
-      <div class="sm:col-span-3 min-w-0 overflow-hidden">
+      <div class="sm:col-span-4 min-h-[12rem] sm:min-h-[14rem] min-w-0 overflow-hidden">
         <NuxtImg
-          class="h-full w-full max-w-full object-cover object-center rounded-t-2xl sm:rounded-l-2xl sm:rounded-t-none shadow-lg group-hover:scale-[1.02] transition-all duration-500"
-          width="300"
+          class="h-48 w-full max-w-full object-cover object-center rounded-t-2xl sm:h-full sm:min-h-[14rem] sm:rounded-l-2xl sm:rounded-t-none shadow-lg group-hover:scale-[1.02] transition-all duration-500"
+          width="400"
           :src="image"
           :alt="alt"
           loading="lazy"
@@ -164,14 +164,14 @@ const highlightedDescription = computed(() => {
           format="webp"
         />
       </div>
-      <div class="sm:col-span-7 p-5 min-w-0 overflow-hidden">
+      <div class="sm:col-span-8 p-5 sm:p-6 min-w-0 overflow-hidden">
         <!-- eslint-disable vue/no-v-html -->
         <h2
-          class="text-xl font-semibold text-black dark:text-zinc-300 pb-1 group-hover:text-sky-700 dark:group-hover:text-sky-400 break-words overflow-hidden"
+          class="text-xl sm:text-2xl font-semibold text-black dark:text-zinc-300 pb-2 group-hover:text-sky-700 dark:group-hover:text-sky-400 break-words overflow-hidden"
           v-html="highlightedTitle"
         ></h2>
         <p
-          class="text-ellipsis line-clamp-2 break-words overflow-hidden"
+          class="text-base sm:text-lg text-ellipsis line-clamp-3 break-words overflow-hidden leading-relaxed"
           v-html="highlightedDescription"
         ></p>
         <!-- eslint-enable vue/no-v-html -->

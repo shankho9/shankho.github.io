@@ -2,9 +2,12 @@
 interface Props {
   youtubeUrl?: string | null
   spotifyUrl?: string | null
+  labeled?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  labeled: false,
+})
 
 const youtubeEmbedId = computed(() => {
   const url = props.youtubeUrl?.trim()
@@ -43,40 +46,56 @@ const hasEmbeds = computed(() => Boolean(youtubeEmbedId.value || spotifyEmbedPat
 </script>
 
 <template>
-  <div v-if="hasEmbeds" class="music-stream-embeds space-y-4">
-    <div
-      v-if="youtubeEmbedId"
-      class="overflow-hidden rounded-xl border border-gray-200 shadow-md dark:border-slate-700"
-    >
-      <div class="aspect-video w-full">
-        <iframe
-          :src="`https://www.youtube.com/embed/${youtubeEmbedId}`"
-          title="YouTube player"
-          class="h-full w-full"
-          allow="
-            accelerometer;
-            autoplay;
-            clipboard-write;
-            encrypted-media;
-            gyroscope;
-            picture-in-picture;
-          "
-          allowfullscreen
-        />
+  <div v-if="hasEmbeds" class="music-stream-embeds space-y-5">
+    <div v-if="youtubeEmbedId">
+      <div
+        v-if="labeled"
+        class="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300"
+      >
+        <Icon name="mdi:youtube" size="18" class="text-red-600 dark:text-red-400" />
+        YouTube
+      </div>
+      <div
+        class="overflow-hidden rounded-xl border border-gray-200 shadow-md dark:border-slate-700"
+      >
+        <div class="aspect-video w-full">
+          <iframe
+            :src="`https://www.youtube.com/embed/${youtubeEmbedId}`"
+            title="YouTube player"
+            class="h-full w-full"
+            allow="
+              accelerometer;
+              autoplay;
+              clipboard-write;
+              encrypted-media;
+              gyroscope;
+              picture-in-picture;
+            "
+            allowfullscreen
+          />
+        </div>
       </div>
     </div>
 
-    <div
-      v-if="spotifyEmbedPath"
-      class="overflow-hidden rounded-xl border border-gray-200 shadow-md dark:border-slate-700"
-    >
-      <iframe
-        :src="`https://open.spotify.com/embed${spotifyEmbedPath}`"
-        title="Spotify player"
-        class="h-[152px] w-full"
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        loading="lazy"
-      />
+    <div v-if="spotifyEmbedPath">
+      <div
+        v-if="labeled"
+        class="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300"
+      >
+        <Icon name="mdi:spotify" size="18" class="text-green-600 dark:text-green-400" />
+        Spotify
+      </div>
+      <div
+        class="overflow-hidden rounded-xl border border-gray-200 shadow-md dark:border-slate-700"
+      >
+        <iframe
+          :src="`https://open.spotify.com/embed${spotifyEmbedPath}`"
+          title="Spotify player"
+          class="h-[152px] w-full"
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+        />
+      </div>
     </div>
   </div>
 </template>
