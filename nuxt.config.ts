@@ -121,6 +121,10 @@ export default defineNuxtConfig({
           content: '#0284c7',
         },
         {
+          name: 'mobile-web-app-capable',
+          content: 'yes',
+        },
+        {
           name: 'apple-mobile-web-app-capable',
           content: 'yes',
         },
@@ -219,6 +223,13 @@ export default defineNuxtConfig({
 
   typescript: {
     strict: true,
+  },
+
+  // Disable dynamic OG image generation on content pages — use static og:image from useHead instead
+  routeRules: {
+    '/blogs/**': { ogImage: false },
+    '/personalSpace/**': { ogImage: false },
+    '/categories/**': { ogImage: false },
   },
 
   // nuxt-og-image v6: pin Satori so CI does not require optional @takumi-rs/* peers

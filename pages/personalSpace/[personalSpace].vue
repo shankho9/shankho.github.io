@@ -157,17 +157,7 @@ useHead({
   ],
 })
 
-// Generate OG Image with error handling (static og:image is also set in useHead above)
-try {
-  defineOgImageComponent('About', {
-    headline: data.value.title,
-    title: data.value.title,
-    description: data.value.description,
-  })
-} catch (error) {
-  console.error('[Personal Space Detail] Failed to define OG image:', error)
-  // Don't throw - allow page to render without OG image
-}
+// Dynamic OG disabled for content routes via routeRules; static og:image is set in useHead above.
 </script>
 
 <template>
@@ -238,7 +228,7 @@ try {
                 :title="`Share with ${network === 'twitter' ? 'X' : network.charAt(0).toUpperCase() + network.slice(1)}`"
               >
                 <SocialShare
-                  :network="network === 'twitter' ? 'x' : network"
+                  :network="network"
                   :styled="false"
                   :label="false"
                   class="social-share-button"
