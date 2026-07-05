@@ -61,9 +61,7 @@ async function runEnsure(): Promise<void> {
     if (!message.includes('already exists')) throw error
   }
 
-  await query(
-    'CREATE INDEX IF NOT EXISTS idx_admin_passcodes_user_id ON admin_passcodes(user_id)',
-  )
+  await query('CREATE INDEX IF NOT EXISTS idx_admin_passcodes_user_id ON admin_passcodes(user_id)')
   await query(
     'CREATE INDEX IF NOT EXISTS idx_admin_passcodes_expires_at ON admin_passcodes(expires_at)',
   )

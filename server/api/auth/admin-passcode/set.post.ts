@@ -30,8 +30,7 @@ export default defineEventHandler(async (event) => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
     console.error('[Admin Passcode Set] Failed:', message)
-    const isMissingTable =
-      message.includes('admin_passcodes') && message.includes('does not exist')
+    const isMissingTable = message.includes('admin_passcodes') && message.includes('does not exist')
     const hint = isMissingTable
       ? ' Database migration could not create admin_passcodes automatically — run: node scripts/migrations/run-all-migrations.cjs'
       : ''

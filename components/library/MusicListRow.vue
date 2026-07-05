@@ -87,7 +87,9 @@ const typeBadgeClass: Record<MusicType, string> = {
         </span>
       </div>
 
-      <div class="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+      <div
+        class="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400"
+      >
         <span v-if="item.language" class="inline-flex items-center gap-0.5">
           <Icon name="mdi:translate" size="12" />
           {{ item.language }}

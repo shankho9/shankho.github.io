@@ -22,16 +22,10 @@ const networks = ['facebook', 'twitter', 'linkedin', 'whatsapp', 'email'] as con
         : 'rounded-xl border border-gray-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm dark:border-slate-700/80 dark:bg-slate-800/90',
     ]"
   >
-    <p
-      v-if="!compact"
-      class="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-100"
-    >
+    <p v-if="!compact" class="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
       {{ title }}
     </p>
-    <span
-      v-else
-      class="mr-1 text-xs font-medium text-zinc-500 dark:text-zinc-400"
-    >
+    <span v-else class="mr-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
       {{ title }}
     </span>
     <div :class="compact ? 'flex flex-wrap gap-1.5' : 'flex flex-wrap gap-2'">

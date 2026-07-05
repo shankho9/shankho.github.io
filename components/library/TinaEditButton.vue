@@ -25,16 +25,10 @@ const {
 
 const editorUrl = computed(() => props.href || musicCollectionUrl)
 
-const showButton = computed(
-  () => isAdmin.value && tinaConfigured.value && adminReachable.value,
-)
+const showButton = computed(() => isAdmin.value && tinaConfigured.value && adminReachable.value)
 
 const showUnavailable = computed(
-  () =>
-    isAdmin.value &&
-    tinaConfigured.value &&
-    adminCheckDone.value &&
-    !adminReachable.value,
+  () => isAdmin.value && tinaConfigured.value && adminCheckDone.value && !adminReachable.value,
 )
 
 const buttonClass = computed(() =>

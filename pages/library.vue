@@ -1088,7 +1088,10 @@ try {
       </div>
 
       <div class="mb-5 space-y-4">
-        <LibraryIntegrationNote v-if="isAuthenticated || !currentTabRequiresAuth" :tab="activeTab" />
+        <LibraryIntegrationNote
+          v-if="isAuthenticated || !currentTabRequiresAuth"
+          :tab="activeTab"
+        />
 
         <LibraryShareBar
           v-if="
@@ -1154,7 +1157,9 @@ try {
           <!-- View mode (photos only) -->
           <LibraryContentSection v-if="isAuthenticated" title="View">
             <div class="flex justify-end">
-              <div class="flex gap-1 rounded-lg border border-gray-200 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-800">
+              <div
+                class="flex gap-1 rounded-lg border border-gray-200 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-800"
+              >
                 <button
                   :class="[
                     'px-3 py-1 rounded-md transition-colors text-sm',
@@ -1270,10 +1275,7 @@ try {
           </div>
 
           <!-- Search Filter -->
-          <LibraryContentSection
-            v-else-if="!isLoadingImages && !imageKitError"
-            title="Search"
-          >
+          <LibraryContentSection v-else-if="!isLoadingImages && !imageKitError" title="Search">
             <div class="relative">
               <Icon
                 name="mdi:magnify"
@@ -1718,10 +1720,7 @@ try {
             </button>
           </div>
 
-          <LibraryContentSection
-            v-else-if="!isLoadingVideos && !videoKitError"
-            title="Search"
-          >
+          <LibraryContentSection v-else-if="!isLoadingVideos && !videoKitError" title="Search">
             <div class="relative">
               <Icon
                 name="mdi:magnify"

@@ -81,10 +81,7 @@ const hasAnyAction = computed(() => props.app.playStoreUrl || props.app.hasApk |
         </div>
       </div>
 
-      <p
-        v-if="app.description"
-        class="mt-1 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400"
-      >
+      <p v-if="app.description" class="mt-1 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
         {{ app.description }}
       </p>
 
