@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { seoData, socialLinks } from '~/data'
+import { seoData, socialLinks, siteBrand } from '~/data'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -21,11 +21,11 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   type: 'website',
-  title: seoData?.title || "Sid's Blog | Nomadic Notions",
-  description: seoData?.description || "Sid's Blog",
+  title: seoData?.title || siteBrand.siteName,
+  description: seoData?.description || siteBrand.publisherName,
   image: seoData?.image || '/not-found.jpg',
   author: () => ({
-    name: 'Siddhartha Basu',
+    name: siteBrand.authorName,
     url: seoData?.mySite || 'https://shankho-blogsite.vercel.app',
   }),
   publishedDate: undefined,
@@ -41,13 +41,13 @@ const currentUrl = `${siteUrl}${route.path}`
 const websiteSchema = computed(() => ({
   '@context': 'https://schema.org',
   '@type': 'WebSite',
-  name: seoData?.title || "Sid's Blog | Nomadic Notions",
+  name: seoData?.title || siteBrand.siteName,
   url: siteUrl,
-  description: seoData?.description || "Sid's Blog",
+  description: seoData?.description || siteBrand.publisherName,
   publisher: {
-    '@type': 'Person',
-    name: props.author.name,
-    url: props.author.url || siteUrl,
+    '@type': 'Organization',
+    name: siteBrand.publisherName,
+    url: siteUrl,
   },
   potentialAction: {
     '@type': 'SearchAction',
@@ -80,7 +80,7 @@ const articleSchema = computed(() => ({
   },
   publisher: {
     '@type': 'Organization',
-    name: seoData?.title || "Sid's Blog | Nomadic Notions",
+    name: siteBrand.publisherName,
     logo: {
       '@type': 'ImageObject',
       url: seoData?.image || '/not-found.jpg',
@@ -109,7 +109,7 @@ const personSchema = computed(() => ({
     socialLinks.twitter,
     socialLinks.stackoverflow,
   ].filter(Boolean),
-  email: seoData?.mailAddress || '',
+  email: siteBrand.contactEmail,
 }))
 
 const schema = computed(() => {

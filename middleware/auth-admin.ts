@@ -1,6 +1,22 @@
-/** Admin-only: auth + admin role + admin passcode. Use for Analytics, Access Control, etc. */
+/** Admin-only: auth + admin role + admin passcode. Use for all /dev routes. */
 export default defineNuxtRouteMiddleware(async (to, _from) => {
-  if (import.meta.env.SSR) return
+  const redirectToLogin = () =>
+    navigateTo('/auth/login?redirect=' + encodeURIComponent(to.fullPath))
+
+  if (import.meta.env.SSR) {
+    try {
+      const headers = useRequestHeaders(['cookie'])
+      const response = await $fetch<{ authenticated: boolean; user?: { role: string } }>(
+        '/api/auth/me',
+        { headers },
+      )
+      if (!response?.authenticated) return redirectToLogin()
+      if (response.user?.role !== 'admin') return navigateTo('/')
+    } catch {
+      return redirectToLogin()
+    }
+    return
+  }
 
   const { isAuthenticated, isAdmin, checkAuth, loadStoredUser } = useAuth()
   loadStoredUser()
@@ -9,16 +25,16 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
     const isAuth = await checkAuth()
     if (!isAuth || !isAuthenticated.value) {
       if (typeof window !== 'undefined') localStorage.removeItem('auth_user')
-      return navigateTo('/auth/login?redirect=' + encodeURIComponent(to.fullPath))
+      return redirectToLogin()
     }
   } catch (error) {
     if (!isAuthenticated.value) {
-      return navigateTo('/auth/login?redirect=' + encodeURIComponent(to.fullPath))
+      return redirectToLogin()
     }
     console.warn('[Auth Admin] Server verification failed, but user in localStorage:', error)
   }
 
-  if (!isAdmin.value) return navigateTo('/dev')
+  if (!isAdmin.value) return navigateTo('/')
 
   let passcodeStatus: {
     authenticated: boolean

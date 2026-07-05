@@ -7,7 +7,7 @@ import { useDevUtilityAuth } from '~/composables/useDevUtilityAuth'
 import { useGoogleMaps } from '~/composables/useGoogleMaps'
 
 definePageMeta({
-  middleware: ['auth-utilities', 'utility-access'],
+  middleware: ['auth-admin'],
 })
 
 const { ensureAuth } = useDevUtilityAuth()

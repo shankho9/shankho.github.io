@@ -3,36 +3,8 @@
     class="min-h-screen bg-gray-50 dark:bg-slate-900 py-6 sm:py-12 px-4 sm:px-6 overflow-x-hidden"
   >
     <div class="max-w-7xl mx-auto w-full">
-      <!-- Not Authenticated - Redirect to login -->
-      <div v-if="!isAuthenticated" class="max-w-md mx-auto">
-        <div
-          class="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 p-8 text-center"
-        >
-          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-            Utilities
-          </h1>
-          <p class="text-gray-600 dark:text-gray-400 mb-6">
-            Sign in to access development tools and calculators.
-          </p>
-          <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <NuxtLink
-              to="/auth/login?redirect=/dev"
-              class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Sign in
-            </NuxtLink>
-            <NuxtLink
-              to="/"
-              class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600 border border-gray-200 dark:border-slate-600 transition-colors"
-            >
-              Back to home
-            </NuxtLink>
-          </div>
-        </div>
-      </div>
-
       <!-- Main Utilities Dashboard -->
-      <div v-else class="space-y-10 sm:space-y-14">
+      <div class="space-y-10 sm:space-y-14">
         <!-- Hero -->
         <div
           class="flex flex-row flex-wrap items-center justify-between gap-3 sm:gap-4 pb-2 border-b border-gray-200 dark:border-slate-700"
@@ -82,7 +54,7 @@
 
         <template v-else>
           <!-- Section: Analytics & Insights (Admin only) -->
-          <section v-if="isAdmin">
+          <section>
             <h2
               class="mb-4 flex items-center gap-2 text-base font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400"
             >
@@ -118,12 +90,6 @@
                     </h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       Unique visitors & logins
-                      <span
-                        v-if="requiresPasscode('visitors')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
                     </p>
                   </div>
                 </div>
@@ -148,12 +114,6 @@
                     </h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       Popular posts & engagement
-                      <span
-                        v-if="requiresPasscode('analytics')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
                     </p>
                   </div>
                 </div>
@@ -176,12 +136,6 @@
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">Email Logs</h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       Alert history
-                      <span
-                        v-if="requiresPasscode('emails')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
                     </p>
                   </div>
                 </div>
@@ -193,7 +147,7 @@
           </section>
 
           <!-- Section: Site Settings (Admin only) -->
-          <section v-if="isAdmin">
+          <section>
             <h2
               class="mb-4 flex items-center gap-2 text-base font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400"
             >
@@ -204,6 +158,30 @@
               </span>
             </h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+              <NuxtLink
+                v-if="canAccess('admin-users')"
+                to="/dev/utilities/admin-users"
+                class="group flex flex-col rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm transition-all hover:border-violet-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-violet-600 active:scale-[0.99] touch-manipulation"
+              >
+                <div class="flex items-center gap-3 mb-3">
+                  <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/50"
+                  >
+                    <Icon
+                      name="mdi:account-cog"
+                      size="22"
+                      class="text-violet-600 dark:text-violet-400"
+                    />
+                  </div>
+                  <div class="min-w-0">
+                    <h3 class="font-semibold text-gray-900 dark:text-gray-100">Admin Users</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Manage roles with email OTP</p>
+                  </div>
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                  Promote or demote users; changes verified via email
+                </p>
+              </NuxtLink>
               <NuxtLink
                 to="/dev/utilities/access-control"
                 target="_blank"
@@ -263,12 +241,6 @@
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">Database Stats</h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       Table statistics
-                      <span
-                        v-if="requiresPasscode('database')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
                     </p>
                   </div>
                 </div>
@@ -295,12 +267,6 @@
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">API Health</h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       System status
-                      <span
-                        v-if="requiresPasscode('health')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
                     </p>
                   </div>
                 </div>
@@ -323,12 +289,6 @@
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">Cache Management</h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       Clear & manage cache
-                      <span
-                        v-if="requiresPasscode('cache')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
                     </p>
                   </div>
                 </div>
@@ -355,12 +315,6 @@
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">Locations</h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       List from Location Manager
-                      <span
-                        v-if="requiresPasscode('locations-list')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
                     </p>
                   </div>
                 </div>
@@ -401,12 +355,6 @@
                     </h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       Manage car data
-                      <span
-                        v-if="requiresPasscode('car-manager')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
                     </p>
                   </div>
                 </div>
@@ -434,12 +382,6 @@
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">Content Manager</h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       Quick actions
-                      <span
-                        v-if="requiresPasscode('content')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
                     </p>
                   </div>
                 </div>
@@ -466,12 +408,6 @@
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">Location Manager</h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       Add places to map
-                      <span
-                        v-if="requiresPasscode('locations')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
                     </p>
                   </div>
                 </div>
@@ -516,12 +452,6 @@
                     </h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       Ownership vs lease analysis
-                      <span
-                        v-if="requiresPasscode('car-lease-calculator')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
                     </p>
                   </div>
                 </div>
@@ -551,12 +481,6 @@
                     </h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       Housing decision analysis
-                      <span
-                        v-if="requiresPasscode('rent-vs-buy-calculator')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
                     </p>
                   </div>
                 </div>
@@ -600,12 +524,6 @@
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">Travel Planner</h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       Road vs flight comparison
-                      <span
-                        v-if="requiresPasscode('travel-planner')"
-                        class="ml-2 text-amber-600 dark:text-amber-400"
-                      >
-                        · Passcode required
-                      </span>
                     </p>
                   </div>
                 </div>
@@ -627,17 +545,18 @@ import { onMounted } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { useUtilityAccess } from '~/composables/useUtilityAccess'
 
-const { isAuthenticated, isAdmin, checkAuth, signOut } = useAuth()
-const { canAccess, requiresPasscode, fetchAllowed, allowedLoaded } = useUtilityAccess()
+definePageMeta({ middleware: ['auth-admin'] })
+
+const { checkAuth, signOut } = useAuth()
+const { canAccess, fetchAllowed, allowedLoaded } = useUtilityAccess()
 
 const handleLogout = async () => {
   await signOut()
-  await new Promise((resolve) => setTimeout(resolve, 100))
   await navigateTo('/auth/login?redirect=/dev')
 }
 
 onMounted(async () => {
   await checkAuth()
-  if (isAuthenticated.value) await fetchAllowed()
+  await fetchAllowed()
 })
 </script>

@@ -50,6 +50,8 @@ const MIGRATION_ORDER = [
   'create_travel_plans_table.sql',
   'add_travel_planner_utility.sql',
   'drop_planner_tables.sql',
+  'admin_role_change_requests.sql',
+  'drop_utility_passcodes.sql',
 ]
 
 async function run() {

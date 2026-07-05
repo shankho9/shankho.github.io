@@ -201,7 +201,7 @@ export default defineNuxtConfig({
     // Email configuration (server-side only)
     resendApiKey: process.env.RESEND_API_KEY,
     alertEmail: process.env.ALERT_EMAIL,
-    fromEmail: process.env.FROM_EMAIL,
+    fromEmail: process.env.FROM_EMAIL || 'Nomadic Notions <blogsite@nomadic-notions.co.in>',
     // Admin configuration (server-side only)
     adminPasswordHash: process.env.ADMIN_PASSWORD_HASH,
     admin2FASecret: process.env.ADMIN_2FA_SECRET,
@@ -215,6 +215,12 @@ export default defineNuxtConfig({
     // Notion configuration (server-side only)
     notionApiKey: process.env.NOTION_API_KEY,
     notionDatabaseId: process.env.NOTION_DATABASE_ID,
+    // Cloudflare R2 (server-side only, for app binary downloads)
+    r2AccountId: process.env.R2_ACCOUNT_ID,
+    r2AccessKeyId: process.env.R2_ACCESS_KEY_ID,
+    r2SecretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    r2BucketName: process.env.R2_BUCKET_NAME,
+    r2AppsPrefix: process.env.R2_APPS_PREFIX || 'apps/',
     // OAuth provider secrets (server-side only)
     outlookClientSecret: process.env.OUTLOOK_CLIENT_SECRET,
     githubClientSecret: process.env.GITHUB_CLIENT_SECRET,

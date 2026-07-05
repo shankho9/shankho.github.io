@@ -1,22 +1,32 @@
-import { defineEventHandler, readBody } from 'h3'
+import { createError, defineEventHandler, readBody } from 'h3'
+import { getCurrentUser } from '~/server/utils/auth'
 import { query } from '~/server/utils/db'
 
 interface CommentBody {
   postId: string
   content: string
-  userEmail: string
-  userName: string
-  userPicture: string
 }
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<CommentBody>(event)
-  const { postId, content, userEmail, userName, userPicture } = body
+  const user = await getCurrentUser(event)
+  if (!user) {
+    throw createError({ statusCode: 401, statusMessage: 'Authentication required' })
+  }
 
-  if (!postId || !content || !userEmail || !userName) {
+  const body = await readBody<CommentBody>(event)
+  const { postId, content } = body
+
+  if (!postId || !content) {
     throw createError({
       statusCode: 400,
       message: 'Missing required fields',
+    })
+  }
+
+  if (!postId.startsWith('/blogs/')) {
+    throw createError({
+      statusCode: 403,
+      message: 'Comments on this post require access through LifeLines',
     })
   }
 
@@ -34,12 +44,16 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  const userEmail = user.email
+  const userName = user.name || user.email
+  const userPicture = user.picture || ''
+
   try {
     const result = await query<{ id: number }>(
       `INSERT INTO comments (post_id, user_email, user_name, user_picture, content)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id`,
-      [postId, userEmail, userName, userPicture || '', content.trim()],
+      [postId, userEmail, userName, userPicture, content.trim()],
     )
 
     return {
@@ -49,7 +63,7 @@ export default defineEventHandler(async (event) => {
         post_id: postId,
         user_email: userEmail,
         user_name: userName,
-        user_picture: userPicture || '',
+        user_picture: userPicture,
         content: content.trim(),
         created_at: new Date(),
       },

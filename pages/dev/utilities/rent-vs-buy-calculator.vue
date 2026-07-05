@@ -6,7 +6,7 @@ import { useAuth } from '~/composables/useAuth'
 import { useToast } from '~/composables/useToast'
 
 definePageMeta({
-  middleware: ['auth-utilities', 'utility-access'],
+  middleware: ['auth-admin'],
 })
 
 const { checkAuth } = useAuth()

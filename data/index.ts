@@ -1,9 +1,16 @@
+export const siteBrand = {
+  authorName: 'Siddhartha Basu',
+  publisherName: 'Nomadic Notions',
+  contactEmail: 'blogsite@nomadic-notions.co.in',
+  siteName: "Sid's Blog | Nomadic Notions",
+}
+
 export const navbarData = {
   homeTitle: 'Nomadic Notions',
 }
 
 export const footerData = {
-  author: 'Siddhartha Basu',
+  author: siteBrand.authorName,
   aboutAuthor:
     'Hi! I am Shankho - Siddhartha Basu, a Tech enthusiast, problem solver and software engineer. Currently employed at Natwest Group Bank, Gurugram, India.',
   authorInterest:
@@ -287,7 +294,7 @@ export const resourcesPage = {
 }
 
 export const aboutPage = {
-  title: 'Siddhartha Basu',
+  title: siteBrand.authorName,
   description: 'Software Engineer, Problem Solver, Web Enthusiast.',
   aboutMe:
     "Hello, fellow human! I'm a software wizard who spends most of his day leading Test Automation for Coutts Bank. When I'm not running after Test Automation numbers from my team :), you can find me working on complex coding challenges and spending time with my family - My wife Papiya, 2 angel daughters (Riya and Tiya). Just don't ask me to cast any love spells, my magic only works on automation code I write!",
@@ -302,7 +309,8 @@ export const seoData = {
     'https://res.cloudinary.com/dmecmyphj/image/upload/v1673548905/nuxt-blog/cover_ntgs6u.webp',
   mySite: 'https://shankho-blogsite.vercel.app/',
   twitterHandle: '@shankho99',
-  mailAddress: 'siddhartha.basu@outlook.com',
+  mailAddress: siteBrand.contactEmail,
+  publisherName: siteBrand.publisherName,
 }
 
 export const socialLinks = {

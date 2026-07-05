@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { seoData, socialLinks } from '~/data'
+import { seoData, socialLinks, siteBrand } from '~/data'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -18,7 +18,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   image: seoData?.image || '/not-found.jpg',
-  authorName: 'Siddhartha Basu',
+  authorName: siteBrand.authorName,
   authorUrl: seoData?.mySite || 'https://shankho-blogsite.vercel.app',
   modifiedDate: undefined,
   tags: () => [],
@@ -50,7 +50,7 @@ const schema = computed(() => ({
   },
   publisher: {
     '@type': 'Organization',
-    name: seoData?.title || "Sid's Blog | Nomadic Notions",
+    name: siteBrand.publisherName,
     logo: {
       '@type': 'ImageObject',
       url: seoData?.image || '/not-found.jpg',

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { seoData } from '~/data'
+import { seoData, siteBrand } from '~/data'
 import { ref, computed, onMounted, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
@@ -8,7 +8,7 @@ import { useToast } from '~/composables/useToast'
 import CarSelector from '~/components/calculator/CarSelector.vue'
 
 definePageMeta({
-  middleware: ['auth-utilities', 'utility-access'],
+  middleware: ['auth-admin'],
 })
 
 const { checkAuth } = useAuth()
@@ -2998,10 +2998,10 @@ const exportToPDF = async () => {
 
     doc.setFontSize(10)
     doc.setFont(undefined, 'normal')
-    doc.text('Siddhartha Basu', margin + 5, yPos + 15)
+    doc.text(siteBrand.authorName, margin + 5, yPos + 15)
 
     doc.setFontSize(9)
-    const emailText = 'For correspondence: siddhartha.basu@outlook.com'
+    const emailText = `For correspondence: ${siteBrand.contactEmail}`
     doc.text(emailText, margin + contentWidth - 5, yPos + 15, { align: 'right' })
 
     doc.setTextColor(0, 0, 0)
@@ -6444,16 +6444,16 @@ const activeTab = ref('assumptions')
         <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
           <Icon icon="mdi:code-tags" class="inline mr-1.5 text-sky-600 dark:text-sky-400" />
           <span class="font-semibold text-zinc-700 dark:text-zinc-300">Tool Author:</span>
-          <span class="text-zinc-800 dark:text-zinc-200"> Siddhartha Basu</span>
+          <span class="text-zinc-800 dark:text-zinc-200"> {{ siteBrand.authorName }}</span>
         </p>
         <p class="text-xs text-zinc-500 dark:text-zinc-400">
           <Icon icon="mdi:email-outline" class="inline mr-1.5" />
           For correspondence:
           <a
-            href="mailto:siddhartha.basu@outlook.com"
+            :href="`mailto:${siteBrand.contactEmail}`"
             class="text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:underline transition-colors"
           >
-            siddhartha.basu@outlook.com
+            {{ siteBrand.contactEmail }}
           </a>
         </p>
       </div>

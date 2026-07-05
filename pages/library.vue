@@ -6,6 +6,9 @@ import { resourcesPage, seoData } from '~/data'
 import GalleryLightbox from '~/components/gallery/Lightbox.vue'
 import GoogleMap from '~/components/blog/GoogleMap.vue'
 import ResourcesTabs from '~/components/notion/ResourcesTabs.vue'
+import AppsTab from '~/components/library/AppsTab.vue'
+
+definePageMeta({ middleware: ['auth-login'] })
 
 // Get configurable root folders from runtime config
 const config = useRuntimeConfig()
@@ -13,7 +16,7 @@ const photosRootFolder = config.public.imageKitPhotosRootFolder || 'Library/Phot
 const videosRootFolder = config.public.imageKitVideosRootFolder || 'Library/Videos'
 
 // Tab types
-type TabType = 'photos' | 'videos' | 'musical-notes' | 'travel-map' | 'resources'
+type TabType = 'photos' | 'videos' | 'musical-notes' | 'travel-map' | 'resources' | 'apps'
 
 // Authentication
 const { user, isAuthenticated, loadStoredUser } = useAuth()
@@ -503,6 +506,10 @@ const loadVideoStats = async () => {
 const resourcesCount = ref(0)
 const isLoadingResourcesCount = ref(false)
 
+// Apps count (auth-gated API)
+const appsCount = ref(0)
+const isLoadingAppsCount = ref(false)
+
 // Load resources count from Notion
 const loadResourcesCount = async () => {
   if (resourcesCount.value > 0 || isLoadingResourcesCount.value) return // Already loaded
@@ -548,6 +555,23 @@ const loadResourcesCount = async () => {
   }
 }
 
+// Load apps count from auth-gated API
+const loadAppsCount = async () => {
+  if (appsCount.value > 0 || isLoadingAppsCount.value || !isAuthenticated.value) return
+
+  isLoadingAppsCount.value = true
+  try {
+    const response = await $fetch<{ success: boolean; items: unknown[] }>('/api/apps/list')
+    if (response.success && response.items) {
+      appsCount.value = response.items.length
+    }
+  } catch (error) {
+    console.error('[Library] Failed to load apps count:', error)
+  } finally {
+    isLoadingAppsCount.value = false
+  }
+}
+
 // Tab configuration - computed to reactively update counts
 const tabs = computed(() => [
   {
@@ -583,6 +607,13 @@ const tabs = computed(() => [
     label: 'Resources',
     icon: 'mdi:book-open-variant',
     count: resourcesCount.value,
+    requiresAuth: true,
+  },
+  {
+    id: 'apps' as TabType,
+    label: 'Apps',
+    icon: 'mdi:cellphone',
+    count: appsCount.value,
     requiresAuth: true,
   },
 ])
@@ -825,6 +856,10 @@ watch(activeTab, (newTab) => {
   if (newTab === 'resources' && resourcesCount.value === 0 && !isLoadingResourcesCount.value) {
     loadResourcesCount()
   }
+  // Load apps count when apps tab is activated
+  if (newTab === 'apps' && appsCount.value === 0 && !isLoadingAppsCount.value) {
+    loadAppsCount()
+  }
 })
 
 // Track if we've loaded stats for the current user to prevent duplicate calls
@@ -877,6 +912,9 @@ watch(isAuthenticated, (newValue) => {
     if (activeTab.value === 'videos') {
       loadVideoKitFolders(videosRootFolder, 'video')
       loadVideosFromImageKit(selectedVideoFolder.value)
+    }
+    if (activeTab.value === 'apps' && appsCount.value === 0 && !isLoadingAppsCount.value) {
+      loadAppsCount()
     }
     lastLoadedUserEmail.value = user.value.email
   } else if (!newValue) {
@@ -963,7 +1001,11 @@ try {
             <Icon :name="tab.icon" size="20" />
             <span>{{ tab.label }}</span>
             <span
-              v-if="tab.count > 0 || (tab.id === 'resources' && isLoadingResourcesCount)"
+              v-if="
+                tab.count > 0 ||
+                (tab.id === 'resources' && isLoadingResourcesCount) ||
+                (tab.id === 'apps' && isLoadingAppsCount)
+              "
               :class="[
                 'ml-1 px-2 py-0.5 rounded-full text-xs font-bold',
                 activeTab === tab.id
@@ -972,6 +1014,9 @@ try {
               ]"
             >
               <template v-if="tab.id === 'resources' && isLoadingResourcesCount">
+                <Icon name="svg-spinners:180-ring" class="animate-spin" size="12" />
+              </template>
+              <template v-else-if="tab.id === 'apps' && isLoadingAppsCount">
                 <Icon name="svg-spinners:180-ring" class="animate-spin" size="12" />
               </template>
               <template v-else>
@@ -1005,7 +1050,9 @@ try {
                   ? 'videos'
                   : activeTab === 'resources'
                     ? 'resources'
-                    : 'this content'
+                    : activeTab === 'apps'
+                      ? 'apps'
+                      : 'this content'
             }}.
           </p>
           <button
@@ -1911,6 +1958,27 @@ try {
 
           <!-- Notion Resources with Tabs and Search -->
           <ResourcesTabs />
+        </div>
+
+        <!-- Apps Tab -->
+        <div
+          v-else-if="activeTab === 'apps' && (isAuthenticated || !currentTabRequiresAuth)"
+          :key="'apps'"
+        >
+          <div v-if="isAuthenticated" class="mb-6 flex items-center gap-3">
+            <img
+              v-if="user?.picture"
+              :src="user.picture"
+              :alt="user.name"
+              class="w-10 h-10 rounded-full border-2 border-sky-700 dark:border-sky-400"
+            />
+            <div>
+              <p class="text-sm text-zinc-600 dark:text-zinc-400">Signed in as</p>
+              <p class="font-semibold text-zinc-800 dark:text-zinc-200">{{ user?.name }}</p>
+            </div>
+          </div>
+
+          <AppsTab />
         </div>
 
         <!-- Musical Notes Tab -->

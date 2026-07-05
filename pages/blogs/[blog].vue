@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { BlogPost } from '@/types/blog'
-import { navbarData, seoData } from '~/data'
+import { navbarData, seoData, siteBrand } from '~/data'
 import { computed, onMounted, nextTick, ref } from 'vue'
 import { useRoute, navigateTo } from 'nuxt/app'
 import LikeButton from '@/components/blog/LikeButton.vue'
@@ -95,7 +95,7 @@ useHead({
     { property: 'og:description', content: data.value.description },
     { property: 'og:image', content: data.value.ogImage || data.value.image },
     { property: 'article:published_time', content: data.value.date },
-    { property: 'article:author', content: 'Siddhartha Basu' },
+    { property: 'article:author', content: siteBrand.authorName },
     ...(data.value.tags?.map((tag) => ({ property: 'article:tag', content: tag })) || []),
   ],
   link: [{ rel: 'canonical', href: `${seoData.mySite}/${path}` }],

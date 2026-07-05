@@ -5,7 +5,7 @@ import { useDevUtilityAuth } from '~/composables/useDevUtilityAuth'
 
 definePageMeta({
   layout: 'default',
-  middleware: ['auth-utilities', 'utility-access'],
+  middleware: ['auth-admin'],
 })
 
 const { isAuthenticated, ensureAuth } = useDevUtilityAuth()

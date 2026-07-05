@@ -505,8 +505,6 @@ export const useAuth = () => {
       sharedLastCheck.value = 0
 
       if (typeof window !== 'undefined') {
-        // Clear passcode verification flags on logout (visitor and admin are distinct)
-        sessionStorage.removeItem('utility_passcode_verified')
         sessionStorage.removeItem('admin_passcode_verified')
 
         // Clear Google OAuth initialization flag to allow re-initialization on next login
@@ -548,51 +546,6 @@ export const useAuth = () => {
         user.value = null
         localStorage.removeItem('auth_user')
       }
-    }
-  }
-
-  /**
-   * Verify utility passcode
-   */
-  const verifyUtilityPasscode = async (passcode: string) => {
-    try {
-      const response = await $fetch<{ success: boolean; error?: string }>(
-        '/api/auth/utility-passcode/verify',
-        {
-          method: 'POST',
-          body: { passcode },
-        },
-      )
-      return response
-    } catch (error: unknown) {
-      const errorData =
-        error && typeof error === 'object' && 'data' in error
-          ? (error.data as { error?: string })
-          : null
-      const errorMessage =
-        errorData?.error || (error instanceof Error ? error.message : 'Verification failed')
-      return {
-        success: false,
-        error: errorMessage,
-      }
-    }
-  }
-
-  /**
-   * Check utility passcode status (visitor passcode; distinct from admin passcode)
-   */
-  const checkUtilityPasscodeStatus = async () => {
-    try {
-      const response = await $fetch<{
-        authenticated: boolean
-        isSet: boolean
-        needsRotation: boolean
-        expiresAt: string | null
-      }>('/api/auth/utility-passcode/status')
-      return response
-    } catch (error) {
-      console.error('[Auth] Failed to check utility passcode status:', error)
-      return { authenticated: false, isSet: false, needsRotation: false, expiresAt: null }
     }
   }
 
@@ -654,8 +607,6 @@ export const useAuth = () => {
     signIn,
     signOut,
     loadStoredUser,
-    verifyUtilityPasscode,
-    checkUtilityPasscodeStatus,
     verifyAdminPasscode,
     checkAdminPasscodeStatus,
   }

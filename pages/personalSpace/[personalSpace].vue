@@ -10,6 +10,8 @@ import TextToSpeech from '@/components/blog/TextToSpeech.vue'
 import { calculateReadingTime } from '~/utils/blog/readingTime'
 import { useAuth } from '~/composables/useAuth'
 
+definePageMeta({ middleware: ['auth-login'] })
+
 const { path } = useRoute()
 
 // Authentication

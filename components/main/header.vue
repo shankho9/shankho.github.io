@@ -14,7 +14,7 @@ function isActive(path: string) {
 }
 
 // Authentication
-const { user, isAuthenticated, signOut } = useAuth()
+const { user, isAuthenticated, isAdmin, signOut, checkAuth } = useAuth()
 
 // Dropdown state
 const showUserDropdown = ref(false)
@@ -112,6 +112,7 @@ watch(showMobileMenu, (open) => {
 onMounted(() => {
   if (typeof window !== 'undefined') {
     document.addEventListener('click', clickHandler)
+    checkAuth()
   }
 })
 
@@ -164,6 +165,7 @@ onUnmounted(() => {
           Library
         </NuxtLink>
         <NuxtLink
+          v-if="isAdmin"
           to="/dev"
           class="hover:opacity-80 transition-opacity flex items-center gap-1"
           :class="{ underline: isActive('/dev') }"
@@ -373,6 +375,7 @@ onUnmounted(() => {
                   Library
                 </NuxtLink>
                 <NuxtLink
+                  v-if="isAdmin"
                   to="/dev"
                   class="px-4 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors touch-manipulation text-base font-medium flex items-center gap-2"
                   :class="{ 'bg-gray-200 dark:bg-slate-800 font-semibold': isActive('/dev') }"

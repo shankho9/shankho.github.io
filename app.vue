@@ -36,7 +36,7 @@ useHead({
       console.warn('Error accessing siteMetaData:', error)
       // Return minimal safe meta data as fallback
       return [
-        { name: 'description', content: "Sid's Blog" },
+        { name: 'description', content: 'Nomadic Notions' },
         { property: 'og:type', content: 'website' },
       ]
     }

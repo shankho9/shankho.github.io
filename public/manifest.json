@@ -1,7 +1,7 @@
 {
-  "name": "Nomadic Notions - Sid's Blog",
+  "name": "Nomadic Notions",
   "short_name": "Nomadic Notions",
-  "description": "A personal blog site by Siddhartha Basu - Leadership, Strategy, and Personal Growth",
+  "description": "Nomadic Notions — blog by Siddhartha Basu. Leadership, strategy, and personal growth.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F1F2F4",

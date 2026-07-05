@@ -11,7 +11,6 @@ import { UAParser } from 'ua-parser-js'
 const SESSION_COOKIE = 'session_token'
 const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 const SESSION_REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000 // Refresh if less than 7 days remaining
-const UTILITY_PASSCODE_DURATION_MS = 90 * 24 * 60 * 60 * 1000 // 90 days (3 months)
 
 // Configure TOTP
 authenticator.options = {
@@ -86,8 +85,8 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  */
 export function generateMFASecret(email: string): string {
   return totp.generateSecret({
-    name: `Sid's Blog (${email})`,
-    issuer: "Sid's Blog",
+    name: `Nomadic Notions (${email})`,
+    issuer: 'Nomadic Notions',
   }).secret
 }
 
@@ -107,7 +106,7 @@ export function verifyMFACode(secret: string, code: string): boolean {
  */
 export async function generateMFAQRCode(email: string, secret: string): Promise<string> {
   const { default: QRCode } = await import('qrcode')
-  const otpauth = authenticator.keyuri(email, "Sid's Blog", secret)
+  const otpauth = authenticator.keyuri(email, 'Nomadic Notions', secret)
   return QRCode.toDataURL(otpauth)
 }
 
@@ -447,71 +446,6 @@ export async function createUser(data: {
  */
 export async function updateUserLastLogin(userId: number): Promise<void> {
   await query('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1', [userId])
-}
-
-/**
- * Verify utility passcode
- */
-export async function verifyUtilityPasscode(userId: number, passcode: string): Promise<boolean> {
-  const passcodes = await query<{
-    passcode_hash: string
-    expires_at: Date
-  }>('SELECT passcode_hash, expires_at FROM utility_passcodes WHERE user_id = $1', [userId])
-
-  if (passcodes.length === 0) {
-    return false
-  }
-
-  const passcodeData = passcodes[0]
-  if (new Date(passcodeData.expires_at) < new Date()) {
-    return false
-  }
-
-  return verifyPassword(passcode, passcodeData.passcode_hash)
-}
-
-/**
- * Set or update utility passcode
- */
-export async function setUtilityPasscode(userId: number, passcode: string): Promise<void> {
-  const passcodeHash = await hashPassword(passcode)
-  const expiresAt = new Date(Date.now() + UTILITY_PASSCODE_DURATION_MS)
-
-  await query(
-    `INSERT INTO utility_passcodes (user_id, passcode_hash, expires_at)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (user_id) 
-     DO UPDATE SET passcode_hash = $2, expires_at = $3, updated_at = CURRENT_TIMESTAMP`,
-    [userId, passcodeHash, expiresAt],
-  )
-}
-
-/**
- * Check if utility passcode needs rotation
- */
-export async function needsUtilityPasscodeRotation(userId: number): Promise<boolean> {
-  const passcodes = await query<{ expires_at: Date }>(
-    'SELECT expires_at FROM utility_passcodes WHERE user_id = $1',
-    [userId],
-  )
-
-  if (passcodes.length === 0) return true
-  const expiresAt = new Date(passcodes[0].expires_at)
-  const daysUntilExpiry = (expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-
-  return daysUntilExpiry <= 7
-}
-
-/**
- * Get utility passcode expiry
- */
-export async function getUtilityPasscodeExpiry(userId: number): Promise<Date | null> {
-  const passcodes = await query<{ expires_at: Date }>(
-    'SELECT expires_at FROM utility_passcodes WHERE user_id = $1',
-    [userId],
-  )
-
-  return passcodes.length > 0 ? passcodes[0].expires_at : null
 }
 
 /** Admin passcode (admin_passcodes table). */

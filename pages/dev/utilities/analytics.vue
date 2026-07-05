@@ -4,7 +4,7 @@ import { useAuth } from '~/composables/useAuth'
 
 definePageMeta({
   layout: 'default',
-  middleware: ['auth-admin', 'utility-access'],
+  middleware: ['auth-admin'],
 })
 
 const { isAuthenticated, checkAuth } = useAuth()

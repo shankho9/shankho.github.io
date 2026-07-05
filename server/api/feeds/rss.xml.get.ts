@@ -1,21 +1,22 @@
 import { Feed } from 'feed'
+import { siteBrand } from '~/data'
 
-const basePath = 'https://shankho-blogsite.vercel.app/'
+const basePath = 'https://www.nomadic-notions.co.in/'
 
 export default defineEventHandler(async (event) => {
   setHeader(event, 'content-type', 'text/xml')
   const docs = await queryCollection(event, 'content').all()
   const feed = new Feed({
-    title: "Sid's personal blog site",
-    description: "Sid's personal blog site",
+    title: siteBrand.publisherName,
+    description: `${siteBrand.publisherName} — blog by ${siteBrand.authorName}`,
     id: basePath,
     link: basePath,
     language: 'en',
     favicon: `${basePath}/favicon.ico`,
     copyright: 'MIT',
     author: {
-      name: 'Siddhartha Basu',
-      email: 'siddhartha.basu@outlook.com',
+      name: siteBrand.authorName,
+      email: siteBrand.contactEmail,
       link: basePath,
     },
   })

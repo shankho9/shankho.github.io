@@ -1,6 +1,12 @@
 // server/utils/email.ts
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const NOTIFICATION_EMAIL = process.env.NOTIFICATION_EMAIL
+const DEFAULT_FROM_EMAIL = 'Nomadic Notions <blogsite@nomadic-notions.co.in>'
+const PUBLISHER_NAME = 'Nomadic Notions'
+
+function getFromEmail(): string {
+  return process.env.FROM_EMAIL?.trim() || DEFAULT_FROM_EMAIL
+}
 
 /**
  * Escape HTML special characters to prevent XSS
@@ -33,7 +39,7 @@ export async function sendEmailNotification(
     const resend = new Resend(RESEND_API_KEY)
 
     await resend.emails.send({
-      from: "Sid's Blog <notifications@shankho-blogsite.vercel.app>",
+      from: getFromEmail(),
       to,
       subject,
       html,
@@ -59,7 +65,7 @@ export async function sendNewUserNotification(
 
   const html = `
     <h2>New User Registration</h2>
-    <p>A new user has registered on Sid's Blog:</p>
+    <p>A new user has registered on ${escapeHtml(PUBLISHER_NAME)}:</p>
     <ul>
       <li><strong>Email:</strong> ${escapeHtml(userEmail)}</li>
       <li><strong>Name:</strong> ${escapeHtml(userName) || 'Not provided'}</li>
@@ -93,7 +99,7 @@ export async function sendLoginNotification(
 
   const html = `
     <h2>${isNewDevice ? 'New Device Login' : 'User Login'}</h2>
-    <p>A user has logged in to Sid's Blog:</p>
+    <p>A user has logged in to ${escapeHtml(PUBLISHER_NAME)}:</p>
     <ul>
       <li><strong>Email:</strong> ${escapeHtml(userEmail)}</li>
       <li><strong>Name:</strong> ${escapeHtml(userName) || 'Not provided'}</li>
@@ -134,7 +140,7 @@ export async function sendNewUserAlert(data: {
 
   const html = `
     <h2>New User Login Alert</h2>
-    <p>A new user has logged in to Sid's Blog:</p>
+    <p>A new user has logged in to ${escapeHtml(PUBLISHER_NAME)}:</p>
     <ul>
       <li><strong>Email:</strong> ${escapeHtml(data.userEmail)}</li>
       <li><strong>Name:</strong> ${escapeHtml(data.userName)}</li>
@@ -167,7 +173,7 @@ export async function sendPasswordResetEmail(
   const html = `
     <h2>Password Reset Request</h2>
     <p>Hello ${escapeHtml(userName || 'there')},</p>
-    <p>You requested to reset your password for Sid's Blog. Click the link below to reset your password:</p>
+    <p>You requested to reset your password for ${escapeHtml(PUBLISHER_NAME)}. Click the link below to reset your password:</p>
     <p>
       <a href="${escapeHtml(resetUrl)}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 5px;">
         Reset Password
@@ -177,7 +183,7 @@ export async function sendPasswordResetEmail(
     <p style="word-break: break-all;">${escapeHtml(resetUrl)}</p>
     <p><strong>This link will expire in 24 hours.</strong></p>
     <p>If you didn't request this password reset, please ignore this email. Your password will remain unchanged.</p>
-    <p>Best regards,<br>Sid's Blog</p>
+    <p>Best regards,<br>${escapeHtml(PUBLISHER_NAME)}</p>
   `
 
   try {
@@ -186,9 +192,9 @@ export async function sendPasswordResetEmail(
 
     console.log('[Email] Sending password reset email to:', userEmail)
     const result = await resend.emails.send({
-      from: "Sid's Blog <notifications@shankho-blogsite.vercel.app>",
+      from: getFromEmail(),
       to: userEmail,
-      subject: "Reset Your Password - Sid's Blog",
+      subject: `Reset Your Password - ${PUBLISHER_NAME}`,
       html,
     })
 
@@ -223,7 +229,7 @@ export async function sendPasscodeResetEmail(
   const html = `
     <h2>Utility Passcode Reset Request</h2>
     <p>Hello ${escapeHtml(userName || 'there')},</p>
-    <p>You requested to reset your utility passcode for Sid's Blog. Click the link below to set a new passcode:</p>
+    <p>You requested to reset your utility passcode for ${escapeHtml(PUBLISHER_NAME)}. Click the link below to set a new passcode:</p>
     <p>
       <a href="${escapeHtml(resetUrl)}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 5px;">
         Set New Utility Passcode
@@ -233,7 +239,7 @@ export async function sendPasscodeResetEmail(
     <p style="word-break: break-all;">${escapeHtml(resetUrl)}</p>
     <p><strong>This link will expire in 24 hours.</strong></p>
     <p>If you didn't request this passcode reset, please ignore this email.</p>
-    <p>Best regards,<br>Sid's Blog</p>
+    <p>Best regards,<br>${escapeHtml(PUBLISHER_NAME)}</p>
   `
 
   try {
@@ -242,9 +248,9 @@ export async function sendPasscodeResetEmail(
 
     console.log('[Email] Sending utility passcode reset email to:', userEmail)
     const result = await resend.emails.send({
-      from: "Sid's Blog <notifications@shankho-blogsite.vercel.app>",
+      from: getFromEmail(),
       to: userEmail,
-      subject: "Reset Your Utility Passcode - Sid's Blog",
+      subject: `Reset Your Utility Passcode - ${PUBLISHER_NAME}`,
       html,
     })
 
@@ -260,4 +266,35 @@ export async function sendPasscodeResetEmail(
     console.error('[Email] Failed to send utility passcode reset email:', error)
     throw error
   }
+}
+
+/**
+ * Send OTP email when an admin requests a user role change
+ */
+export async function sendAdminRoleChangeOtp(
+  adminEmail: string,
+  adminName: string | null,
+  targetEmail: string,
+  newRole: 'visitor' | 'admin',
+  otp: string,
+): Promise<void> {
+  const greeting = adminName ? escapeHtml(adminName) : 'Admin'
+  const roleLabel = newRole === 'admin' ? 'Admin' : 'Visitor'
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #1e40af;">Confirm role change — ${escapeHtml(PUBLISHER_NAME)}</h2>
+      <p>Hello ${greeting},</p>
+      <p>You requested to change the role for <strong>${escapeHtml(targetEmail)}</strong> to <strong>${roleLabel}</strong>.</p>
+      <p>Your verification code is:</p>
+      <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #1e40af;">${escapeHtml(otp)}</p>
+      <p>This code expires in 10 minutes. If you did not request this change, ignore this email.</p>
+      <p style="color: #6b7280; font-size: 12px; margin-top: 24px;">${escapeHtml(PUBLISHER_NAME)}</p>
+    </div>
+  `
+
+  await sendEmailNotification(
+    adminEmail,
+    `Role change verification code — ${PUBLISHER_NAME}`,
+    html,
+  )
 }

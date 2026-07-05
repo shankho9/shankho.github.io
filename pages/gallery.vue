@@ -5,6 +5,8 @@ import { useAuth } from '~/composables/useAuth'
 import { seoData } from '~/data'
 import OAuthButtons from '~/components/auth/OAuthButtons.vue'
 
+definePageMeta({ middleware: ['auth-login'] })
+
 // Authentication
 const { user, isAuthenticated, signOut, loadStoredUser } = useAuth()
 

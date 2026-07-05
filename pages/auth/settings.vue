@@ -6,7 +6,7 @@
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Account Settings</h1>
         <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          Manage your account, password, and passcodes (utilities and admin)
+          Manage your account, password, and admin passcode
         </p>
       </div>
 
@@ -245,126 +245,6 @@
           </div>
         </div>
 
-        <!-- Utilities Passcode (all users): for passcode-required utilities -->
-        <div id="utilities-passcode" class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-          <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Utilities Passcode</h2>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            For access to:
-            <span v-if="passcodeUtilities.visitor.length">
-              {{ passcodeUtilities.visitor.join(', ') }}.
-            </span>
-            <span v-else>utilities that require passcode (configured in Access Control).</span>
-            This passcode must be rotated every 3 months.
-          </p>
-          <div
-            v-if="route.query.passcode === 'setup' && !passcodeStatus.isSet"
-            class="rounded-md bg-blue-50 dark:bg-blue-900/20 p-4 mb-4"
-          >
-            <div class="flex">
-              <Icon name="mdi:information" class="h-5 w-5 text-blue-400 shrink-0" />
-              <div class="ml-3">
-                <p class="text-sm font-medium text-blue-800 dark:text-blue-200">
-                  Set up a utilities passcode to access those utilities.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div
-            v-if="passcodeStatus.needsRotation && passcodeStatus.isSet"
-            class="rounded-md bg-yellow-50 dark:bg-yellow-900/20 p-4 mb-4"
-          >
-            <div class="flex">
-              <Icon name="mdi:alert" class="h-5 w-5 text-yellow-400 shrink-0" />
-              <div class="ml-3 flex-1">
-                <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                  Utilities passcode needs rotation
-                  <span v-if="passcodeStatus.expiresAt">
-                    (expires {{ formatDate(passcodeStatus.expiresAt) }})
-                  </span>
-                </p>
-                <NuxtLink
-                  to="/auth/passcode-rotate"
-                  class="mt-2 inline-block text-sm font-medium text-yellow-800 hover:text-yellow-900 dark:text-yellow-200 dark:hover:text-yellow-100 underline"
-                >
-                  Rotate utilities passcode →
-                </NuxtLink>
-              </div>
-            </div>
-          </div>
-          <div v-if="passcodeStatus.isSet && !passcodeStatus.needsRotation" class="mb-4">
-            <p class="text-sm text-gray-600 dark:text-gray-400">
-              Utilities passcode is set and active.
-              <span v-if="passcodeStatus.expiresAt">
-                Expires {{ formatDate(passcodeStatus.expiresAt) }}.
-              </span>
-            </p>
-            <NuxtLink
-              to="/auth/passcode-rotate"
-              class="mt-2 inline-block text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
-            >
-              Rotate utilities passcode →
-            </NuxtLink>
-          </div>
-          <form
-            v-if="!passcodeStatus.isSet || passcodeStatus.needsRotation"
-            class="space-y-4"
-            @submit.prevent="handleSetPasscode"
-          >
-            <div>
-              <label
-                for="passcode"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                {{ passcodeStatus.isSet ? 'New utilities passcode' : 'Set utilities passcode' }}
-              </label>
-              <input
-                id="passcode"
-                v-model="passcodeForm.passcode"
-                type="password"
-                required
-                minlength="6"
-                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="Enter passcode (min. 6 characters)"
-              />
-            </div>
-            <div>
-              <label
-                for="confirmPasscode"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Confirm passcode
-              </label>
-              <input
-                id="confirmPasscode"
-                v-model="passcodeForm.confirmPasscode"
-                type="password"
-                required
-                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="Confirm passcode"
-              />
-            </div>
-            <div v-if="passcodeError" class="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
-              <p class="text-sm text-red-800 dark:text-red-200">{{ passcodeError }}</p>
-            </div>
-            <div v-if="passcodeSuccess" class="rounded-md bg-green-50 dark:bg-green-900/20 p-4">
-              <p class="text-sm text-green-800 dark:text-green-200">{{ passcodeSuccess }}</p>
-            </div>
-            <div>
-              <button
-                type="submit"
-                :disabled="isSettingPasscode"
-                class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                <span v-if="!isSettingPasscode">Set utilities passcode</span>
-                <span v-else class="flex items-center">
-                  <Icon name="mdi:loading" class="animate-spin h-4 w-4 mr-2" />
-                  Setting...
-                </span>
-              </button>
-            </div>
-          </form>
-        </div>
-
         <!-- Admin Passcode (admin only): for admin-only utilities -->
         <div
           v-if="isAdmin"
@@ -373,8 +253,7 @@
         >
           <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Admin Passcode</h2>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            For access to: {{ passcodeUtilities.admin.join(', ') }}. Distinct from utilities
-            passcode; rotate separately. Must be rotated every 3 months.
+            For access to: {{ passcodeUtilities.admin.join(', ') }}. Rotate every 3 months.
           </p>
           <div
             v-if="route.query.passcode === 'admin-setup' && !adminPasscodeStatus.isSet"
@@ -509,7 +388,6 @@ const {
   isAuthenticated,
   isAdmin,
   checkAuth,
-  checkUtilityPasscodeStatus,
   checkAdminPasscodeStatus,
 } = useAuth()
 
@@ -521,16 +399,6 @@ const passwordForm = ref({
 const passwordError = ref('')
 const passwordSuccess = ref('')
 const isChangingPassword = ref(false)
-
-const passcodeForm = ref({ passcode: '', confirmPasscode: '' })
-const passcodeError = ref('')
-const passcodeSuccess = ref('')
-const isSettingPasscode = ref(false)
-const passcodeStatus = ref<{
-  isSet: boolean
-  needsRotation: boolean
-  expiresAt: string | null
-}>({ isSet: false, needsRotation: false, expiresAt: null })
 
 const adminPasscodeForm = ref({ passcode: '', confirmPasscode: '' })
 const adminPasscodeError = ref('')
@@ -602,51 +470,6 @@ const handleChangePassword = async () => {
       errorData?.error || (error instanceof Error ? error.message : 'An error occurred')
   } finally {
     isChangingPassword.value = false
-  }
-}
-
-const handleSetPasscode = async () => {
-  passcodeError.value = ''
-  passcodeSuccess.value = ''
-
-  if (passcodeForm.value.passcode !== passcodeForm.value.confirmPasscode) {
-    passcodeError.value = 'Passcodes do not match'
-    return
-  }
-
-  if (passcodeForm.value.passcode.length < 6) {
-    passcodeError.value = 'Passcode must be at least 6 characters long'
-    return
-  }
-
-  isSettingPasscode.value = true
-
-  try {
-    const response = await $fetch<{ success: boolean; error?: string; message?: string }>(
-      '/api/auth/utility-passcode/set',
-      {
-        method: 'POST',
-        body: { passcode: passcodeForm.value.passcode },
-      },
-    )
-
-    if (response.success) {
-      passcodeSuccess.value = 'Utilities passcode set successfully'
-      passcodeForm.value = { passcode: '', confirmPasscode: '' }
-      if (typeof window !== 'undefined') sessionStorage.removeItem('utility_passcode_verified')
-      await loadPasscodeStatus()
-    } else {
-      passcodeError.value = response.error || 'Failed to set utilities passcode'
-    }
-  } catch (error: unknown) {
-    const errorData =
-      error && typeof error === 'object' && 'data' in error
-        ? (error.data as { error?: string })
-        : null
-    passcodeError.value =
-      errorData?.error || (error instanceof Error ? error.message : 'An error occurred')
-  } finally {
-    isSettingPasscode.value = false
   }
 }
 
@@ -732,15 +555,6 @@ const disableMFA = async () => {
   }
 }
 
-const loadPasscodeStatus = async () => {
-  const status = await checkUtilityPasscodeStatus()
-  passcodeStatus.value = {
-    isSet: status.isSet,
-    needsRotation: status.needsRotation,
-    expiresAt: status.expiresAt,
-  }
-}
-
 const loadAdminPasscodeStatus = async () => {
   const status = await checkAdminPasscodeStatus()
   adminPasscodeStatus.value = {
@@ -798,7 +612,6 @@ const formatDate = (dateString: string | null) => {
 onMounted(async () => {
   await checkAuth()
   if (isAuthenticated.value) {
-    await loadPasscodeStatus()
     try {
       const res = await $fetch<{ visitor: string[]; admin: string[] }>(
         '/api/auth/passcode-utilities',

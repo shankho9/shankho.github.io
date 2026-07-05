@@ -7,6 +7,8 @@ import { getTagColorClasses, getTagSelectedColorClasses } from '~/utils/blog/tag
 import { useAuth } from '~/composables/useAuth'
 import { ref, onMounted, watch } from 'vue'
 
+definePageMeta({ middleware: ['auth-login'] })
+
 // Authentication (optional - for tracking purposes, not required for viewing list)
 const { loadStoredUser } = useAuth()
 

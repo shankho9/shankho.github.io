@@ -29,6 +29,12 @@ export const UTILITIES_MANIFEST: UtilityManifestItem[] = [
     section: 'Analytics & Insights',
   },
   {
+    id: 'admin-users',
+    name: 'Admin Users',
+    route: '/dev/utilities/admin-users',
+    section: 'Site Settings',
+  },
+  {
     id: 'database',
     name: 'Database Stats',
     route: '/dev/utilities/database',
