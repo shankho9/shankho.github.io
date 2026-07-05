@@ -469,13 +469,19 @@ export async function verifyAdminPasscode(
 }
 
 export async function setAdminPasscode(userId: string | number, passcode: string): Promise<void> {
+  const { ensureAdminPasscodesTable } = await import('./ensureAdminPasscodes')
+  await ensureAdminPasscodesTable()
+
   const hash = await hashPassword(passcode)
   const expiresAt = new Date(Date.now() + UTILITY_PASSCODE_DURATION_MS)
   await query(
     `INSERT INTO admin_passcodes (user_id, passcode_hash, expires_at)
      VALUES ($1, $2, $3)
-     ON CONFLICT (user_id) DO UPDATE SET passcode_hash = $2, expires_at = $3, updated_at = CURRENT_TIMESTAMP`,
-    [userId, hash, expiresAt],
+     ON CONFLICT (user_id) DO UPDATE SET
+       passcode_hash = EXCLUDED.passcode_hash,
+       expires_at = EXCLUDED.expires_at,
+       updated_at = CURRENT_TIMESTAMP`,
+    [passcodeUserIdParam(userId), hash, expiresAt],
   )
 }
 

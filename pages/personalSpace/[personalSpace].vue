@@ -5,8 +5,7 @@ import { computed, onMounted, onUnmounted, nextTick, ref } from 'vue'
 import LikeButton from '@/components/blog/LikeButton.vue'
 import Comments from '@/components/blog/Comments.vue'
 import ReadingProgress from '@/components/blog/ReadingProgress.vue'
-import FocusMode from '@/components/blog/FocusMode.vue'
-import TextToSpeech from '@/components/blog/TextToSpeech.vue'
+import BlogPostToolbar from '@/components/blog/BlogPostToolbar.vue'
 import { calculateReadingTime } from '~/utils/blog/readingTime'
 import { useAuth } from '~/composables/useAuth'
 
@@ -192,12 +191,9 @@ useHead({
       class="px-3 sm:px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12 overflow-x-hidden w-full"
     >
       <div class="col-span-12 lg:col-span-9 blog-content-container min-w-0">
-        <div class="flex items-center justify-between mb-4 gap-4 flex-wrap">
-          <div class="flex items-center gap-2">
-            <FocusMode />
-            <TextToSpeech :post-id="path" />
-          </div>
-        </div>
+        <BlogPostToolbar :post-id="path" />
+
+        <BlogPostShare compact class="mb-6 lg:hidden" />
 
         <article
           class="prose prose-lg dark:prose-invert max-w-full prose-pre:overflow-x-auto prose-pre:max-w-full prose-img:max-w-full"
@@ -217,28 +213,9 @@ useHead({
         <Comments :post-id="path" />
       </div>
 
-      <aside class="col-span-12 lg:col-span-3 mt-8 lg:mt-0">
-        <div class="sticky top-20 space-y-6">
-          <div class="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-md">
-            <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Share</h3>
-            <div class="flex flex-wrap gap-2">
-              <div
-                v-for="network in ['facebook', 'twitter', 'linkedin', 'whatsapp', 'email']"
-                :key="network"
-                :class="`social-share-wrapper social-share-${network === 'twitter' ? 'x' : network}`"
-                :data-network="network === 'twitter' ? 'x' : network"
-                :title="`Share with ${network === 'twitter' ? 'X' : network.charAt(0).toUpperCase() + network.slice(1)}`"
-              >
-                <SocialShare
-                  :network="network"
-                  :styled="false"
-                  :label="false"
-                  class="social-share-button"
-                  :aria-label="`Share on ${network === 'twitter' ? 'X' : network.charAt(0).toUpperCase() + network.slice(1)}`"
-                />
-              </div>
-            </div>
-          </div>
+      <aside class="blog-sidebar col-span-12 hidden lg:col-span-3 lg:block">
+        <div class="sticky top-28 space-y-5">
+          <BlogPostShare />
         </div>
       </aside>
     </div>
@@ -247,80 +224,3 @@ useHead({
     <AuthLoginModal :is-open="showLoginModal" @close="closeLoginModal" />
   </div>
 </template>
-
-<style scoped>
-/* Wrapper for share buttons */
-.social-share-wrapper {
-  @apply relative flex items-center;
-}
-
-/* Social Share Button Styles */
-:deep(.social-share-button) {
-  @apply w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200;
-}
-
-/* X (formerly Twitter) - bright vibrant sky blue */
-.social-share-x :deep(.social-share-button),
-.social-share-wrapper[data-network='x'] :deep(.social-share-button) {
-  @apply bg-sky-500 dark:bg-sky-600 text-white border-sky-600 dark:border-sky-500;
-  box-shadow: 0 4px 14px 0 rgba(14, 165, 233, 0.4);
-}
-
-.social-share-x:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='x']:hover :deep(.social-share-button) {
-  @apply bg-sky-600 dark:bg-sky-500 border-sky-700 dark:border-sky-400;
-  box-shadow: 0 6px 20px 0 rgba(14, 165, 233, 0.6);
-}
-
-/* Facebook - bright vibrant blue */
-.social-share-facebook :deep(.social-share-button),
-.social-share-wrapper[data-network='facebook'] :deep(.social-share-button) {
-  @apply bg-blue-600 dark:bg-blue-700 text-white border-blue-700 dark:border-blue-800;
-  box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.4);
-}
-
-.social-share-facebook:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='facebook']:hover :deep(.social-share-button) {
-  @apply bg-blue-700 dark:bg-blue-800 border-blue-800 dark:border-blue-900;
-  box-shadow: 0 6px 20px 0 rgba(37, 99, 235, 0.6);
-}
-
-/* LinkedIn - bright vibrant blue */
-.social-share-linkedin :deep(.social-share-button),
-.social-share-wrapper[data-network='linkedin'] :deep(.social-share-button) {
-  @apply bg-blue-700 dark:bg-blue-800 text-white border-blue-800 dark:border-blue-900;
-  box-shadow: 0 4px 14px 0 rgba(29, 78, 216, 0.4);
-}
-
-.social-share-linkedin:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='linkedin']:hover :deep(.social-share-button) {
-  @apply bg-blue-800 dark:bg-blue-900 border-blue-900 dark:border-blue-950;
-  box-shadow: 0 6px 20px 0 rgba(29, 78, 216, 0.6);
-}
-
-/* WhatsApp - bright vibrant green */
-.social-share-whatsapp :deep(.social-share-button),
-.social-share-wrapper[data-network='whatsapp'] :deep(.social-share-button) {
-  @apply bg-emerald-500 dark:bg-emerald-600 text-white border-emerald-600 dark:border-emerald-700;
-  box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.4);
-}
-
-.social-share-whatsapp:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='whatsapp']:hover :deep(.social-share-button) {
-  @apply bg-emerald-600 dark:bg-emerald-500 border-emerald-700 dark:border-emerald-400;
-  box-shadow: 0 6px 20px 0 rgba(16, 185, 129, 0.6);
-}
-
-/* Email - bright vibrant slate/gray */
-.social-share-email :deep(.social-share-button),
-.social-share-wrapper[data-network='email'] :deep(.social-share-button) {
-  @apply bg-slate-600 dark:bg-slate-500 text-white border-slate-700 dark:border-slate-400;
-  box-shadow: 0 4px 14px 0 rgba(71, 85, 105, 0.4);
-}
-
-.social-share-email:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='email']:hover :deep(.social-share-button) {
-  @apply bg-slate-700 dark:bg-slate-400 border-slate-800 dark:border-slate-300;
-  box-shadow: 0 6px 20px 0 rgba(71, 85, 105, 0.6);
-}
-</style>

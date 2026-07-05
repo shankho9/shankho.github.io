@@ -72,7 +72,7 @@ const nativeShare = async () => {
 
 <template>
   <div
-    class="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200/80 bg-white/80 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/80"
+    class="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200/80 bg-white/80 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/80"
   >
     <span class="mr-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Share</span>
 

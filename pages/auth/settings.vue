@@ -706,9 +706,6 @@ const syncServerRole = async () => {
       visitor: res?.visitor ?? [],
       admin: res?.admin ?? [],
     }
-    if ((res?.admin?.length ?? 0) > 0) {
-      serverIsAdmin.value = true
-    }
   } catch {
     passcodeUtilities.value = { visitor: [], admin: [] }
   }

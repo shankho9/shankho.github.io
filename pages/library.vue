@@ -1087,17 +1087,19 @@ try {
         </div>
       </div>
 
-      <LibraryIntegrationNote v-if="isAuthenticated || !currentTabRequiresAuth" :tab="activeTab" />
+      <div class="mb-5 space-y-4">
+        <LibraryIntegrationNote v-if="isAuthenticated || !currentTabRequiresAuth" :tab="activeTab" />
 
-      <LibraryShareBar
-        v-if="
-          activeTab === 'videos' ||
-          activeTab === 'resources' ||
-          activeTab === 'musical-notes' ||
-          activeTab === 'apps'
-        "
-        :tab="activeTab"
-      />
+        <LibraryShareBar
+          v-if="
+            activeTab === 'videos' ||
+            activeTab === 'resources' ||
+            activeTab === 'musical-notes' ||
+            activeTab === 'apps'
+          "
+          :tab="activeTab"
+        />
+      </div>
 
       <!-- Authentication Required Message (for Photos/Videos) -->
       <div v-if="!isAuthenticated && currentTabRequiresAuth" class="max-w-2xl mx-auto mt-12">
@@ -1150,12 +1152,8 @@ try {
           :key="'photos'"
         >
           <!-- View mode (photos only) -->
-          <div
-            v-if="isAuthenticated"
-            class="mb-4 flex justify-end"
-          >
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-zinc-500 dark:text-zinc-400">View</span>
+          <LibraryContentSection v-if="isAuthenticated" title="View">
+            <div class="flex justify-end">
               <div class="flex gap-1 rounded-lg border border-gray-200 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-800">
                 <button
                   :class="[
@@ -1181,43 +1179,38 @@ try {
                 </button>
               </div>
             </div>
-          </div>
+          </LibraryContentSection>
 
           <!-- Folder Selection (ImageKit) -->
-          <div v-if="isAuthenticated" class="mb-6">
-            <div class="flex items-center justify-between mb-2">
-              <label class="block text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                Select Folder
-              </label>
+          <LibraryContentSection v-if="isAuthenticated" title="Folder">
+            <template #header>
               <div class="flex items-center gap-2">
-                <!-- Refresh Folders Button -->
                 <button
                   :disabled="isLoadingFolders"
-                  class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-zinc-300"
                   title="Refresh folder list"
                   @click="loadImageKitFolders(photosRootFolder, 'image')"
                 >
                   <Icon
                     :name="isLoadingFolders ? 'svg-spinners:180-ring' : 'mdi:folder-refresh'"
                     :class="isLoadingFolders ? 'animate-spin' : ''"
-                    size="16"
+                    size="14"
                   />
                 </button>
-                <!-- Refresh Images Button -->
                 <button
                   :disabled="isLoadingImages"
-                  class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 hover:bg-sky-200 dark:hover:bg-sky-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="flex items-center gap-1 rounded-lg bg-sky-600 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-50"
                   @click="loadImagesFromImageKit(selectedFolder)"
                 >
                   <Icon
                     :name="isLoadingImages ? 'svg-spinners:180-ring' : 'mdi:refresh'"
                     :class="isLoadingImages ? 'animate-spin' : ''"
-                    size="18"
+                    size="14"
                   />
-                  <span>{{ isLoadingImages ? 'Refreshing...' : 'Refresh' }}</span>
+                  <span>{{ isLoadingImages ? 'Refreshing…' : 'Refresh' }}</span>
                 </button>
               </div>
-            </div>
+            </template>
             <div
               v-if="isLoadingFolders"
               class="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400"
@@ -1225,15 +1218,15 @@ try {
               <Icon name="svg-spinners:180-ring" class="animate-spin" size="16" />
               <span>Loading folders...</span>
             </div>
-            <div v-else class="flex flex-wrap gap-2">
+            <div v-else class="flex flex-wrap gap-1.5">
               <button
                 v-for="folder in displayImageFolders"
                 :key="folder.value"
                 :class="[
-                  'px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200',
+                  'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
                   selectedFolder === folder.value
-                    ? 'bg-gradient-to-r from-sky-700 to-blue-600 dark:from-sky-600 dark:to-blue-500 text-white shadow-md'
-                    : 'bg-white dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-slate-700 shadow-sm',
+                    ? 'bg-sky-700 text-white dark:bg-sky-600'
+                    : 'bg-gray-100 text-zinc-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-zinc-300 dark:hover:bg-slate-600',
                 ]"
                 @click="selectedFolder = folder.value"
               >
@@ -1246,7 +1239,7 @@ try {
                 No subfolders found. Upload files to subfolders in ImageKit to see them here.
               </p>
             </div>
-          </div>
+          </LibraryContentSection>
 
           <!-- Loading State -->
           <div v-if="isLoadingImages" class="text-center py-12">
@@ -1277,32 +1270,34 @@ try {
           </div>
 
           <!-- Search Filter -->
-          <div v-else-if="!isLoadingImages && !imageKitError" class="mb-6">
+          <LibraryContentSection
+            v-else-if="!isLoadingImages && !imageKitError"
+            title="Search"
+          >
             <div class="relative">
               <Icon
                 name="mdi:magnify"
-                class="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
-                size="20"
+                class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
+                size="18"
               />
               <input
                 v-model="searchQuery"
-                type="text"
-                placeholder="Search by tags, description, title, or metadata..."
-                class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                type="search"
+                placeholder="Search tags, title, metadata..."
+                class="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-600 dark:bg-slate-800 dark:text-zinc-300"
               />
               <button
                 v-if="searchQuery"
-                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                 @click="searchQuery = ''"
               >
-                <Icon name="mdi:close-circle" size="20" />
+                <Icon name="mdi:close-circle" size="18" />
               </button>
             </div>
-            <p v-if="searchQuery" class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              Found {{ filteredItems.length }}
-              {{ filteredItems.length === 1 ? 'result' : 'results' }}
+            <p v-if="searchQuery" class="text-xs text-zinc-500 dark:text-zinc-400">
+              {{ filteredItems.length }} {{ filteredItems.length === 1 ? 'result' : 'results' }}
             </p>
-          </div>
+          </LibraryContentSection>
 
           <!-- Gallery Info and Pagination Controls (Top) -->
           <div
@@ -1636,41 +1631,35 @@ try {
           v-else-if="activeTab === 'videos' && (isAuthenticated || !currentTabRequiresAuth)"
           :key="'videos'"
         >
-          <!-- Video Folder Selection (ImageKit) -->
-          <div v-if="isAuthenticated" class="mb-6">
-            <div class="flex items-center justify-between mb-2">
-              <label class="block text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                Select Video Folder
-              </label>
+          <LibraryContentSection v-if="isAuthenticated" title="Folder">
+            <template #header>
               <div class="flex items-center gap-2">
-                <!-- Refresh Folders Button -->
                 <button
                   :disabled="isLoadingVideoFolders"
-                  class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-zinc-300"
                   title="Refresh folder list"
                   @click="loadVideoKitFolders(videosRootFolder, 'video')"
                 >
                   <Icon
                     :name="isLoadingVideoFolders ? 'svg-spinners:180-ring' : 'mdi:folder-refresh'"
                     :class="isLoadingVideoFolders ? 'animate-spin' : ''"
-                    size="16"
+                    size="14"
                   />
                 </button>
-                <!-- Refresh Videos Button -->
                 <button
                   :disabled="isLoadingVideos"
-                  class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 hover:bg-sky-200 dark:hover:bg-sky-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="flex items-center gap-1 rounded-lg bg-sky-600 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-50"
                   @click="loadVideosFromImageKit(selectedVideoFolder)"
                 >
                   <Icon
                     :name="isLoadingVideos ? 'svg-spinners:180-ring' : 'mdi:refresh'"
                     :class="isLoadingVideos ? 'animate-spin' : ''"
-                    size="18"
+                    size="14"
                   />
-                  <span>{{ isLoadingVideos ? 'Refreshing...' : 'Refresh' }}</span>
+                  <span>{{ isLoadingVideos ? 'Refreshing…' : 'Refresh' }}</span>
                 </button>
               </div>
-            </div>
+            </template>
             <div
               v-if="isLoadingVideoFolders"
               class="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400"
@@ -1678,15 +1667,15 @@ try {
               <Icon name="svg-spinners:180-ring" class="animate-spin" size="16" />
               <span>Loading folders...</span>
             </div>
-            <div v-else class="flex flex-wrap gap-2">
+            <div v-else class="flex flex-wrap gap-1.5">
               <button
                 v-for="folder in displayVideoFolders"
                 :key="folder.value"
                 :class="[
-                  'px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200',
+                  'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
                   selectedVideoFolder === folder.value
-                    ? 'bg-gradient-to-r from-sky-700 to-blue-600 dark:from-sky-600 dark:to-blue-500 text-white shadow-md'
-                    : 'bg-white dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-slate-700 shadow-sm',
+                    ? 'bg-sky-700 text-white dark:bg-sky-600'
+                    : 'bg-gray-100 text-zinc-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-zinc-300 dark:hover:bg-slate-600',
                 ]"
                 @click="selectedVideoFolder = folder.value"
               >
@@ -1699,7 +1688,7 @@ try {
                 No subfolders found. Upload videos to subfolders in ImageKit to see them here.
               </p>
             </div>
-          </div>
+          </LibraryContentSection>
 
           <!-- Loading State -->
           <div v-if="isLoadingVideos" class="text-center py-12">
@@ -1729,33 +1718,34 @@ try {
             </button>
           </div>
 
-          <!-- Video Search Filter -->
-          <div v-else-if="!isLoadingVideos && !videoKitError" class="mb-6">
+          <LibraryContentSection
+            v-else-if="!isLoadingVideos && !videoKitError"
+            title="Search"
+          >
             <div class="relative">
               <Icon
                 name="mdi:magnify"
-                class="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
-                size="20"
+                class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
+                size="18"
               />
               <input
                 v-model="videoSearchQuery"
-                type="text"
-                placeholder="Search videos by tags, description, title, or metadata..."
-                class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                type="search"
+                placeholder="Search videos by tags, title, metadata..."
+                class="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-600 dark:bg-slate-800 dark:text-zinc-300"
               />
               <button
                 v-if="videoSearchQuery"
-                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                 @click="videoSearchQuery = ''"
               >
-                <Icon name="mdi:close-circle" size="20" />
+                <Icon name="mdi:close-circle" size="18" />
               </button>
             </div>
-            <p v-if="videoSearchQuery" class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              Found {{ filteredVideos.length }}
-              {{ filteredVideos.length === 1 ? 'result' : 'results' }}
+            <p v-if="videoSearchQuery" class="text-xs text-zinc-500 dark:text-zinc-400">
+              {{ filteredVideos.length }} {{ filteredVideos.length === 1 ? 'result' : 'results' }}
             </p>
-          </div>
+          </LibraryContentSection>
 
           <!-- Video Info and Pagination Controls (Top) -->
           <div

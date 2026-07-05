@@ -3,6 +3,7 @@ import {
   needsAdminPasscodeRotation,
   getAdminPasscodeExpiry,
 } from '~/server/utils/auth'
+import { ensureAdminPasscodesTable } from '~/server/utils/ensureAdminPasscodes'
 import { query } from '~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
@@ -14,6 +15,8 @@ export default defineEventHandler(async (event) => {
     if (user.role !== 'admin') {
       return { authenticated: true, isSet: false, needsRotation: false, expiresAt: null }
     }
+
+    await ensureAdminPasscodesTable()
 
     const rows = await query<{ id: number }>(
       'SELECT id FROM admin_passcodes WHERE user_id::text = $1',

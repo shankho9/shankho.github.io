@@ -9,8 +9,6 @@ import MusicListRow, {
 type MusicTab = 'lyrics' | 'instrumental' | 'notation'
 
 const { isAdmin } = useAuth()
-const config = useRuntimeConfig()
-const tinaConfigured = computed(() => Boolean(config.public.tinaClientId))
 
 const activeMusicTab = ref<MusicTab>('lyrics')
 const searchQuery = ref('')
@@ -119,67 +117,30 @@ defineExpose({ items, loadMusic, isLoading })
     </div>
 
     <div v-else>
-      <div
-        class="sticky top-0 z-10 -mx-1 mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white/95 px-3 py-3 backdrop-blur-sm dark:border-slate-700/80 dark:bg-slate-900/95 sm:flex-row sm:items-center"
+      <LibraryTabToolbar
+        v-model:search="searchQuery"
+        search-placeholder="Search title, artist, tags..."
       >
-        <div class="flex flex-wrap gap-1.5">
-          <button
+        <template #tabs>
+          <LibraryTabPill
             v-for="tab in musicTabs"
             :key="tab.id"
-            :class="[
-              'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-              activeMusicTab === tab.id
-                ? 'bg-sky-700 text-white dark:bg-sky-600'
-                : 'bg-gray-100 text-zinc-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-zinc-300 dark:hover:bg-slate-600',
-            ]"
+            :icon="tab.icon"
+            :label="tab.label"
+            :active="activeMusicTab === tab.id"
             @click="activeMusicTab = tab.id"
-          >
-            <Icon :name="tab.icon" size="16" />
-            <span class="hidden sm:inline">{{ tab.label }}</span>
-          </button>
-        </div>
-
-        <div class="relative min-w-0 flex-1 sm:max-w-xs">
-          <Icon
-            name="mdi:magnify"
-            class="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400"
-            size="18"
           />
-          <input
-            v-model="searchQuery"
-            type="search"
-            placeholder="Search title, artist, tags..."
-            class="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-zinc-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-600 dark:bg-slate-800 dark:text-zinc-300"
-          />
-        </div>
+        </template>
+        <template #actions>
+          <TinaEditButton />
+        </template>
+      </LibraryTabToolbar>
 
-        <a
-          v-if="isAdmin && tinaConfigured"
-          href="/admin#/collections/music"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700"
-        >
-          <Icon name="mdi:pencil" size="16" />
-          Edit in Tina
-        </a>
-        <p
-          v-else-if="isAdmin"
-          class="shrink-0 text-xs text-amber-700 dark:text-amber-300"
-          title="Set NUXT_PUBLIC_TINA_CLIENT_ID and TINA_TOKEN on Vercel"
-        >
-          Tina not configured
-        </p>
-      </div>
-
-      <p v-if="searchQuery" class="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+      <p v-if="searchQuery" class="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
         {{ filteredItems.length }} {{ filteredItems.length === 1 ? 'result' : 'results' }}
       </p>
 
-      <div
-        v-if="filteredItems.length > 0"
-        class="grid grid-cols-1 gap-3 lg:grid-cols-2"
-      >
+      <div v-if="filteredItems.length > 0" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <MusicListRow v-for="item in filteredItems" :key="item.id" :item="item" />
       </div>
 
@@ -193,7 +154,7 @@ defineExpose({ items, loadMusic, isLoading })
           }}
         </p>
         <p v-if="isAdmin && !searchQuery" class="mt-2 text-sm text-zinc-500">
-          Use <strong>Edit in Tina</strong> to add content.
+          Use <strong>Edit in Tina</strong> (when available) to add content.
         </p>
       </div>
     </div>

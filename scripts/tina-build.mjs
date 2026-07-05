@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 
 function summarizeError(error) {
   const output = `${error?.stdout || ''}\n${error?.stderr || ''}\n${error?.message || ''}`
@@ -25,6 +26,9 @@ if (skipExplicit) {
   try {
     console.log(`[build] Running tinacms build for branch "${branch}"...`)
     execSync('npx tinacms build', { stdio: 'pipe', encoding: 'utf8' })
+    if (existsSync('public/admin/index.html')) {
+      console.log('[build] Tina admin UI built at public/admin/index.html')
+    }
   } catch (error) {
     const output = `${error?.stdout || ''}\n${error?.stderr || ''}\n${error?.message || ''}`
     const branchNotOnCloud =

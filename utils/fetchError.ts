@@ -28,7 +28,14 @@ export function readFetchErrorMessage(error: unknown, fallback: string): string 
         const record = data as Record<string, unknown>
         if (typeof record.error === 'string' && record.error.trim()) {
           if (record.error === 'Admin access required') return ADMIN_ACCESS_HINT
-          return record.error
+          let msg = record.error
+          if (record.details && typeof record.details === 'object') {
+            const detail = (record.details as { detail?: unknown }).detail
+            if (typeof detail === 'string' && detail.trim() && !msg.includes(detail)) {
+              msg += ` (${detail})`
+            }
+          }
+          return msg
         }
         if (typeof record.message === 'string' && record.message.trim()) return record.message
       }

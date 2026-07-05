@@ -11,124 +11,116 @@ const searchQuery = ref('')
 const { isLoading, error, fetchDatabase } = useNotion()
 const items = ref<NotionItem[]>([])
 
-// Helper function to extract type string from various formats
-const extractTypeString = (item: NotionItem): string => {
-  // Try Type property first
-  let type = item.Type || item.type
+const resourceTabs: {
+  id: ResourceTab
+  label: string
+  shortLabel: string
+  icon: string
+}[] = [
+  { id: 'books', label: 'Books', shortLabel: 'Books', icon: 'mdi:book-open-variant' },
+  { id: 'tools', label: 'Tools', shortLabel: 'Tools', icon: 'mdi:tools' },
+  { id: 'learning', label: 'Learning', shortLabel: 'Learn', icon: 'mdi:school' },
+]
 
-  // If it's an object with a name property, extract the name
+const extractTypeString = (item: NotionItem): string => {
+  let type = item.Type || item.type
   if (type && typeof type === 'object' && 'name' in type) {
     type = type.name
   }
-
-  // If still not a string, try type property
   if (typeof type !== 'string') {
     type = item.type
     if (type && typeof type === 'object' && 'name' in type) {
       type = type.name
     }
   }
-
-  // Return as string, trimmed
   return typeof type === 'string' ? type.trim() : ''
 }
 
-// Filter items by type and published status
-const books = computed(() => {
-  return items.value.filter((item) => {
-    // Check if published
+const books = computed(() =>
+  items.value.filter((item) => {
     const published = item.Published || item.published || false
     if (!published) return false
+    return extractTypeString(item) === 'Book'
+  }),
+)
 
-    // Check type
-    const typeStr = extractTypeString(item)
-    return typeStr === 'Book'
-  })
-})
-
-const tools = computed(() => {
-  return items.value.filter((item) => {
-    // Check if published
+const tools = computed(() =>
+  items.value.filter((item) => {
     const published = item.Published || item.published || false
     if (!published) return false
+    return extractTypeString(item) === 'Tool'
+  }),
+)
 
-    // Check type
-    const typeStr = extractTypeString(item)
-    return typeStr === 'Tool'
-  })
-})
-
-const learningResources = computed(() => {
-  return items.value.filter((item) => {
-    // Check if published
+const learningResources = computed(() =>
+  items.value.filter((item) => {
     const published = item.Published || item.published || false
     if (!published) return false
+    return extractTypeString(item) === 'Learning Resource'
+  }),
+)
 
-    // Check type
-    const typeStr = extractTypeString(item)
-    return typeStr === 'Learning Resource'
-  })
-})
+const tabCounts = computed(() => ({
+  books: books.value.length,
+  tools: tools.value.length,
+  learning: learningResources.value.length,
+}))
 
-// Get current tab items
 const currentTabItems = computed(() => {
-  let tabItems: NotionItem[] = []
   switch (activeResourceTab.value) {
     case 'books':
-      tabItems = books.value
-      break
+      return books.value
     case 'tools':
-      tabItems = tools.value
-      break
+      return tools.value
     case 'learning':
-      tabItems = learningResources.value
-      break
+      return learningResources.value
+    default:
+      return []
   }
-  return tabItems
 })
 
-// Filter by search query
 const filteredItems = computed(() => {
-  if (!searchQuery.value.trim()) {
-    return currentTabItems.value
-  }
+  if (!searchQuery.value.trim()) return currentTabItems.value
 
   const query = searchQuery.value.toLowerCase().trim()
-
   return currentTabItems.value.filter((item) => {
-    // Search in title
     const title = item.Title || item.title || item.Name || item.name || ''
     if (title && String(title).toLowerCase().includes(query)) return true
-
-    // Search in description
     const description = item.Description || item.description || ''
     if (description && String(description).toLowerCase().includes(query)) return true
-
-    // Search in category
     const category = item.Category || item.category || ''
     if (category && String(category).toLowerCase().includes(query)) return true
-
-    // Search in author (for books)
     const author = item.Author || item.author || ''
     if (author && String(author).toLowerCase().includes(query)) return true
-
     return false
   })
 })
 
-// Load resources from Notion
+const searchPlaceholder = computed(() => {
+  switch (activeResourceTab.value) {
+    case 'books':
+      return 'Search books, authors...'
+    case 'tools':
+      return 'Search tools...'
+    case 'learning':
+      return 'Search learning resources...'
+    default:
+      return 'Search resources...'
+  }
+})
+
+const cardType = computed((): 'book' | 'tool' | 'learning' => {
+  if (activeResourceTab.value === 'books') return 'book'
+  if (activeResourceTab.value === 'tools') return 'tool'
+  return 'learning'
+})
+
 const loadResources = async () => {
   const config = useRuntimeConfig()
   const databaseId = config.public.notionDatabaseId
-
   if (databaseId && typeof databaseId === 'string') {
-    const response = await fetchDatabase({
-      databaseId: databaseId,
-      pageSize: 100,
-    })
-    if (response.success) {
-      items.value = response.items
-    }
+    const response = await fetchDatabase({ databaseId, pageSize: 100 })
+    if (response.success) items.value = response.items
   }
 }
 
@@ -139,157 +131,55 @@ onMounted(() => {
 
 <template>
   <div>
-    <!-- Loading State -->
-    <div v-if="isLoading" class="text-center py-12">
-      <Icon name="svg-spinners:180-ring" class="text-4xl text-sky-700 dark:text-sky-400 mb-4" />
+    <div v-if="isLoading" class="py-12 text-center">
+      <Icon name="svg-spinners:180-ring" class="mb-4 text-4xl text-sky-700 dark:text-sky-400" />
       <p class="text-zinc-600 dark:text-zinc-400">Loading resources from Notion...</p>
     </div>
 
-    <!-- Error State -->
     <div
       v-else-if="error"
-      class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center"
+      class="rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-900/20"
     >
-      <Icon name="mdi:alert-circle" class="text-4xl text-red-600 dark:text-red-400 mb-4" />
-      <p class="text-red-600 dark:text-red-400 mb-2">{{ error }}</p>
+      <Icon name="mdi:alert-circle" class="mb-4 text-4xl text-red-600 dark:text-red-400" />
+      <p class="mb-2 text-red-600 dark:text-red-400">{{ error }}</p>
       <button
-        class="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-semibold"
+        class="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
         @click="loadResources"
       >
-        <Icon name="mdi:refresh" class="inline mr-2" size="18" />
+        <Icon name="mdi:refresh" class="mr-2 inline" size="18" />
         Try Again
       </button>
     </div>
 
-    <!-- Content -->
     <div v-else>
-      <!-- Tabs -->
-      <div class="mb-6 border-b border-gray-200 dark:border-slate-700">
-        <nav
-          class="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-8 overflow-x-auto scrollbar-hide -mx-1 px-1"
-          aria-label="Resource Tabs"
-          style="scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch"
-        >
-          <button
-            :class="[
-              'py-3 sm:py-4 px-3 sm:px-1 border-b-2 font-semibold text-xs sm:text-sm transition-colors whitespace-nowrap flex-shrink-0',
-              activeResourceTab === 'books'
-                ? 'border-sky-700 dark:border-sky-400 text-sky-700 dark:text-sky-400'
-                : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600',
-            ]"
-            @click="activeResourceTab = 'books'"
-          >
-            <div class="flex items-center gap-1.5 sm:gap-2">
-              <Icon name="mdi:book-open-variant" size="18" class="sm:w-5 sm:h-5" />
-              <span class="hidden sm:inline">Recommended Books</span>
-              <span class="sm:hidden">Books</span>
-              <span
-                v-if="books.length > 0"
-                class="ml-1 sm:ml-2 px-1.5 sm:px-2 py-0.5 text-xs font-semibold rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
-              >
-                {{ books.length }}
-              </span>
-            </div>
-          </button>
-          <button
-            :class="[
-              'py-3 sm:py-4 px-3 sm:px-1 border-b-2 font-semibold text-xs sm:text-sm transition-colors whitespace-nowrap flex-shrink-0',
-              activeResourceTab === 'tools'
-                ? 'border-sky-700 dark:border-sky-400 text-sky-700 dark:text-sky-400'
-                : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600',
-            ]"
-            @click="activeResourceTab = 'tools'"
-          >
-            <div class="flex items-center gap-1.5 sm:gap-2">
-              <Icon name="mdi:tools" size="18" class="sm:w-5 sm:h-5" />
-              <span class="hidden sm:inline">Tools I Use</span>
-              <span class="sm:hidden">Tools</span>
-              <span
-                v-if="tools.length > 0"
-                class="ml-1 sm:ml-2 px-1.5 sm:px-2 py-0.5 text-xs font-semibold rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
-              >
-                {{ tools.length }}
-              </span>
-            </div>
-          </button>
-          <button
-            :class="[
-              'py-3 sm:py-4 px-3 sm:px-1 border-b-2 font-semibold text-xs sm:text-sm transition-colors whitespace-nowrap flex-shrink-0',
-              activeResourceTab === 'learning'
-                ? 'border-sky-700 dark:border-sky-400 text-sky-700 dark:text-sky-400'
-                : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600',
-            ]"
-            @click="activeResourceTab = 'learning'"
-          >
-            <div class="flex items-center gap-1.5 sm:gap-2">
-              <Icon name="mdi:school" size="18" class="sm:w-5 sm:h-5" />
-              <span class="hidden sm:inline">Learning Resources</span>
-              <span class="sm:hidden">Learning</span>
-              <span
-                v-if="learningResources.length > 0"
-                class="ml-1 sm:ml-2 px-1.5 sm:px-2 py-0.5 text-xs font-semibold rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
-              >
-                {{ learningResources.length }}
-              </span>
-            </div>
-          </button>
-        </nav>
+      <LibraryTabToolbar v-model:search="searchQuery" :search-placeholder="searchPlaceholder">
+        <template #tabs>
+          <LibraryTabPill
+            v-for="tab in resourceTabs"
+            :key="tab.id"
+            :icon="tab.icon"
+            :label="tab.label"
+            :count="tabCounts[tab.id]"
+            :active="activeResourceTab === tab.id"
+            @click="activeResourceTab = tab.id"
+          />
+        </template>
+      </LibraryTabToolbar>
+
+      <p v-if="searchQuery" class="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
+        {{ filteredItems.length }} {{ filteredItems.length === 1 ? 'result' : 'results' }}
+      </p>
+
+      <div v-if="filteredItems.length > 0" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <NotionResourceCard
+          v-for="item in filteredItems"
+          :key="item.id"
+          :item="item"
+          :type="cardType"
+        />
       </div>
 
-      <!-- Search Bar -->
-      <div class="mb-6">
-        <div class="relative">
-          <Icon
-            name="mdi:magnify"
-            class="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
-            size="20"
-          />
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="`Search ${activeResourceTab === 'books' ? 'books' : activeResourceTab === 'tools' ? 'tools' : 'learning resources'}...`"
-            class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-          />
-          <button
-            v-if="searchQuery"
-            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-            @click="searchQuery = ''"
-          >
-            <Icon name="mdi:close-circle" size="20" />
-          </button>
-        </div>
-        <p v-if="searchQuery" class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-          Found {{ filteredItems.length }} {{ filteredItems.length === 1 ? 'result' : 'results' }}
-        </p>
-      </div>
-
-      <!-- Resources Grid -->
-      <div v-if="filteredItems.length > 0">
-        <div
-          :class="[
-            'grid gap-6',
-            activeResourceTab === 'books'
-              ? 'grid-cols-1 md:grid-cols-2'
-              : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
-          ]"
-        >
-          <NotionResourceCard
-            v-for="item in filteredItems"
-            :key="item.id"
-            :item="item"
-            :type="
-              activeResourceTab === 'books'
-                ? 'book'
-                : activeResourceTab === 'tools'
-                  ? 'tool'
-                  : 'learning'
-            "
-          />
-        </div>
-      </div>
-
-      <!-- Empty State -->
-      <div v-else class="text-center py-12">
+      <div v-else class="py-12 text-center">
         <Icon
           :name="
             activeResourceTab === 'books'
@@ -298,42 +188,19 @@ onMounted(() => {
                 ? 'mdi:tools'
                 : 'mdi:school-off'
           "
-          class="text-6xl text-zinc-400 mb-4"
+          class="mb-4 text-6xl text-zinc-400"
         />
         <p class="text-lg text-zinc-600 dark:text-zinc-400">
           {{
             searchQuery
-              ? `No ${activeResourceTab === 'books' ? 'books' : activeResourceTab === 'tools' ? 'tools' : 'learning resources'} found matching "${searchQuery}"`
-              : `No ${activeResourceTab === 'books' ? 'books' : activeResourceTab === 'tools' ? 'tools' : 'learning resources'} available`
+              ? `No results matching "${searchQuery}"`
+              : `No ${activeResourceTab} available yet`
           }}
         </p>
-        <p v-if="searchQuery" class="text-sm text-zinc-500 dark:text-zinc-400 mt-2">
-          Try adjusting your search terms or clearing the search.
-        </p>
-        <p v-else class="text-sm text-zinc-500 dark:text-zinc-400 mt-2">
-          Add
-          {{
-            activeResourceTab === 'books'
-              ? 'books'
-              : activeResourceTab === 'tools'
-                ? 'tools'
-                : 'learning resources'
-          }}
-          to your Notion database to see them here.
+        <p v-if="!searchQuery" class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+          Add items to your Notion database to see them here.
         </p>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Hide scrollbar for mobile navigation */
-.scrollbar-hide {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
-}
-</style>

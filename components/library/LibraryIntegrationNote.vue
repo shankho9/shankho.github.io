@@ -112,7 +112,7 @@ const info = computed(() => INTEGRATION_INFO[props.tab])
 <template>
   <div
     v-if="!dismissed"
-    class="mb-4 overflow-hidden rounded-lg border border-violet-200/70 bg-violet-50/60 dark:border-violet-800/35 dark:bg-violet-950/20"
+    class="overflow-hidden rounded-lg border border-violet-200/70 bg-violet-50/60 dark:border-violet-800/35 dark:bg-violet-950/20"
     role="note"
   >
     <div class="flex items-center gap-2 px-3 py-2">

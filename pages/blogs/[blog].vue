@@ -118,12 +118,9 @@ useHead({
       class="px-3 sm:px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12 overflow-x-hidden w-full"
     >
       <div class="col-span-12 lg:col-span-9 blog-content-container min-w-0">
-        <div class="flex items-center justify-between mb-4 gap-4 flex-wrap">
-          <div class="flex items-center gap-2">
-            <FocusMode />
-            <TextToSpeech :post-id="path" />
-          </div>
-        </div>
+        <BlogPostToolbar :post-id="path" />
+
+        <BlogPostShare compact class="mb-6 lg:hidden" />
 
         <BlogHeader
           :title="data.title"
@@ -156,39 +153,18 @@ useHead({
         </div>
       </div>
 
-      <div
-        class="lg:col-span-3 sticky top-28 hidden lg:block justify-self-end space-y-6 blog-sidebar"
-      >
-        <BlogToc />
-        <RelatedContent
-          :current-path="path"
-          :current-tags="data.tags"
-          :current-category="data.category"
-          :limit="5"
-        />
-      </div>
-
-      <!-- Share Icons -->
-      <div class="col-span-12 lg:col-span-9 mt-10 mb-8">
-        <h3 class="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-4">Share using</h3>
-        <div class="flex flex-row flex-wrap gap-2 min-w-0">
-          <div
-            v-for="network in ['facebook', 'twitter', 'linkedin', 'whatsapp', 'email']"
-            :key="network"
-            :class="`social-share-wrapper social-share-${network === 'twitter' ? 'x' : network}`"
-            :data-network="network === 'twitter' ? 'x' : network"
-            :title="`Share with ${network === 'twitter' ? 'X' : network.charAt(0).toUpperCase() + network.slice(1)}`"
-          >
-            <SocialShare
-              :network="network"
-              :styled="false"
-              :label="false"
-              class="social-share-button"
-              :aria-label="`Share on ${network === 'twitter' ? 'X' : network.charAt(0).toUpperCase() + network.slice(1)}`"
-            />
-          </div>
+      <aside class="blog-sidebar col-span-12 hidden lg:col-span-3 lg:block">
+        <div class="sticky top-28 space-y-5">
+          <BlogPostShare />
+          <BlogToc />
+          <RelatedContent
+            :current-path="path"
+            :current-tags="data.tags"
+            :current-category="data.category"
+            :limit="5"
+          />
         </div>
-      </div>
+      </aside>
 
       <!-- Comments Section -->
       <div class="col-span-12 lg:col-span-9 mt-8">
@@ -197,96 +173,3 @@ useHead({
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Wrapper for share buttons */
-.social-share-wrapper {
-  @apply relative flex items-center;
-}
-
-/* Custom styling for social share buttons - bright flashy colors that adapt to background */
-:deep(.social-share-button) {
-  @apply rounded-lg px-4 py-2.5 transition-all duration-200;
-  @apply flex items-center gap-2 font-semibold;
-  @apply border-2 shadow-lg hover:shadow-xl;
-  @apply transform hover:scale-105 active:scale-95;
-}
-
-/* Hide any default "Share" text from the component */
-:deep(.social-share-button span),
-:deep(.social-share-button .label) {
-  display: none;
-}
-
-/* Ensure icons are visible and sized properly */
-:deep(.social-share-button svg),
-:deep(.social-share-button .icon) {
-  @apply w-5 h-5 flex-shrink-0;
-  transition: all 0.2s ease-in-out;
-}
-
-/* Facebook - bright vibrant blue */
-.social-share-facebook :deep(.social-share-button),
-.social-share-wrapper[data-network='facebook'] :deep(.social-share-button) {
-  @apply bg-blue-500 dark:bg-blue-600 text-white border-blue-600 dark:border-blue-500;
-  box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.4);
-}
-
-.social-share-facebook:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='facebook']:hover :deep(.social-share-button) {
-  @apply bg-blue-600 dark:bg-blue-500 border-blue-700 dark:border-blue-400;
-  box-shadow: 0 6px 20px 0 rgba(59, 130, 246, 0.6);
-}
-
-/* X (formerly Twitter) - bright vibrant sky blue */
-.social-share-x :deep(.social-share-button),
-.social-share-wrapper[data-network='x'] :deep(.social-share-button) {
-  @apply bg-sky-500 dark:bg-sky-600 text-white border-sky-600 dark:border-sky-500;
-  box-shadow: 0 4px 14px 0 rgba(14, 165, 233, 0.4);
-}
-
-.social-share-x:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='x']:hover :deep(.social-share-button) {
-  @apply bg-sky-600 dark:bg-sky-500 border-sky-700 dark:border-sky-400;
-  box-shadow: 0 6px 20px 0 rgba(14, 165, 233, 0.6);
-}
-
-/* LinkedIn - bright vibrant blue */
-.social-share-linkedin :deep(.social-share-button),
-.social-share-wrapper[data-network='linkedin'] :deep(.social-share-button) {
-  @apply bg-blue-600 dark:bg-blue-700 text-white border-blue-700 dark:border-blue-600;
-  box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.4);
-}
-
-.social-share-linkedin:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='linkedin']:hover :deep(.social-share-button) {
-  @apply bg-blue-700 dark:bg-blue-600 border-blue-800 dark:border-blue-500;
-  box-shadow: 0 6px 20px 0 rgba(37, 99, 235, 0.6);
-}
-
-/* WhatsApp - bright vibrant emerald/green */
-.social-share-whatsapp :deep(.social-share-button),
-.social-share-wrapper[data-network='whatsapp'] :deep(.social-share-button) {
-  @apply bg-emerald-500 dark:bg-emerald-600 text-white border-emerald-600 dark:border-emerald-500;
-  box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.4);
-}
-
-.social-share-whatsapp:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='whatsapp']:hover :deep(.social-share-button) {
-  @apply bg-emerald-600 dark:bg-emerald-500 border-emerald-700 dark:border-emerald-400;
-  box-shadow: 0 6px 20px 0 rgba(16, 185, 129, 0.6);
-}
-
-/* Email - bright vibrant slate/gray */
-.social-share-email :deep(.social-share-button),
-.social-share-wrapper[data-network='email'] :deep(.social-share-button) {
-  @apply bg-slate-600 dark:bg-slate-500 text-white border-slate-700 dark:border-slate-400;
-  box-shadow: 0 4px 14px 0 rgba(71, 85, 105, 0.4);
-}
-
-.social-share-email:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='email']:hover :deep(.social-share-button) {
-  @apply bg-slate-700 dark:bg-slate-400 border-slate-800 dark:border-slate-300;
-  box-shadow: 0 6px 20px 0 rgba(71, 85, 105, 0.6);
-}
-</style>

@@ -10,7 +10,6 @@ const props = withDefaults(defineProps<Props>(), {
   type: 'default',
 })
 
-// Extract common properties (adapt based on your Notion database structure)
 const title = computed(() => {
   return props.item.Title || props.item.title || props.item.Name || props.item.name || 'Untitled'
 })
@@ -33,25 +32,9 @@ const author = computed(() => {
   return props.item.Author || props.item.author || ''
 })
 
-const icon = computed(() => {
-  return props.item.Icon || props.item.icon || getDefaultIcon()
-})
-
-// Extract image URL from various possible property names
-const imageUrl = computed(() => {
-  // Check for Image property (Files type in Notion)
-  const image = props.item.Image || props.item.image || props.item.Cover || props.item.cover
-  // If it's an array, take the first one; if it's a string, use it directly
-  if (Array.isArray(image) && image.length > 0) {
-    return image[0]
-  }
-  if (typeof image === 'string' && image) {
-    return image
-  }
-  return null
-})
-
-const getDefaultIcon = () => {
+const typeIcon = computed(() => {
+  const custom = props.item.Icon || props.item.icon
+  if (typeof custom === 'string' && custom) return custom
   switch (props.type) {
     case 'book':
       return 'mdi:book-open-variant'
@@ -62,7 +45,27 @@ const getDefaultIcon = () => {
     default:
       return 'mdi:link'
   }
-}
+})
+
+const typeBadgeClass = computed(() => {
+  switch (props.type) {
+    case 'book':
+      return 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300'
+    case 'tool':
+      return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+    case 'learning':
+      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+    default:
+      return 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300'
+  }
+})
+
+const imageUrl = computed(() => {
+  const image = props.item.Image || props.item.image || props.item.Cover || props.item.cover
+  if (Array.isArray(image) && image.length > 0) return image[0]
+  if (typeof image === 'string' && image) return image
+  return null
+})
 </script>
 
 <template>
@@ -70,54 +73,61 @@ const getDefaultIcon = () => {
     :href="link"
     target="_blank"
     rel="noopener noreferrer"
-    class="group bg-white dark:bg-slate-800 rounded-xl overflow-hidden hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] border border-gray-200 dark:border-slate-700 flex flex-col"
+    class="group flex items-center gap-3 rounded-xl border border-gray-200/90 bg-white p-3 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-600"
   >
-    <!-- Image Section -->
-    <div v-if="imageUrl" class="w-full h-48 overflow-hidden bg-gray-100 dark:bg-slate-700">
+    <div
+      class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/40 dark:to-indigo-900/40"
+    >
       <NuxtImg
+        v-if="imageUrl"
         :src="imageUrl"
         :alt="title"
-        class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+        class="h-full w-full object-cover"
         loading="lazy"
         format="webp"
         quality="80"
       />
+      <Icon v-else :name="typeIcon" class="text-2xl text-sky-700 dark:text-sky-400" />
     </div>
 
-    <!-- Content Section -->
-    <div class="p-6 flex-1 flex flex-col">
-      <div class="flex items-start justify-between mb-3">
-        <div class="flex items-start gap-3 flex-1">
-          <Icon
-            v-if="!imageUrl && icon"
-            :name="icon"
-            class="text-2xl text-sky-700 dark:text-sky-400 mt-1 flex-shrink-0"
-          />
-          <div class="flex-1">
-            <h3
-              class="text-xl font-semibold text-zinc-800 dark:text-zinc-200 group-hover:text-sky-700 dark:group-hover:text-sky-400 transition-colors"
-            >
-              {{ title }}
-            </h3>
-            <p v-if="author" class="text-sm text-sky-600 dark:text-sky-400 font-medium mt-1">
-              {{ author }}
-            </p>
-          </div>
+    <div class="min-w-0 flex-1">
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <h3
+            class="truncate text-base font-semibold text-zinc-800 group-hover:text-sky-700 dark:text-zinc-100 dark:group-hover:text-sky-400"
+          >
+            {{ title }}
+          </h3>
+          <p v-if="author" class="truncate text-sm text-zinc-500 dark:text-zinc-400">
+            {{ author }}
+          </p>
         </div>
-        <Icon name="mdi:open-in-new" class="text-zinc-400 group-hover:text-sky-600 flex-shrink-0" />
+        <span
+          :class="[
+            'hidden shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold capitalize sm:inline',
+            typeBadgeClass,
+          ]"
+        >
+          {{ type }}
+        </span>
       </div>
 
-      <p v-if="description" class="text-zinc-600 dark:text-zinc-400 mb-3 flex-1">
+      <p v-if="description" class="mt-1 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
         {{ description }}
       </p>
 
-      <div v-if="category" class="flex items-center gap-2 flex-wrap">
-        <span
-          class="px-2 py-1 text-xs font-medium rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300"
-        >
-          {{ category }}
-        </span>
+      <div
+        v-if="category"
+        class="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400"
+      >
+        <span class="rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-slate-700">{{ category }}</span>
       </div>
     </div>
+
+    <Icon
+      name="mdi:open-in-new"
+      class="shrink-0 text-zinc-400 transition-colors group-hover:text-sky-600"
+      size="18"
+    />
   </a>
 </template>

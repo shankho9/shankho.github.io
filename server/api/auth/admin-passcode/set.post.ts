@@ -8,7 +8,11 @@ export default defineEventHandler(async (event) => {
     return createErrorResponse(event, 401, 'Not authenticated')
   }
   if (user.role !== 'admin') {
-    return createErrorResponse(event, 403, 'Admin access required')
+    return createErrorResponse(
+      event,
+      403,
+      "Admin access required. Your account needs role = 'admin' in the database.",
+    )
   }
 
   const body = await readBody(event)
@@ -26,9 +30,13 @@ export default defineEventHandler(async (event) => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
     console.error('[Admin Passcode Set] Failed:', message)
-    const hint = message.includes('admin_passcodes')
-      ? ' Run the create_admin_passcodes.sql migration on your database.'
+    const isMissingTable =
+      message.includes('admin_passcodes') && message.includes('does not exist')
+    const hint = isMissingTable
+      ? ' Database migration could not create admin_passcodes automatically — run: node scripts/migrations/run-all-migrations.cjs'
       : ''
-    return createErrorResponse(event, 500, `Failed to save admin passcode.${hint}`)
+    return createErrorResponse(event, 500, `Failed to save admin passcode.${hint}`, {
+      detail: message,
+    })
   }
 })

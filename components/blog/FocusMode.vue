@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 
+withDefaults(
+  defineProps<{
+    compact?: boolean
+  }>(),
+  {
+    compact: false,
+  },
+)
+
 const isFocusMode = ref(false)
 
 const toggleFocusMode = () => {
@@ -71,12 +80,21 @@ onUnmounted(() => {
 
 <template>
   <button
-    class="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+    type="button"
+    :class="[
+      'inline-flex items-center justify-center gap-2 rounded-lg border transition-colors',
+      compact
+        ? 'border-gray-200 bg-gray-50 px-2.5 py-2 text-gray-700 hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-700/80 dark:text-zinc-200 dark:hover:bg-slate-600'
+        : 'border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700',
+    ]"
     :title="isFocusMode ? 'Exit Focus Mode' : 'Enter Focus Mode'"
     @click="toggleFocusMode"
   >
-    <Icon :name="isFocusMode ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" class="w-5 h-5" />
-    <span class="text-sm font-medium">{{ isFocusMode ? 'Exit Focus' : 'Focus Mode' }}</span>
+    <Icon :name="isFocusMode ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" class="h-5 w-5 shrink-0" />
+    <span v-if="!compact" class="text-sm font-medium">
+      {{ isFocusMode ? 'Exit Focus' : 'Focus Mode' }}
+    </span>
+    <span v-else class="sr-only">{{ isFocusMode ? 'Exit Focus Mode' : 'Focus Mode' }}</span>
   </button>
 </template>
 

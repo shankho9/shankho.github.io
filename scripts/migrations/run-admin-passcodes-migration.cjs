@@ -2,8 +2,8 @@
 /**
  * Create admin_passcodes table (distinct from utility_passcodes).
  * Usage:
- *   Development: node scripts/migrations/run-admin-passcodes-migration.js
- *   Production: NODE_ENV=production node scripts/migrations/run-admin-passcodes-migration.js
+ *   Development: node scripts/migrations/run-admin-passcodes-migration.cjs
+ *   Production: NODE_ENV=production node scripts/migrations/run-admin-passcodes-migration.cjs
  */
 
 const { readFileSync, existsSync } = require('fs')

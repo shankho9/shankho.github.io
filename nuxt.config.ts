@@ -1,6 +1,9 @@
 /// <reference types="nuxt" />
 
+import { existsSync } from 'node:fs'
 import { seoData } from './data'
+
+const tinaAdminBuilt = existsSync('public/admin/index.html')
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -197,6 +200,7 @@ export default defineNuxtConfig({
       // Notion database ID (client-side accessible for API calls)
       notionDatabaseId: process.env.NOTION_DATABASE_ID,
       tinaClientId: process.env.NUXT_PUBLIC_TINA_CLIENT_ID || '',
+      tinaAdminBuilt,
     },
     databaseUrl: process.env.DATABASE_URL,
     // Email configuration (server-side only)

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import { useTinaEditor } from '~/composables/useTinaEditor'
 import MusicStreamEmbeds from '~/components/music/MusicStreamEmbeds.vue'
 
 definePageMeta({ middleware: ['auth-login'] })
@@ -10,6 +11,8 @@ const slug = computed(() => route.params.slug as string)
 const contentPath = computed(() => `/music/${slug.value}`)
 
 const { isAdmin } = useAuth()
+const { musicDocumentUrl } = useTinaEditor()
+const editUrl = computed(() => musicDocumentUrl(slug.value))
 
 const { data: article, error } = await useAsyncData(`music-${slug.value}`, () =>
   queryCollection('music').path(contentPath.value).first(),
@@ -131,15 +134,7 @@ useHead({
           </div>
 
           <div v-if="isAdmin" class="mt-4 flex justify-end">
-            <a
-              href="/admin#/collections/music"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-1.5 rounded-lg border border-sky-600 px-3 py-1.5 text-sm font-semibold text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-950/50"
-            >
-              <Icon name="mdi:pencil" size="16" />
-              Edit in Tina
-            </a>
+            <TinaEditButton variant="outline" :href="editUrl" />
           </div>
         </div>
 

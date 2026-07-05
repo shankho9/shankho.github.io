@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 
-// postId is defined for future use but currently not needed
-// The component extracts text from .prose element directly
-defineProps<{
-  postId: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    postId: string
+    embedded?: boolean
+  }>(),
+  {
+    embedded: false,
+  },
+)
+
+// postId reserved for per-post TTS preferences
+void props.postId
 
 const isSupported = ref(false)
 const isPlaying = ref(false)
@@ -164,70 +171,75 @@ const togglePlayPause = () => {
 </script>
 
 <template>
-  <div v-if="isSupported && articleText" class="text-to-speech-controls">
+  <div v-if="isSupported && articleText" :class="embedded ? '' : 'text-to-speech-controls'">
     <div
-      class="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+      :class="[
+        'flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3',
+        embedded
+          ? ''
+          : 'rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800',
+      ]"
     >
-      <!-- Play/Pause Button -->
-      <button
-        class="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-        :title="isPlaying ? 'Pause' : isPaused ? 'Resume' : 'Play'"
-        @click="togglePlayPause"
-      >
-        <Icon
-          :name="isPlaying ? 'mdi:pause' : isPaused ? 'mdi:play' : 'mdi:play'"
-          class="w-5 h-5"
-        />
-      </button>
+      <div class="flex shrink-0 items-center gap-2">
+        <button
+          class="flex h-10 w-10 items-center justify-center rounded-full bg-sky-600 text-white transition-colors hover:bg-sky-700"
+          :title="isPlaying ? 'Pause' : isPaused ? 'Resume' : 'Play'"
+          @click="togglePlayPause"
+        >
+          <Icon
+            :name="isPlaying ? 'mdi:pause' : isPaused ? 'mdi:play' : 'mdi:play'"
+            class="h-5 w-5"
+          />
+        </button>
 
-      <!-- Stop Button -->
-      <button
-        v-if="isPlaying || isPaused"
-        class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-600 hover:bg-gray-700 text-white transition-colors"
-        title="Stop"
-        @click="stop"
-      >
-        <Icon name="mdi:stop" class="w-5 h-5" />
-      </button>
+        <button
+          v-if="isPlaying || isPaused"
+          class="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-500 text-white transition-colors hover:bg-zinc-600"
+          title="Stop"
+          @click="stop"
+        >
+          <Icon name="mdi:stop" class="h-5 w-5" />
+        </button>
 
-      <!-- Settings Dropdown -->
-      <div class="flex-1 flex items-center gap-4 text-sm">
-        <!-- Rate -->
+        <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400 sm:hidden">
+          Listen to article
+        </span>
+      </div>
+
+      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
         <div class="flex items-center gap-2">
-          <label class="text-xs text-gray-600 dark:text-gray-400">Speed:</label>
+          <label class="text-xs text-zinc-500 dark:text-zinc-400">Speed</label>
           <input
             v-model.number="rate"
             type="range"
             min="0.5"
             max="2"
             step="0.1"
-            class="w-20"
+            class="w-16 sm:w-20"
             :disabled="isPlaying || isPaused"
           />
-          <span class="text-xs text-gray-700 dark:text-gray-300 w-8">{{ rate.toFixed(1) }}x</span>
+          <span class="w-8 text-xs text-zinc-700 dark:text-zinc-300">{{ rate.toFixed(1) }}x</span>
         </div>
 
-        <!-- Pitch -->
         <div class="flex items-center gap-2">
-          <label class="text-xs text-gray-600 dark:text-gray-400">Pitch:</label>
+          <label class="text-xs text-zinc-500 dark:text-zinc-400">Pitch</label>
           <input
             v-model.number="pitch"
             type="range"
             min="0.5"
             max="2"
             step="0.1"
-            class="w-20"
+            class="w-16 sm:w-20"
             :disabled="isPlaying || isPaused"
           />
-          <span class="text-xs text-gray-700 dark:text-gray-300 w-8">{{ pitch.toFixed(1) }}</span>
+          <span class="w-8 text-xs text-zinc-700 dark:text-zinc-300">{{ pitch.toFixed(1) }}</span>
         </div>
 
-        <!-- Voice Selection -->
-        <div class="flex items-center gap-2">
-          <label class="text-xs text-gray-600 dark:text-gray-400">Voice:</label>
+        <div class="flex min-w-0 flex-1 items-center gap-2">
+          <label class="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">Voice</label>
           <select
             v-model="selectedVoiceName"
-            class="text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+            class="min-w-0 max-w-full flex-1 truncate rounded border border-gray-200 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-slate-600 dark:bg-slate-800 dark:text-zinc-100"
             :disabled="isPlaying || isPaused"
           >
             <option v-for="voice in availableVoices" :key="voice.name" :value="voice.name">
