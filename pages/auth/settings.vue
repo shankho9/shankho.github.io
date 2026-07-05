@@ -701,9 +701,7 @@ const syncServerRole = async () => {
   }
 
   try {
-    const res = await $fetch<{ visitor: string[]; admin: string[] }>(
-      '/api/auth/passcode-utilities',
-    )
+    const res = await $fetch<{ visitor: string[]; admin: string[] }>('/api/auth/passcode-utilities')
     passcodeUtilities.value = {
       visitor: res?.visitor ?? [],
       admin: res?.admin ?? [],

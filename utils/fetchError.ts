@@ -17,7 +17,7 @@ export function isApiSuccessResponse(
 }
 
 const ADMIN_ACCESS_HINT =
-  'Your account does not have the admin role on the server. Ask an existing admin to grant access, or run: UPDATE users SET role = \'admin\' WHERE email = \'your@email.com\';'
+  "Your account does not have the admin role on the server. Ask an existing admin to grant access, or run: UPDATE users SET role = 'admin' WHERE email = 'your@email.com';"
 
 /** Extract a message from a failed $fetch call. */
 export function readFetchErrorMessage(error: unknown, fallback: string): string {
