@@ -1,11 +1,76 @@
 import { execSync } from 'node:child_process'
 
-const hasTina = Boolean(process.env.TINA_TOKEN) && Boolean(process.env.NUXT_PUBLIC_TINA_CLIENT_ID)
+const DEBUG_INGEST = 'http://127.0.0.1:7840/ingest/767d3ad0-6d04-4d9a-bc94-d2ef4df7b9b9'
 
-if (hasTina) {
-  execSync('npx tinacms build', { stdio: 'inherit' })
-} else {
+function deployDebugLog(data) {
+  // #region agent log
+  fetch(DEBUG_INGEST, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a61321' },
+    body: JSON.stringify({
+      sessionId: 'a61321',
+      location: 'scripts/tina-build.mjs',
+      runId: 'deploy-trace',
+      timestamp: Date.now(),
+      ...data,
+    }),
+  }).catch(() => {})
+  // #endregion
+}
+
+const skipExplicit = process.env.SKIP_TINA_BUILD === '1' || process.env.SKIP_TINA_BUILD === 'true'
+const hasTina = Boolean(process.env.TINA_TOKEN) && Boolean(process.env.NUXT_PUBLIC_TINA_CLIENT_ID)
+const branch = process.env.TINA_BRANCH || process.env.VERCEL_GIT_COMMIT_REF || 'main'
+
+if (skipExplicit) {
+  console.warn('[build] Skipping tinacms build — SKIP_TINA_BUILD is set')
+  deployDebugLog({
+    message: 'tina build skipped',
+    hypothesisId: 'F',
+    data: { reason: 'SKIP_TINA_BUILD', branch },
+  })
+} else if (!hasTina) {
   console.warn(
     '[build] Skipping tinacms build — set TINA_TOKEN and NUXT_PUBLIC_TINA_CLIENT_ID to enable /admin',
   )
+  deployDebugLog({
+    message: 'tina build skipped',
+    hypothesisId: 'F',
+    data: { reason: 'missing-credentials', branch },
+  })
+} else {
+  try {
+    console.log(`[build] Running tinacms build for branch "${branch}"...`)
+    execSync('npx tinacms build', { stdio: 'pipe', encoding: 'utf8' })
+    deployDebugLog({
+      message: 'tina build succeeded',
+      hypothesisId: 'F',
+      data: { branch },
+    })
+  } catch (error) {
+    const output = `${error?.stdout || ''}\n${error?.stderr || ''}\n${error?.message || ''}`
+    const branchNotOnCloud =
+      output.includes('not on TinaCloud') || output.includes('Branch is not on TinaCloud')
+
+    if (branchNotOnCloud) {
+      console.warn(
+        `[build] Tina build skipped: branch "${branch}" is not on TinaCloud.`,
+        'Deploying site without /admin editor. Enable the branch in Tina Cloud or set SKIP_TINA_BUILD=1.',
+      )
+      deployDebugLog({
+        message: 'tina build skipped — branch not on TinaCloud',
+        hypothesisId: 'F',
+        data: { branch, branchNotOnCloud: true },
+      })
+    } else {
+      if (error?.stdout) process.stdout.write(error.stdout)
+      if (error?.stderr) process.stderr.write(error.stderr)
+      deployDebugLog({
+        message: 'tina build failed',
+        hypothesisId: 'F',
+        data: { branch, branchNotOnCloud: false },
+      })
+      throw error
+    }
+  }
 }
