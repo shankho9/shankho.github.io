@@ -18,9 +18,20 @@ function deployDebugLog(data) {
   // #endregion
 }
 
+function summarizeError(error) {
+  const output = `${error?.stdout || ''}\n${error?.stderr || ''}\n${error?.message || ''}`
+  const firstLine =
+    output
+      .split('\n')
+      .map((line) => line.trim())
+      .find((line) => line.length > 0) || 'unknown Tina build error'
+  return firstLine.slice(0, 200)
+}
+
 const skipExplicit = process.env.SKIP_TINA_BUILD === '1' || process.env.SKIP_TINA_BUILD === 'true'
+const strictBuild = process.env.TINA_BUILD_STRICT === '1'
 const hasTina = Boolean(process.env.TINA_TOKEN) && Boolean(process.env.NUXT_PUBLIC_TINA_CLIENT_ID)
-const branch = process.env.TINA_BRANCH || process.env.VERCEL_GIT_COMMIT_REF || 'main'
+const branch = (process.env.TINA_BRANCH || process.env.VERCEL_GIT_COMMIT_REF || 'main').trim()
 
 if (skipExplicit) {
   console.warn('[build] Skipping tinacms build — SKIP_TINA_BUILD is set')
@@ -52,25 +63,25 @@ if (skipExplicit) {
     const branchNotOnCloud =
       output.includes('not on TinaCloud') || output.includes('Branch is not on TinaCloud')
 
-    if (branchNotOnCloud) {
-      console.warn(
-        `[build] Tina build skipped: branch "${branch}" is not on TinaCloud.`,
-        'Deploying site without /admin editor. Enable the branch in Tina Cloud or set SKIP_TINA_BUILD=1.',
-      )
-      deployDebugLog({
-        message: 'tina build skipped — branch not on TinaCloud',
-        hypothesisId: 'F',
-        data: { branch, branchNotOnCloud: true },
-      })
-    } else {
+    if (strictBuild) {
       if (error?.stdout) process.stdout.write(error.stdout)
       if (error?.stderr) process.stderr.write(error.stderr)
       deployDebugLog({
-        message: 'tina build failed',
+        message: 'tina build failed (strict)',
         hypothesisId: 'F',
-        data: { branch, branchNotOnCloud: false },
+        data: { branch, branchNotOnCloud },
       })
       throw error
     }
+
+    console.warn(
+      '[build] Tina build failed — continuing site deploy without /admin editor.',
+      summarizeError(error),
+    )
+    deployDebugLog({
+      message: 'tina build skipped — non-fatal failure',
+      hypothesisId: 'F',
+      data: { branch, branchNotOnCloud, summary: summarizeError(error) },
+    })
   }
 }
