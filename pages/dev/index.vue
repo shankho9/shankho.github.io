@@ -88,9 +88,7 @@
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">
                       Visitor Analytics
                     </h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                      Unique visitors & logins
-                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Unique visitors & logins</p>
                   </div>
                 </div>
                 <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
@@ -134,9 +132,7 @@
                   </div>
                   <div class="min-w-0">
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">Email Logs</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                      Alert history
-                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Alert history</p>
                   </div>
                 </div>
                 <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
@@ -175,7 +171,9 @@
                   </div>
                   <div class="min-w-0">
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">Admin Users</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Manage roles with email OTP</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                      Manage roles with email OTP
+                    </p>
                   </div>
                 </div>
                 <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
@@ -239,9 +237,7 @@
                   </div>
                   <div class="min-w-0">
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">Database Stats</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                      Table statistics
-                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Table statistics</p>
                   </div>
                 </div>
                 <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
@@ -265,9 +261,7 @@
                   </div>
                   <div class="min-w-0">
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">API Health</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                      System status
-                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">System status</p>
                   </div>
                 </div>
                 <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
@@ -287,9 +281,7 @@
                   </div>
                   <div class="min-w-0">
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">Cache Management</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                      Clear & manage cache
-                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Clear & manage cache</p>
                   </div>
                 </div>
                 <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
@@ -353,9 +345,7 @@
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">
                       Car Database Manager
                     </h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                      Manage car data
-                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Manage car data</p>
                   </div>
                 </div>
                 <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
@@ -380,9 +370,7 @@
                   </div>
                   <div class="min-w-0">
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">Content Manager</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                      Quick actions
-                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Quick actions</p>
                   </div>
                 </div>
                 <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
@@ -406,9 +394,7 @@
                   </div>
                   <div class="min-w-0">
                     <h3 class="font-semibold text-gray-900 dark:text-gray-100">Location Manager</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                      Add places to map
-                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Add places to map</p>
                   </div>
                 </div>
                 <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">

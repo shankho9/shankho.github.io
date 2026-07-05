@@ -100,7 +100,10 @@ defineExpose({ apps, loadApps, isLoading })
       </div>
 
       <!-- Grid -->
-      <div v-if="filteredApps.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div
+        v-if="filteredApps.length > 0"
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+      >
         <AppCard v-for="app in filteredApps" :key="app.id" :app="app" />
       </div>
 
@@ -108,11 +111,7 @@ defineExpose({ apps, loadApps, isLoading })
       <div v-else class="text-center py-12">
         <Icon name="mdi:cellphone-off" class="text-6xl text-zinc-400 mb-4" />
         <p class="text-lg text-zinc-600 dark:text-zinc-400">
-          {{
-            searchQuery
-              ? `No apps found matching "${searchQuery}"`
-              : 'No apps available yet'
-          }}
+          {{ searchQuery ? `No apps found matching "${searchQuery}"` : 'No apps available yet' }}
         </p>
         <p v-if="searchQuery" class="text-sm text-zinc-500 dark:text-zinc-400 mt-2">
           Try adjusting your search terms or clearing the search.

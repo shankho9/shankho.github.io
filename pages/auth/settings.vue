@@ -383,13 +383,7 @@ definePageMeta({
 })
 
 const route = useRoute()
-const {
-  user,
-  isAuthenticated,
-  isAdmin,
-  checkAuth,
-  checkAdminPasscodeStatus,
-} = useAuth()
+const { user, isAuthenticated, isAdmin, checkAuth, checkAdminPasscodeStatus } = useAuth()
 
 const passwordForm = ref({
   currentPassword: '',

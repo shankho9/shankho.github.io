@@ -292,9 +292,5 @@ export async function sendAdminRoleChangeOtp(
     </div>
   `
 
-  await sendEmailNotification(
-    adminEmail,
-    `Role change verification code — ${PUBLISHER_NAME}`,
-    html,
-  )
+  await sendEmailNotification(adminEmail, `Role change verification code — ${PUBLISHER_NAME}`, html)
 }

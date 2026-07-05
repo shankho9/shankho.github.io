@@ -121,10 +121,7 @@ onMounted(loadUsers)
           Manage user roles. Changes require email OTP verification.
         </p>
       </div>
-      <NuxtLink
-        to="/dev"
-        class="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-      >
+      <NuxtLink to="/dev" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
         ← Back to Utilities
       </NuxtLink>
     </div>
@@ -201,8 +198,8 @@ onMounted(loadUsers)
         </h3>
         <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
           We sent a 6-digit code to your email to confirm changing
-          <strong>{{ otpTarget?.email }}</strong> to
-          <strong>{{ otpTarget?.role }}</strong>.
+          <strong>{{ otpTarget?.email }}</strong> to <strong>{{ otpTarget?.role }}</strong
+          >.
         </p>
         <input
           v-model="otpCode"

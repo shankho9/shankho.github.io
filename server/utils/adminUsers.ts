@@ -65,13 +65,19 @@ export async function confirmRoleChangeOtp(
   )
 
   if (rows.length === 0) {
-    throw createError({ statusCode: 400, statusMessage: 'No pending role change request. Request a new OTP.' })
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'No pending role change request. Request a new OTP.',
+    })
   }
 
   const request = rows[0]
 
   if (request.target_user_id !== targetUserId || request.new_role !== newRole) {
-    throw createError({ statusCode: 400, statusMessage: 'Role change details do not match the pending request' })
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Role change details do not match the pending request',
+    })
   }
 
   if (new Date(request.expires_at) < new Date()) {
@@ -81,15 +87,17 @@ export async function confirmRoleChangeOtp(
 
   if (request.attempts >= MAX_OTP_ATTEMPTS) {
     await query('DELETE FROM admin_role_change_requests WHERE id = $1', [request.id])
-    throw createError({ statusCode: 400, statusMessage: 'Too many failed attempts. Request a new OTP.' })
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Too many failed attempts. Request a new OTP.',
+    })
   }
 
   const valid = await verifyPassword(otp, request.otp_hash)
   if (!valid) {
-    await query(
-      'UPDATE admin_role_change_requests SET attempts = attempts + 1 WHERE id = $1',
-      [request.id],
-    )
+    await query('UPDATE admin_role_change_requests SET attempts = attempts + 1 WHERE id = $1', [
+      request.id,
+    ])
     throw createError({ statusCode: 400, statusMessage: 'Invalid OTP' })
   }
 

@@ -54,12 +54,12 @@ Admin-only dashboard: calculators, analytics, content tools, and site settings.
 
 ## Site access matrix
 
-| Area | Who can access |
-|------|----------------|
-| Blogs (read) | Everyone |
-| Blog comments / reactions | Signed-in users (server-verified session) |
+| Area                        | Who can access                            |
+| --------------------------- | ----------------------------------------- |
+| Blogs (read)                | Everyone                                  |
+| Blog comments / reactions   | Signed-in users (server-verified session) |
 | Library, LifeLines, Gallery | Signed-in users (`auth-login` middleware) |
-| Utilities (`/dev`) | Admins only + admin passcode |
+| Utilities (`/dev`)          | Admins only + admin passcode              |
 
 Nav links for LifeLines, Library, and Gallery are visible to everyone; opening those pages redirects to login if needed.
 
@@ -112,19 +112,19 @@ ALERT_EMAIL=blogsite@nomadic-notions.co.in
 
 Extend the existing Resources database. Add **`App`** to the **Type** select. For app rows, set these properties:
 
-| Property | Type | Notes |
-|----------|------|-------|
-| Title | title | App name |
-| Description | rich_text | Short blurb |
-| Published | checkbox | Must be checked to appear |
-| Type | select | **`App`** |
-| Image | files | App icon (optional) |
-| Category | select/text | Optional grouping |
-| Version | text | e.g. `1.2.0` |
-| Platforms | multi_select | e.g. `Android`, `Windows` |
-| Play Store URL | url | Google Play link (optional) |
-| Apk Key | text | R2 object key (not a full URL) |
-| Msix Key | text | R2 object key (optional) |
+| Property       | Type         | Notes                          |
+| -------------- | ------------ | ------------------------------ |
+| Title          | title        | App name                       |
+| Description    | rich_text    | Short blurb                    |
+| Published      | checkbox     | Must be checked to appear      |
+| Type           | select       | **`App`**                      |
+| Image          | files        | App icon (optional)            |
+| Category       | select/text  | Optional grouping              |
+| Version        | text         | e.g. `1.2.0`                   |
+| Platforms      | multi_select | e.g. `Android`, `Windows`      |
+| Play Store URL | url          | Google Play link (optional)    |
+| Apk Key        | text         | R2 object key (not a full URL) |
+| Msix Key       | text         | R2 object key (optional)       |
 
 **Publish workflow:** Upload binary to R2 → paste object key into Notion → set Type = App → check Published.
 

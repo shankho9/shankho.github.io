@@ -48,10 +48,10 @@ export default defineEventHandler(async (event) => {
   try {
     const result = await withTransaction(async (client: PoolClient) => {
       if (action === 'add') {
-        await client.query(`DELETE FROM comment_reactions WHERE comment_id = $1 AND user_email = $2`, [
-          commentId,
-          userEmail,
-        ])
+        await client.query(
+          `DELETE FROM comment_reactions WHERE comment_id = $1 AND user_email = $2`,
+          [commentId, userEmail],
+        )
 
         await client.query(
           `INSERT INTO comment_reactions (comment_id, user_email, reaction_type, user_name, user_picture)
@@ -64,10 +64,10 @@ export default defineEventHandler(async (event) => {
           [commentId, userEmail, reactionType, userName, userPicture],
         )
       } else {
-        await client.query(`DELETE FROM comment_reactions WHERE comment_id = $1 AND user_email = $2`, [
-          commentId,
-          userEmail,
-        ])
+        await client.query(
+          `DELETE FROM comment_reactions WHERE comment_id = $1 AND user_email = $2`,
+          [commentId, userEmail],
+        )
       }
 
       const countsResult = await client.query<{

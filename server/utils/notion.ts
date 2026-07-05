@@ -118,9 +118,7 @@ export function isValidDatabaseId(databaseId: string): boolean {
   return /^[a-f0-9]{32}$/i.test(databaseId)
 }
 
-export async function queryNotionDatabase(
-  options: NotionQueryOptions,
-): Promise<NotionQueryResult> {
+export async function queryNotionDatabase(options: NotionQueryOptions): Promise<NotionQueryResult> {
   const { databaseId, notionApiKey, pageSize = 100, filter, sorts } = options
 
   const normalizedId = normalizeDatabaseId(databaseId)

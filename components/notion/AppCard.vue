@@ -67,7 +67,10 @@ const platformIcon = (platform: string): string => {
         {{ app.description }}
       </p>
 
-      <div v-if="app.platforms.length > 0 || app.category" class="flex items-center gap-2 flex-wrap mb-4">
+      <div
+        v-if="app.platforms.length > 0 || app.category"
+        class="flex items-center gap-2 flex-wrap mb-4"
+      >
         <span
           v-for="platform in app.platforms"
           :key="platform"

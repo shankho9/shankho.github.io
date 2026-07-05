@@ -16,7 +16,9 @@ definePageMeta({
       </h1>
     </div>
 
-    <div class="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 space-y-4">
+    <div
+      class="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 space-y-4"
+    >
       <p class="text-gray-600 dark:text-gray-400">
         All utilities are restricted to <strong>admin</strong> users. Signed-in visitors can access
         Library, LifeLines, and Gallery. Utilities require admin login plus admin passcode.
