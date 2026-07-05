@@ -19,3 +19,4 @@ tina/__generated__
 .vscode/launch.json
 .vscode/terminal-init.sh
 .vscode/bashrc-wrapper.sh
+.vercel

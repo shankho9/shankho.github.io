@@ -49,14 +49,14 @@ export default defineNuxtPlugin(async () => {
     const info = await $fetch<{
       codeMarker?: string
       vercel?: { gitCommitSha?: string | null; env?: string | null; deploymentId?: string | null }
-      githubExpectedHead?: string
+      githubSha?: string | null
       features?: Record<string, boolean>
     }>('/api/debug/deploy-info')
 
     const prodSha = info.vercel?.gitCommitSha ?? null
-    const expected = info.githubExpectedHead ?? null
+    const expected = info.githubSha ?? null
     const shaMatches = Boolean(
-      prodSha && expected && (prodSha === expected || prodSha.startsWith('8ccc2eb')),
+      prodSha && expected && (prodSha === expected || prodSha.startsWith(expected.slice(0, 7))),
     )
 
     logClient(

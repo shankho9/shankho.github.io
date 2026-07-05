@@ -23,8 +23,11 @@ export default defineEventHandler((event) => {
       settingsServerIsAdmin: true,
       adminPasscode403Hint: true,
     },
-    githubExpectedHead: '8ccc2ebd410150ba05c6dd2f9fbaa4810877867a',
+    githubSha: process.env.GITHUB_SHA || null,
     checkedAt: new Date().toISOString(),
+    pipeline: {
+      note: 'GitHub Actions CI (lint/format/build) does not deploy by itself; production updates require Vercel Git integration or the deploy job in build.yml.',
+    },
   }
 
   // #region agent log
@@ -37,9 +40,11 @@ export default defineEventHandler((event) => {
       gitCommitRef: info.vercel.gitCommitRef,
       deploymentId: info.vercel.deploymentId,
       codeMarker: info.codeMarker,
+      githubSha: info.githubSha,
       matchesExpected:
-        info.vercel.gitCommitSha === info.githubExpectedHead ||
-        info.vercel.gitCommitSha?.startsWith('8ccc2eb') === true,
+        Boolean(info.vercel.gitCommitSha) &&
+        (info.vercel.gitCommitSha === info.githubSha ||
+          info.vercel.gitCommitSha?.startsWith((info.githubSha || '').slice(0, 7)) === true),
     },
     'A',
   )
