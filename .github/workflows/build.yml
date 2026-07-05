@@ -79,9 +79,31 @@ jobs:
             echo "Production still deploys via Vercel Git integration on push to main."
             exit 0
           fi
-          set -e
+          set +e
           npm install -g vercel@latest
+          install_status=$?
+          if [ $install_status -ne 0 ]; then
+            echo "::warning::Failed to install Vercel CLI (status $install_status)."
+            echo "Production still deploys via Vercel Git integration if that is connected."
+            exit 0
+          fi
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          pull_status=$?
+          if [ $pull_status -ne 0 ]; then
+            echo "::warning::vercel pull failed (status $pull_status). Check VERCEL_ORG_ID and VERCEL_PROJECT_ID."
+            echo "Production still deploys via Vercel Git integration if that is connected."
+            exit 0
+          fi
           vercel build --prod --token="$VERCEL_TOKEN"
+          build_status=$?
+          if [ $build_status -ne 0 ]; then
+            echo "::warning::vercel build failed (status $build_status). See Vercel Git deployment for production."
+            exit 0
+          fi
           vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+          deploy_status=$?
+          if [ $deploy_status -ne 0 ]; then
+            echo "::warning::vercel deploy failed (status $deploy_status)."
+            exit 0
+          fi
           echo "Vercel CLI production deploy succeeded for $GITHUB_SHA"

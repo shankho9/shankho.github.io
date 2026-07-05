@@ -35,7 +35,8 @@ export const useNotion = () => {
   const error = ref<string | null>(null)
 
   /**
-   * Fetch items from a Notion database
+   * Fetch items from the configured Notion database.
+   * Database ID is resolved server-side from NOTION_DATABASE_ID (not sent from the client).
    */
   const fetchDatabase = async (options: NotionQueryOptions = {}): Promise<NotionResponse> => {
     isLoading.value = true

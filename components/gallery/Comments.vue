@@ -125,6 +125,7 @@ const submitComment = async () => {
   isSubmitting.value = true
   error.value = null
   try {
+    // Identity fields come from the authenticated session on the server (not the request body).
     const response = await $fetch<{ success: boolean; comment: Comment }>('/api/gallery/comments', {
       method: 'POST',
       body: {
