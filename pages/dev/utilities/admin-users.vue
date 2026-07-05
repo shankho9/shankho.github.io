@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useToast } from '~/composables/useToast'
+import { getFetchErrorMessage } from '~/utils/common/fetchError'
 
 definePageMeta({
   layout: 'default',
@@ -8,7 +9,7 @@ definePageMeta({
 })
 
 interface AdminUser {
-  id: number
+  id: string | number
   email: string
   name: string | null
   role: 'visitor' | 'admin'
@@ -20,10 +21,12 @@ interface AdminUser {
 const users = ref<AdminUser[]>([])
 const loading = ref(true)
 const search = ref('')
-const pendingRole = ref<Record<number, 'visitor' | 'admin'>>({})
+const pendingRole = ref<Record<string, 'visitor' | 'admin'>>({})
 const showOtpModal = ref(false)
 const otpCode = ref('')
-const otpTarget = ref<{ id: number; role: 'visitor' | 'admin'; email: string } | null>(null)
+const otpTarget = ref<{ id: string | number; role: 'visitor' | 'admin'; email: string } | null>(
+  null,
+)
 const otpSentTo = ref<string[]>([])
 const isRequestingOtp = ref(false)
 const isConfirming = ref(false)
@@ -38,9 +41,9 @@ const loadUsers = async () => {
       `/api/admin/users?${params.toString()}`,
     )
     users.value = res.users
-    const roles: Record<number, 'visitor' | 'admin'> = {}
+    const roles: Record<string, 'visitor' | 'admin'> = {}
     for (const u of res.users) {
-      roles[u.id] = u.role
+      roles[String(u.id)] = u.role
     }
     pendingRole.value = roles
   } catch (e) {
@@ -52,7 +55,8 @@ const loadUsers = async () => {
 }
 
 const requestRoleChange = async (user: AdminUser) => {
-  const newRole = pendingRole.value[user.id]
+  const userKey = String(user.id)
+  const newRole = pendingRole.value[userKey]
   if (!newRole || newRole === user.role) {
     showToast('Select a different role first', 'error')
     return
@@ -73,11 +77,7 @@ const requestRoleChange = async (user: AdminUser) => {
     showOtpModal.value = true
     showToast(res.message, 'success')
   } catch (e: unknown) {
-    const msg =
-      e && typeof e === 'object' && 'data' in e
-        ? String((e.data as { statusMessage?: string })?.statusMessage || 'Request failed')
-        : 'Request failed'
-    showToast(msg, 'error')
+    showToast(getFetchErrorMessage(e, 'Request failed'), 'error')
   } finally {
     isRequestingOtp.value = false
   }
@@ -101,11 +101,7 @@ const confirmRoleChange = async () => {
     showToast('Role updated successfully', 'success')
     await loadUsers()
   } catch (e: unknown) {
-    const msg =
-      e && typeof e === 'object' && 'data' in e
-        ? String((e.data as { statusMessage?: string })?.statusMessage || 'Verification failed')
-        : 'Verification failed'
-    showToast(msg, 'error')
+    showToast(getFetchErrorMessage(e, 'Verification failed'), 'error')
   } finally {
     isConfirming.value = false
   }
@@ -161,12 +157,12 @@ onMounted(loadUsers)
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-200 dark:divide-slate-700">
-          <tr v-for="user in users" :key="user.id">
+          <tr v-for="user in users" :key="String(user.id)">
             <td class="px-4 py-3 text-gray-900 dark:text-gray-100">{{ user.email }}</td>
             <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ user.name || '—' }}</td>
             <td class="px-4 py-3">
               <select
-                v-model="pendingRole[user.id]"
+                v-model="pendingRole[String(user.id)]"
                 class="rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-1 text-sm"
               >
                 <option value="visitor">Visitor</option>
@@ -176,7 +172,7 @@ onMounted(loadUsers)
             <td class="px-4 py-3 capitalize text-gray-500">{{ user.authProvider }}</td>
             <td class="px-4 py-3">
               <button
-                :disabled="pendingRole[user.id] === user.role || isRequestingOtp"
+                :disabled="pendingRole[String(user.id)] === user.role || isRequestingOtp"
                 class="text-sm font-medium text-blue-600 hover:text-blue-800 disabled:opacity-40 disabled:cursor-not-allowed"
                 @click="requestRoleChange(user)"
               >

@@ -29,11 +29,14 @@ export async function getAdminEmails(): Promise<string[]> {
 }
 
 export async function createRoleChangeOtp(
-  adminUserId: number,
-  targetUserId: number,
+  adminUserId: string | number,
+  targetUserId: string | number,
   newRole: 'visitor' | 'admin',
 ): Promise<string> {
-  await query('DELETE FROM admin_role_change_requests WHERE target_user_id = $1', [targetUserId])
+  const adminId = String(adminUserId)
+  const targetId = String(targetUserId)
+
+  await query('DELETE FROM admin_role_change_requests WHERE target_user_id = $1', [targetId])
 
   const otp = generateOtpCode()
   const otpHash = await hashPassword(otp)
@@ -43,33 +46,36 @@ export async function createRoleChangeOtp(
     `INSERT INTO admin_role_change_requests
      (admin_user_id, target_user_id, new_role, otp_hash, expires_at)
      VALUES ($1, $2, $3, $4, $5)`,
-    [adminUserId, targetUserId, newRole, otpHash, expiresAt],
+    [adminId, targetId, newRole, otpHash, expiresAt],
   )
 
   return otp
 }
 
 export async function confirmRoleChangeOtp(
-  adminUserId: number,
-  targetUserId: number,
+  adminUserId: string | number,
+  targetUserId: string | number,
   newRole: 'visitor' | 'admin',
   otp: string,
 ): Promise<void> {
+  const confirmingAdminId = String(adminUserId)
+  const targetId = String(targetUserId)
+
   const rows = await query<{
     id: number
     otp_hash: string
     attempts: number
     expires_at: Date
     new_role: string
-    target_user_id: number
-    admin_user_id: number
+    target_user_id: string | number
+    admin_user_id: string | number
   }>(
     `SELECT id, otp_hash, attempts, expires_at, new_role, target_user_id, admin_user_id
      FROM admin_role_change_requests
      WHERE target_user_id = $1 AND new_role = $2
      ORDER BY created_at DESC
      LIMIT 1`,
-    [targetUserId, newRole],
+    [targetId, newRole],
   )
 
   if (rows.length === 0) {
@@ -81,7 +87,7 @@ export async function confirmRoleChangeOtp(
 
   const request = rows[0]
 
-  if (request.target_user_id !== targetUserId || request.new_role !== newRole) {
+  if (String(request.target_user_id) !== targetId || request.new_role !== newRole) {
     throw createError({
       statusCode: 400,
       statusMessage: 'Role change details do not match the pending request',
@@ -109,7 +115,7 @@ export async function confirmRoleChangeOtp(
     throw createError({ statusCode: 400, statusMessage: 'Invalid OTP' })
   }
 
-  if (newRole === 'visitor' && targetUserId === adminUserId) {
+  if (newRole === 'visitor' && targetId === confirmingAdminId) {
     const adminCount = await query<{ count: string }>(
       `SELECT COUNT(*)::text AS count FROM users WHERE role = 'admin'`,
     )
@@ -121,10 +127,10 @@ export async function confirmRoleChangeOtp(
     }
   }
 
-  await query('UPDATE users SET role = $1 WHERE id = $2', [newRole, targetUserId])
+  await query('UPDATE users SET role = $1 WHERE id = $2', [newRole, targetId])
   await query('DELETE FROM admin_role_change_requests WHERE id = $1', [request.id])
 
   console.log(
-    `[Admin Users] User ${targetUserId} role changed to ${newRole} (requested by admin ${request.admin_user_id}, confirmed by admin ${adminUserId})`,
+    `[Admin Users] User ${targetId} role changed to ${newRole} (requested by admin ${request.admin_user_id}, confirmed by admin ${confirmingAdminId})`,
   )
 }

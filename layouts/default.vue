@@ -25,6 +25,7 @@ useHead({
     </footer>
     <!-- PWA Install Prompt -->
     <PwaInstallPrompt />
+    <CommonToast />
   </div>
 </template>
 

@@ -2,7 +2,7 @@ import { createError, defineEventHandler, readBody } from 'h3'
 import { confirmRoleChangeOtp, requireAdminUser } from '~/server/utils/adminUsers'
 
 interface ConfirmBody {
-  targetUserId: number
+  targetUserId: string | number
   newRole: 'visitor' | 'admin'
   otp: string
 }
@@ -11,11 +11,17 @@ export default defineEventHandler(async (event) => {
   const admin = await requireAdminUser(event)
   const body = await readBody<ConfirmBody>(event)
 
-  const targetUserId = Number(body?.targetUserId)
+  const targetUserId = body?.targetUserId
   const newRole = body?.newRole
   const otp = (body?.otp || '').trim()
 
-  if (!targetUserId || (newRole !== 'visitor' && newRole !== 'admin') || !otp) {
+  if (
+    targetUserId === undefined ||
+    targetUserId === null ||
+    targetUserId === '' ||
+    (newRole !== 'visitor' && newRole !== 'admin') ||
+    !otp
+  ) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid request body' })
   }
 
