@@ -173,7 +173,12 @@ defineExpose({ items, loadMusic, isLoading })
       </p>
 
       <div v-if="filteredItems.length > 0" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <MusicListRow v-for="item in filteredItems" :key="item.id" :item="item" @select="openDetail" />
+        <MusicListRow
+          v-for="item in filteredItems"
+          :key="item.id"
+          :item="item"
+          @select="openDetail"
+        />
       </div>
 
       <div v-else class="py-12 text-center">
@@ -190,11 +195,7 @@ defineExpose({ items, loadMusic, isLoading })
         </p>
       </div>
 
-      <MusicDetailModal
-        :open="detailOpen"
-        :slug="selectedItem?.slug"
-        @close="closeDetail"
-      />
+      <MusicDetailModal :open="detailOpen" :slug="selectedItem?.slug" @close="closeDetail" />
     </div>
   </div>
 </template>

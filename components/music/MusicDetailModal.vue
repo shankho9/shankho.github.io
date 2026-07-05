@@ -67,9 +67,7 @@ async function loadArticle(slug: string) {
   error.value = null
   article.value = null
   try {
-    const doc = await queryCollection('music')
-      .path(`/music/${slug}`)
-      .first()
+    const doc = await queryCollection('music').path(`/music/${slug}`).first()
     if (!doc || doc.published === false) {
       error.value = 'This musical note could not be found.'
       return
@@ -139,7 +137,11 @@ onUnmounted(() => {
         :aria-labelledby="meta ? 'music-detail-title' : undefined"
         @click.self="close"
       >
-        <div class="fixed inset-0 bg-black/50 backdrop-blur-[2px]" aria-hidden="true" @click="close" />
+        <div
+          class="fixed inset-0 bg-black/50 backdrop-blur-[2px]"
+          aria-hidden="true"
+          @click="close"
+        />
 
         <div
           class="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-amber-200/70 bg-[#fffef9] shadow-2xl dark:border-slate-600 dark:bg-slate-900 sm:rounded-2xl"
@@ -172,7 +174,10 @@ onUnmounted(() => {
 
           <div class="min-h-0 flex-1 overflow-y-auto">
             <div v-if="isLoading" class="flex flex-col items-center justify-center py-20">
-              <Icon name="svg-spinners:180-ring" class="mb-4 text-4xl text-sky-700 dark:text-sky-400" />
+              <Icon
+                name="svg-spinners:180-ring"
+                class="mb-4 text-4xl text-sky-700 dark:text-sky-400"
+              />
               <p class="text-zinc-600 dark:text-zinc-400">Loading...</p>
             </div>
 
@@ -190,7 +195,10 @@ onUnmounted(() => {
 
             <article v-else-if="article && meta" class="pb-6">
               <div
-                :class="['relative overflow-hidden bg-gradient-to-r px-5 py-6 sm:px-7 sm:py-8', typeInfo.accent]"
+                :class="[
+                  'relative overflow-hidden bg-gradient-to-r px-5 py-6 sm:px-7 sm:py-8',
+                  typeInfo.accent,
+                ]"
               >
                 <div
                   class="pointer-events-none absolute inset-0 overflow-hidden opacity-[0.12]"
