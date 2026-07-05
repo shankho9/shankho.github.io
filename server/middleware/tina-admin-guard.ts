@@ -11,11 +11,6 @@ export default defineEventHandler(async (event) => {
     return
   }
 
-  // Tina static admin SPA + chunks (built by tinacms build). Tina Cloud OAuth guards saves.
-  if (path.startsWith('/admin/index.html') || path.startsWith('/admin/assets/')) {
-    return
-  }
-
   const user = await getCurrentUser(event)
   if (!user || user.role !== 'admin') {
     throw createError({

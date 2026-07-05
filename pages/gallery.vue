@@ -352,6 +352,20 @@ try {
 
 <template>
   <div class="py-10 container mx-auto max-w-7xl px-3 sm:px-6 overflow-x-hidden">
+    <div
+      class="mb-6 rounded-xl border border-sky-200/80 bg-sky-50/70 px-4 py-3 text-sm text-sky-900 dark:border-sky-800/50 dark:bg-sky-950/30 dark:text-sky-100"
+    >
+      This gallery uses a static demo set. For your full ImageKit photo library with folders,
+      metadata, and engagement stats, visit
+      <NuxtLink
+        to="/library?tab=photos"
+        class="font-semibold text-sky-700 underline underline-offset-2 hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200"
+      >
+        Media Library → Photos
+      </NuxtLink>
+      .
+    </div>
+
     <!-- Header -->
     <div class="text-center mb-8">
       <h1 class="text-4xl font-bold mb-4 text-zinc-800 dark:text-zinc-200">Gallery</h1>

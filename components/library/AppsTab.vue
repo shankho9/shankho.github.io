@@ -6,6 +6,7 @@ const apps = ref<AppListItem[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 const searchQuery = ref('')
+const listTruncated = ref(false)
 
 const filteredApps = computed(() => {
   if (!searchQuery.value.trim()) return apps.value
@@ -23,8 +24,15 @@ const loadApps = async () => {
   isLoading.value = true
   error.value = null
   try {
-    const response = await $fetch<{ success: boolean; items: AppListItem[] }>('/api/apps/list')
-    if (response.success) apps.value = response.items
+    const response = await $fetch<{
+      success: boolean
+      items: AppListItem[]
+      truncated?: boolean
+    }>('/api/apps/list')
+    if (response.success) {
+      apps.value = response.items
+      listTruncated.value = response.truncated ?? false
+    }
   } catch (err) {
     console.error('[AppsTab] Failed to load apps:', err)
     error.value = err instanceof Error ? err.message : 'Failed to load apps'
@@ -63,6 +71,13 @@ defineExpose({ apps, loadApps, isLoading })
     </div>
 
     <div v-else>
+      <p
+        v-if="listTruncated"
+        class="mb-4 rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-sm text-amber-900 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-100"
+      >
+        Showing the first 500 published apps. More exist in Notion and are not listed here yet.
+      </p>
+
       <LibraryTabToolbar
         v-model:search="searchQuery"
         search-placeholder="Search apps, categories, version..."

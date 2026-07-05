@@ -1,5 +1,6 @@
-import { defineEventHandler, getQuery, setHeader } from 'h3'
+import { createError, defineEventHandler, getQuery, setHeader } from 'h3'
 import { useRuntimeConfig } from '#imports'
+import { getCurrentUser } from '~/server/utils/auth'
 
 interface ImageKitFile {
   fileId: string
@@ -24,6 +25,11 @@ interface ImageKitResponse {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = await getCurrentUser(event)
+  if (!user) {
+    throw createError({ statusCode: 401, statusMessage: 'Authentication required' })
+  }
+
   const config = useRuntimeConfig()
   const query = getQuery(event)
 

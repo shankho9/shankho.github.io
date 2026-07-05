@@ -130,9 +130,6 @@ const submitComment = async () => {
       body: {
         itemId: props.itemId,
         content: commentText.value,
-        userEmail: user.value.email,
-        userName: user.value.name,
-        userPicture: user.value.picture || '',
       },
     })
 

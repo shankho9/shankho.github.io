@@ -1,19 +1,22 @@
-import { defineEventHandler, readBody } from 'h3'
+import { createError, defineEventHandler, readBody } from 'h3'
+import { getCurrentUser } from '~/server/utils/auth'
 import { query } from '~/server/utils/db'
 
 interface CommentBody {
   itemId: string
   content: string
-  userEmail: string
-  userName: string
-  userPicture: string
 }
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<CommentBody>(event)
-  const { itemId, content, userEmail, userName, userPicture } = body
+  const user = await getCurrentUser(event)
+  if (!user) {
+    throw createError({ statusCode: 401, statusMessage: 'Authentication required' })
+  }
 
-  if (!itemId || !content || !userEmail || !userName) {
+  const body = await readBody<CommentBody>(event)
+  const { itemId, content } = body
+
+  if (!itemId || !content) {
     throw createError({
       statusCode: 400,
       message: 'Missing required fields',
@@ -34,6 +37,10 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  const userEmail = user.email
+  const userName = user.name || user.email
+  const userPicture = user.picture || ''
+
   // Use gallery_ prefix
   const postId = `gallery_${itemId}`
 
@@ -42,7 +49,7 @@ export default defineEventHandler(async (event) => {
       `INSERT INTO comments (post_id, user_email, user_name, user_picture, content)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id`,
-      [postId, userEmail, userName, userPicture || '', content.trim()],
+      [postId, userEmail, userName, userPicture, content.trim()],
     )
 
     return {
@@ -52,7 +59,7 @@ export default defineEventHandler(async (event) => {
         post_id: postId,
         user_email: userEmail,
         user_name: userName,
-        user_picture: userPicture || '',
+        user_picture: userPicture,
         content: content.trim(),
         created_at: new Date(),
       },

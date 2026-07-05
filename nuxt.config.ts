@@ -8,7 +8,12 @@ const tinaAdminBuilt = existsSync('public/admin/index.html')
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2024-09-30',
-  components: true,
+  components: [
+    '~/components',
+    { path: '~/components/library', pathPrefix: false },
+    { path: '~/components/music', pathPrefix: false },
+    { path: '~/components/blog', pathPrefix: false },
+  ],
 
   // Site configuration for nuxt-site-config (used by nuxt-og-image and other modules)
   // CRITICAL: Always ensure url is a string, never undefined
@@ -44,7 +49,6 @@ export default defineNuxtConfig({
           '/resources',
           '/personalSpace',
           '/categories',
-          '/maps',
           '/sitemap',
           '/rss.xml',
         ],

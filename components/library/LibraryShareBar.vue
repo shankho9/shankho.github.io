@@ -2,19 +2,20 @@
 import { ref, computed } from 'vue'
 import { useRuntimeConfig } from '#imports'
 import { useToast } from '~/composables/useToast'
-
-export type LibraryShareTab = 'resources' | 'videos' | 'musical-notes' | 'apps'
+import type { LibraryTabId } from '~/components/library/LibraryIntegrationNote.vue'
 
 const props = defineProps<{
-  tab: LibraryShareTab
+  tab: LibraryTabId
   title?: string
   description?: string
 }>()
 
-const TAB_LABELS: Record<LibraryShareTab, string> = {
-  resources: 'Resources',
+const TAB_LABELS: Record<LibraryTabId, string> = {
+  photos: 'Photos',
   videos: 'Videos',
   'musical-notes': 'Musical Notes',
+  'travel-map': 'Travel Map',
+  resources: 'Resources',
   apps: 'Apps',
 }
 

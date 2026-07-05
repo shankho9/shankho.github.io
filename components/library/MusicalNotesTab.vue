@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useAuth } from '~/composables/useAuth'
 import TinaEditButton from '~/components/library/TinaEditButton.vue'
 import MusicDetailModal from '~/components/music/MusicDetailModal.vue'
 import MusicListRow, {
@@ -9,8 +8,6 @@ import MusicListRow, {
 } from '~/components/library/MusicListRow.vue'
 
 type MusicTab = 'lyrics' | 'instrumental' | 'notation'
-
-const { isAdmin } = useAuth()
 
 const activeMusicTab = ref<MusicTab>('lyrics')
 const searchQuery = ref('')
@@ -132,23 +129,6 @@ defineExpose({ items, loadMusic, isLoading })
     </div>
 
     <div v-else>
-      <NuxtLink
-        v-if="isAdmin"
-        to="/admin"
-        class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200/80 bg-sky-50/80 px-4 py-3 transition-colors hover:border-sky-400 hover:bg-sky-100/90 dark:border-sky-800/50 dark:bg-sky-950/30 dark:hover:border-sky-600 dark:hover:bg-sky-950/50"
-      >
-        <div class="flex items-center gap-2 text-sm font-medium text-sky-900 dark:text-sky-200">
-          <Icon name="mdi:music-clef-treble" size="20" class="shrink-0" />
-          <span>Edit Musical Notes in Tina CMS</span>
-        </div>
-        <span
-          class="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white"
-        >
-          Open Tina CMS
-          <Icon name="mdi:arrow-right" size="16" />
-        </span>
-      </NuxtLink>
-
       <LibraryTabToolbar
         v-model:search="searchQuery"
         search-placeholder="Search title, artist, tags..."

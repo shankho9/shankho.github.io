@@ -60,7 +60,11 @@ const hasStreams = computed(() =>
 
 const editUrl = computed(() => (props.slug ? musicDocumentUrl(props.slug) : ''))
 
-const fullPageUrl = computed(() => (props.slug ? `/library/music/${props.slug}` : ''))
+function openFullPage() {
+  const targetSlug = props.slug
+  if (!targetSlug) return
+  void navigateTo(`/library/music/${targetSlug}`)
+}
 
 async function loadArticle(slug: string) {
   isLoading.value = true
@@ -152,15 +156,15 @@ onUnmounted(() => {
           >
             <p class="text-sm font-medium text-zinc-600 dark:text-zinc-300">Musical Note</p>
             <div class="flex items-center gap-2">
-              <NuxtLink
+              <button
                 v-if="slug"
-                :to="fullPageUrl"
-                class="hidden items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:border-sky-300 hover:text-sky-700 dark:border-slate-600 dark:text-zinc-300 dark:hover:border-sky-600 dark:hover:text-sky-300 sm:inline-flex"
-                @click="close"
+                type="button"
+                class="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:border-sky-300 hover:text-sky-700 dark:border-slate-600 dark:text-zinc-300 dark:hover:border-sky-600 dark:hover:text-sky-300"
+                @click="openFullPage"
               >
                 <Icon name="mdi:open-in-new" size="14" />
                 Full page
-              </NuxtLink>
+              </button>
               <button
                 type="button"
                 class="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-slate-700 dark:hover:text-zinc-100"

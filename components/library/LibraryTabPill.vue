@@ -10,6 +10,9 @@ defineProps<{
 <template>
   <button
     type="button"
+    role="tab"
+    :aria-selected="active ?? false"
+    :tabindex="active ? 0 : -1"
     :class="[
       'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
       active
@@ -17,7 +20,7 @@ defineProps<{
         : 'bg-gray-100 text-zinc-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-zinc-300 dark:hover:bg-slate-600',
     ]"
   >
-    <Icon v-if="icon" :name="icon" size="16" />
+    <Icon v-if="icon" :name="icon" size="16" aria-hidden="true" />
     <span>{{ label }}</span>
     <span
       v-if="count !== undefined && count > 0"

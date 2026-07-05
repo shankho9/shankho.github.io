@@ -13,6 +13,7 @@ export interface NotionResponse {
   success: boolean
   items: NotionItem[]
   hasMore?: boolean
+  truncated?: boolean
   nextCursor?: string
   error?: string
 }
@@ -43,10 +44,6 @@ export const useNotion = () => {
     try {
       const params = new URLSearchParams()
 
-      if (options.databaseId) {
-        params.append('databaseId', options.databaseId)
-      }
-
       if (options.pageSize) {
         params.append('pageSize', options.pageSize.toString())
       }
@@ -58,6 +55,8 @@ export const useNotion = () => {
       if (options.sorts) {
         params.append('sorts', JSON.stringify(options.sorts))
       }
+
+      params.append('fetchAll', 'true')
 
       const response = await $fetch<NotionResponse>(`/api/notion/database?${params.toString()}`)
 
@@ -125,7 +124,6 @@ export const useNotion = () => {
     return fetchDatabase({
       filter,
       sorts,
-      pageSize: 100,
     })
   }
 

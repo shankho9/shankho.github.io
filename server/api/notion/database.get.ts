@@ -1,18 +1,25 @@
-import { defineEventHandler, getQuery } from 'h3'
+import { createError, defineEventHandler, getQuery } from 'h3'
 import { useRuntimeConfig } from '#imports'
+import { getCurrentUser } from '~/server/utils/auth'
 import {
   filterPublishedItems,
   isValidDatabaseId,
   normalizeDatabaseId,
   queryNotionDatabase,
+  queryNotionDatabaseAll,
 } from '~/server/utils/notion'
 
 export default defineEventHandler(async (event) => {
+  const user = await getCurrentUser(event)
+  if (!user) {
+    throw createError({ statusCode: 401, statusMessage: 'Authentication required' })
+  }
+
   const config = useRuntimeConfig()
   const query = getQuery(event)
 
   const notionApiKey = config.notionApiKey
-  let databaseId = (query.databaseId as string) || config.notionDatabaseId
+  const databaseId = config.notionDatabaseId
 
   if (!notionApiKey) {
     return {
@@ -25,18 +32,17 @@ export default defineEventHandler(async (event) => {
   if (!databaseId) {
     return {
       success: false,
-      error:
-        'Notion Database ID is missing. Please provide databaseId query parameter or set NOTION_DATABASE_ID environment variable.',
+      error: 'Notion Database ID is missing. Set NOTION_DATABASE_ID environment variable.',
       items: [],
     }
   }
 
-  databaseId = normalizeDatabaseId(databaseId)
+  const normalizedId = normalizeDatabaseId(databaseId)
 
-  if (!isValidDatabaseId(databaseId)) {
+  if (!isValidDatabaseId(normalizedId)) {
     return {
       success: false,
-      error: `Invalid Notion Database ID format. Expected 32-character hex string, got: ${databaseId.substring(0, 20)}...`,
+      error: `Invalid Notion Database ID format. Expected 32-character hex string, got: ${normalizedId.substring(0, 20)}...`,
       items: [],
     }
   }
@@ -63,13 +69,23 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    const result = await queryNotionDatabase({
-      databaseId,
-      notionApiKey,
-      pageSize: parseInt((query.pageSize as string) || '100', 10),
-      filter,
-      sorts,
-    })
+    const fetchAll = query.fetchAll !== 'false' && query.fetchAll !== '0'
+    const pageSize = Math.min(parseInt((query.pageSize as string) || '100', 10), 100)
+
+    const result = fetchAll
+      ? await queryNotionDatabaseAll({
+          databaseId: normalizedId,
+          notionApiKey,
+          filter,
+          sorts,
+        })
+      : await queryNotionDatabase({
+          databaseId: normalizedId,
+          notionApiKey,
+          pageSize,
+          filter,
+          sorts,
+        })
 
     if (!result.success) {
       return {
@@ -85,6 +101,7 @@ export default defineEventHandler(async (event) => {
       success: true,
       items: publishedItems,
       hasMore: result.hasMore,
+      truncated: result.truncated ?? false,
       nextCursor: result.nextCursor,
     }
   } catch (error) {

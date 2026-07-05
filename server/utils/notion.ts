@@ -26,6 +26,7 @@ export interface NotionQueryOptions {
   databaseId: string
   notionApiKey: string
   pageSize?: number
+  startCursor?: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   filter?: any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,6 +38,7 @@ export interface NotionQueryResult {
   items: NotionItem[]
   hasMore?: boolean
   nextCursor?: string
+  truncated?: boolean
   error?: string
 }
 
@@ -119,7 +121,7 @@ export function isValidDatabaseId(databaseId: string): boolean {
 }
 
 export async function queryNotionDatabase(options: NotionQueryOptions): Promise<NotionQueryResult> {
-  const { databaseId, notionApiKey, pageSize = 100, filter, sorts } = options
+  const { databaseId, notionApiKey, pageSize = 100, startCursor, filter, sorts } = options
 
   const normalizedId = normalizeDatabaseId(databaseId)
 
@@ -134,6 +136,7 @@ export async function queryNotionDatabase(options: NotionQueryOptions): Promise<
   const body: Record<string, unknown> = { page_size: pageSize }
   if (filter) body.filter = filter
   if (sorts) body.sorts = sorts
+  if (startCursor) body.start_cursor = startCursor
 
   const response = await fetch(`https://api.notion.com/v1/databases/${normalizedId}/query`, {
     method: 'POST',
@@ -178,6 +181,47 @@ export async function queryNotionDatabase(options: NotionQueryOptions): Promise<
     items,
     hasMore: data.has_more,
     nextCursor: data.next_cursor,
+  }
+}
+
+/** Paginate through Notion results up to maxItems (default 500). */
+export async function queryNotionDatabaseAll(
+  options: NotionQueryOptions & { maxItems?: number },
+): Promise<NotionQueryResult> {
+  const maxItems = options.maxItems ?? 500
+  const aggregated: NotionItem[] = []
+  let cursor: string | undefined
+  let truncated = false
+
+  while (aggregated.length < maxItems) {
+    const page = await queryNotionDatabase({
+      ...options,
+      pageSize: Math.min(100, maxItems - aggregated.length),
+      startCursor: cursor,
+    })
+
+    if (!page.success) {
+      return page
+    }
+
+    aggregated.push(...page.items)
+
+    if (!page.hasMore || !page.nextCursor) {
+      return { success: true, items: aggregated, hasMore: false, truncated: false }
+    }
+
+    cursor = page.nextCursor
+    if (aggregated.length >= maxItems) {
+      truncated = true
+      break
+    }
+  }
+
+  return {
+    success: true,
+    items: aggregated.slice(0, maxItems),
+    hasMore: truncated,
+    truncated,
   }
 }
 

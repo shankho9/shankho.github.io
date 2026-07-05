@@ -90,21 +90,19 @@ Transactional and alert emails use [Resend](https://resend.com). Branding is **N
 
 Add to `.env` / Vercel:
 
-````env
+```env
 RESEND_API_KEY=re_...
-```bash
 # Plain email is safest on Vercel (no spaces or angle brackets in the value)
 FROM_EMAIL=blogsite@nomadic-notions.co.in
 
 # Optional display name format also works if the whole value is quoted in .env locally:
 # FROM_EMAIL="Nomadic Notions <blogsite@nomadic-notions.co.in>"
-````
 
-On **Vercel → Environment Variables**, set `FROM_EMAIL` to `blogsite@nomadic-notions.co.in` only — do **not** include surrounding quotes in the dashboard field.
 NOTIFICATION_EMAIL=blogsite@nomadic-notions.co.in
 ALERT_EMAIL=blogsite@nomadic-notions.co.in
+```
 
-````
+On **Vercel → Environment Variables**, set `FROM_EMAIL` to `blogsite@nomadic-notions.co.in` only — do **not** include surrounding quotes in the dashboard field.
 
 **Production:** Verify `nomadic-notions.co.in` in Resend and add SPF/DKIM DNS records (Cloudflare) so `blogsite@nomadic-notions.co.in` can send. Without domain verification, password-reset and notification emails will fail or go to spam.
 
@@ -121,18 +119,18 @@ ALERT_EMAIL=blogsite@nomadic-notions.co.in
 
 Extend the existing Resources database. Add **`App`** to the **Type** select. For app rows, set these properties:
 
-| Property       | Type         | Notes                          |
-| -------------- | ------------ | ------------------------------ |
-| Title          | title        | App name                       |
-| Description    | rich_text    | Short blurb                    |
-| Published      | checkbox     | Must be checked to appear      |
-| Type           | select       | **`App`**                      |
-| Image          | files        | App icon (optional)            |
+| Property       | Type         | Notes                                          |
+| -------------- | ------------ | ---------------------------------------------- |
+| Title          | title        | App name                                       |
+| Description    | rich_text    | Short blurb                                    |
+| Published      | checkbox     | Must be checked to appear                      |
+| Type           | select       | **`App`**                                      |
+| Image          | files        | App icon (optional)                            |
 | Category       | multi_select | e.g. `Android`, `iOS`, `Desktop` (one or more) |
-| Version        | text         | e.g. `1.2.0`                   |
-| Play Store URL | url          | Google Play link (optional)    |
-| Apk Key        | text         | R2 object key (not a full URL) |
-| Msix Key       | text         | R2 object key (optional)       |
+| Version        | text         | e.g. `1.2.0`                                   |
+| Play Store URL | url          | Google Play link (optional)                    |
+| Apk Key        | text         | R2 object key (not a full URL)                 |
+| Msix Key       | text         | R2 object key (optional)                       |
 
 **Publish workflow:** Upload binary to R2 → paste object key into Notion → set Type = App → check Published.
 
@@ -160,11 +158,11 @@ The **Musical Notes** tab uses **Tina Cloud Free** (Git-backed MDX) and **Nuxt C
 
 #### Tina Cloud project checklist (steps 2–4 in the dashboard)
 
-| Checklist step | What to do |
-| -------------- | ---------- |
-| **Set up your site schema** | Run `npm run dev:tina` locally (not `npm run dev` alone). This runs `tinacms dev`, registers the schema with TinaCloud, and updates `tina/tina-lock.json`. Commit and push `tina/tina-lock.json` if it changed. Wait a few minutes for branch indexing on [app.tina.io](https://app.tina.io) → Configuration. |
-| **Log in through your site** | With `npm run dev:tina` running, open `http://localhost:3000/admin/index.html`. Click **Log in** and authenticate with the GitHub account invited in TinaCloud. Site URL must match `http://localhost:3000` exactly. |
-| **Create a commit with TinaCloud** | In the editor, open **Musical Notes**, edit any entry (e.g. add a word to the body), click **Save**. Tina commits to GitHub on the `main` branch. |
+| Checklist step                     | What to do                                                                                                                                                                                                                                                                                                    |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Set up your site schema**        | Run `npm run dev:tina` locally (not `npm run dev` alone). This runs `tinacms dev`, registers the schema with TinaCloud, and updates `tina/tina-lock.json`. Commit and push `tina/tina-lock.json` if it changed. Wait a few minutes for branch indexing on [app.tina.io](https://app.tina.io) → Configuration. |
+| **Log in through your site**       | With `npm run dev:tina` running, open `http://localhost:3000/admin/index.html`. Click **Log in** and authenticate with the GitHub account invited in TinaCloud. Site URL must match `http://localhost:3000` exactly.                                                                                          |
+| **Create a commit with TinaCloud** | In the editor, open **Musical Notes**, edit any entry (e.g. add a word to the body), click **Save**. Tina commits to GitHub on the `main` branch.                                                                                                                                                             |
 
 > **Note:** `tinacms build` alone does **not** satisfy the schema step — Tina docs require `tinacms dev` to generate/index `tina-lock.json` correctly.
 
@@ -180,18 +178,18 @@ Add the same on **Vercel → Environment Variables**, then redeploy.
 
 ### Music frontmatter schema
 
-| Field        | Type    | Notes                                      |
-| ------------ | ------- | ------------------------------------------ |
-| title        | string  | Song or piece name                         |
-| musicType    | select  | `lyrics`, `instrumental`, or `notation`    |
-| artist       | string  | Optional                                   |
-| language     | string  | Optional                                   |
-| youtubeUrl   | string  | Optional — embeds on detail page           |
-| spotifyUrl   | string  | Optional — embeds on detail page           |
-| tags         | list    | Optional                                   |
-| published    | boolean | Must be `true` to appear in the library    |
-| coverImage   | image   | Optional — stored under `public/music/`    |
-| body         | MDX     | Lyrics blocks, notation notes, etc.        |
+| Field      | Type    | Notes                                   |
+| ---------- | ------- | --------------------------------------- |
+| title      | string  | Song or piece name                      |
+| musicType  | select  | `lyrics`, `instrumental`, or `notation` |
+| artist     | string  | Optional                                |
+| language   | string  | Optional                                |
+| youtubeUrl | string  | Optional — embeds on detail page        |
+| spotifyUrl | string  | Optional — embeds on detail page        |
+| tags       | list    | Optional                                |
+| published  | boolean | Must be `true` to appear in the library |
+| coverImage | image   | Optional — stored under `public/music/` |
+| body       | MDX     | Lyrics blocks, notation notes, etc.     |
 
 ### MDX components for lyrics
 
@@ -257,7 +255,7 @@ R2_ACCESS_KEY_ID=your_r2_access_key_id
 R2_SECRET_ACCESS_KEY=your_r2_secret_access_key
 R2_BUCKET_NAME=nomadic-notions-apps
 R2_APPS_PREFIX=apps/
-````
+```
 
 ### Object key convention
 

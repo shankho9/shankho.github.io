@@ -22,7 +22,7 @@ const staticPages = [
   { path: '/resources', title: 'Resources', icon: 'mdi:folder-multiple' },
   { path: '/personalSpace', title: 'LifeLines', icon: 'mdi:heart', requiresAuth: true },
   { path: '/categories', title: 'Categories', icon: 'mdi:tag-multiple' },
-  { path: '/maps', title: "Places I've Visited", icon: 'mdi:map' },
+  { path: '/maps', title: "Places I've Visited", icon: 'mdi:map', requiresAuth: true },
   { path: '/sitemap', title: 'Sitemap', icon: 'mdi:sitemap' },
 ]
 

@@ -10,6 +10,7 @@ const searchQuery = ref('')
 
 const { isLoading, error, fetchDatabase } = useNotion()
 const items = ref<NotionItem[]>([])
+const listTruncated = ref(false)
 
 const resourceTabs: {
   id: ResourceTab
@@ -116,11 +117,10 @@ const cardType = computed((): 'book' | 'tool' | 'learning' => {
 })
 
 const loadResources = async () => {
-  const config = useRuntimeConfig()
-  const databaseId = config.public.notionDatabaseId
-  if (databaseId && typeof databaseId === 'string') {
-    const response = await fetchDatabase({ databaseId, pageSize: 100 })
-    if (response.success) items.value = response.items
+  const response = await fetchDatabase({})
+  if (response.success) {
+    items.value = response.items
+    listTruncated.value = response.truncated ?? false
   }
 }
 
@@ -152,6 +152,13 @@ onMounted(() => {
     </div>
 
     <div v-else>
+      <p
+        v-if="listTruncated"
+        class="mb-4 rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-sm text-amber-900 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-100"
+      >
+        Showing the first 500 published resources. More exist in Notion and are not listed here yet.
+      </p>
+
       <LibraryTabToolbar v-model:search="searchQuery" :search-placeholder="searchPlaceholder">
         <template #tabs>
           <LibraryTabPill

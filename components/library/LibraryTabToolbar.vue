@@ -17,7 +17,7 @@ withDefaults(
   <div
     class="sticky top-0 z-10 -mx-1 mb-5 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white/95 px-3 py-3 backdrop-blur-sm dark:border-slate-700/80 dark:bg-slate-900/95 sm:flex-row sm:items-center"
   >
-    <div v-if="$slots.tabs" class="flex flex-wrap gap-1.5">
+    <div v-if="$slots.tabs" class="flex flex-wrap gap-1.5" role="tablist">
       <slot name="tabs" />
     </div>
 

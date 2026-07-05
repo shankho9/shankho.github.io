@@ -2,7 +2,7 @@ import { createError, defineEventHandler } from 'h3'
 import { useRuntimeConfig } from '#imports'
 import { toAppListItem } from '~/server/utils/apps'
 import { getCurrentUser } from '~/server/utils/auth'
-import { APP_TYPE_FILTER, queryNotionDatabase } from '~/server/utils/notion'
+import { APP_TYPE_FILTER, queryNotionDatabaseAll } from '~/server/utils/notion'
 
 export default defineEventHandler(async (event) => {
   const user = await getCurrentUser(event)
@@ -28,10 +28,9 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const result = await queryNotionDatabase({
+  const result = await queryNotionDatabaseAll({
     databaseId,
     notionApiKey,
-    pageSize: 100,
     filter: APP_TYPE_FILTER,
   })
 
@@ -45,5 +44,7 @@ export default defineEventHandler(async (event) => {
   return {
     success: true,
     items: result.items.map(toAppListItem),
+    truncated: result.truncated ?? false,
+    hasMore: result.hasMore ?? false,
   }
 })

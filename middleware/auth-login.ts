@@ -26,9 +26,10 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
       return redirectToLogin()
     }
   } catch (error) {
-    if (!isAuthenticated.value) {
-      return redirectToLogin()
+    console.warn('[Auth Login] Server verification failed:', error)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_user')
     }
-    console.warn('[Auth Login] Server verification failed, but user in localStorage:', error)
+    return redirectToLogin()
   }
 })

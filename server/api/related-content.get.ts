@@ -1,52 +1,17 @@
 /**
- * API endpoint for fetching related content from external sources
- *
- * This endpoint can be extended to fetch from:
- * - Medium API
- * - Dev.to API
- * - WordPress REST API
- * - Reddit API
- * - RSS feeds
- * - Custom recommendation services
+ * Stub endpoint for future external related-content integrations.
+ * Returns an empty list until Medium/Dev.to/WordPress/Reddit sources are implemented.
  */
+import { defineEventHandler, getQuery } from 'h3'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const { source = 'internal' } = query
 
-  // For now, return empty array - this can be extended
-  // Example implementations below:
-  // Uncomment and use these variables when implementing:
-  // const tags = query.tags as string
-  // const category = query.category as string
-  // const title = query.title as string
-  // const limit = Number(query.limit) || 5
-
-  if (source === 'medium') {
-    // TODO: Implement Medium API integration
-    // const mediumArticles = await fetchMediumArticles(tags, limit)
-    return []
+  if (source !== 'internal') {
+    console.info(`[related-content] Stub source requested: ${source}`)
   }
 
-  if (source === 'devto') {
-    // TODO: Implement Dev.to API integration
-    // const devtoArticles = await fetchDevToArticles(tags, limit)
-    return []
-  }
-
-  if (source === 'wordpress') {
-    // TODO: Implement WordPress REST API integration
-    // const wpPosts = await fetchWordPressPosts(tags, limit)
-    return []
-  }
-
-  if (source === 'reddit') {
-    // TODO: Implement Reddit API integration
-    // const redditPosts = await fetchRedditPosts(tags, limit)
-    return []
-  }
-
-  // Default: return empty array
   return []
 })
 
