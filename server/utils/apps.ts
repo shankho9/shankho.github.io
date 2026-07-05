@@ -1,17 +1,17 @@
 import type { NotionItem } from '~/server/utils/notion'
-import { getItemImageUrl, getItemPlatforms, getItemString } from '~/server/utils/notion'
+import { getItemCategories, getItemImageUrl, getItemString } from '~/server/utils/notion'
 
 export interface AppListItem {
   id: string
   title: string
   description: string
   version: string
-  platforms: string[]
+  categories: string[]
   playStoreUrl: string | null
   iconUrl: string | null
-  category: string
   hasApk: boolean
   hasMsix: boolean
+  updatedAt: string | null
 }
 
 export function getAppR2Key(item: NotionItem, format: 'apk' | 'msix'): string | null {
@@ -32,14 +32,14 @@ export function toAppListItem(item: NotionItem): AppListItem {
     title: getItemString(item, 'Title', 'title', 'Name', 'name') || 'Untitled',
     description: getItemString(item, 'Description', 'description'),
     version: getItemString(item, 'Version', 'version'),
-    platforms: getItemPlatforms(item),
+    categories: getItemCategories(item),
     playStoreUrl:
       getItemString(item, 'Play Store URL', 'PlayStoreURL', 'playStoreUrl', 'Play Store Url') ||
       null,
     iconUrl: getItemImageUrl(item),
-    category: getItemString(item, 'Category', 'category'),
     hasApk: Boolean(apkKey),
     hasMsix: Boolean(msixKey),
+    updatedAt: item.updatedAt || null,
   }
 }
 

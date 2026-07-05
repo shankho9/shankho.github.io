@@ -7,16 +7,32 @@ import GalleryLightbox from '~/components/gallery/Lightbox.vue'
 import GoogleMap from '~/components/blog/GoogleMap.vue'
 import ResourcesTabs from '~/components/notion/ResourcesTabs.vue'
 import AppsTab from '~/components/library/AppsTab.vue'
+import LibraryShareBar from '~/components/library/LibraryShareBar.vue'
 
 definePageMeta({ middleware: ['auth-login'] })
+
+// Tab types
+type TabType = 'photos' | 'videos' | 'musical-notes' | 'travel-map' | 'resources' | 'apps'
+
+const route = useRoute()
+const router = useRouter()
+
+const VALID_TABS: TabType[] = [
+  'photos',
+  'videos',
+  'musical-notes',
+  'travel-map',
+  'resources',
+  'apps',
+]
+
+const isValidTab = (tab: unknown): tab is TabType =>
+  typeof tab === 'string' && VALID_TABS.includes(tab as TabType)
 
 // Get configurable root folders from runtime config
 const config = useRuntimeConfig()
 const photosRootFolder = config.public.imageKitPhotosRootFolder || 'Library/Photos'
 const videosRootFolder = config.public.imageKitVideosRootFolder || 'Library/Videos'
-
-// Tab types
-type TabType = 'photos' | 'videos' | 'musical-notes' | 'travel-map' | 'resources' | 'apps'
 
 // Authentication
 const { user, isAuthenticated, loadStoredUser } = useAuth()
@@ -32,6 +48,13 @@ const closeLoginModal = () => {
 
 // Active tab state - default to photos (requires auth)
 const activeTab = ref<TabType>('photos')
+
+const setActiveTab = (tab: TabType) => {
+  activeTab.value = tab
+  if (route.query.tab !== tab) {
+    router.replace({ path: '/library', query: { tab } })
+  }
+}
 
 // Gallery state (for Photos tab)
 const viewMode = ref<'grid' | 'masonry'>('grid')
@@ -847,6 +870,15 @@ const loadTravelPlaces = async () => {
   }
 }
 
+watch(
+  () => route.query.tab,
+  (tabFromQuery) => {
+    if (isValidTab(tabFromQuery) && activeTab.value !== tabFromQuery) {
+      activeTab.value = tabFromQuery
+    }
+  },
+)
+
 // Watch for travel-map tab activation to load places
 watch(activeTab, (newTab) => {
   if (newTab === 'travel-map' && travelPlaces.value.length === 0 && !mapLoading.value) {
@@ -869,6 +901,10 @@ const lastLoadedUserEmail = ref<string | null>(null)
 onMounted(async () => {
   // Load stored user first to ensure authentication state is available
   loadStoredUser()
+
+  if (isValidTab(route.query.tab)) {
+    activeTab.value = route.query.tab
+  }
 
   // Track page visit
   fetch('/api/analytics/track-visit', {
@@ -996,7 +1032,7 @@ try {
                 ? 'bg-gradient-to-r from-sky-700 to-blue-600 dark:from-sky-600 dark:to-blue-500 text-white shadow-md scale-105'
                 : 'text-zinc-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:scale-102',
             ]"
-            @click="activeTab = tab.id"
+            @click="setActiveTab(tab.id)"
           >
             <Icon :name="tab.icon" size="20" />
             <span>{{ tab.label }}</span>
@@ -1031,6 +1067,16 @@ try {
           </button>
         </div>
       </div>
+
+      <LibraryShareBar
+        v-if="
+          activeTab === 'videos' ||
+          activeTab === 'resources' ||
+          activeTab === 'musical-notes' ||
+          activeTab === 'apps'
+        "
+        :tab="activeTab"
+      />
 
       <!-- Authentication Required Message (for Photos/Videos) -->
       <div v-if="!isAuthenticated && currentTabRequiresAuth" class="max-w-2xl mx-auto mt-12">

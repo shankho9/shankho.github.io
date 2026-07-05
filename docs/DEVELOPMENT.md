@@ -128,9 +128,8 @@ Extend the existing Resources database. Add **`App`** to the **Type** select. Fo
 | Published      | checkbox     | Must be checked to appear      |
 | Type           | select       | **`App`**                      |
 | Image          | files        | App icon (optional)            |
-| Category       | select/text  | Optional grouping              |
+| Category       | multi_select | e.g. `Android`, `iOS`, `Desktop` (one or more) |
 | Version        | text         | e.g. `1.2.0`                   |
-| Platforms      | multi_select | e.g. `Android`, `Windows`      |
 | Play Store URL | url          | Google Play link (optional)    |
 | Apk Key        | text         | R2 object key (not a full URL) |
 | Msix Key       | text         | R2 object key (optional)       |

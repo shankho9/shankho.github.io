@@ -16,8 +16,8 @@ const filteredApps = computed(() => {
   return apps.value.filter((app) => {
     if (app.title.toLowerCase().includes(query)) return true
     if (app.description.toLowerCase().includes(query)) return true
-    if (app.category.toLowerCase().includes(query)) return true
-    if (app.platforms.some((p) => p.toLowerCase().includes(query))) return true
+    if (app.categories.some((c) => c.toLowerCase().includes(query))) return true
+    if (app.version.toLowerCase().includes(query)) return true
     return false
   })
 })
@@ -99,11 +99,8 @@ defineExpose({ apps, loadApps, isLoading })
         </p>
       </div>
 
-      <!-- Grid -->
-      <div
-        v-if="filteredApps.length > 0"
-        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-      >
+      <!-- List -->
+      <div v-if="filteredApps.length > 0" class="flex flex-col gap-4">
         <AppCard v-for="app in filteredApps" :key="app.id" :app="app" />
       </div>
 

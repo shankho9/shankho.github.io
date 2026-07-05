@@ -210,6 +210,20 @@ export function getItemPlatforms(item: NotionItem): string[] {
   return []
 }
 
+/** Category from Notion select or multi_select (e.g. Android, iOS, Desktop). */
+export function getItemCategories(item: NotionItem): string[] {
+  const raw = item.Category ?? item.category
+  if (Array.isArray(raw)) {
+    return raw
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .map((value) => value.trim())
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    return [raw.trim()]
+  }
+  return []
+}
+
 export const APP_TYPE_FILTER = {
   and: [
     { property: 'Type', select: { equals: 'App' } },
