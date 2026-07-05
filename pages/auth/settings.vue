@@ -245,9 +245,25 @@
           </div>
         </div>
 
+        <!-- Shown when middleware sent a non-admin here to set up utilities passcode -->
+        <div
+          v-if="isAuthenticated && !serverIsAdmin && route.query.passcode === 'admin-setup'"
+          class="rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 mb-6"
+        >
+          <p class="text-sm text-amber-900 dark:text-amber-100">
+            Utilities require an <strong>admin</strong> account. You are signed in as
+            <strong>{{ user?.email }}</strong> with the <strong>visitor</strong> role. An existing
+            admin must promote your account, or run
+            <code class="text-xs font-mono"
+              >UPDATE users SET role = 'admin' WHERE email = '…';</code
+            >
+            on the production database.
+          </p>
+        </div>
+
         <!-- Admin Passcode (admin only): for admin-only utilities -->
         <div
-          v-if="isAdmin"
+          v-if="serverIsAdmin"
           id="admin-passcode"
           class="bg-white dark:bg-gray-800 shadow rounded-lg p-6"
         >
@@ -447,6 +463,7 @@ const passcodeUtilities = ref<{ visitor: string[]; admin: string[] }>({
   visitor: [],
   admin: [],
 })
+const serverIsAdmin = ref(false)
 
 const showMFAQR = ref(false)
 const mfaQRCode = ref('')
@@ -669,21 +686,40 @@ const formatDate = (dateString: string | null) => {
   return new Date(dateString).toLocaleDateString()
 }
 
-onMounted(async () => {
-  await checkAuth()
-  if (isAuthenticated.value) {
-    try {
-      const res = await $fetch<{ visitor: string[]; admin: string[] }>(
-        '/api/auth/passcode-utilities',
-      )
-      passcodeUtilities.value = {
-        visitor: res?.visitor ?? [],
-        admin: res?.admin ?? [],
-      }
-    } catch {
-      passcodeUtilities.value = { visitor: [], admin: [] }
+const syncServerRole = async () => {
+  await checkAuth(true)
+  if (!isAuthenticated.value) {
+    serverIsAdmin.value = false
+    return
+  }
+
+  try {
+    const me = await $fetch<{ authenticated: boolean; user?: { role: string } }>('/api/auth/me')
+    serverIsAdmin.value = me.authenticated && me.user?.role === 'admin'
+  } catch {
+    serverIsAdmin.value = isAdmin.value
+  }
+
+  try {
+    const res = await $fetch<{ visitor: string[]; admin: string[] }>(
+      '/api/auth/passcode-utilities',
+    )
+    passcodeUtilities.value = {
+      visitor: res?.visitor ?? [],
+      admin: res?.admin ?? [],
     }
-    if (isAdmin.value) await loadAdminPasscodeStatus()
+    if ((res?.admin?.length ?? 0) > 0) {
+      serverIsAdmin.value = true
+    }
+  } catch {
+    passcodeUtilities.value = { visitor: [], admin: [] }
+  }
+}
+
+onMounted(async () => {
+  await syncServerRole()
+  if (serverIsAdmin.value) {
+    await loadAdminPasscodeStatus()
 
     if (route.query.passcode === 'admin-setup' || route.query.passcode === 'admin-rotate') {
       nextTick(() => {
