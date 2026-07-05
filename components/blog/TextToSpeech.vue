@@ -206,14 +206,6 @@ const togglePlayPause = () => {
       Text-to-speech is not available in this browser.
     </p>
 
-    <p v-else-if="isScanning && !hasArticleText" class="text-sm text-zinc-600 dark:text-zinc-400">
-      Preparing listen controls…
-    </p>
-
-    <p v-else-if="!hasArticleText" class="text-sm text-zinc-600 dark:text-zinc-400">
-      No article text found to read aloud.
-    </p>
-
     <div
       v-else
       :class="[
@@ -222,6 +214,10 @@ const togglePlayPause = () => {
           : 'rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800',
       ]"
     >
+      <p v-if="!hasArticleText" class="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+        {{ isScanning ? 'Preparing article audio…' : 'Waiting for article text…' }}
+      </p>
+
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center">
         <div class="flex shrink-0 items-center gap-3">
           <button

@@ -6,6 +6,8 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  youtubeUrl: null,
+  spotifyUrl: null,
   labeled: false,
 })
 

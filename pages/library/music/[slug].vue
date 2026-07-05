@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { useTinaEditor } from '~/composables/useTinaEditor'
+import TinaEditButton from '~/components/library/TinaEditButton.vue'
 import MusicStreamEmbeds from '~/components/music/MusicStreamEmbeds.vue'
 
 definePageMeta({ middleware: ['auth-login'] })

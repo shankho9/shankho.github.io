@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import TinaEditButton from '~/components/library/TinaEditButton.vue'
+import MusicDetailModal from '~/components/music/MusicDetailModal.vue'
 import MusicListRow, {
   type MusicListItem,
   type MusicType,
@@ -15,6 +17,19 @@ const searchQuery = ref('')
 const isLoading = ref(true)
 const error = ref<string | null>(null)
 const items = ref<MusicListItem[]>([])
+
+const detailOpen = ref(false)
+const selectedItem = ref<MusicListItem | null>(null)
+
+function openDetail(item: MusicListItem) {
+  selectedItem.value = item
+  detailOpen.value = true
+}
+
+function closeDetail() {
+  detailOpen.value = false
+  selectedItem.value = null
+}
 
 const musicTabs: { id: MusicTab; label: string; icon: string }[] = [
   { id: 'lyrics', label: 'Lyrics', icon: 'mdi:music-note' },
@@ -117,16 +132,22 @@ defineExpose({ items, loadMusic, isLoading })
     </div>
 
     <div v-else>
-      <div
+      <NuxtLink
         v-if="isAdmin"
-        class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200/80 bg-sky-50/80 px-4 py-3 dark:border-sky-800/50 dark:bg-sky-950/30"
+        to="/admin"
+        class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200/80 bg-sky-50/80 px-4 py-3 transition-colors hover:border-sky-400 hover:bg-sky-100/90 dark:border-sky-800/50 dark:bg-sky-950/30 dark:hover:border-sky-600 dark:hover:bg-sky-950/50"
       >
-        <div class="flex items-center gap-2 text-sm text-sky-900 dark:text-sky-200">
-          <Icon name="mdi:music-clef-treble" size="20" />
-          <span>Admin: edit Musical Notes in Tina CMS</span>
+        <div class="flex items-center gap-2 text-sm font-medium text-sky-900 dark:text-sky-200">
+          <Icon name="mdi:music-clef-treble" size="20" class="shrink-0" />
+          <span>Edit Musical Notes in Tina CMS</span>
         </div>
-        <TinaEditButton variant="outline" />
-      </div>
+        <span
+          class="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white"
+        >
+          Open Tina CMS
+          <Icon name="mdi:arrow-right" size="16" />
+        </span>
+      </NuxtLink>
 
       <LibraryTabToolbar
         v-model:search="searchQuery"
@@ -152,7 +173,7 @@ defineExpose({ items, loadMusic, isLoading })
       </p>
 
       <div v-if="filteredItems.length > 0" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <MusicListRow v-for="item in filteredItems" :key="item.id" :item="item" />
+        <MusicListRow v-for="item in filteredItems" :key="item.id" :item="item" @select="openDetail" />
       </div>
 
       <div v-else class="py-12 text-center">
@@ -164,10 +185,16 @@ defineExpose({ items, loadMusic, isLoading })
               : `No ${activeMusicTab} entries yet`
           }}
         </p>
-        <p v-if="isAdmin && !searchQuery" class="mt-2 text-sm text-zinc-500">
-          Use <strong>Edit in Tina</strong> (when available) to add content.
+        <p v-if="!searchQuery" class="mt-2 text-sm text-zinc-500">
+          Click a card to view lyrics, notation, and streaming links.
         </p>
       </div>
+
+      <MusicDetailModal
+        :open="detailOpen"
+        :slug="selectedItem?.slug"
+        @close="closeDetail"
+      />
     </div>
   </div>
 </template>

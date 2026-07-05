@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import FocusMode from '~/components/blog/FocusMode.vue'
+import TextToSpeech from '~/components/blog/TextToSpeech.vue'
+import ReadingDisplayControls from '~/components/blog/ReadingDisplayControls.vue'
+
 defineProps<{
   postId: string
 }>()
@@ -21,13 +25,22 @@ defineProps<{
         </span>
         <div>
           <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Reading tools</h2>
-          <p class="text-xs text-zinc-600 dark:text-zinc-400">Listen aloud or enter focus mode</p>
+          <p class="text-xs text-zinc-600 dark:text-zinc-400">
+            Listen, resize text, change font, or focus mode
+          </p>
         </div>
       </div>
       <FocusMode />
     </div>
-    <div class="px-4 py-4">
-      <TextToSpeech :post-id="postId" embedded />
+
+    <div class="space-y-3 px-4 py-4">
+      <ClientOnly>
+        <ReadingDisplayControls />
+        <TextToSpeech :post-id="postId" embedded />
+        <template #fallback>
+          <p class="text-sm text-zinc-500 dark:text-zinc-400">Loading reading tools…</p>
+        </template>
+      </ClientOnly>
     </div>
   </section>
 </template>

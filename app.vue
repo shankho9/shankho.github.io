@@ -140,6 +140,13 @@ article > a {
 
 /* Image Protection Styles - imported from assets/css/image-protection.css */
 
+.blog-content-container [data-article-prose],
+.blog-content-container .prose {
+  transition:
+    font-size 0.2s ease,
+    font-family 0.2s ease;
+}
+
 /* Focus Mode Styles */
 body.focus-mode {
   overflow-x: hidden;

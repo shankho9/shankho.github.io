@@ -19,7 +19,15 @@ interface Props {
   item: MusicListItem
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  select: [item: MusicListItem]
+}>()
+
+function onSelect() {
+  emit('select', props.item)
+}
 
 const typeLabel: Record<MusicType, string> = {
   lyrics: 'Lyrics',
@@ -41,9 +49,11 @@ const typeBadgeClass: Record<MusicType, string> = {
 </script>
 
 <template>
-  <NuxtLink
-    :to="`/library/music/${item.slug}`"
-    class="group flex items-center gap-3 rounded-xl border border-gray-200/90 bg-white p-3 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-600"
+  <button
+    type="button"
+    class="group flex w-full items-center gap-3 rounded-xl border border-gray-200/90 bg-white p-3 text-left shadow-sm transition-all hover:border-sky-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-600"
+    :aria-label="`View ${item.title}`"
+    @click="onSelect"
   >
     <div
       class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/40 dark:to-indigo-900/40"
@@ -123,5 +133,5 @@ const typeBadgeClass: Record<MusicType, string> = {
       class="shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5 group-hover:text-sky-600"
       size="20"
     />
-  </NuxtLink>
+  </button>
 </template>
