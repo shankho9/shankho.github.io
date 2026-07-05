@@ -27,8 +27,10 @@ const categoryIcon = (category: string): string => {
   const lower = category.toLowerCase()
   if (lower.includes('android')) return 'mdi:android'
   if (lower.includes('ios') || lower.includes('apple')) return 'mdi:apple'
-  if (lower.includes('desktop') || lower.includes('windows')) return 'mdi:monitor'
-  return 'mdi:application'
+  if (lower.includes('desktop') || lower.includes('windows')) return 'mdi:microsoft-windows'
+  if (lower.includes('mac')) return 'mdi:apple'
+  if (lower.includes('web')) return 'mdi:web'
+  return 'mdi:cellphone'
 }
 
 const formattedUpdatedAt = computed(() => {
@@ -49,60 +51,90 @@ const hasAnyAction = computed(() => props.app.playStoreUrl || props.app.hasApk |
 
 <template>
   <article
-    class="group flex flex-col gap-3 rounded-xl border border-gray-200/90 bg-white p-3 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-600 sm:flex-row sm:items-center"
+    class="group flex h-full flex-col gap-3 rounded-xl border border-gray-200/90 bg-white p-3 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-600"
   >
-    <div
-      class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/40 dark:to-indigo-900/40"
-    >
-      <NuxtImg
-        v-if="app.iconUrl"
-        :src="app.iconUrl"
-        :alt="app.title"
-        class="h-full w-full object-cover"
-        loading="lazy"
-        format="webp"
-        quality="80"
-      />
-      <Icon v-else name="mdi:cellphone" class="text-2xl text-sky-700 dark:text-sky-400" />
+    <div class="flex items-start gap-3">
+      <div
+        class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/40 dark:to-indigo-900/40"
+      >
+        <NuxtImg
+          v-if="app.iconUrl"
+          :src="app.iconUrl"
+          :alt="app.title"
+          class="h-full w-full object-cover"
+          loading="lazy"
+          format="webp"
+          quality="80"
+        />
+        <Icon v-else name="mdi:cellphone" class="text-2xl text-sky-700 dark:text-sky-400" />
+      </div>
+
+      <div class="min-w-0 flex-1">
+        <h3
+          class="line-clamp-2 text-base font-semibold text-zinc-800 group-hover:text-sky-700 dark:text-zinc-100 dark:group-hover:text-sky-400"
+        >
+          {{ app.title }}
+        </h3>
+
+        <p v-if="app.description" class="mt-1 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
+          {{ app.description }}
+        </p>
+      </div>
     </div>
 
-    <div class="min-w-0 flex-1">
-      <div class="flex items-start justify-between gap-2">
-        <div class="min-w-0">
-          <h3
-            class="truncate text-base font-semibold text-zinc-800 group-hover:text-sky-700 dark:text-zinc-100 dark:group-hover:text-sky-400"
-          >
-            {{ app.title }}
-          </h3>
-          <p v-if="app.version" class="text-sm text-zinc-500 dark:text-zinc-400">
-            v{{ app.version }}
-            <span v-if="formattedUpdatedAt" class="text-zinc-400"> · {{ formattedUpdatedAt }}</span>
-          </p>
-        </div>
-      </div>
+    <div
+      class="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-gray-100 pt-2.5 text-xs text-zinc-500 dark:border-slate-700 dark:text-zinc-400"
+    >
+      <span v-if="app.version" class="inline-flex items-center gap-1 font-medium text-zinc-600 dark:text-zinc-300">
+        <Icon name="mdi:tag-outline" size="13" class="shrink-0 text-zinc-400" />
+        v{{ app.version }}
+      </span>
 
-      <p v-if="app.description" class="mt-1 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
-        {{ app.description }}
-      </p>
+      <span v-if="formattedUpdatedAt" class="inline-flex items-center gap-1">
+        <Icon name="mdi:update" size="13" class="shrink-0 text-zinc-400" />
+        {{ formattedUpdatedAt }}
+      </span>
 
-      <div
-        v-if="app.categories.length > 0"
-        class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400"
+      <span
+        v-for="category in app.categories"
+        :key="category"
+        class="inline-flex items-center gap-0.5 rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-slate-700"
       >
-        <span
-          v-for="category in app.categories.slice(0, 2)"
-          :key="category"
-          class="inline-flex items-center gap-0.5 rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-slate-700"
-        >
-          <Icon :name="categoryIcon(category)" size="12" />
-          {{ category }}
-        </span>
-      </div>
+        <Icon :name="categoryIcon(category)" size="12" />
+        {{ category }}
+      </span>
+
+      <span
+        v-if="app.playStoreUrl"
+        class="inline-flex items-center gap-0.5 text-green-600 dark:text-green-400"
+        title="Available on Google Play"
+      >
+        <Icon name="mdi:google-play" size="13" />
+        Play Store
+      </span>
+
+      <span
+        v-if="app.hasApk"
+        class="inline-flex items-center gap-0.5 text-sky-600 dark:text-sky-400"
+        title="APK download available"
+      >
+        <Icon name="mdi:android" size="13" />
+        APK
+      </span>
+
+      <span
+        v-if="app.hasMsix"
+        class="inline-flex items-center gap-0.5 text-indigo-600 dark:text-indigo-400"
+        title="MSIX download available"
+      >
+        <Icon name="mdi:microsoft-windows" size="13" />
+        MSIX
+      </span>
     </div>
 
     <div
       v-if="hasAnyAction"
-      class="flex shrink-0 flex-wrap gap-1.5 border-t border-gray-100 pt-2 sm:flex-col sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0 dark:border-slate-700"
+      class="mt-auto flex flex-wrap gap-1.5 border-t border-gray-100 pt-2.5 dark:border-slate-700"
     >
       <a
         v-if="app.playStoreUrl"

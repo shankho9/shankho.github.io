@@ -151,9 +151,22 @@ The **Musical Notes** tab uses **Tina Cloud Free** (Git-backed MDX) and **Nuxt C
 
 ### Tina Cloud setup (one-time, free)
 
-1. Create a project at [app.tina.io](https://app.tina.io) and connect this GitHub repository.
-2. Invite only admin email(s) as editors (free tier: up to 2 users).
-3. Copy **Client ID** and **Read token** into environment variables.
+1. Create a project at [app.tina.io](https://app.tina.io) and connect this GitHub repository (`shankho9/shankho.github.io`).
+2. In **Configuration → Site URL(s)**, add **both** origins (exact match required for login):
+   - `http://localhost:3000`
+   - `https://www.nomadic-notions.co.in`
+3. In **Collaborators**, invite your GitHub account as an editor.
+4. Copy **Client ID** (Overview) and **Read token** (Tokens) into environment variables.
+
+#### Tina Cloud project checklist (steps 2–4 in the dashboard)
+
+| Checklist step | What to do |
+| -------------- | ---------- |
+| **Set up your site schema** | Run `npm run dev:tina` locally (not `npm run dev` alone). This runs `tinacms dev`, registers the schema with TinaCloud, and updates `tina/tina-lock.json`. Commit and push `tina/tina-lock.json` if it changed. Wait a few minutes for branch indexing on [app.tina.io](https://app.tina.io) → Configuration. |
+| **Log in through your site** | With `npm run dev:tina` running, open `http://localhost:3000/admin/index.html`. Click **Log in** and authenticate with the GitHub account invited in TinaCloud. Site URL must match `http://localhost:3000` exactly. |
+| **Create a commit with TinaCloud** | In the editor, open **Musical Notes**, edit any entry (e.g. add a word to the body), click **Save**. Tina commits to GitHub on the `main` branch. |
+
+> **Note:** `tinacms build` alone does **not** satisfy the schema step — Tina docs require `tinacms dev` to generate/index `tina-lock.json` correctly.
 
 ### Environment variables
 
@@ -205,12 +218,15 @@ Line two
 ### Local development
 
 ```bash
-# Standard Nuxt dev (read music MDX from repo)
+# Standard Nuxt dev (read music MDX from repo; no Tina editor)
 npm run dev
 
-# With Tina visual editor (requires Tina env vars in .env)
+# Tina Cloud checklist + visual editor (requires TINA_* vars in .env)
 npm run dev:tina
+# Then open http://localhost:3000/admin/index.html
 ```
+
+Ensure `.env` contains `NUXT_PUBLIC_TINA_CLIENT_ID`, `TINA_TOKEN`, and `TINA_BRANCH=main`. Tina CLI reads `.env` only (not `.env.local`). Add the same three variables on Vercel for production `/admin`.
 
 ### Deploy checklist
 

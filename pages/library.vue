@@ -1154,98 +1154,6 @@ try {
           v-if="activeTab === 'photos' && (isAuthenticated || !currentTabRequiresAuth)"
           :key="'photos'"
         >
-          <!-- View mode (photos only) -->
-          <LibraryContentSection v-if="isAuthenticated" title="View">
-            <div class="flex justify-end">
-              <div
-                class="flex gap-1 rounded-lg border border-gray-200 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-800"
-              >
-                <button
-                  :class="[
-                    'px-3 py-1 rounded-md transition-colors text-sm',
-                    viewMode === 'grid'
-                      ? 'bg-sky-700 dark:bg-sky-600 text-white'
-                      : 'text-zinc-600 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-slate-700',
-                  ]"
-                  @click="viewMode = 'grid'"
-                >
-                  <Icon name="mdi:view-grid" size="20" />
-                </button>
-                <button
-                  :class="[
-                    'px-3 py-1 rounded-md transition-colors text-sm',
-                    viewMode === 'masonry'
-                      ? 'bg-sky-700 dark:bg-sky-600 text-white'
-                      : 'text-zinc-600 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-slate-700',
-                  ]"
-                  @click="viewMode = 'masonry'"
-                >
-                  <Icon name="mdi:view-module" size="20" />
-                </button>
-              </div>
-            </div>
-          </LibraryContentSection>
-
-          <!-- Folder Selection (ImageKit) -->
-          <LibraryContentSection v-if="isAuthenticated" title="Folder">
-            <template #header>
-              <div class="flex items-center gap-2">
-                <button
-                  :disabled="isLoadingFolders"
-                  class="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-zinc-300"
-                  title="Refresh folder list"
-                  @click="loadImageKitFolders(photosRootFolder, 'image')"
-                >
-                  <Icon
-                    :name="isLoadingFolders ? 'svg-spinners:180-ring' : 'mdi:folder-refresh'"
-                    :class="isLoadingFolders ? 'animate-spin' : ''"
-                    size="14"
-                  />
-                </button>
-                <button
-                  :disabled="isLoadingImages"
-                  class="flex items-center gap-1 rounded-lg bg-sky-600 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-50"
-                  @click="loadImagesFromImageKit(selectedFolder)"
-                >
-                  <Icon
-                    :name="isLoadingImages ? 'svg-spinners:180-ring' : 'mdi:refresh'"
-                    :class="isLoadingImages ? 'animate-spin' : ''"
-                    size="14"
-                  />
-                  <span>{{ isLoadingImages ? 'Refreshing…' : 'Refresh' }}</span>
-                </button>
-              </div>
-            </template>
-            <div
-              v-if="isLoadingFolders"
-              class="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400"
-            >
-              <Icon name="svg-spinners:180-ring" class="animate-spin" size="16" />
-              <span>Loading folders...</span>
-            </div>
-            <div v-else class="flex flex-wrap gap-1.5">
-              <button
-                v-for="folder in displayImageFolders"
-                :key="folder.value"
-                :class="[
-                  'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                  selectedFolder === folder.value
-                    ? 'bg-sky-700 text-white dark:bg-sky-600'
-                    : 'bg-gray-100 text-zinc-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-zinc-300 dark:hover:bg-slate-600',
-                ]"
-                @click="selectedFolder = folder.value"
-              >
-                {{ folder.label }}
-              </button>
-              <p
-                v-if="displayImageFolders.length === 1"
-                class="text-sm text-zinc-500 dark:text-zinc-400"
-              >
-                No subfolders found. Upload files to subfolders in ImageKit to see them here.
-              </p>
-            </div>
-          </LibraryContentSection>
-
           <!-- Loading State -->
           <div v-if="isLoadingImages" class="text-center py-12">
             <Icon
@@ -1274,8 +1182,8 @@ try {
             </button>
           </div>
 
-          <!-- Search Filter -->
-          <LibraryContentSection v-else-if="!isLoadingImages && !imageKitError" title="Search">
+          <!-- Search -->
+          <div v-else-if="!isLoadingImages && !imageKitError" class="mb-4">
             <div class="relative">
               <Icon
                 name="mdi:magnify"
@@ -1296,23 +1204,108 @@ try {
                 <Icon name="mdi:close-circle" size="18" />
               </button>
             </div>
-            <p v-if="searchQuery" class="text-xs text-zinc-500 dark:text-zinc-400">
+            <p v-if="searchQuery" class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               {{ filteredItems.length }} {{ filteredItems.length === 1 ? 'result' : 'results' }}
             </p>
-          </LibraryContentSection>
+          </div>
 
-          <!-- Gallery Info and Pagination Controls (Top) -->
+          <!-- Gallery toolbar: showing count, folders, view icons, refresh, pagination -->
           <div
-            v-if="!isLoadingImages && !imageKitError && sortedItems.length > 0"
-            class="mb-4 flex flex-col sm:flex-row items-center justify-between gap-4"
+            v-if="!isLoadingImages && !imageKitError && (sortedItems.length > 0 || isAuthenticated)"
+            class="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
           >
-            <div class="text-sm text-zinc-600 dark:text-zinc-400">
-              Showing {{ (currentPage - 1) * itemsPerPage + 1 }}-{{
-                Math.min(currentPage * itemsPerPage, sortedItems.length)
-              }}
-              of {{ sortedItems.length }} {{ sortedItems.length === 1 ? 'image' : 'images' }}
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <span
+                v-if="sortedItems.length > 0"
+                class="text-sm text-zinc-600 dark:text-zinc-400"
+              >
+                Showing {{ (currentPage - 1) * itemsPerPage + 1 }}-{{
+                  Math.min(currentPage * itemsPerPage, sortedItems.length)
+                }}
+                of {{ sortedItems.length }} {{ sortedItems.length === 1 ? 'image' : 'images' }}
+              </span>
+              <template v-if="isAuthenticated">
+                <Icon
+                  v-if="isLoadingFolders"
+                  name="svg-spinners:180-ring"
+                  class="animate-spin text-zinc-400"
+                  size="14"
+                />
+                <template v-else>
+                  <button
+                    v-for="folder in displayImageFolders"
+                    :key="folder.value"
+                    :title="folder.label"
+                    :class="[
+                      'inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-medium transition-colors',
+                      selectedFolder === folder.value
+                        ? 'bg-sky-700 text-white dark:bg-sky-600'
+                        : 'bg-gray-100 text-zinc-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-zinc-300 dark:hover:bg-slate-600',
+                    ]"
+                    @click="selectedFolder = folder.value"
+                  >
+                    <Icon name="mdi:folder-outline" size="14" />
+                    <span class="max-w-[6rem] truncate">{{ folder.label }}</span>
+                  </button>
+                </template>
+              </template>
+              <div
+                v-if="isAuthenticated && sortedItems.length > 0"
+                class="flex items-center gap-0.5 rounded-md border border-gray-200 bg-white p-0.5 dark:border-slate-600 dark:bg-slate-800"
+              >
+                <button
+                  :class="[
+                    'rounded p-1 transition-colors',
+                    viewMode === 'grid'
+                      ? 'bg-sky-700 text-white dark:bg-sky-600'
+                      : 'text-zinc-500 hover:bg-gray-100 dark:hover:bg-slate-700',
+                  ]"
+                  title="Grid view"
+                  @click="viewMode = 'grid'"
+                >
+                  <Icon name="mdi:view-grid" size="16" />
+                </button>
+                <button
+                  :class="[
+                    'rounded p-1 transition-colors',
+                    viewMode === 'masonry'
+                      ? 'bg-sky-700 text-white dark:bg-sky-600'
+                      : 'text-zinc-500 hover:bg-gray-100 dark:hover:bg-slate-700',
+                  ]"
+                  title="Masonry view"
+                  @click="viewMode = 'masonry'"
+                >
+                  <Icon name="mdi:view-module" size="16" />
+                </button>
+              </div>
+              <button
+                v-if="isAuthenticated"
+                :disabled="isLoadingFolders"
+                class="rounded p-1 text-zinc-500 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-slate-700"
+                title="Refresh folders"
+                @click="loadImageKitFolders(photosRootFolder, 'image')"
+              >
+                <Icon
+                  :name="isLoadingFolders ? 'svg-spinners:180-ring' : 'mdi:folder-refresh'"
+                  :class="isLoadingFolders ? 'animate-spin' : ''"
+                  size="16"
+                />
+              </button>
+              <button
+                v-if="isAuthenticated"
+                :disabled="isLoadingImages"
+                class="rounded p-1 text-zinc-500 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-slate-700"
+                title="Refresh images"
+                @click="loadImagesFromImageKit(selectedFolder)"
+              >
+                <Icon
+                  :name="isLoadingImages ? 'svg-spinners:180-ring' : 'mdi:refresh'"
+                  :class="isLoadingImages ? 'animate-spin' : ''"
+                  size="16"
+                />
+              </button>
             </div>
-            <div v-if="totalPages > 1" class="flex items-center gap-2">
+            <div v-if="totalPages > 1" class="flex items-center gap-1">
               <button
                 :disabled="currentPage === 1"
                 class="px-3 py-1.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-slate-800 text-zinc-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-slate-700"

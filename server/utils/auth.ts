@@ -11,6 +11,7 @@ import { UAParser } from 'ua-parser-js'
 const SESSION_COOKIE = 'session_token'
 const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 const SESSION_REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000 // Refresh if less than 7 days remaining
+const ADMIN_PASSCODE_DURATION_MS = 90 * 24 * 60 * 60 * 1000 // 90 days (3-month rotation)
 
 // Configure TOTP
 authenticator.options = {
@@ -473,7 +474,7 @@ export async function setAdminPasscode(userId: string | number, passcode: string
   await ensureAdminPasscodesTable()
 
   const hash = await hashPassword(passcode)
-  const expiresAt = new Date(Date.now() + UTILITY_PASSCODE_DURATION_MS)
+  const expiresAt = new Date(Date.now() + ADMIN_PASSCODE_DURATION_MS)
   await query(
     `INSERT INTO admin_passcodes (user_id, passcode_hash, expires_at)
      VALUES ($1, $2, $3)
