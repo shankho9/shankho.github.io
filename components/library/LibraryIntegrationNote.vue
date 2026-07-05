@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 
 export type LibraryTabId =
   | 'photos'
@@ -13,7 +13,50 @@ const props = defineProps<{
   tab: LibraryTabId
 }>()
 
+const STORAGE_PREFIX = 'library-integration'
+
+function storageKey(suffix: string) {
+  return `${STORAGE_PREFIX}:${props.tab}:${suffix}`
+}
+
 const dismissed = ref(false)
+/** Expanded by default on first visit; collapsed state is remembered per tab. */
+const expanded = ref(true)
+
+function loadTabState() {
+  if (!import.meta.client) return
+
+  dismissed.value = localStorage.getItem(storageKey('dismissed')) === '1'
+
+  const savedExpanded = localStorage.getItem(storageKey('expanded'))
+  expanded.value = savedExpanded === null ? true : savedExpanded === '1'
+}
+
+function persistExpanded(value: boolean) {
+  if (!import.meta.client) return
+  localStorage.setItem(storageKey('expanded'), value ? '1' : '0')
+}
+
+function dismiss() {
+  dismissed.value = true
+  if (import.meta.client) {
+    localStorage.setItem(storageKey('dismissed'), '1')
+  }
+}
+
+function toggleExpanded() {
+  expanded.value = !expanded.value
+  persistExpanded(expanded.value)
+}
+
+onMounted(loadTabState)
+
+watch(
+  () => props.tab,
+  () => {
+    loadTabState()
+  },
+)
 
 const INTEGRATION_INFO: Record<
   LibraryTabId,
@@ -69,31 +112,50 @@ const info = computed(() => INTEGRATION_INFO[props.tab])
 <template>
   <div
     v-if="!dismissed"
-    class="mb-6 flex gap-3 rounded-xl border border-violet-200/80 bg-gradient-to-r from-violet-50/90 via-sky-50/80 to-indigo-50/70 px-4 py-3 dark:border-violet-800/40 dark:from-violet-950/25 dark:via-sky-950/20 dark:to-indigo-950/25"
+    class="mb-4 overflow-hidden rounded-lg border border-violet-200/70 bg-violet-50/60 dark:border-violet-800/35 dark:bg-violet-950/20"
     role="note"
   >
-    <span class="mt-0.5 shrink-0 text-xl leading-none" aria-hidden="true">{{ info.emoji }}</span>
-    <div class="min-w-0 flex-1 text-sm">
-      <p class="font-semibold text-violet-900 dark:text-violet-100">
-        <span class="mr-1">🛠️</span>
-        Under the hood: {{ info.label }}
+    <div class="flex items-center gap-2 px-3 py-2">
+      <span class="shrink-0 text-base leading-none" aria-hidden="true">{{ info.emoji }}</span>
+      <button
+        type="button"
+        class="flex min-w-0 flex-1 items-center gap-2 text-left text-sm"
+        :aria-expanded="expanded"
+        @click="toggleExpanded"
+      >
+        <span class="font-semibold text-violet-900 dark:text-violet-100">
+          Under the hood: {{ info.label }}
+        </span>
         <span
-          class="ml-1.5 inline-flex rounded-full bg-violet-200/80 px-2 py-0.5 text-xs font-medium text-violet-800 dark:bg-violet-900/50 dark:text-violet-200"
+          class="hidden shrink-0 rounded-full bg-violet-200/80 px-2 py-0.5 text-xs font-medium text-violet-800 sm:inline dark:bg-violet-900/50 dark:text-violet-200"
         >
           {{ info.stack }}
         </span>
-      </p>
-      <p class="mt-1.5 leading-relaxed text-violet-800/90 dark:text-violet-200/85">
-        {{ info.blurb }}
-      </p>
+        <Icon
+          :name="expanded ? 'mdi:chevron-up' : 'mdi:chevron-down'"
+          class="ml-auto shrink-0 text-violet-500"
+          size="18"
+        />
+      </button>
+      <button
+        type="button"
+        class="shrink-0 rounded p-1 text-violet-400 transition-colors hover:bg-violet-100 hover:text-violet-700 dark:hover:bg-violet-900/40 dark:hover:text-violet-200"
+        aria-label="Dismiss integration note"
+        @click="dismiss"
+      >
+        <Icon name="mdi:close" size="16" />
+      </button>
     </div>
-    <button
-      type="button"
-      class="shrink-0 self-start rounded p-1 text-violet-400 transition-colors hover:bg-violet-100 hover:text-violet-700 dark:hover:bg-violet-900/40 dark:hover:text-violet-200"
-      aria-label="Dismiss integration note"
-      @click="dismissed = true"
+    <div
+      v-if="expanded"
+      class="border-t border-violet-200/60 px-3 pb-3 pt-2 text-sm leading-relaxed text-violet-800/90 dark:border-violet-800/30 dark:text-violet-200/85"
     >
-      <Icon name="mdi:close" size="18" />
-    </button>
+      <span
+        class="mb-2 inline-flex rounded-full bg-violet-200/80 px-2 py-0.5 text-xs font-medium text-violet-800 sm:hidden dark:bg-violet-900/50 dark:text-violet-200"
+      >
+        {{ info.stack }}
+      </span>
+      <p class="mt-1">{{ info.blurb }}</p>
+    </div>
   </div>
 </template>

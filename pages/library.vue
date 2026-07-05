@@ -1029,37 +1029,37 @@ try {
   <div
     class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-900 dark:to-slate-800"
   >
-    <div class="container mx-auto max-w-7xl px-3 sm:px-6 py-10 overflow-x-hidden">
+    <div class="container mx-auto max-w-7xl px-3 sm:px-6 py-6 sm:py-8 overflow-x-hidden">
       <!-- Header -->
-      <div class="text-center mb-10">
+      <div class="mb-5 text-center sm:mb-6">
         <h1
-          class="text-5xl font-extrabold mb-4 bg-gradient-to-r from-sky-700 to-blue-600 dark:from-sky-400 dark:to-blue-400 bg-clip-text text-transparent"
+          class="mb-1 text-3xl font-extrabold tracking-tight bg-gradient-to-r from-sky-700 to-blue-600 dark:from-sky-400 dark:to-blue-400 bg-clip-text text-transparent sm:text-4xl"
         >
           Media Library
         </h1>
-        <p class="text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
+        <p class="text-sm text-zinc-600 dark:text-zinc-400 sm:text-base">
           Explore photos, videos, and curated resources
         </p>
       </div>
 
       <!-- Tab Navigation -->
-      <div class="mb-8">
+      <div class="sticky top-0 z-20 mb-4 -mx-1">
         <div
-          class="flex flex-wrap justify-center gap-3 bg-white dark:bg-slate-800 rounded-xl p-2 shadow-lg border border-gray-200 dark:border-slate-700"
+          class="flex gap-1.5 overflow-x-auto rounded-xl border border-gray-200 bg-white/95 p-1.5 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95"
         >
           <button
             v-for="tab in tabs"
             :key="tab.id"
             :class="[
-              'relative flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300 ease-out',
+              'relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors sm:px-4 sm:py-2.5',
               activeTab === tab.id
-                ? 'bg-gradient-to-r from-sky-700 to-blue-600 dark:from-sky-600 dark:to-blue-500 text-white shadow-md scale-105'
-                : 'text-zinc-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:scale-102',
+                ? 'bg-gradient-to-r from-sky-700 to-blue-600 text-white shadow-sm dark:from-sky-600 dark:to-blue-500'
+                : 'text-zinc-600 hover:bg-gray-100 dark:text-zinc-300 dark:hover:bg-slate-700',
             ]"
             @click="setActiveTab(tab.id)"
           >
-            <Icon :name="tab.icon" size="20" />
-            <span>{{ tab.label }}</span>
+            <Icon :name="tab.icon" size="18" />
+            <span class="whitespace-nowrap">{{ tab.label }}</span>
             <span
               v-if="
                 tab.count > 0 ||
@@ -1083,11 +1083,6 @@ try {
                 {{ tab.count }}
               </template>
             </span>
-            <!-- Active indicator -->
-            <div
-              v-if="activeTab === tab.id"
-              class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-white rounded-full"
-            />
           </button>
         </div>
       </div>
@@ -1154,27 +1149,14 @@ try {
           v-if="activeTab === 'photos' && (isAuthenticated || !currentTabRequiresAuth)"
           :key="'photos'"
         >
-          <!-- User Info & Controls -->
+          <!-- View mode (photos only) -->
           <div
             v-if="isAuthenticated"
-            class="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4"
+            class="mb-4 flex justify-end"
           >
-            <div class="flex items-center gap-3">
-              <img
-                v-if="user?.picture"
-                :src="user.picture"
-                :alt="user.name"
-                class="w-10 h-10 rounded-full border-2 border-sky-700 dark:border-sky-400"
-              />
-              <div>
-                <p class="text-sm text-zinc-600 dark:text-zinc-400">Signed in as</p>
-                <p class="font-semibold text-zinc-800 dark:text-zinc-200">{{ user?.name }}</p>
-              </div>
-            </div>
-
-            <div class="flex items-center gap-4">
-              <!-- View Mode Toggle -->
-              <div class="flex gap-2 bg-white dark:bg-slate-800 rounded-lg p-1 shadow-md">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-zinc-500 dark:text-zinc-400">View</span>
+              <div class="flex gap-1 rounded-lg border border-gray-200 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-800">
                 <button
                   :class="[
                     'px-3 py-1 rounded-md transition-colors text-sm',
@@ -1654,19 +1636,6 @@ try {
           v-else-if="activeTab === 'videos' && (isAuthenticated || !currentTabRequiresAuth)"
           :key="'videos'"
         >
-          <div v-if="isAuthenticated" class="mb-6 flex items-center gap-3">
-            <img
-              v-if="user?.picture"
-              :src="user.picture"
-              :alt="user.name"
-              class="w-10 h-10 rounded-full border-2 border-sky-700 dark:border-sky-400"
-            />
-            <div>
-              <p class="text-sm text-zinc-600 dark:text-zinc-400">Signed in as</p>
-              <p class="font-semibold text-zinc-800 dark:text-zinc-200">{{ user?.name }}</p>
-            </div>
-          </div>
-
           <!-- Video Folder Selection (ImageKit) -->
           <div v-if="isAuthenticated" class="mb-6">
             <div class="flex items-center justify-between mb-2">
@@ -2017,19 +1986,6 @@ try {
           v-else-if="activeTab === 'resources' && (isAuthenticated || !currentTabRequiresAuth)"
           :key="'resources'"
         >
-          <div v-if="isAuthenticated" class="mb-6 flex items-center gap-3">
-            <img
-              v-if="user?.picture"
-              :src="user.picture"
-              :alt="user.name"
-              class="w-10 h-10 rounded-full border-2 border-sky-700 dark:border-sky-400"
-            />
-            <div>
-              <p class="text-sm text-zinc-600 dark:text-zinc-400">Signed in as</p>
-              <p class="font-semibold text-zinc-800 dark:text-zinc-200">{{ user?.name }}</p>
-            </div>
-          </div>
-
           <!-- Notion Resources with Tabs and Search -->
           <ResourcesTabs />
         </div>
@@ -2039,19 +1995,6 @@ try {
           v-else-if="activeTab === 'apps' && (isAuthenticated || !currentTabRequiresAuth)"
           :key="'apps'"
         >
-          <div v-if="isAuthenticated" class="mb-6 flex items-center gap-3">
-            <img
-              v-if="user?.picture"
-              :src="user.picture"
-              :alt="user.name"
-              class="w-10 h-10 rounded-full border-2 border-sky-700 dark:border-sky-400"
-            />
-            <div>
-              <p class="text-sm text-zinc-600 dark:text-zinc-400">Signed in as</p>
-              <p class="font-semibold text-zinc-800 dark:text-zinc-200">{{ user?.name }}</p>
-            </div>
-          </div>
-
           <AppsTab />
         </div>
 
@@ -2060,19 +2003,6 @@ try {
           v-else-if="activeTab === 'musical-notes' && (isAuthenticated || !currentTabRequiresAuth)"
           :key="'musical-notes'"
         >
-          <div v-if="isAuthenticated" class="mb-6 flex items-center gap-3">
-            <img
-              v-if="user?.picture"
-              :src="user.picture"
-              :alt="user.name"
-              class="w-10 h-10 rounded-full border-2 border-sky-700 dark:border-sky-400"
-            />
-            <div>
-              <p class="text-sm text-zinc-600 dark:text-zinc-400">Signed in as</p>
-              <p class="font-semibold text-zinc-800 dark:text-zinc-200">{{ user?.name }}</p>
-            </div>
-          </div>
-
           <MusicalNotesTab />
         </div>
 
@@ -2081,19 +2011,6 @@ try {
           v-else-if="activeTab === 'travel-map' && (isAuthenticated || !currentTabRequiresAuth)"
           :key="'travel-map'"
         >
-          <div v-if="isAuthenticated" class="mb-6 flex items-center gap-3">
-            <img
-              v-if="user?.picture"
-              :src="user.picture"
-              :alt="user.name"
-              class="w-10 h-10 rounded-full border-2 border-sky-700 dark:border-sky-400"
-            />
-            <div>
-              <p class="text-sm text-zinc-600 dark:text-zinc-400">Signed in as</p>
-              <p class="font-semibold text-zinc-800 dark:text-zinc-200">{{ user?.name }}</p>
-            </div>
-          </div>
-
           <div
             class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-gray-200 dark:border-slate-700"
           >

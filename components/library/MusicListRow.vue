@@ -28,8 +28,8 @@ const typeLabel: Record<MusicType, string> = {
 }
 
 const typeIcon: Record<MusicType, string> = {
-  lyrics: 'mdi:music-note-text',
-  instrumental: 'mdi:music-circle',
+  lyrics: 'mdi:music-note',
+  instrumental: 'mdi:music-box-outline',
   notation: 'mdi:music-clef-treble',
 }
 
@@ -43,10 +43,10 @@ const typeBadgeClass: Record<MusicType, string> = {
 <template>
   <NuxtLink
     :to="`/library/music/${item.slug}`"
-    class="group flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-600 sm:flex-row sm:items-center"
+    class="group flex items-center gap-3 rounded-xl border border-gray-200/90 bg-white p-3 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-600"
   >
     <div
-      class="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/40 dark:to-indigo-900/40"
+      class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/40 dark:to-indigo-900/40"
     >
       <NuxtImg
         v-if="item.coverImage"
@@ -60,54 +60,54 @@ const typeBadgeClass: Record<MusicType, string> = {
       <Icon
         v-else
         :name="typeIcon[item.musicType]"
-        class="text-3xl text-sky-700 dark:text-sky-400"
+        class="text-2xl text-sky-700 dark:text-sky-400"
       />
     </div>
 
     <div class="min-w-0 flex-1">
-      <div class="flex flex-wrap items-start justify-between gap-2">
-        <div>
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
           <h3
-            class="text-lg font-semibold text-zinc-800 group-hover:text-sky-700 dark:text-zinc-100 dark:group-hover:text-sky-400"
+            class="truncate text-base font-semibold text-zinc-800 group-hover:text-sky-700 dark:text-zinc-100 dark:group-hover:text-sky-400"
           >
             {{ item.title }}
           </h3>
-          <p v-if="item.artist" class="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+          <p v-if="item.artist" class="truncate text-sm text-zinc-500 dark:text-zinc-400">
             {{ item.artist }}
           </p>
         </div>
         <span
           :class="[
-            'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold',
+            'hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold sm:inline-flex',
             typeBadgeClass[item.musicType],
           ]"
         >
-          <Icon :name="typeIcon[item.musicType]" size="14" />
+          <Icon :name="typeIcon[item.musicType]" size="12" />
           {{ typeLabel[item.musicType] }}
         </span>
       </div>
 
-      <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-        <span v-if="item.language" class="inline-flex items-center gap-1">
-          <Icon name="mdi:translate" size="14" />
+      <div class="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <span v-if="item.language" class="inline-flex items-center gap-0.5">
+          <Icon name="mdi:translate" size="12" />
           {{ item.language }}
         </span>
         <span
           v-if="item.youtubeUrl"
-          class="inline-flex items-center gap-1 text-red-600 dark:text-red-400"
+          class="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400"
         >
-          <Icon name="mdi:youtube" size="14" />
+          <Icon name="mdi:youtube" size="12" />
           YouTube
         </span>
         <span
           v-if="item.spotifyUrl"
-          class="inline-flex items-center gap-1 text-green-600 dark:text-green-400"
+          class="inline-flex items-center gap-0.5 text-green-600 dark:text-green-400"
         >
-          <Icon name="mdi:spotify" size="14" />
+          <Icon name="mdi:spotify" size="12" />
           Spotify
         </span>
         <span
-          v-for="tag in item.tags?.slice(0, 3)"
+          v-for="tag in item.tags?.slice(0, 2)"
           :key="tag"
           class="rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-slate-700"
         >
@@ -118,8 +118,8 @@ const typeBadgeClass: Record<MusicType, string> = {
 
     <Icon
       name="mdi:chevron-right"
-      class="hidden shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5 group-hover:text-sky-600 sm:block"
-      size="24"
+      class="shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5 group-hover:text-sky-600"
+      size="20"
     />
   </NuxtLink>
 </template>

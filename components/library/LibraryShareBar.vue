@@ -72,41 +72,32 @@ const nativeShare = async () => {
 
 <template>
   <div
-    class="mb-6 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm"
+    class="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200/80 bg-white/80 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/80"
   >
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div class="min-w-0">
-        <p class="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Share this section</p>
-        <p class="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400" :title="shareUrl">
-          {{ shareUrl }}
-        </p>
-      </div>
+    <span class="mr-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Share</span>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-600"
-          :title="copied ? 'Copied!' : 'Copy link'"
-          @click="copyLink"
-        >
-          <Icon :name="copied ? 'mdi:check' : 'mdi:link-variant'" size="18" />
-          <span>{{ copied ? 'Copied' : 'Copy link' }}</span>
-        </button>
+    <button
+      type="button"
+      class="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-200 dark:hover:bg-slate-600"
+      :title="shareUrl"
+      @click="copyLink"
+    >
+      <Icon :name="copied ? 'mdi:check' : 'mdi:link-variant'" size="16" />
+      <span class="hidden sm:inline">{{ copied ? 'Copied' : 'Copy link' }}</span>
+    </button>
 
-        <button
-          v-if="canNativeShare"
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-lg border border-sky-600 bg-sky-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700"
-          title="Share via device"
-          @click="nativeShare"
-        >
-          <Icon name="mdi:share-variant" size="18" />
-          <span>Share</span>
-        </button>
-      </div>
-    </div>
+    <button
+      v-if="canNativeShare"
+      type="button"
+      class="inline-flex items-center gap-1 rounded-md bg-sky-600 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700"
+      title="Share via device"
+      @click="nativeShare"
+    >
+      <Icon name="mdi:share-variant" size="16" />
+      <span class="hidden sm:inline">Share</span>
+    </button>
 
-    <div class="mt-4 flex flex-row flex-wrap gap-2">
+    <div class="ml-auto flex flex-wrap items-center gap-1.5">
       <div
         v-for="network in networks"
         :key="network"
@@ -134,10 +125,7 @@ const nativeShare = async () => {
 }
 
 :deep(.social-share-button) {
-  @apply rounded-lg px-4 py-2.5 transition-all duration-200;
-  @apply flex items-center gap-2 font-semibold;
-  @apply border-2 shadow-lg hover:shadow-xl;
-  @apply transform hover:scale-105 active:scale-95;
+  @apply flex items-center rounded-md border px-2 py-1.5 transition-colors;
 }
 
 :deep(.social-share-button span),
@@ -147,67 +135,31 @@ const nativeShare = async () => {
 
 :deep(.social-share-button svg),
 :deep(.social-share-button .icon) {
-  @apply h-5 w-5 flex-shrink-0;
-  transition: all 0.2s ease-in-out;
+  @apply h-4 w-4 flex-shrink-0;
 }
 
 .social-share-facebook :deep(.social-share-button),
 .social-share-wrapper[data-network='facebook'] :deep(.social-share-button) {
-  @apply border-blue-600 bg-blue-500 text-white dark:border-blue-500 dark:bg-blue-600;
-  box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.4);
-}
-
-.social-share-facebook:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='facebook']:hover :deep(.social-share-button) {
-  @apply border-blue-700 bg-blue-600 dark:border-blue-400 dark:bg-blue-500;
-  box-shadow: 0 6px 20px 0 rgba(59, 130, 246, 0.6);
+  @apply border-blue-600/80 bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600;
 }
 
 .social-share-x :deep(.social-share-button),
 .social-share-wrapper[data-network='x'] :deep(.social-share-button) {
-  @apply border-sky-600 bg-sky-500 text-white dark:border-sky-500 dark:bg-sky-600;
-  box-shadow: 0 4px 14px 0 rgba(14, 165, 233, 0.4);
-}
-
-.social-share-x:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='x']:hover :deep(.social-share-button) {
-  @apply border-sky-700 bg-sky-600 dark:border-sky-400 dark:bg-sky-500;
-  box-shadow: 0 6px 20px 0 rgba(14, 165, 233, 0.6);
+  @apply border-sky-600/80 bg-sky-500 text-white hover:bg-sky-600 dark:bg-sky-600;
 }
 
 .social-share-linkedin :deep(.social-share-button),
 .social-share-wrapper[data-network='linkedin'] :deep(.social-share-button) {
-  @apply border-blue-700 bg-blue-600 text-white dark:border-blue-600 dark:bg-blue-700;
-  box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.4);
-}
-
-.social-share-linkedin:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='linkedin']:hover :deep(.social-share-button) {
-  @apply border-blue-800 bg-blue-700 dark:border-blue-500 dark:bg-blue-600;
-  box-shadow: 0 6px 20px 0 rgba(37, 99, 235, 0.6);
+  @apply border-blue-700/80 bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700;
 }
 
 .social-share-whatsapp :deep(.social-share-button),
 .social-share-wrapper[data-network='whatsapp'] :deep(.social-share-button) {
-  @apply border-emerald-600 bg-emerald-500 text-white dark:border-emerald-500 dark:bg-emerald-600;
-  box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.4);
-}
-
-.social-share-whatsapp:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='whatsapp']:hover :deep(.social-share-button) {
-  @apply border-emerald-700 bg-emerald-600 dark:border-emerald-400 dark:bg-emerald-500;
-  box-shadow: 0 6px 20px 0 rgba(16, 185, 129, 0.6);
+  @apply border-emerald-600/80 bg-emerald-500 text-white hover:bg-emerald-600 dark:bg-emerald-600;
 }
 
 .social-share-email :deep(.social-share-button),
 .social-share-wrapper[data-network='email'] :deep(.social-share-button) {
-  @apply border-slate-700 bg-slate-600 text-white dark:border-slate-400 dark:bg-slate-500;
-  box-shadow: 0 4px 14px 0 rgba(71, 85, 105, 0.4);
-}
-
-.social-share-email:hover :deep(.social-share-button),
-.social-share-wrapper[data-network='email']:hover :deep(.social-share-button) {
-  @apply border-slate-800 bg-slate-700 dark:border-slate-300 dark:bg-slate-400;
-  box-shadow: 0 6px 20px 0 rgba(71, 85, 105, 0.6);
+  @apply border-slate-600/80 bg-slate-500 text-white hover:bg-slate-600 dark:bg-slate-600;
 }
 </style>
