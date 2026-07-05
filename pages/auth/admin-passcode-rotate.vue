@@ -154,7 +154,7 @@ definePageMeta({
 })
 
 const router = useRouter()
-const { isAuthenticated, isAdmin, checkAuth } = useAuth()
+const { isAuthenticated, isAdmin, checkAuth, signOut } = useAuth()
 
 const step = ref<'verify' | 'setNew'>('verify')
 const oldPasscode = ref('')
@@ -172,7 +172,9 @@ onMounted(async () => {
     return
   }
   if (!isAdmin.value) {
-    await router.push('/dev')
+    await signOut()
+    await router.push('/')
+    return
   }
 })
 

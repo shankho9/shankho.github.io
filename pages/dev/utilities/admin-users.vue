@@ -24,6 +24,7 @@ const pendingRole = ref<Record<number, 'visitor' | 'admin'>>({})
 const showOtpModal = ref(false)
 const otpCode = ref('')
 const otpTarget = ref<{ id: number; role: 'visitor' | 'admin'; email: string } | null>(null)
+const otpSentTo = ref<string[]>([])
 const isRequestingOtp = ref(false)
 const isConfirming = ref(false)
 const { showToast } = useToast()
@@ -59,7 +60,7 @@ const requestRoleChange = async (user: AdminUser) => {
 
   isRequestingOtp.value = true
   try {
-    const res = await $fetch<{ success: boolean; message: string }>(
+    const res = await $fetch<{ success: boolean; message: string; sentTo?: string[] }>(
       '/api/admin/users/role-change/request',
       {
         method: 'POST',
@@ -67,6 +68,7 @@ const requestRoleChange = async (user: AdminUser) => {
       },
     )
     otpTarget.value = { id: user.id, role: newRole, email: user.email }
+    otpSentTo.value = res.sentTo || []
     otpCode.value = ''
     showOtpModal.value = true
     showToast(res.message, 'success')
@@ -118,7 +120,7 @@ onMounted(loadUsers)
       <div>
         <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Admin Users</h1>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Manage user roles. Changes require email OTP verification.
+          Manage user roles. Changes require a 6-digit OTP emailed to every admin account.
         </p>
       </div>
       <NuxtLink to="/dev" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
@@ -196,10 +198,16 @@ onMounted(loadUsers)
         <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
           Enter verification code
         </h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          We sent a 6-digit code to your email to confirm changing
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+          A 6-digit code was sent to all admin inboxes to confirm changing
           <strong>{{ otpTarget?.email }}</strong> to <strong>{{ otpTarget?.role }}</strong
           >.
+        </p>
+        <p
+          v-if="otpSentTo.length"
+          class="text-xs text-gray-500 dark:text-gray-400 mb-4 break-words"
+        >
+          Sent to: {{ otpSentTo.join(', ') }}
         </p>
         <input
           v-model="otpCode"

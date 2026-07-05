@@ -1,5 +1,6 @@
 {
   "framework": "nuxtjs",
+  "installCommand": "npm ci",
   "regions": ["iad1"],
   "env": {
     "NUXT_PUBLIC_SITE_URL": "https://www.nomadic-notions.co.in"

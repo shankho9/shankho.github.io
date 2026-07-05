@@ -182,8 +182,6 @@
               </NuxtLink>
               <NuxtLink
                 to="/dev/utilities/access-control"
-                target="_blank"
-                rel="noopener noreferrer"
                 class="group flex flex-col rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-600 active:scale-[0.99] touch-manipulation"
               >
                 <div class="flex items-center gap-3 mb-3">

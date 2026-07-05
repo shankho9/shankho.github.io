@@ -11,30 +11,23 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
         { headers },
       )
       if (!response?.authenticated) return redirectToLogin()
-      if (response.user?.role !== 'admin') return navigateTo('/')
+      if (response.user?.role !== 'admin') {
+        try {
+          await $fetch('/api/auth/logout', { method: 'POST', headers })
+        } catch {
+          // Session may already be invalid
+        }
+        return navigateTo('/')
+      }
     } catch {
       return redirectToLogin()
     }
     return
   }
 
-  const { isAuthenticated, isAdmin, checkAuth, loadStoredUser } = useAuth()
-  loadStoredUser()
-
-  try {
-    const isAuth = await checkAuth()
-    if (!isAuth || !isAuthenticated.value) {
-      if (typeof window !== 'undefined') localStorage.removeItem('auth_user')
-      return redirectToLogin()
-    }
-  } catch (error) {
-    if (!isAuthenticated.value) {
-      return redirectToLogin()
-    }
-    console.warn('[Auth Admin] Server verification failed, but user in localStorage:', error)
-  }
-
-  if (!isAdmin.value) return navigateTo('/')
+  const { enforceAdminAccess } = useAdminAccessGuard()
+  const access = await enforceAdminAccess()
+  if (access === 'redirected') return
 
   let passcodeStatus: {
     authenticated: boolean

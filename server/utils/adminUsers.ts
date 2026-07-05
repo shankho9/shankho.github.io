@@ -21,12 +21,19 @@ export function generateOtpCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000))
 }
 
+export async function getAdminEmails(): Promise<string[]> {
+  const rows = await query<{ email: string }>(
+    `SELECT email FROM users WHERE role = 'admin' ORDER BY email`,
+  )
+  return rows.map((row) => row.email).filter(Boolean)
+}
+
 export async function createRoleChangeOtp(
   adminUserId: number,
   targetUserId: number,
   newRole: 'visitor' | 'admin',
 ): Promise<string> {
-  await query('DELETE FROM admin_role_change_requests WHERE admin_user_id = $1', [adminUserId])
+  await query('DELETE FROM admin_role_change_requests WHERE target_user_id = $1', [targetUserId])
 
   const otp = generateOtpCode()
   const otpHash = await hashPassword(otp)
@@ -55,13 +62,14 @@ export async function confirmRoleChangeOtp(
     expires_at: Date
     new_role: string
     target_user_id: number
+    admin_user_id: number
   }>(
-    `SELECT id, otp_hash, attempts, expires_at, new_role, target_user_id
+    `SELECT id, otp_hash, attempts, expires_at, new_role, target_user_id, admin_user_id
      FROM admin_role_change_requests
-     WHERE admin_user_id = $1
+     WHERE target_user_id = $1 AND new_role = $2
      ORDER BY created_at DESC
      LIMIT 1`,
-    [adminUserId],
+    [targetUserId, newRole],
   )
 
   if (rows.length === 0) {
@@ -114,9 +122,9 @@ export async function confirmRoleChangeOtp(
   }
 
   await query('UPDATE users SET role = $1 WHERE id = $2', [newRole, targetUserId])
-  await query('DELETE FROM admin_role_change_requests WHERE admin_user_id = $1', [adminUserId])
+  await query('DELETE FROM admin_role_change_requests WHERE id = $1', [request.id])
 
   console.log(
-    `[Admin Users] User ${targetUserId} role changed to ${newRole} by admin ${adminUserId}`,
+    `[Admin Users] User ${targetUserId} role changed to ${newRole} (requested by admin ${request.admin_user_id}, confirmed by admin ${adminUserId})`,
   )
 }

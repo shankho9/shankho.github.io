@@ -1,5 +1,5 @@
 import { createError, defineEventHandler, readBody } from 'h3'
-import { createRoleChangeOtp, requireAdminUser } from '~/server/utils/adminUsers'
+import { createRoleChangeOtp, getAdminEmails, requireAdminUser } from '~/server/utils/adminUsers'
 import { sendAdminRoleChangeOtp } from '~/server/utils/email'
 import { query } from '~/server/utils/db'
 
@@ -45,21 +45,32 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  const adminEmails = await getAdminEmails()
+  if (adminEmails.length === 0) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'No admin email addresses found in the database',
+    })
+  }
+
   const otp = await createRoleChangeOtp(admin.id, targetUserId, newRole)
 
   try {
-    await sendAdminRoleChangeOtp(admin.email, admin.name, target.email, newRole, otp)
+    await sendAdminRoleChangeOtp(adminEmails, admin.email, admin.name, target.email, newRole, otp)
   } catch (error) {
     console.error('[Admin Users] Failed to send OTP email:', error)
+    const detail =
+      error instanceof Error && error.message ? error.message : 'Unknown email delivery error'
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to send verification email. Check Resend configuration.',
+      statusMessage: `Failed to send verification email: ${detail}`,
     })
   }
 
   return {
     success: true,
-    message: `Verification code sent to ${admin.email}`,
+    message: `Verification code sent to all admins: ${adminEmails.join(', ')}`,
+    sentTo: adminEmails,
     expiresInMinutes: 10,
   }
 })

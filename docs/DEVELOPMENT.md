@@ -44,7 +44,7 @@ Admin-only dashboard: calculators, analytics, content tools, and site settings.
 
 **Access:** `users.role = admin` in the database, sign-in, then **admin passcode** (set in Account Settings). Utilities link appears in the nav only for admins.
 
-**Admin Users utility** (`/dev/utilities/admin-users`): promote/demote users (`visitor` | `admin`). Each role change requires a 6-digit OTP emailed to the requesting admin via Resend.
+**Admin Users utility** (`/dev/utilities/admin-users`): promote/demote users (`visitor` | `admin`). Each role change requires a 6-digit OTP emailed to **all current admin accounts** via Resend. Any signed-in admin can enter the code to confirm.
 
 **Bootstrap first admin:** run user-role migration or `UPDATE users SET role = 'admin' WHERE email = 'your@email.com'`. Further admins are added via Admin Users.
 

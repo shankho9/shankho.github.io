@@ -93,8 +93,14 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
-const { verifyAdminPasscode, checkAdminPasscodeStatus, isAuthenticated, isAdmin, checkAuth } =
-  useAuth()
+const {
+  verifyAdminPasscode,
+  checkAdminPasscodeStatus,
+  isAuthenticated,
+  isAdmin,
+  checkAuth,
+  signOut,
+} = useAuth()
 
 const passcode = ref('')
 const errorMessage = ref('')
@@ -131,7 +137,8 @@ onMounted(async () => {
     }
   }
   if (!isAdmin.value) {
-    await router.push('/dev')
+    await signOut()
+    await router.push('/')
     return
   }
   const status = await checkAdminPasscodeStatus()

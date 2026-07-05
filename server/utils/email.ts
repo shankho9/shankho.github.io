@@ -269,28 +269,65 @@ export async function sendPasscodeResetEmail(
 }
 
 /**
- * Send OTP email when an admin requests a user role change
+ * Send OTP email to all admins when a role change is requested
  */
 export async function sendAdminRoleChangeOtp(
-  adminEmail: string,
-  adminName: string | null,
+  recipientEmails: string[],
+  requestedByEmail: string,
+  requestedByName: string | null,
   targetEmail: string,
   newRole: 'visitor' | 'admin',
   otp: string,
 ): Promise<void> {
-  const greeting = adminName ? escapeHtml(adminName) : 'Admin'
+  if (!RESEND_API_KEY) {
+    const error = new Error('RESEND_API_KEY not configured')
+    console.error('[Email] Admin role change OTP failed:', error)
+    throw error
+  }
+
+  const uniqueRecipients = [
+    ...new Set(recipientEmails.map((email) => email.trim().toLowerCase())),
+  ].filter(Boolean)
+  if (uniqueRecipients.length === 0) {
+    throw new Error('No admin email addresses found to send verification code')
+  }
+
+  const requester = escapeHtml(requestedByName || requestedByEmail)
   const roleLabel = newRole === 'admin' ? 'Admin' : 'Visitor'
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #1e40af;">Confirm role change — ${escapeHtml(PUBLISHER_NAME)}</h2>
-      <p>Hello ${greeting},</p>
-      <p>You requested to change the role for <strong>${escapeHtml(targetEmail)}</strong> to <strong>${roleLabel}</strong>.</p>
-      <p>Your verification code is:</p>
+      <p>Hello,</p>
+      <p><strong>${requester}</strong> requested to change the role for <strong>${escapeHtml(targetEmail)}</strong> to <strong>${roleLabel}</strong>.</p>
+      <p>Enter this verification code in Admin Users to approve the change:</p>
       <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #1e40af;">${escapeHtml(otp)}</p>
-      <p>This code expires in 10 minutes. If you did not request this change, ignore this email.</p>
+      <p>This code expires in 10 minutes and was sent to all current admin accounts.</p>
+      <p>If you did not expect this change, ignore this email.</p>
       <p style="color: #6b7280; font-size: 12px; margin-top: 24px;">${escapeHtml(PUBLISHER_NAME)}</p>
     </div>
   `
 
-  await sendEmailNotification(adminEmail, `Role change verification code — ${PUBLISHER_NAME}`, html)
+  try {
+    const { Resend } = await import('resend')
+    const resend = new Resend(RESEND_API_KEY)
+
+    console.log('[Email] Sending admin role change OTP to:', uniqueRecipients.join(', '))
+    const result = await resend.emails.send({
+      from: getFromEmail(),
+      to: uniqueRecipients,
+      subject: `Role change verification code — ${PUBLISHER_NAME}`,
+      html,
+    })
+
+    if (result.error) {
+      const errorMessage = result.error.message || 'Failed to send role change verification email'
+      console.error('[Email] Resend API error:', result.error)
+      throw new Error(errorMessage)
+    }
+
+    console.log('[Email] Admin role change OTP sent successfully:', result.data)
+  } catch (error) {
+    console.error('[Email] Failed to send admin role change OTP:', error)
+    throw error
+  }
 }
