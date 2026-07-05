@@ -197,6 +197,7 @@ export default defineNuxtConfig({
       // Notion database ID (client-side accessible for API calls)
       notionDatabaseId: process.env.NOTION_DATABASE_ID,
       tinaClientId: process.env.NUXT_PUBLIC_TINA_CLIENT_ID || '',
+      deployDebugMarker: 'deploy-debug-v1-serverIsAdmin-libraryIntegration',
     },
     databaseUrl: process.env.DATABASE_URL,
     // Email configuration (server-side only)
