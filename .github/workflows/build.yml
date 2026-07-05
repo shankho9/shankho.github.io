@@ -77,6 +77,12 @@ jobs:
             echo "Production still deploys via Vercel Git integration if that is connected."
             exit 0
           fi
+          vercel build --prod --token="$VERCEL_TOKEN"
+          build_status=$?
+          if [ $build_status -ne 0 ]; then
+            echo "::warning::vercel build failed (status $build_status). See Vercel Git deployment for production."
+            exit 0
+          fi
           vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
           deploy_status=$?
           if [ $deploy_status -ne 0 ]; then
