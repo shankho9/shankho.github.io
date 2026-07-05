@@ -201,7 +201,7 @@ export default defineNuxtConfig({
     // Email configuration (server-side only)
     resendApiKey: process.env.RESEND_API_KEY,
     alertEmail: process.env.ALERT_EMAIL,
-    fromEmail: process.env.FROM_EMAIL || 'Nomadic Notions <blogsite@nomadic-notions.co.in>',
+    fromEmail: process.env.FROM_EMAIL || 'blogsite@nomadic-notions.co.in',
     // Admin configuration (server-side only)
     adminPasswordHash: process.env.ADMIN_PASSWORD_HASH,
     admin2FASecret: process.env.ADMIN_2FA_SECRET,

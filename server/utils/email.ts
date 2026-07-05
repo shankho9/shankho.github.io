@@ -1,11 +1,109 @@
 // server/utils/email.ts
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const NOTIFICATION_EMAIL = process.env.NOTIFICATION_EMAIL
-const DEFAULT_FROM_EMAIL = 'Nomadic Notions <blogsite@nomadic-notions.co.in>'
+const DEFAULT_FROM_ADDRESS = 'blogsite@nomadic-notions.co.in'
+const DEFAULT_FROM_DISPLAY = 'Nomadic Notions'
 const PUBLISHER_NAME = 'Nomadic Notions'
 
-function getFromEmail(): string {
-  return process.env.FROM_EMAIL?.trim() || DEFAULT_FROM_EMAIL
+function stripEnvQuotes(value: string): string {
+  let trimmed = value.trim()
+  while (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    trimmed = trimmed.slice(1, -1).trim()
+  }
+  return trimmed
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)
+}
+
+function formatFromAddress(email: string, displayName?: string | null): string {
+  const normalizedEmail = email.trim().toLowerCase()
+  if (!isValidEmail(normalizedEmail)) {
+    throw new Error(`Invalid sender email: ${email}`)
+  }
+
+  const name = displayName?.replace(/["<>]/g, '').trim()
+  if (!name) {
+    return normalizedEmail
+  }
+
+  return `${name} <${normalizedEmail}>`
+}
+
+/**
+ * Normalize FROM_EMAIL for Resend.
+ * Handles quoted .env values, "Name <email>" format, and plain email addresses.
+ */
+export function getFromEmail(): string {
+  const raw = process.env.FROM_EMAIL
+  if (!raw?.trim()) {
+    return formatFromAddress(DEFAULT_FROM_ADDRESS, DEFAULT_FROM_DISPLAY)
+  }
+
+  const cleaned = stripEnvQuotes(raw)
+
+  if (isValidEmail(cleaned)) {
+    return cleaned
+  }
+
+  const namedMatch = cleaned.match(/^(.+?)\s*<([^>]+)>\s*$/)
+  if (namedMatch) {
+    const name = stripEnvQuotes(namedMatch[1].trim())
+    const email = stripEnvQuotes(namedMatch[2].trim())
+    return formatFromAddress(email, name)
+  }
+
+  const extracted = cleaned.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/)
+  if (extracted) {
+    console.warn('[Email] FROM_EMAIL used fallback email extraction from:', cleaned)
+    return formatFromAddress(extracted[0], DEFAULT_FROM_DISPLAY)
+  }
+
+  console.warn('[Email] Invalid FROM_EMAIL, using default sender:', cleaned)
+  return formatFromAddress(DEFAULT_FROM_ADDRESS, DEFAULT_FROM_DISPLAY)
+}
+
+async function sendWithResend(options: {
+  to: string | string[]
+  subject: string
+  html: string
+}): Promise<void> {
+  const { Resend } = await import('resend')
+  const resend = new Resend(RESEND_API_KEY)
+  const from = getFromEmail()
+
+  console.log('[Email] Sending via Resend from:', from)
+
+  let result = await resend.emails.send({
+    from,
+    to: options.to,
+    subject: options.subject,
+    html: options.html,
+  })
+
+  if (
+    result.error &&
+    /invalid.*from/i.test(result.error.message || '') &&
+    from !== DEFAULT_FROM_ADDRESS
+  ) {
+    console.warn('[Email] Invalid from rejected by Resend, retrying with plain address')
+    result = await resend.emails.send({
+      from: DEFAULT_FROM_ADDRESS,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+    })
+  }
+
+  if (result.error) {
+    const errorMessage = result.error.message || 'Failed to send email'
+    console.error('[Email] Resend API error:', result.error)
+    throw new Error(errorMessage)
+  }
 }
 
 /**
@@ -35,15 +133,7 @@ export async function sendEmailNotification(
   }
 
   try {
-    const { Resend } = await import('resend')
-    const resend = new Resend(RESEND_API_KEY)
-
-    await resend.emails.send({
-      from: getFromEmail(),
-      to,
-      subject,
-      html,
-    })
+    await sendWithResend({ to, subject, html })
   } catch (error) {
     console.error('[Email] Failed to send email notification:', error)
     // Don't throw - email failures shouldn't break the flow
@@ -187,25 +277,13 @@ export async function sendPasswordResetEmail(
   `
 
   try {
-    const { Resend } = await import('resend')
-    const resend = new Resend(RESEND_API_KEY)
-
     console.log('[Email] Sending password reset email to:', userEmail)
-    const result = await resend.emails.send({
-      from: getFromEmail(),
+    await sendWithResend({
       to: userEmail,
       subject: `Reset Your Password - ${PUBLISHER_NAME}`,
       html,
     })
-
-    // Check if Resend returned an error in the response
-    if (result.error) {
-      const errorMessage = result.error.message || 'Failed to send password reset email'
-      console.error('[Email] Resend API error:', result.error)
-      throw new Error(errorMessage)
-    }
-
-    console.log('[Email] Password reset email sent successfully:', result.data)
+    console.log('[Email] Password reset email sent successfully')
   } catch (error) {
     console.error('[Email] Failed to send password reset email:', error)
     throw error
@@ -243,25 +321,13 @@ export async function sendPasscodeResetEmail(
   `
 
   try {
-    const { Resend } = await import('resend')
-    const resend = new Resend(RESEND_API_KEY)
-
     console.log('[Email] Sending utility passcode reset email to:', userEmail)
-    const result = await resend.emails.send({
-      from: getFromEmail(),
+    await sendWithResend({
       to: userEmail,
       subject: `Reset Your Utility Passcode - ${PUBLISHER_NAME}`,
       html,
     })
-
-    // Check if Resend returned an error in the response
-    if (result.error) {
-      const errorMessage = result.error.message || 'Failed to send utility passcode reset email'
-      console.error('[Email] Resend API error:', result.error)
-      throw new Error(errorMessage)
-    }
-
-    console.log('[Email] Utility passcode reset email sent successfully:', result.data)
+    console.log('[Email] Utility passcode reset email sent successfully')
   } catch (error) {
     console.error('[Email] Failed to send utility passcode reset email:', error)
     throw error
@@ -308,24 +374,13 @@ export async function sendAdminRoleChangeOtp(
   `
 
   try {
-    const { Resend } = await import('resend')
-    const resend = new Resend(RESEND_API_KEY)
-
     console.log('[Email] Sending admin role change OTP to:', uniqueRecipients.join(', '))
-    const result = await resend.emails.send({
-      from: getFromEmail(),
+    await sendWithResend({
       to: uniqueRecipients,
       subject: `Role change verification code — ${PUBLISHER_NAME}`,
       html,
     })
-
-    if (result.error) {
-      const errorMessage = result.error.message || 'Failed to send role change verification email'
-      console.error('[Email] Resend API error:', result.error)
-      throw new Error(errorMessage)
-    }
-
-    console.log('[Email] Admin role change OTP sent successfully:', result.data)
+    console.log('[Email] Admin role change OTP sent successfully')
   } catch (error) {
     console.error('[Email] Failed to send admin role change OTP:', error)
     throw error

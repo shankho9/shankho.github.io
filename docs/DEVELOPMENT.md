@@ -48,7 +48,7 @@ Admin-only dashboard: calculators, analytics, content tools, and site settings.
 
 **Bootstrap first admin:** run user-role migration or `UPDATE users SET role = 'admin' WHERE email = 'your@email.com'`. Further admins are added via Admin Users.
 
-**Removed:** visitor utility passcode (no longer used). All `/dev` routes use `auth-admin` middleware only.
+**Removed:** per-utility login gates and utility access control UI. Admin passcode at `/dev` entry is the only extra gate; individual utilities open directly.
 
 ---
 
@@ -69,7 +69,7 @@ Nav links for LifeLines, Library, and Gallery are visible to everyone; opening t
 
 - **`server/api/`** – API by feature (auth, blog, travel, dev, etc.)
 - **`server/utils/`** – `auth`, `db`, `email`, `notion`, `r2`, `apps`, `getClientIP`
-- **`composables/`** – `useAuth`, `useUtilityAccess`, etc.
+- **`composables/`** – `useAuth`, `useAdminAccessGuard`, etc.
 - **`scripts/migrations/`** – DB migration scripts
 
 ---
@@ -90,12 +90,21 @@ Transactional and alert emails use [Resend](https://resend.com). Branding is **N
 
 Add to `.env` / Vercel:
 
-```env
+````env
 RESEND_API_KEY=re_...
-FROM_EMAIL="Nomadic Notions <blogsite@nomadic-notions.co.in>"
+```bash
+# Plain email is safest on Vercel (no spaces or angle brackets in the value)
+FROM_EMAIL=blogsite@nomadic-notions.co.in
+
+# Optional display name format also works if the whole value is quoted in .env locally:
+# FROM_EMAIL="Nomadic Notions <blogsite@nomadic-notions.co.in>"
+````
+
+On **Vercel → Environment Variables**, set `FROM_EMAIL` to `blogsite@nomadic-notions.co.in` only — do **not** include surrounding quotes in the dashboard field.
 NOTIFICATION_EMAIL=blogsite@nomadic-notions.co.in
 ALERT_EMAIL=blogsite@nomadic-notions.co.in
-```
+
+````
 
 **Production:** Verify `nomadic-notions.co.in` in Resend and add SPF/DKIM DNS records (Cloudflare) so `blogsite@nomadic-notions.co.in` can send. Without domain verification, password-reset and notification emails will fail or go to spam.
 
@@ -150,7 +159,7 @@ R2_ACCESS_KEY_ID=your_r2_access_key_id
 R2_SECRET_ACCESS_KEY=your_r2_secret_access_key
 R2_BUCKET_NAME=nomadic-notions-apps
 R2_APPS_PREFIX=apps/
-```
+````
 
 ### Object key convention
 

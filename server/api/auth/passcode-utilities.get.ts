@@ -7,8 +7,7 @@ export default defineEventHandler(async (event) => {
     return { visitor: [], admin: [] }
   }
 
-  const admin =
-    user.role === 'admin' ? ['All Utilities (/dev)', 'Admin Users', 'Access Control'] : []
+  const admin = user.role === 'admin' ? ['All Utilities (/dev)', 'Admin Users'] : []
 
   return { visitor: [], admin }
 })

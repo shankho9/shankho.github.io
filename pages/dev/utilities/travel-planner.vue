@@ -3,14 +3,12 @@ import { Icon } from '@iconify/vue'
 import { ref, computed, onMounted, watch, shallowRef } from 'vue'
 import { seoData } from '~/data'
 import { useToast } from '~/composables/useToast'
-import { useDevUtilityAuth } from '~/composables/useDevUtilityAuth'
 import { useGoogleMaps } from '~/composables/useGoogleMaps'
 
 definePageMeta({
   middleware: ['auth-admin'],
 })
 
-const { ensureAuth } = useDevUtilityAuth()
 const { showToast } = useToast()
 const { loadGoogleMapsScript, createMap } = useGoogleMaps()
 
@@ -2311,8 +2309,6 @@ watch(
   },
 )
 onMounted(async () => {
-  const ok = await ensureAuth()
-  if (!ok) return
   await loadTemplates()
   syncItineraryNotes()
   // Initialize budget if not set
