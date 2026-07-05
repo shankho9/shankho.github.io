@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 
 const props = withDefaults(
   defineProps<{
@@ -24,6 +24,22 @@ const selectedVoiceName = ref<string>('')
 const rate = ref(1.0)
 const pitch = ref(1.0)
 const volume = ref(1.0)
+const hasArticleText = ref(false)
+
+function refreshArticleText(): boolean {
+  if (typeof document === 'undefined') return false
+  const proseElement = document.querySelector('.prose')
+  if (!proseElement) return false
+
+  const clone = proseElement.cloneNode(true) as HTMLElement
+  clone
+    .querySelectorAll('script, style, .comments-section, .social-share-wrapper')
+    .forEach((el) => el.remove())
+
+  const text = (clone.textContent || '').trim()
+  hasArticleText.value = text.length > 0
+  return hasArticleText.value
+}
 
 // Get available voices for the dropdown (English preferred, but show all if no English available)
 const availableVoices = computed(() => {
@@ -40,16 +56,15 @@ const selectedVoice = computed(() => {
 
 // Get article text content
 const articleText = computed(() => {
-  if (typeof document === 'undefined') return ''
+  if (typeof document === 'undefined' || !hasArticleText.value) return ''
   const proseElement = document.querySelector('.prose')
   if (!proseElement) return ''
 
-  // Remove script and style elements
   const clone = proseElement.cloneNode(true) as HTMLElement
-  const scripts = clone.querySelectorAll('script, style, .comments-section, .social-share-wrapper')
-  scripts.forEach((el) => el.remove())
+  clone
+    .querySelectorAll('script, style, .comments-section, .social-share-wrapper')
+    .forEach((el) => el.remove())
 
-  // Get text content
   return clone.textContent || ''
 })
 
@@ -58,7 +73,6 @@ onMounted(() => {
     isSupported.value = true
     speechSynthesis.value = window.speechSynthesis
 
-    // Load voices
     const loadVoices = () => {
       voices.value = speechSynthesis.value?.getVoices() || []
 
@@ -94,6 +108,13 @@ onMounted(() => {
       speechSynthesis.value.onvoiceschanged = loadVoices
     }
   }
+
+  nextTick(() => {
+    if (!refreshArticleText()) {
+      window.setTimeout(refreshArticleText, 300)
+      window.setTimeout(refreshArticleText, 800)
+    }
+  })
 })
 
 onUnmounted(() => {
@@ -171,8 +192,12 @@ const togglePlayPause = () => {
 </script>
 
 <template>
-  <div v-if="isSupported && articleText" :class="embedded ? '' : 'text-to-speech-controls'">
+  <div v-if="isSupported" :class="embedded ? '' : 'text-to-speech-controls'">
+    <p v-if="embedded && !hasArticleText" class="text-sm text-zinc-600 dark:text-zinc-400">
+      Loading listen controls…
+    </p>
     <div
+      v-else-if="hasArticleText"
       :class="[
         'flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3',
         embedded
@@ -201,7 +226,7 @@ const togglePlayPause = () => {
           <Icon name="mdi:stop" class="h-5 w-5" />
         </button>
 
-        <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400 sm:hidden">
+        <span class="text-xs font-medium text-zinc-600 dark:text-zinc-300 sm:text-sm">
           Listen to article
         </span>
       </div>

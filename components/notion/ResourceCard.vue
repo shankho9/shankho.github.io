@@ -40,9 +40,7 @@ const description = computed(() => {
 })
 
 const link = computed(() => {
-  return (
-    pickString(props.item, 'Link', 'link', 'URL', 'url') || props.item.notionUrl || ''
-  )
+  return pickString(props.item, 'Link', 'link', 'URL', 'url') || props.item.notionUrl || ''
 })
 
 const category = computed(() => pickString(props.item, 'Category', 'category'))

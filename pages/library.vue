@@ -1215,10 +1215,7 @@ try {
             class="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
           >
             <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <span
-                v-if="sortedItems.length > 0"
-                class="text-sm text-zinc-600 dark:text-zinc-400"
-              >
+              <span v-if="sortedItems.length > 0" class="text-sm text-zinc-600 dark:text-zinc-400">
                 Showing {{ (currentPage - 1) * itemsPerPage + 1 }}-{{
                   Math.min(currentPage * itemsPerPage, sortedItems.length)
                 }}

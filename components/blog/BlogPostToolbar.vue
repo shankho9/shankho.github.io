@@ -5,19 +5,29 @@ defineProps<{
 </script>
 
 <template>
-  <div
-    class="blog-post-toolbar mb-6 overflow-hidden rounded-xl border border-gray-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/80 dark:bg-slate-800/90"
+  <section
+    class="blog-post-toolbar mb-8 overflow-hidden rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-white shadow-md ring-1 ring-sky-100/80 dark:border-sky-800/70 dark:from-sky-950/50 dark:via-slate-800 dark:to-slate-800 dark:ring-sky-900/40"
+    aria-label="Reading tools"
   >
     <div
-      class="flex items-center justify-between gap-3 border-b border-gray-100 px-3 py-2 dark:border-slate-700/80 sm:px-4"
+      class="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-sky-50/80 px-4 py-3 dark:border-sky-900/50 dark:bg-sky-950/30"
     >
-      <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-        Reading tools
-      </span>
-      <FocusMode compact />
+      <div class="flex items-center gap-2.5">
+        <span
+          class="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-600 text-white shadow-sm dark:bg-sky-500"
+          aria-hidden="true"
+        >
+          <Icon name="mdi:book-open-page-variant" size="20" />
+        </span>
+        <div>
+          <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Reading tools</h2>
+          <p class="text-xs text-zinc-600 dark:text-zinc-400">Listen aloud or enter focus mode</p>
+        </div>
+      </div>
+      <FocusMode />
     </div>
-    <div class="px-3 py-3 sm:px-4">
+    <div class="px-4 py-4">
       <TextToSpeech :post-id="postId" embedded />
     </div>
-  </div>
+  </section>
 </template>

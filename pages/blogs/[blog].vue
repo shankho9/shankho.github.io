@@ -118,10 +118,6 @@ useHead({
       class="px-3 sm:px-6 container max-w-5xl mx-auto sm:grid grid-cols-12 gap-x-12 overflow-x-hidden w-full"
     >
       <div class="col-span-12 lg:col-span-9 blog-content-container min-w-0">
-        <BlogPostToolbar :post-id="path" />
-
-        <BlogPostShare compact class="mb-6 lg:hidden" />
-
         <BlogHeader
           :title="data.title"
           :image="data.image"
@@ -131,6 +127,10 @@ useHead({
           :tags="data.tags"
           :reading-time="readingTime"
         />
+
+        <BlogPostToolbar :post-id="path" />
+
+        <BlogPostShare compact class="mb-6 lg:hidden" />
 
         <!-- Like Button (Top) -->
         <div class="mt-4 flex items-center gap-2">

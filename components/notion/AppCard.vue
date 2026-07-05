@@ -76,7 +76,10 @@ const hasAnyAction = computed(() => props.app.playStoreUrl || props.app.hasApk |
           {{ app.title }}
         </h3>
 
-        <p v-if="app.description" class="mt-1 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <p
+          v-if="app.description"
+          class="mt-1 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400"
+        >
           {{ app.description }}
         </p>
       </div>
@@ -85,7 +88,10 @@ const hasAnyAction = computed(() => props.app.playStoreUrl || props.app.hasApk |
     <div
       class="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-gray-100 pt-2.5 text-xs text-zinc-500 dark:border-slate-700 dark:text-zinc-400"
     >
-      <span v-if="app.version" class="inline-flex items-center gap-1 font-medium text-zinc-600 dark:text-zinc-300">
+      <span
+        v-if="app.version"
+        class="inline-flex items-center gap-1 font-medium text-zinc-600 dark:text-zinc-300"
+      >
         <Icon name="mdi:tag-outline" size="13" class="shrink-0 text-zinc-400" />
         v{{ app.version }}
       </span>
