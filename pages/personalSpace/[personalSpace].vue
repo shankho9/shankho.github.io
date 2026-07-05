@@ -157,12 +157,12 @@ useHead({
   ],
 })
 
-// Generate OG Image with error handling
+// Generate OG Image with error handling (static og:image is also set in useHead above)
 try {
-  defineOgImage({
-    title: articles.value?.seo.title || '',
-    description: articles.value?.seo.description || '',
-    link: data.value.ogImage,
+  defineOgImageComponent('About', {
+    headline: data.value.title,
+    title: data.value.title,
+    description: data.value.description,
   })
 } catch (error) {
   console.error('[Personal Space Detail] Failed to define OG image:', error)

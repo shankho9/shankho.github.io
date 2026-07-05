@@ -245,15 +245,10 @@ useHead({
 
 // Generate OG Image with error handling
 try {
-  const siteData = useSiteConfig()
-  const siteUrl =
-    siteData?.url || process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app'
-  defineOgImage({
-    props: {
-      title: pesonalSpace.title,
-      description: pesonalSpace.description,
-      siteName: siteUrl,
-    },
+  defineOgImageComponent('About', {
+    headline: pesonalSpace.title,
+    title: pesonalSpace.title,
+    description: pesonalSpace.description,
   })
 } catch (error) {
   console.error('[Personal Space Index] Failed to define OG image:', error)

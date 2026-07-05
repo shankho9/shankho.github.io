@@ -52,15 +52,10 @@ useHead({
 
 // Generate OG Image with error handling
 try {
-  const siteData = useSiteConfig()
-  const siteUrl =
-    siteData?.url || process.env.NUXT_PUBLIC_SITE_URL || 'https://shankho-blogsite.vercel.app'
-  defineOgImage({
-    props: {
-      title: category.value?.toUpperCase(),
-      description: `You will find all the ${category.value} related post here`,
-      siteName: siteUrl,
-    },
+  defineOgImageComponent('About', {
+    headline: category.value?.toUpperCase() ?? 'Category',
+    title: category.value?.toUpperCase() ?? 'Category',
+    description: `You will find all the ${category.value} related post here`,
   })
 } catch (error) {
   console.error('[Category Page] Failed to define OG image:', error)
