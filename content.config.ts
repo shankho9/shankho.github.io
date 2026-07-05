@@ -16,5 +16,19 @@ export default defineContentConfig({
         }),
       ),
     ),
+    music: defineCollection({
+      type: 'page',
+      source: 'music/**/*.{md,mdx}',
+      schema: z.object({
+        musicType: z.enum(['lyrics', 'instrumental', 'notation']),
+        language: z.string().optional(),
+        artist: z.string().optional(),
+        youtubeUrl: z.string().optional(),
+        spotifyUrl: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        published: z.boolean().default(false),
+        coverImage: z.string().optional(),
+      }),
+    }),
   },
 })

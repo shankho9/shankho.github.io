@@ -3,6 +3,15 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
   const redirectToLogin = () =>
     navigateTo('/auth/login?redirect=' + encodeURIComponent(to.fullPath))
 
+  const redirectToPasscode = (extraQuery?: Record<string, string>) =>
+    navigateTo({
+      path: '/auth/admin-passcode',
+      query: {
+        redirect: to.fullPath,
+        ...extraQuery,
+      },
+    })
+
   if (import.meta.env.SSR) {
     try {
       const headers = useRequestHeaders(['cookie'])
@@ -34,6 +43,7 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
     isSet: boolean
     needsRotation: boolean
     expiresAt: string | null
+    error?: string
   } | null = null
   let apiCallFailed = false
 
@@ -43,32 +53,46 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
       isSet: boolean
       needsRotation: boolean
       expiresAt: string | null
+      error?: string
     }>('/api/auth/admin-passcode/status')
+    if (passcodeStatus.error) {
+      apiCallFailed = true
+    }
   } catch {
     apiCallFailed = true
   }
 
-  const passcodeVerified = sessionStorage.getItem('admin_passcode_verified')
+  const passcodeVerified =
+    typeof sessionStorage !== 'undefined' &&
+    sessionStorage.getItem('admin_passcode_verified') === 'true'
 
+  // If status API failed but user already verified this session, allow access
   if (apiCallFailed) {
     if (!passcodeVerified) {
-      return navigateTo(
-        '/auth/settings?passcode=admin-setup&redirect=' + encodeURIComponent(to.fullPath),
-      )
+      return redirectToPasscode({ setup: 'unknown' })
     }
     return
   }
 
   if (passcodeStatus) {
     if (!passcodeStatus.isSet) {
-      return navigateTo('/auth/settings?passcode=admin-setup')
+      return navigateTo({
+        path: '/auth/settings',
+        query: {
+          passcode: 'admin-setup',
+          redirect: to.fullPath,
+        },
+      })
     }
     if (passcodeStatus.needsRotation) {
-      return navigateTo('/auth/settings?passcode=admin-rotate')
+      return navigateTo({
+        path: '/auth/admin-passcode-rotate',
+        query: { redirect: to.fullPath },
+      })
     }
   }
 
   if (!passcodeVerified) {
-    return navigateTo('/auth/admin-passcode?redirect=' + encodeURIComponent(to.fullPath))
+    return redirectToPasscode()
   }
 })

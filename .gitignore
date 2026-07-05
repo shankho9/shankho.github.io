@@ -4,6 +4,9 @@
 .data
 # Node dependencies
 node_modules
+# Tina generated admin (rebuilt on deploy)
+public/admin
+tina/__generated__
 # System files
 *.log
 .firebase

@@ -7,7 +7,9 @@ import GalleryLightbox from '~/components/gallery/Lightbox.vue'
 import GoogleMap from '~/components/blog/GoogleMap.vue'
 import ResourcesTabs from '~/components/notion/ResourcesTabs.vue'
 import AppsTab from '~/components/library/AppsTab.vue'
+import MusicalNotesTab from '~/components/library/MusicalNotesTab.vue'
 import LibraryShareBar from '~/components/library/LibraryShareBar.vue'
+import LibraryIntegrationNote from '~/components/library/LibraryIntegrationNote.vue'
 
 definePageMeta({ middleware: ['auth-login'] })
 
@@ -533,6 +535,10 @@ const isLoadingResourcesCount = ref(false)
 const appsCount = ref(0)
 const isLoadingAppsCount = ref(false)
 
+// Musical notes count (Nuxt Content)
+const musicCount = ref(0)
+const isLoadingMusicCount = ref(false)
+
 // Load resources count from Notion
 const loadResourcesCount = async () => {
   if (resourcesCount.value > 0 || isLoadingResourcesCount.value) return // Already loaded
@@ -595,6 +601,20 @@ const loadAppsCount = async () => {
   }
 }
 
+const loadMusicCount = async () => {
+  if (musicCount.value > 0 || isLoadingMusicCount.value) return
+
+  isLoadingMusicCount.value = true
+  try {
+    const docs = await queryCollection('music').all()
+    musicCount.value = docs.filter((doc) => doc.published === true).length
+  } catch (error) {
+    console.error('[Library] Failed to load music count:', error)
+  } finally {
+    isLoadingMusicCount.value = false
+  }
+}
+
 // Tab configuration - computed to reactively update counts
 const tabs = computed(() => [
   {
@@ -615,7 +635,7 @@ const tabs = computed(() => [
     id: 'musical-notes' as TabType,
     label: 'Musical Notes',
     icon: 'mdi:music-note',
-    count: 0,
+    count: musicCount.value,
     requiresAuth: true,
   },
   {
@@ -892,6 +912,9 @@ watch(activeTab, (newTab) => {
   if (newTab === 'apps' && appsCount.value === 0 && !isLoadingAppsCount.value) {
     loadAppsCount()
   }
+  if (newTab === 'musical-notes' && musicCount.value === 0 && !isLoadingMusicCount.value) {
+    loadMusicCount()
+  }
 })
 
 // Track if we've loaded stats for the current user to prevent duplicate calls
@@ -917,6 +940,7 @@ onMounted(async () => {
 
   // Load resources count on mount (doesn't require auth)
   loadResourcesCount()
+  loadMusicCount()
 
   // loadStoredUser() is synchronous - it directly sets user.value from localStorage
   // Check user.value immediately after calling it (no need to wait for nextTick)
@@ -1098,7 +1122,9 @@ try {
                     ? 'resources'
                     : activeTab === 'apps'
                       ? 'apps'
-                      : 'this content'
+                      : activeTab === 'musical-notes'
+                        ? 'musical notes'
+                        : 'this content'
             }}.
           </p>
           <button
@@ -1112,6 +1138,11 @@ try {
       </div>
 
       <!-- Tab Content -->
+      <LibraryIntegrationNote
+        v-if="isAuthenticated || !currentTabRequiresAuth"
+        :tab="activeTab"
+      />
+
       <Transition
         mode="out-in"
         enter-active-class="transition-all duration-300 ease-out"
@@ -2045,21 +2076,7 @@ try {
             </div>
           </div>
 
-          <div
-            class="bg-white dark:bg-slate-800 rounded-xl p-12 border border-gray-200 dark:border-slate-700 text-center"
-          >
-            <Icon
-              name="mdi:music-note-outline"
-              class="text-6xl text-sky-700 dark:text-sky-400 mb-4"
-            />
-            <h2 class="text-3xl font-bold text-zinc-800 dark:text-zinc-200 mb-4">
-              Musical Notes & Pages
-            </h2>
-            <p class="text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-              Musical instrument notes and sheet music coming soon! This section will feature
-              curated musical resources, sheet music, and learning materials.
-            </p>
-          </div>
+          <MusicalNotesTab />
         </div>
 
         <!-- Travel Map Tab -->

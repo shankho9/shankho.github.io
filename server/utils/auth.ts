@@ -18,7 +18,7 @@ authenticator.options = {
 }
 
 export interface User {
-  id: number
+  id: string | number
   email: string
   name: string | null
   picture: string | null
@@ -450,7 +450,10 @@ export async function updateUserLastLogin(userId: number): Promise<void> {
 
 /** Admin passcode (admin_passcodes table). */
 
-export async function verifyAdminPasscode(userId: number, passcode: string): Promise<boolean> {
+export async function verifyAdminPasscode(
+  userId: string | number,
+  passcode: string,
+): Promise<boolean> {
   const rows = await query<{ passcode_hash: string; expires_at: Date }>(
     'SELECT passcode_hash, expires_at FROM admin_passcodes WHERE user_id = $1',
     [userId],
@@ -461,7 +464,7 @@ export async function verifyAdminPasscode(userId: number, passcode: string): Pro
   return verifyPassword(passcode, d.passcode_hash)
 }
 
-export async function setAdminPasscode(userId: number, passcode: string): Promise<void> {
+export async function setAdminPasscode(userId: string | number, passcode: string): Promise<void> {
   const hash = await hashPassword(passcode)
   const expiresAt = new Date(Date.now() + UTILITY_PASSCODE_DURATION_MS)
   await query(
@@ -472,7 +475,7 @@ export async function setAdminPasscode(userId: number, passcode: string): Promis
   )
 }
 
-export async function needsAdminPasscodeRotation(userId: number): Promise<boolean> {
+export async function needsAdminPasscodeRotation(userId: string | number): Promise<boolean> {
   const rows = await query<{ expires_at: Date }>(
     'SELECT expires_at FROM admin_passcodes WHERE user_id = $1',
     [userId],
@@ -482,7 +485,7 @@ export async function needsAdminPasscodeRotation(userId: number): Promise<boolea
   return days <= 7
 }
 
-export async function getAdminPasscodeExpiry(userId: number): Promise<Date | null> {
+export async function getAdminPasscodeExpiry(userId: string | number): Promise<Date | null> {
   const rows = await query<{ expires_at: Date }>(
     'SELECT expires_at FROM admin_passcodes WHERE user_id = $1',
     [userId],

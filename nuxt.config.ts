@@ -196,6 +196,7 @@ export default defineNuxtConfig({
       imageKitVideosRootFolder: process.env.IMAGEKIT_VIDEOS_ROOT_FOLDER || 'Library/Videos',
       // Notion database ID (client-side accessible for API calls)
       notionDatabaseId: process.env.NOTION_DATABASE_ID,
+      tinaClientId: process.env.NUXT_PUBLIC_TINA_CLIENT_ID || '',
     },
     databaseUrl: process.env.DATABASE_URL,
     // Email configuration (server-side only)
@@ -215,6 +216,8 @@ export default defineNuxtConfig({
     // Notion configuration (server-side only)
     notionApiKey: process.env.NOTION_API_KEY,
     notionDatabaseId: process.env.NOTION_DATABASE_ID,
+    tinaToken: process.env.TINA_TOKEN || '',
+    tinaBranch: process.env.TINA_BRANCH || 'main',
     // Cloudflare R2 (server-side only, for app binary downloads)
     r2AccountId: process.env.R2_ACCOUNT_ID,
     r2AccessKeyId: process.env.R2_ACCESS_KEY_ID,

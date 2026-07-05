@@ -290,6 +290,24 @@
               </div>
             </div>
           </div>
+          <div
+            v-if="adminPasscodeStatus.isSet && !adminPasscodeStatus.needsRotation && route.query.redirect"
+            class="rounded-md bg-green-50 dark:bg-green-900/20 p-4 mb-4"
+          >
+            <p class="text-sm text-green-800 dark:text-green-200 mb-3">
+              Admin passcode is active. Enter it once to open Utilities.
+            </p>
+            <NuxtLink
+              :to="{
+                path: '/auth/admin-passcode',
+                query: { redirect: route.query.redirect as string },
+              }"
+              class="inline-flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+            >
+              <Icon name="mdi:tools" size="18" />
+              Continue to Utilities
+            </NuxtLink>
+          </div>
           <div v-if="adminPasscodeStatus.isSet && !adminPasscodeStatus.needsRotation" class="mb-4">
             <p class="text-sm text-gray-600 dark:text-gray-400">
               Admin passcode is set and active.
@@ -374,7 +392,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
 
@@ -583,6 +601,14 @@ const handleSetAdminPasscode = async () => {
       adminPasscodeForm.value = { passcode: '', confirmPasscode: '' }
       if (typeof window !== 'undefined') sessionStorage.removeItem('admin_passcode_verified')
       await loadAdminPasscodeStatus()
+
+      const redirect = route.query.redirect as string | undefined
+      if (redirect) {
+        await navigateTo({
+          path: '/auth/admin-passcode',
+          query: { redirect },
+        })
+      }
     } else {
       adminPasscodeError.value = response.error || 'Failed to set admin passcode'
     }
@@ -618,6 +644,12 @@ onMounted(async () => {
       passcodeUtilities.value = { visitor: [], admin: [] }
     }
     if (isAdmin.value) await loadAdminPasscodeStatus()
+
+    if (route.query.passcode === 'admin-setup' || route.query.passcode === 'admin-rotate') {
+      nextTick(() => {
+        document.getElementById('admin-passcode')?.scrollIntoView({ behavior: 'smooth' })
+      })
+    }
   }
 })
 </script>

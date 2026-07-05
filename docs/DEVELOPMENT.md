@@ -138,6 +138,89 @@ Extend the existing Resources database. Add **`App`** to the **Type** select. Fo
 
 ---
 
+## Musical Notes (Tina CMS + Nuxt Content)
+
+The **Musical Notes** tab uses **Tina Cloud Free** (Git-backed MDX) and **Nuxt Content** — not Notion or ImageKit.
+
+### How it works
+
+1. Content lives in `content/music/*.mdx` in this repo.
+2. **Admins** edit via Tina at `/admin` (site `role = admin` required + Tina Cloud login).
+3. Tina commits changes to GitHub → Vercel redeploys → visitors see updates.
+4. Signed-in users browse **Library → Musical Notes**; detail pages at `/library/music/{slug}`.
+
+### Tina Cloud setup (one-time, free)
+
+1. Create a project at [app.tina.io](https://app.tina.io) and connect this GitHub repository.
+2. Invite only admin email(s) as editors (free tier: up to 2 users).
+3. Copy **Client ID** and **Read token** into environment variables.
+
+### Environment variables
+
+```env
+NUXT_PUBLIC_TINA_CLIENT_ID=your_tina_client_id
+TINA_TOKEN=your_tina_read_token
+TINA_BRANCH=main
+```
+
+Add the same on **Vercel → Environment Variables**, then redeploy.
+
+### Music frontmatter schema
+
+| Field        | Type    | Notes                                      |
+| ------------ | ------- | ------------------------------------------ |
+| title        | string  | Song or piece name                         |
+| musicType    | select  | `lyrics`, `instrumental`, or `notation`    |
+| artist       | string  | Optional                                   |
+| language     | string  | Optional                                   |
+| youtubeUrl   | string  | Optional — embeds on detail page           |
+| spotifyUrl   | string  | Optional — embeds on detail page           |
+| tags         | list    | Optional                                   |
+| published    | boolean | Must be `true` to appear in the library    |
+| coverImage   | image   | Optional — stored under `public/music/`    |
+| body         | MDX     | Lyrics blocks, notation notes, etc.        |
+
+### MDX components for lyrics
+
+Use in the body:
+
+```md
+::lyrics-verse
+Line one
+Line two
+::
+
+::lyrics-chorus
+**Refrain** text here
+::
+```
+
+### Admin workflow
+
+1. Sign in as admin on the site.
+2. Open **Library → Musical Notes → Edit in Tina** (or go to `/admin`).
+3. Create or edit a **Musical Notes** entry; set **Published** when ready.
+4. Save in Tina (commits to Git) → wait for Vercel deploy.
+
+### Local development
+
+```bash
+# Standard Nuxt dev (read music MDX from repo)
+npm run dev
+
+# With Tina visual editor (requires Tina env vars in .env)
+npm run dev:tina
+```
+
+### Deploy checklist
+
+1. Set `NUXT_PUBLIC_TINA_CLIENT_ID`, `TINA_TOKEN`, `TINA_BRANCH` on Vercel.
+2. Connect Tina Cloud to the repo; invite admin editors only.
+3. Confirm build log includes `tinacms build` (skipped if env vars missing).
+4. Verify: visitor sees Musical Notes list; admin sees **Edit in Tina**; non-admin gets 403 on `/admin`.
+
+---
+
 ## Cloudflare R2 (Library Apps)
 
 App binaries (APK, MSIX) are stored in a **private** Cloudflare R2 bucket. The site generates short-lived presigned download URLs for signed-in users only. ImageKit remains for photos and videos.

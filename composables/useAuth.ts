@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 
 interface User {
-  id: number
+  id: string | number
   email: string
   name: string | null
   picture: string | null

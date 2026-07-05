@@ -8,10 +8,11 @@
     "#internal/nuxt/paths": "./internal/nuxt/paths.mjs"
   },
   "scripts": {
-    "build": "nuxt build",
+    "build": "node scripts/tina-build.mjs && nuxt build",
     "deploy:prebuilt": "npm run build && npx vercel deploy --prebuilt",
     "deploy:prebuilt:prod": "npm run build && npx vercel deploy --prebuilt --prod",
     "dev": "nuxt prepare && nuxt dev",
+    "dev:tina": "nuxt prepare && tinacms dev -c \"nuxt dev\"",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "lint": "nuxt prepare && eslint .",
@@ -40,6 +41,7 @@
     "@stefanobartoletti/nuxt-social-share": "^0.6.1",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.10",
+    "@tinacms/cli": "^2.5.2",
     "@types/google.maps": "^3.58.1",
     "@types/pg": "^8.11.11",
     "@vueuse/core": "^10.9.0",
@@ -54,6 +56,7 @@
     "prettier": "^3.5.3",
     "satori": "^0.19.2",
     "sharp": "^0.34.5",
+    "tinacms": "^3.9.4",
     "typescript": "^5.8.2",
     "unenv": "^1.10.0"
   },

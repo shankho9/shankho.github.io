@@ -6,25 +6,37 @@ import {
 import { query } from '~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
-  const user = await getCurrentUser(event)
-  if (!user) {
-    return { authenticated: false, isSet: false, needsRotation: false, expiresAt: null }
-  }
-  if (user.role !== 'admin') {
-    return { authenticated: true, isSet: false, needsRotation: false, expiresAt: null }
-  }
+  try {
+    const user = await getCurrentUser(event)
+    if (!user) {
+      return { authenticated: false, isSet: false, needsRotation: false, expiresAt: null }
+    }
+    if (user.role !== 'admin') {
+      return { authenticated: true, isSet: false, needsRotation: false, expiresAt: null }
+    }
 
-  const rows = await query<{ id: number }>('SELECT id FROM admin_passcodes WHERE user_id = $1', [
-    user.id,
-  ])
-  const isSet = rows.length > 0
-  const needsRotation = await needsAdminPasscodeRotation(user.id)
-  const expiresAt = await getAdminPasscodeExpiry(user.id)
+    const rows = await query<{ id: number }>(
+      'SELECT id FROM admin_passcodes WHERE user_id = $1',
+      [user.id],
+    )
+    const isSet = rows.length > 0
+    const needsRotation = isSet ? await needsAdminPasscodeRotation(user.id) : false
+    const expiresAt = await getAdminPasscodeExpiry(user.id)
 
-  return {
-    authenticated: true,
-    isSet,
-    needsRotation,
-    expiresAt: expiresAt ? expiresAt.toISOString() : null,
+    return {
+      authenticated: true,
+      isSet,
+      needsRotation,
+      expiresAt: expiresAt ? expiresAt.toISOString() : null,
+    }
+  } catch (error) {
+    console.error('[Admin Passcode Status] Error:', error)
+    return {
+      authenticated: false,
+      isSet: false,
+      needsRotation: false,
+      expiresAt: null,
+      error: 'Unable to check admin passcode status',
+    }
   }
 })

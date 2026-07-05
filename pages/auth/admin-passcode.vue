@@ -13,6 +13,18 @@
           </p>
         </div>
 
+        <div v-if="route.query.setup === 'unknown'" class="rounded-md bg-amber-50 dark:bg-amber-900/20 p-3">
+          <div class="flex">
+            <Icon name="mdi:alert" class="h-5 w-5 text-amber-500 shrink-0" />
+            <div class="ml-3">
+              <p class="text-sm text-amber-800 dark:text-amber-200">
+                Could not verify passcode status. Enter your admin passcode below, or
+                <NuxtLink to="/auth/settings" class="underline font-medium">set one in Settings</NuxtLink>.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div v-if="errorMessage" class="rounded-md bg-red-50 dark:bg-red-900/20 p-3">
           <div class="flex">
             <Icon name="mdi:alert-circle" class="h-5 w-5 text-red-400 shrink-0" />
