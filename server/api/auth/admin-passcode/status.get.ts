@@ -15,10 +15,9 @@ export default defineEventHandler(async (event) => {
       return { authenticated: true, isSet: false, needsRotation: false, expiresAt: null }
     }
 
-    const rows = await query<{ id: number }>(
-      'SELECT id FROM admin_passcodes WHERE user_id = $1',
-      [user.id],
-    )
+    const rows = await query<{ id: number }>('SELECT id FROM admin_passcodes WHERE user_id = $1', [
+      user.id,
+    ])
     const isSet = rows.length > 0
     const needsRotation = isSet ? await needsAdminPasscodeRotation(user.id) : false
     const expiresAt = await getAdminPasscodeExpiry(user.id)

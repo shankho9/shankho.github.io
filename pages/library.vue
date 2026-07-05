@@ -1138,10 +1138,7 @@ try {
       </div>
 
       <!-- Tab Content -->
-      <LibraryIntegrationNote
-        v-if="isAuthenticated || !currentTabRequiresAuth"
-        :tab="activeTab"
-      />
+      <LibraryIntegrationNote v-if="isAuthenticated || !currentTabRequiresAuth" :tab="activeTab" />
 
       <Transition
         mode="out-in"

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuth } from '~/composables/useAuth'
-import MusicListRow, { type MusicListItem, type MusicType } from '~/components/library/MusicListRow.vue'
+import MusicListRow, {
+  type MusicListItem,
+  type MusicType,
+} from '~/components/library/MusicListRow.vue'
 
 type MusicTab = 'lyrics' | 'instrumental' | 'notation'
 

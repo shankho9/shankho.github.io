@@ -291,7 +291,11 @@
             </div>
           </div>
           <div
-            v-if="adminPasscodeStatus.isSet && !adminPasscodeStatus.needsRotation && route.query.redirect"
+            v-if="
+              adminPasscodeStatus.isSet &&
+              !adminPasscodeStatus.needsRotation &&
+              route.query.redirect
+            "
             class="rounded-md bg-green-50 dark:bg-green-900/20 p-4 mb-4"
           >
             <p class="text-sm text-green-800 dark:text-green-200 mb-3">

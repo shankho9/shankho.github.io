@@ -65,9 +65,7 @@ const downloadSummary = computed(() => {
   return parts.length > 0 ? parts.join(' · ') : null
 })
 
-const hasAnyAction = computed(
-  () => props.app.playStoreUrl || props.app.hasApk || props.app.hasMsix,
-)
+const hasAnyAction = computed(() => props.app.playStoreUrl || props.app.hasApk || props.app.hasMsix)
 </script>
 
 <template>
@@ -88,11 +86,7 @@ const hasAnyAction = computed(
           format="webp"
           quality="80"
         />
-        <Icon
-          v-else
-          name="mdi:cellphone"
-          class="text-4xl text-sky-700 dark:text-sky-400"
-        />
+        <Icon v-else name="mdi:cellphone" class="text-4xl text-sky-700 dark:text-sky-400" />
       </div>
     </div>
 
@@ -147,7 +141,10 @@ const hasAnyAction = computed(
           <dt class="sr-only">Store</dt>
           <dd>Google Play available</dd>
         </div>
-        <div v-if="!hasAnyAction" class="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+        <div
+          v-if="!hasAnyAction"
+          class="flex items-center gap-1.5 text-amber-600 dark:text-amber-400"
+        >
           <Icon name="mdi:information-outline" size="14" />
           <dd>No download links configured</dd>
         </div>

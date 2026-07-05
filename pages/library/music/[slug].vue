@@ -47,7 +47,9 @@ const typeLabels: Record<string, string> = {
 
 useHead({
   title: meta.value?.title || 'Musical Notes',
-  meta: [{ name: 'description', content: `${meta.value?.title || 'Musical note'} — Media Library` }],
+  meta: [
+    { name: 'description', content: `${meta.value?.title || 'Musical note'} — Media Library` },
+  ],
 })
 </script>
 
@@ -64,7 +66,10 @@ useHead({
         Back to Musical Notes
       </NuxtLink>
 
-      <article v-if="article && meta" class="overflow-hidden rounded-2xl border border-amber-200/60 bg-white/90 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-800/90">
+      <article
+        v-if="article && meta"
+        class="overflow-hidden rounded-2xl border border-amber-200/60 bg-white/90 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-800/90"
+      >
         <div
           class="relative border-b border-amber-100 bg-gradient-to-r from-amber-50 via-orange-50/50 to-sky-50 px-6 py-8 dark:border-slate-700 dark:from-slate-800 dark:via-indigo-950/30 dark:to-slate-800"
         >

@@ -37,7 +37,8 @@ const shareUrl = computed(() => {
 const networks = ['facebook', 'twitter', 'linkedin', 'whatsapp', 'email'] as const
 
 const canNativeShare = computed(
-  () => import.meta.client && typeof navigator !== 'undefined' && typeof navigator.share === 'function',
+  () =>
+    import.meta.client && typeof navigator !== 'undefined' && typeof navigator.share === 'function',
 )
 
 const copyLink = async () => {

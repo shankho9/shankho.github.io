@@ -53,7 +53,14 @@ const hasEmbeds = computed(() => Boolean(youtubeEmbedId.value || spotifyEmbedPat
           :src="`https://www.youtube.com/embed/${youtubeEmbedId}`"
           title="YouTube player"
           class="h-full w-full"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allow="
+            accelerometer;
+            autoplay;
+            clipboard-write;
+            encrypted-media;
+            gyroscope;
+            picture-in-picture;
+          "
           allowfullscreen
         />
       </div>

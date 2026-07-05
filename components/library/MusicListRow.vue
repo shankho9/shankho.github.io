@@ -57,7 +57,11 @@ const typeBadgeClass: Record<MusicType, string> = {
         format="webp"
         quality="80"
       />
-      <Icon v-else :name="typeIcon[item.musicType]" class="text-3xl text-sky-700 dark:text-sky-400" />
+      <Icon
+        v-else
+        :name="typeIcon[item.musicType]"
+        class="text-3xl text-sky-700 dark:text-sky-400"
+      />
     </div>
 
     <div class="min-w-0 flex-1">
@@ -88,7 +92,10 @@ const typeBadgeClass: Record<MusicType, string> = {
           <Icon name="mdi:translate" size="14" />
           {{ item.language }}
         </span>
-        <span v-if="item.youtubeUrl" class="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
+        <span
+          v-if="item.youtubeUrl"
+          class="inline-flex items-center gap-1 text-red-600 dark:text-red-400"
+        >
           <Icon name="mdi:youtube" size="14" />
           YouTube
         </span>
