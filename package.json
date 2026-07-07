@@ -9,8 +9,8 @@
   },
   "scripts": {
     "build": "node scripts/tina-build.mjs && nuxt build",
-    "deploy:prebuilt": "npm run build && npx vercel deploy --prebuilt",
-    "deploy:prebuilt:prod": "npm run build && npx vercel deploy --prebuilt --prod",
+    "deploy:prebuilt": "vercel pull --yes && NITRO_PRESET=vercel npm run build && npx vercel deploy --prebuilt",
+    "deploy:prebuilt:prod": "vercel pull --yes --environment=production && NITRO_PRESET=vercel npm run build && npx vercel deploy --prebuilt --prod",
     "dev": "nuxt prepare && nuxt dev",
     "dev:tina": "nuxt prepare && tinacms dev -c \"nuxt dev\"",
     "generate": "nuxt generate",

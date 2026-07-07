@@ -44,11 +44,17 @@ jobs:
       - name: Check Format
         run: npm run format
 
+      # One build only. On main with VERCEL_* secrets: pull prod env, build for Vercel
+      # (.vercel/output), then deploy prebuilt. Otherwise: standard CI build.
+      # Primary production deploys still come from Vercel Git integration on push to main.
       - name: Build
         env:
           TINA_TOKEN: ${{ secrets.TINA_TOKEN }}
           NUXT_PUBLIC_TINA_CLIENT_ID: ${{ secrets.NUXT_PUBLIC_TINA_CLIENT_ID }}
           TINA_BRANCH: main
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           if [ -n "$TINA_TOKEN" ] && [ -n "$NUXT_PUBLIC_TINA_CLIENT_ID" ]; then
             export TINA_BUILD_STRICT=1
@@ -56,49 +62,45 @@ jobs:
           else
             echo "::warning::Tina secrets not configured — tinacms build will be skipped in CI"
           fi
+
+          cli_deploy=false
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            if [ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_ORG_ID" ] && [ -n "$VERCEL_PROJECT_ID" ]; then
+              cli_deploy=true
+            else
+              echo "Vercel CLI deploy skipped — missing VERCEL_TOKEN, VERCEL_ORG_ID, or VERCEL_PROJECT_ID."
+              echo "Production still deploys via Vercel Git integration on push to main."
+            fi
+          fi
+
+          if [ "$cli_deploy" = true ]; then
+            set +e
+            npx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+            pull_status=$?
+            set -e
+            if [ $pull_status -ne 0 ]; then
+              echo "::warning::vercel pull failed (status $pull_status). Check VERCEL_ORG_ID and VERCEL_PROJECT_ID."
+              echo "Falling back to standard CI build; production still deploys via Vercel Git integration."
+              cli_deploy=false
+            else
+              export NITRO_PRESET=vercel
+              echo "Building once for Vercel prebuilt deploy (NITRO_PRESET=vercel)"
+            fi
+          fi
+
           npm run build
 
-      # Optional CLI deploy. Primary production deploys come from Vercel's Git integration
-      # (each push to main already triggers a Vercel deployment). This step is a backup
-      # only when VERCEL_* secrets match the shankho.blogsite project.
-      - name: Deploy to Vercel production (optional)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          GITHUB_SHA: ${{ github.sha }}
-        run: |
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "::warning::Vercel CLI deploy skipped — missing VERCEL_TOKEN, VERCEL_ORG_ID, or VERCEL_PROJECT_ID."
-            echo "Production still deploys via Vercel Git integration on push to main."
-            exit 0
+          if [ "$cli_deploy" = true ]; then
+            if [ ! -d ".vercel/output" ]; then
+              echo "::warning::.vercel/output missing after build — skipping CLI deploy."
+              exit 0
+            fi
+            set +e
+            npx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+            deploy_status=$?
+            if [ $deploy_status -ne 0 ]; then
+              echo "::warning::vercel deploy failed (status $deploy_status)."
+              exit 0
+            fi
+            echo "Vercel CLI production deploy succeeded for ${{ github.sha }}"
           fi
-          set +e
-          npm install -g vercel@latest
-          install_status=$?
-          if [ $install_status -ne 0 ]; then
-            echo "::warning::Failed to install Vercel CLI (status $install_status)."
-            echo "Production still deploys via Vercel Git integration if that is connected."
-            exit 0
-          fi
-          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          pull_status=$?
-          if [ $pull_status -ne 0 ]; then
-            echo "::warning::vercel pull failed (status $pull_status). Check VERCEL_ORG_ID and VERCEL_PROJECT_ID."
-            echo "Production still deploys via Vercel Git integration if that is connected."
-            exit 0
-          fi
-          vercel build --prod --token="$VERCEL_TOKEN"
-          build_status=$?
-          if [ $build_status -ne 0 ]; then
-            echo "::warning::vercel build failed (status $build_status). See Vercel Git deployment for production."
-            exit 0
-          fi
-          vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
-          deploy_status=$?
-          if [ $deploy_status -ne 0 ]; then
-            echo "::warning::vercel deploy failed (status $deploy_status)."
-            exit 0
-          fi
-          echo "Vercel CLI production deploy succeeded for $GITHUB_SHA"
