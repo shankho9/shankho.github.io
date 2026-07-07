@@ -1,7 +1,5 @@
 <script setup>
 import { siteMetaData } from './data'
-import { Analytics } from '@vercel/analytics/nuxt'
-import { SpeedInsights } from '@vercel/speed-insights/vue'
 import { useHead, useRuntimeConfig } from '#imports'
 
 const config = useRuntimeConfig()
@@ -45,8 +43,7 @@ useHead({
 </script>
 
 <template>
-  <Analytics />
-  <SpeedInsights />
+  <VercelTracking />
   <div class="bg-[#F1F2F4] dark:text-zinc-300 dark:bg-slate-950 overflow-x-hidden min-w-0">
     <NuxtLoadingIndicator />
     <NuxtLayout>
