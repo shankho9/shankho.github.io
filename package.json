@@ -19,6 +19,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --check ./",
     "format:fix": "prettier --write ./",
+    "format:content": "prettier --write 'content/**'",
     "migrate": "node scripts/migrations/run-all-migrations.cjs",
     "migrate:prod": "NODE_ENV=production node scripts/migrations/run-all-migrations.cjs",
     "migrate:recreate": "node scripts/migrations/run-all-migrations.cjs --recreate",

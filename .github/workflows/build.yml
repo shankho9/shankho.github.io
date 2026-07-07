@@ -1,7 +1,7 @@
 name: Node.js CI
 
 permissions:
-  contents: read
+  contents: write
 
 on:
   push:
@@ -25,6 +25,18 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # TinaCMS commits MDX without Prettier; fix on main so format check passes.
+      - name: Auto-format Tina content
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: npx prettier --write 'content/**'
+
+      - name: Commit formatted content
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore: format content [skip ci]'
+          file_pattern: 'content/**'
 
       - name: Check Linting
         run: npm run lint
