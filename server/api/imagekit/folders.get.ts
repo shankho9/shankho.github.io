@@ -1,6 +1,7 @@
 import { createError, defineEventHandler, getQuery } from 'h3'
 import { useRuntimeConfig } from '#imports'
 import { getCurrentUser } from '~/server/utils/auth'
+import { envOrConfig } from '~/server/utils/runtimeEnv'
 
 interface ImageKitFile {
   fileId: string
@@ -20,13 +21,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Authentication required' })
   }
 
-  const config = useRuntimeConfig()
+  const config = useRuntimeConfig(event)
   const query = getQuery(event)
 
-  // Get ImageKit credentials from runtime config
-  const imageKitPrivateKey = config.imageKitPrivateKey
-
-  const _imageKitUrlEndpoint = config.imageKitUrlEndpoint
+  const imageKitPrivateKey = envOrConfig(config.imageKitPrivateKey, 'IMAGEKIT_PRIVATE_KEY')
+  const _imageKitUrlEndpoint = envOrConfig(config.imageKitUrlEndpoint, 'IMAGEKIT_URL_ENDPOINT')
 
   // Validate configuration
   if (!imageKitPrivateKey) {

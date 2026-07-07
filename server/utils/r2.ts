@@ -1,15 +1,16 @@
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { useRuntimeConfig } from '#imports'
+import { envOrConfig } from '~/server/utils/runtimeEnv'
 
 const DEFAULT_PRESIGN_TTL_SECONDS = 300
 
 function getR2Client(): S3Client {
   const config = useRuntimeConfig()
 
-  const accountId = config.r2AccountId
-  const accessKeyId = config.r2AccessKeyId
-  const secretAccessKey = config.r2SecretAccessKey
+  const accountId = envOrConfig(config.r2AccountId, 'R2_ACCOUNT_ID')
+  const accessKeyId = envOrConfig(config.r2AccessKeyId, 'R2_ACCESS_KEY_ID')
+  const secretAccessKey = envOrConfig(config.r2SecretAccessKey, 'R2_SECRET_ACCESS_KEY')
 
   if (!accountId || !accessKeyId || !secretAccessKey) {
     throw new Error(

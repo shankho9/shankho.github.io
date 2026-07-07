@@ -1,6 +1,7 @@
 import { createError, defineEventHandler, getQuery } from 'h3'
 import { useRuntimeConfig } from '#imports'
 import { getCurrentUser } from '~/server/utils/auth'
+import { envOrConfig } from '~/server/utils/runtimeEnv'
 import {
   filterPublishedItems,
   isValidDatabaseId,
@@ -15,11 +16,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Authentication required' })
   }
 
-  const config = useRuntimeConfig()
+  const config = useRuntimeConfig(event)
   const query = getQuery(event)
 
-  const notionApiKey = config.notionApiKey
-  const databaseId = config.notionDatabaseId
+  const notionApiKey = envOrConfig(config.notionApiKey, 'NOTION_API_KEY')
+  const databaseId = envOrConfig(config.notionDatabaseId, 'NOTION_DATABASE_ID')
 
   if (!notionApiKey) {
     return {
