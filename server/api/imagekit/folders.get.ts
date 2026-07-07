@@ -24,7 +24,11 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
   const query = getQuery(event)
 
-  const imageKitPrivateKey = envOrConfig(config.imageKitPrivateKey, 'IMAGEKIT_PRIVATE_KEY')
+  const imageKitPrivateKey = envOrConfig(
+    config.imageKitPrivateKey,
+    'IMAGEKIT_PRIVATE_KEY',
+    'NUXT_IMAGE_KIT_PRIVATE_KEY',
+  )
   const _imageKitUrlEndpoint = envOrConfig(config.imageKitUrlEndpoint, 'IMAGEKIT_URL_ENDPOINT')
 
   // Validate configuration
