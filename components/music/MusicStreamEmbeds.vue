@@ -33,7 +33,9 @@ const spotifyEmbedPath = computed(() => {
   if (!url) return null
   try {
     const parsed = new URL(url)
-    if (!parsed.hostname.includes('spotify.com')) return null
+    const hostname = parsed.hostname.toLowerCase()
+    const allowedSpotifyHosts = ['open.spotify.com']
+    if (!allowedSpotifyHosts.includes(hostname)) return null
     const path = parsed.pathname
     if (!path.includes('/track/') && !path.includes('/album/') && !path.includes('/playlist/')) {
       return null
