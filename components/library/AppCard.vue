@@ -1,18 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-
-export interface AppListItem {
-  id: string
-  title: string
-  description: string
-  version: string
-  categories: string[]
-  playStoreUrl: string | null
-  iconUrl: string | null
-  hasApk: boolean
-  hasMsix: boolean
-  updatedAt: string | null
-}
+import type { AppListItem } from '~/types/apps'
+import {
+  appHasAnyAction,
+  formatAppUpdatedAt,
+  getAppCategoryIcon,
+  getAppDownloadUrl,
+} from '~/utils/apps/display'
 
 interface Props {
   app: AppListItem
@@ -20,33 +14,16 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const downloadUrl = (format: 'apk' | 'msix') =>
-  `/api/apps/download?id=${encodeURIComponent(props.app.id)}&format=${format}`
+const emit = defineEmits<{
+  select: []
+}>()
 
-const categoryIcon = (category: string): string => {
-  const lower = category.toLowerCase()
-  if (lower.includes('android')) return 'mdi:android'
-  if (lower.includes('ios') || lower.includes('apple')) return 'mdi:apple'
-  if (lower.includes('desktop') || lower.includes('windows')) return 'mdi:microsoft-windows'
-  if (lower.includes('mac')) return 'mdi:apple'
-  if (lower.includes('web')) return 'mdi:web'
-  return 'mdi:cellphone'
-}
+const cardDescription = computed(
+  () => props.app.description.trim() || 'Tap for details',
+)
 
-const formattedUpdatedAt = computed(() => {
-  if (!props.app.updatedAt) return null
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    }).format(new Date(props.app.updatedAt))
-  } catch {
-    return null
-  }
-})
-
-const hasAnyAction = computed(() => props.app.playStoreUrl || props.app.hasApk || props.app.hasMsix)
+const formattedUpdatedAt = computed(() => formatAppUpdatedAt(props.app.updatedAt))
+const hasAnyAction = computed(() => appHasAnyAction(props.app))
 const imageFailed = ref(false)
 
 watch(
@@ -55,11 +32,20 @@ watch(
     imageFailed.value = false
   },
 )
+
+function onCardClick() {
+  emit('select')
+}
 </script>
 
 <template>
   <article
-    class="group flex h-full flex-col gap-3 rounded-xl border border-gray-200/90 bg-white p-3 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-600"
+    role="button"
+    tabindex="0"
+    class="group flex h-full cursor-pointer flex-col gap-3 rounded-xl border border-gray-200/90 bg-white p-3 text-left shadow-sm transition-all hover:border-sky-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-600"
+    @click="onCardClick"
+    @keydown.enter.prevent="onCardClick"
+    @keydown.space.prevent="onCardClick"
   >
     <div class="flex items-start gap-3">
       <div
@@ -83,10 +69,14 @@ watch(
         </h3>
 
         <p
-          v-if="app.description"
-          class="mt-1 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400"
+          :class="[
+            'mt-1 line-clamp-2 text-xs',
+            app.description.trim()
+              ? 'text-zinc-500 dark:text-zinc-400'
+              : 'italic text-zinc-400 dark:text-zinc-500',
+          ]"
         >
-          {{ app.description }}
+          {{ cardDescription }}
         </p>
       </div>
     </div>
@@ -112,8 +102,17 @@ watch(
         :key="category"
         class="inline-flex items-center gap-0.5 rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-slate-700"
       >
-        <Icon :name="categoryIcon(category)" size="12" />
+        <Icon :name="getAppCategoryIcon(category)" size="12" />
         {{ category }}
+      </span>
+
+      <span
+        v-if="app.webUrl"
+        class="inline-flex items-center gap-0.5 text-violet-600 dark:text-violet-400"
+        title="Web app available"
+      >
+        <Icon name="mdi:web" size="13" />
+        Web
       </span>
 
       <span
@@ -149,6 +148,18 @@ watch(
       class="mt-auto flex flex-wrap gap-1.5 border-t border-gray-100 pt-2.5 dark:border-slate-700"
     >
       <a
+        v-if="app.webUrl"
+        :href="app.webUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center justify-center gap-1 rounded-md bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
+        title="Open web app"
+        @click.stop
+      >
+        <Icon name="mdi:web" size="14" />
+        Web
+      </a>
+      <a
         v-if="app.playStoreUrl"
         :href="app.playStoreUrl"
         target="_blank"
@@ -162,7 +173,7 @@ watch(
       </a>
       <a
         v-if="app.hasApk"
-        :href="downloadUrl('apk')"
+        :href="getAppDownloadUrl(app.slug, 'apk')"
         class="inline-flex items-center justify-center gap-1 rounded-md bg-sky-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-sky-700"
         title="Download APK"
         @click.stop
@@ -172,7 +183,7 @@ watch(
       </a>
       <a
         v-if="app.hasMsix"
-        :href="downloadUrl('msix')"
+        :href="getAppDownloadUrl(app.slug, 'msix')"
         class="inline-flex items-center justify-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
         title="Download MSIX"
         @click.stop

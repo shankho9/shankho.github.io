@@ -37,6 +37,8 @@ export function useTinaEditor() {
   })
 
   const musicCollectionUrl = '/admin/index.html#/collections/music'
+  const resourcesCollectionUrl = '/admin/index.html#/collections/resources'
+  const appsCollectionUrl = '/admin/index.html#/collections/apps'
   const adminHomeUrl = '/admin/index.html'
 
   function musicDocumentUrl(slug: string): string {
@@ -53,6 +55,8 @@ export function useTinaEditor() {
     adminReachable,
     adminCheckDone,
     musicCollectionUrl,
+    resourcesCollectionUrl,
+    appsCollectionUrl,
     adminHomeUrl,
     musicDocumentUrl,
     editorUnavailableHint,

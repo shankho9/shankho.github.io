@@ -1,122 +1,48 @@
 <script setup lang="ts">
-import type { NotionItem } from '~/composables/useNotion'
-import { getNotionItemImageUrl } from '~/utils/notion/images'
+import type { ResourceListItem, ResourceType } from '~/types/resources'
+import {
+  formatResourceUpdatedAt,
+  getResourceLinkHost,
+  getResourceTypeIcon,
+} from '~/utils/resources/display'
 
 interface Props {
-  item: NotionItem
-  type?: 'book' | 'tool' | 'learning' | 'default'
+  item: ResourceListItem
+  type?: ResourceType | 'default'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   type: 'default',
 })
 
-function pickString(item: NotionItem, ...keys: string[]): string {
-  for (const key of keys) {
-    const value = item[key]
-    if (typeof value === 'string' && value.trim()) return value.trim()
-  }
-  return ''
-}
-
-function pickStringArray(item: NotionItem, ...keys: string[]): string[] {
-  for (const key of keys) {
-    const value = item[key]
-    if (Array.isArray(value)) {
-      return value
-        .filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
-        .map((entry) => entry.trim())
-    }
-    if (typeof value === 'string' && value.trim()) return [value.trim()]
-  }
-  return []
-}
-
-const title = computed(() => {
-  return pickString(props.item, 'Title', 'title', 'Name', 'name') || 'Untitled'
+const cardType = computed((): ResourceType => {
+  if (props.type !== 'default') return props.type
+  return props.item.resourceType
 })
 
-const description = computed(() => {
-  return pickString(props.item, 'Description', 'description')
-})
+const title = computed(() => props.item.title)
+const description = computed(() => props.item.description)
+const link = computed(() => props.item.link)
+const category = computed(() => props.item.category)
+const author = computed(() => props.item.author)
+const publisher = computed(() => props.item.publisher)
+const year = computed(() => props.item.year)
+const status = computed(() => props.item.status)
+const rating = computed(() => props.item.rating)
+const tags = computed(() => props.item.tags.slice(0, 3))
+const formattedUpdatedAt = computed(() => formatResourceUpdatedAt(props.item.updatedAt))
+const linkHost = computed(() => getResourceLinkHost(link.value))
 
-const link = computed(() => {
-  return pickString(props.item, 'Link', 'link', 'URL', 'url') || props.item.notionUrl || ''
-})
+const typeIcon = computed(() => getResourceTypeIcon(cardType.value, props.item.icon))
+const imageUrl = computed(() => props.item.coverImageUrl || null)
+const imageFailed = ref(false)
 
-const category = computed(() => pickString(props.item, 'Category', 'category'))
-
-const author = computed(() => pickString(props.item, 'Author', 'author'))
-
-const publisher = computed(() => pickString(props.item, 'Publisher', 'publisher'))
-
-const year = computed(() => {
-  const raw = pickString(props.item, 'Year', 'year')
-  if (raw) return raw
-  const date = pickString(props.item, 'Published Date', 'publishedDate', 'Date', 'date')
-  if (date) {
-    try {
-      return new Intl.DateTimeFormat(undefined, { year: 'numeric' }).format(new Date(date))
-    } catch {
-      return date
-    }
-  }
-  return ''
-})
-
-const status = computed(() => pickString(props.item, 'Status', 'status'))
-
-const rating = computed(() => {
-  const raw = props.item.Rating ?? props.item.rating
-  if (typeof raw === 'number' && !Number.isNaN(raw)) return raw
-  if (typeof raw === 'string' && raw.trim()) return raw.trim()
-  return ''
-})
-
-const tags = computed(() => pickStringArray(props.item, 'Tags', 'tags').slice(0, 3))
-
-const platforms = computed(() => pickStringArray(props.item, 'Platforms', 'platforms').slice(0, 3))
-
-const formattedUpdatedAt = computed(() => {
-  const raw = props.item.updatedAt || props.item.Updated || props.item.updated
-  if (!raw || typeof raw !== 'string') return null
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    }).format(new Date(raw))
-  } catch {
-    return null
-  }
-})
-
-const linkHost = computed(() => {
-  if (!link.value) return null
-  try {
-    return new URL(link.value).hostname.replace(/^www\./, '')
-  } catch {
-    return null
-  }
-})
-
-const typeIcon = computed(() => {
-  const custom = props.item.Icon || props.item.icon
-  if (typeof custom === 'string' && custom) return custom
-  switch (props.type) {
-    case 'book':
-      return 'mdi:book-open-variant'
-    case 'tool':
-      return 'mdi:tools'
-    case 'learning':
-      return 'mdi:school'
-    default:
-      return 'mdi:link'
-  }
+watch(imageUrl, () => {
+  imageFailed.value = false
 })
 
 const typeLabel = computed(() => {
-  switch (props.type) {
+  switch (cardType.value) {
     case 'book':
       return 'Book'
     case 'tool':
@@ -129,7 +55,7 @@ const typeLabel = computed(() => {
 })
 
 const typeBadgeClass = computed(() => {
-  switch (props.type) {
+  switch (cardType.value) {
     case 'book':
       return 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300'
     case 'tool':
@@ -140,32 +66,13 @@ const typeBadgeClass = computed(() => {
       return 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300'
   }
 })
-
-const imageUrl = computed(() => getNotionItemImageUrl(props.item))
-const imageFailed = ref(false)
-
-watch(imageUrl, () => {
-  imageFailed.value = false
-})
-
-const platformIcon = (platform: string): string => {
-  const lower = platform.toLowerCase()
-  if (lower.includes('web') || lower.includes('browser')) return 'mdi:web'
-  if (lower.includes('mobile') || lower.includes('android') || lower.includes('ios')) {
-    return 'mdi:cellphone'
-  }
-  if (lower.includes('desktop') || lower.includes('windows') || lower.includes('mac')) {
-    return 'mdi:monitor'
-  }
-  return 'mdi:application-outline'
-}
 </script>
 
 <template>
   <a
-    :href="link"
-    target="_blank"
-    rel="noopener noreferrer"
+    :href="link || '#'"
+    :target="link ? '_blank' : undefined"
+    :rel="link ? 'noopener noreferrer' : undefined"
     class="group flex h-full flex-col gap-3 rounded-xl border border-gray-200/90 bg-white p-3 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-600"
   >
     <div class="flex items-start gap-3">
@@ -240,15 +147,6 @@ const platformIcon = (platform: string): string => {
       <span v-if="status" class="inline-flex items-center gap-1">
         <Icon name="mdi:progress-check" size="13" class="shrink-0 text-zinc-400" />
         {{ status }}
-      </span>
-
-      <span
-        v-for="platform in platforms"
-        :key="platform"
-        class="inline-flex items-center gap-0.5 rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-slate-700"
-      >
-        <Icon :name="platformIcon(platform)" size="12" />
-        {{ platform }}
       </span>
 
       <span

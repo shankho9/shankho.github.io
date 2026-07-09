@@ -89,6 +89,160 @@ export default defineConfig({
           },
         ],
       },
+      {
+        name: 'resources',
+        label: 'Resources',
+        path: 'content/resources',
+        format: 'mdx',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+            label: 'Title',
+            isTitle: true,
+            required: true,
+          },
+          {
+            type: 'string',
+            name: 'resourceType',
+            label: 'Type',
+            required: true,
+            options: [
+              { label: 'Book', value: 'book' },
+              { label: 'Tool', value: 'tool' },
+              { label: 'Learning', value: 'learning' },
+            ],
+          },
+          {
+            type: 'string',
+            name: 'description',
+            label: 'Description',
+          },
+          {
+            type: 'string',
+            name: 'link',
+            label: 'Link URL',
+          },
+          {
+            type: 'string',
+            name: 'category',
+            label: 'Category',
+          },
+          {
+            type: 'string',
+            name: 'author',
+            label: 'Author',
+          },
+          {
+            type: 'string',
+            name: 'publisher',
+            label: 'Publisher',
+          },
+          {
+            type: 'string',
+            name: 'year',
+            label: 'Year',
+          },
+          {
+            type: 'string',
+            name: 'status',
+            label: 'Status',
+          },
+          {
+            type: 'string',
+            name: 'rating',
+            label: 'Rating',
+          },
+          {
+            type: 'string',
+            name: 'tags',
+            label: 'Tags',
+            list: true,
+          },
+          {
+            type: 'string',
+            name: 'icon',
+            label: 'Icon (MDI name, e.g. mdi:tools)',
+          },
+          {
+            type: 'string',
+            name: 'coverImageUrl',
+            label: 'Cover Image URL (R2, ImageKit, or HTTPS)',
+          },
+          {
+            type: 'boolean',
+            name: 'published',
+            label: 'Published',
+          },
+        ],
+      },
+      {
+        name: 'apps',
+        label: 'Apps',
+        path: 'content/apps',
+        format: 'mdx',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+            label: 'Title',
+            isTitle: true,
+            required: true,
+          },
+          {
+            type: 'string',
+            name: 'description',
+            label: 'Description (card blurb)',
+          },
+          {
+            type: 'string',
+            name: 'details',
+            label: 'Details (modal body)',
+            ui: { component: 'textarea' },
+          },
+          {
+            type: 'string',
+            name: 'categories',
+            label: 'Categories',
+            list: true,
+          },
+          {
+            type: 'string',
+            name: 'version',
+            label: 'Version',
+          },
+          {
+            type: 'string',
+            name: 'webUrl',
+            label: 'Web URL',
+          },
+          {
+            type: 'string',
+            name: 'playStoreUrl',
+            label: 'Play Store URL',
+          },
+          {
+            type: 'string',
+            name: 'iconUrl',
+            label: 'Icon URL (R2 public URL or HTTPS)',
+          },
+          {
+            type: 'string',
+            name: 'apkKey',
+            label: 'APK Key (R2 object key)',
+          },
+          {
+            type: 'string',
+            name: 'msixKey',
+            label: 'MSIX Key (R2 object key)',
+          },
+          {
+            type: 'boolean',
+            name: 'published',
+            label: 'Published',
+          },
+        ],
+      },
     ],
   },
 })

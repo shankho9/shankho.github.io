@@ -1,12 +1,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import AppCard, { type AppListItem } from '~/components/notion/AppCard.vue'
+import type { AppListItem } from '~/types/apps'
+import { toAppListItem } from '~/utils/apps/content'
+import AppCard from '~/components/library/AppCard.vue'
+import AppDetailModal from '~/components/library/AppDetailModal.vue'
+import TinaEditButton from '~/components/library/TinaEditButton.vue'
+import { useTinaEditor } from '~/composables/useTinaEditor'
 
 const apps = ref<AppListItem[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 const searchQuery = ref('')
-const listTruncated = ref(false)
+const selectedApp = ref<AppListItem | null>(null)
+const showModal = ref(false)
+
+const { appsCollectionUrl } = useTinaEditor()
 
 const filteredApps = computed(() => {
   if (!searchQuery.value.trim()) return apps.value
@@ -14,25 +22,31 @@ const filteredApps = computed(() => {
   return apps.value.filter((app) => {
     if (app.title.toLowerCase().includes(query)) return true
     if (app.description.toLowerCase().includes(query)) return true
+    if (app.details?.toLowerCase().includes(query)) return true
     if (app.categories.some((c) => c.toLowerCase().includes(query))) return true
     if (app.version.toLowerCase().includes(query)) return true
     return false
   })
 })
 
+const openApp = (app: AppListItem) => {
+  selectedApp.value = app
+  showModal.value = true
+}
+
+const closeModal = () => {
+  showModal.value = false
+  selectedApp.value = null
+}
+
 const loadApps = async () => {
   isLoading.value = true
   error.value = null
   try {
-    const response = await $fetch<{
-      success: boolean
-      items: AppListItem[]
-      truncated?: boolean
-    }>('/api/apps/list')
-    if (response.success) {
-      apps.value = response.items
-      listTruncated.value = response.truncated ?? false
-    }
+    const docs = await queryCollection('apps').all()
+    apps.value = docs
+      .filter((doc) => doc.published === true)
+      .map((doc) => toAppListItem(doc))
   } catch (err) {
     console.error('[AppsTab] Failed to load apps:', err)
     error.value = err instanceof Error ? err.message : 'Failed to load apps'
@@ -71,24 +85,21 @@ defineExpose({ apps, loadApps, isLoading })
     </div>
 
     <div v-else>
-      <p
-        v-if="listTruncated"
-        class="mb-4 rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-sm text-amber-900 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-100"
-      >
-        Showing the first 500 published apps. More exist in Notion and are not listed here yet.
-      </p>
-
       <LibraryTabToolbar
         v-model:search="searchQuery"
         search-placeholder="Search apps, categories, version..."
-      />
+      >
+        <template #actions>
+          <TinaEditButton :href="appsCollectionUrl" />
+        </template>
+      </LibraryTabToolbar>
 
       <p v-if="searchQuery" class="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
         {{ filteredApps.length }} {{ filteredApps.length === 1 ? 'result' : 'results' }}
       </p>
 
       <div v-if="filteredApps.length > 0" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <AppCard v-for="app in filteredApps" :key="app.id" :app="app" />
+        <AppCard v-for="app in filteredApps" :key="app.id" :app="app" @select="openApp(app)" />
       </div>
 
       <div v-else class="py-12 text-center">
@@ -97,9 +108,11 @@ defineExpose({ apps, loadApps, isLoading })
           {{ searchQuery ? `No apps found matching "${searchQuery}"` : 'No apps available yet' }}
         </p>
         <p v-if="!searchQuery" class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-          Add apps to your Notion database with Type = App to see them here.
+          Add apps in Tina CMS to see them here.
         </p>
       </div>
     </div>
+
+    <AppDetailModal :open="showModal" :app="selectedApp" @close="closeModal" />
   </div>
 </template>

@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useNotion, type NotionItem } from '~/composables/useNotion'
-import NotionResourceCard from './ResourceCard.vue'
+import TinaEditButton from '~/components/library/TinaEditButton.vue'
+import ResourceCard from '~/components/library/ResourceCard.vue'
+import type { ResourceListItem, ResourceType } from '~/types/resources'
+import { toResourceListItem } from '~/utils/resources/display'
+import { useTinaEditor } from '~/composables/useTinaEditor'
 
 type ResourceTab = 'books' | 'tools' | 'learning'
 
 const activeResourceTab = ref<ResourceTab>('books')
 const searchQuery = ref('')
+const isLoading = ref(true)
+const error = ref<string | null>(null)
+const items = ref<ResourceListItem[]>([])
 
-const { isLoading, error, fetchDatabase } = useNotion()
-const items = ref<NotionItem[]>([])
-const listTruncated = ref(false)
+const { resourcesCollectionUrl } = useTinaEditor()
 
 const resourceTabs: {
   id: ResourceTab
@@ -23,42 +27,16 @@ const resourceTabs: {
   { id: 'learning', label: 'Learning', shortLabel: 'Learn', icon: 'mdi:school' },
 ]
 
-const extractTypeString = (item: NotionItem): string => {
-  let type = item.Type || item.type
-  if (type && typeof type === 'object' && 'name' in type) {
-    type = type.name
-  }
-  if (typeof type !== 'string') {
-    type = item.type
-    if (type && typeof type === 'object' && 'name' in type) {
-      type = type.name
-    }
-  }
-  return typeof type === 'string' ? type.trim() : ''
+const tabResourceType = (tab: ResourceTab): ResourceType => {
+  if (tab === 'books') return 'book'
+  if (tab === 'tools') return 'tool'
+  return 'learning'
 }
 
-const books = computed(() =>
-  items.value.filter((item) => {
-    const published = item.Published || item.published || false
-    if (!published) return false
-    return extractTypeString(item) === 'Book'
-  }),
-)
-
-const tools = computed(() =>
-  items.value.filter((item) => {
-    const published = item.Published || item.published || false
-    if (!published) return false
-    return extractTypeString(item) === 'Tool'
-  }),
-)
-
+const books = computed(() => items.value.filter((item) => item.resourceType === 'book'))
+const tools = computed(() => items.value.filter((item) => item.resourceType === 'tool'))
 const learningResources = computed(() =>
-  items.value.filter((item) => {
-    const published = item.Published || item.published || false
-    if (!published) return false
-    return extractTypeString(item) === 'Learning Resource'
-  }),
+  items.value.filter((item) => item.resourceType === 'learning'),
 )
 
 const tabCounts = computed(() => ({
@@ -85,14 +63,10 @@ const filteredItems = computed(() => {
 
   const query = searchQuery.value.toLowerCase().trim()
   return currentTabItems.value.filter((item) => {
-    const title = item.Title || item.title || item.Name || item.name || ''
-    if (title && String(title).toLowerCase().includes(query)) return true
-    const description = item.Description || item.description || ''
-    if (description && String(description).toLowerCase().includes(query)) return true
-    const category = item.Category || item.category || ''
-    if (category && String(category).toLowerCase().includes(query)) return true
-    const author = item.Author || item.author || ''
-    if (author && String(author).toLowerCase().includes(query)) return true
+    if (item.title.toLowerCase().includes(query)) return true
+    if (item.description.toLowerCase().includes(query)) return true
+    if (item.category.toLowerCase().includes(query)) return true
+    if (item.author?.toLowerCase().includes(query)) return true
     return false
   })
 })
@@ -110,30 +84,36 @@ const searchPlaceholder = computed(() => {
   }
 })
 
-const cardType = computed((): 'book' | 'tool' | 'learning' => {
-  if (activeResourceTab.value === 'books') return 'book'
-  if (activeResourceTab.value === 'tools') return 'tool'
-  return 'learning'
-})
+const cardType = computed(() => tabResourceType(activeResourceTab.value))
 
 const loadResources = async () => {
-  const response = await fetchDatabase({})
-  if (response.success) {
-    items.value = response.items
-    listTruncated.value = response.truncated ?? false
+  isLoading.value = true
+  error.value = null
+  try {
+    const docs = await queryCollection('resources').all()
+    items.value = docs
+      .map(toResourceListItem)
+      .filter((item): item is ResourceListItem => item !== null)
+  } catch (err) {
+    console.error('[ResourcesTab] Failed to load resources:', err)
+    error.value = err instanceof Error ? err.message : 'Failed to load resources'
+  } finally {
+    isLoading.value = false
   }
 }
 
 onMounted(() => {
   loadResources()
 })
+
+defineExpose({ items, loadResources, isLoading })
 </script>
 
 <template>
   <div>
     <div v-if="isLoading" class="py-12 text-center">
       <Icon name="svg-spinners:180-ring" class="mb-4 text-4xl text-sky-700 dark:text-sky-400" />
-      <p class="text-zinc-600 dark:text-zinc-400">Loading resources from Notion...</p>
+      <p class="text-zinc-600 dark:text-zinc-400">Loading resources...</p>
     </div>
 
     <div
@@ -152,13 +132,6 @@ onMounted(() => {
     </div>
 
     <div v-else>
-      <p
-        v-if="listTruncated"
-        class="mb-4 rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-sm text-amber-900 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-100"
-      >
-        Showing the first 500 published resources. More exist in Notion and are not listed here yet.
-      </p>
-
       <LibraryTabToolbar v-model:search="searchQuery" :search-placeholder="searchPlaceholder">
         <template #tabs>
           <LibraryTabPill
@@ -171,6 +144,9 @@ onMounted(() => {
             @click="activeResourceTab = tab.id"
           />
         </template>
+        <template #actions>
+          <TinaEditButton :href="resourcesCollectionUrl" />
+        </template>
       </LibraryTabToolbar>
 
       <p v-if="searchQuery" class="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
@@ -178,7 +154,7 @@ onMounted(() => {
       </p>
 
       <div v-if="filteredItems.length > 0" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <NotionResourceCard
+        <ResourceCard
           v-for="item in filteredItems"
           :key="item.id"
           :item="item"
@@ -205,7 +181,7 @@ onMounted(() => {
           }}
         </p>
         <p v-if="!searchQuery" class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-          Add items to your Notion database to see them here.
+          Add items in Tina CMS to see them here.
         </p>
       </div>
     </div>

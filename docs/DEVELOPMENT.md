@@ -68,7 +68,7 @@ Nav links for LifeLines, Library, and Gallery are visible to everyone; opening t
 ## Codebase
 
 - **`server/api/`** – API by feature (auth, blog, travel, dev, etc.)
-- **`server/utils/`** – `auth`, `db`, `email`, `notion`, `r2`, `apps`, `getClientIP`
+- **`server/utils/`** – `auth`, `db`, `email`, `r2`, `apps`, `getClientIP`
 - **`composables/`** – `useAuth`, `useAdminAccessGuard`, etc.
 - **`scripts/migrations/`** – DB migration scripts
 
@@ -108,31 +108,85 @@ On **Vercel → Environment Variables**, set `FROM_EMAIL` to `blogsite@nomadic-n
 
 ---
 
-## Notion (Library Resources & Apps)
+## Library Resources & Apps (Tina CMS + Nuxt Content)
 
-- Create integration at notion.so/my-integrations; share DB with it.
-- Env: `NOTION_API_KEY`, `NOTION_DATABASE_ID`
-- **Resources tab:** Books, Tools, Learning Resources (`Type` select).
-- **Apps tab:** Same database; rows with `Type = App` (see schema below).
+**Resources** (Books, Tools, Learning) and **Apps** use **Tina Cloud** (Git-backed MDX) and **Nuxt Content** — same pattern as Musical Notes.
 
-### Notion schema for Apps
+### How it works
 
-Extend the existing Resources database. Add **`App`** to the **Type** select. For app rows, set these properties:
+1. Resources live in `content/resources/*.mdx`; apps in `content/apps/*.mdx`.
+2. **Admins** edit via Tina at `/admin` (site `role = admin` + Tina Cloud login).
+3. Tina commits to GitHub → Vercel redeploys → signed-in users see updates on **Library**.
+4. App APK/MSIX binaries stay in **private Cloudflare R2**; content stores R2 object keys only.
 
-| Property       | Type         | Notes                                          |
-| -------------- | ------------ | ---------------------------------------------- |
-| Title          | title        | App name                                       |
-| Description    | rich_text    | Short blurb                                    |
-| Published      | checkbox     | Must be checked to appear                      |
-| Type           | select       | **`App`**                                      |
-| Image          | files        | App icon (optional)                            |
-| Category       | multi_select | e.g. `Android`, `iOS`, `Desktop` (one or more) |
-| Version        | text         | e.g. `1.2.0`                                   |
-| Play Store URL | url          | Google Play link (optional)                    |
-| Apk Key        | text         | R2 object key (not a full URL)                 |
-| Msix Key       | text         | R2 object key (optional)                       |
+### Resources frontmatter schema
 
-**Publish workflow:** Upload binary to R2 → paste object key into Notion → set Type = App → check Published.
+| Field          | Type    | Notes                                              |
+| -------------- | ------- | -------------------------------------------------- |
+| title          | string  | Resource name                                      |
+| resourceType   | select  | `book`, `tool`, or `learning`                      |
+| description    | string  | Card blurb                                         |
+| link           | string  | External URL                                       |
+| category       | string  | e.g. Programming, Leadership                       |
+| author         | string  | Books — optional                                   |
+| publisher      | string  | Optional                                           |
+| year           | string  | Optional                                           |
+| status         | string  | Optional                                           |
+| rating         | string  | Optional                                           |
+| tags           | list    | Optional                                           |
+| icon           | string  | MDI icon for tools/learning (e.g. `mdi:tools`)     |
+| coverImageUrl  | string  | R2, ImageKit, or any HTTPS URL (not Tina `image`)  |
+| published      | boolean | Must be `true` to appear in the library            |
+
+### Apps frontmatter schema
+
+| Field         | Type    | Notes                                         |
+| ------------- | ------- | --------------------------------------------- |
+| title         | string  | App name (one row per product)                |
+| description   | string  | Short blurb — shown on the app card           |
+| details       | string  | Longer text — shown in the detail modal       |
+| categories    | list    | e.g. `Android`, `Web`                         |
+| version       | string  | e.g. `1.0.0`                                  |
+| webUrl        | string  | Web/PWA link (optional)                       |
+| playStoreUrl  | string  | Google Play link (optional)                   |
+| iconUrl       | string  | R2 public URL or any HTTPS icon URL           |
+| apkKey        | string  | R2 object key (not a full URL)                |
+| msixKey       | string  | R2 object key (optional)                      |
+| published     | boolean | Must be `true` to appear in the library       |
+
+**Publish workflow:** Upload binary to R2 → paste object key into Tina `apkKey` / `msixKey` → set `published: true` → save in Tina.
+
+#### Example apps (seed content)
+
+**Walking Challenge**
+
+| Field       | Value |
+| ----------- | ----- |
+| title       | Walking Challenge |
+| description | Track steps, join challenges, and hit daily goals — on web or Android. |
+| categories  | `Android`, `Web` |
+| version     | `1.0.0` |
+| apkKey      | `apps/walking-challenge/1.0.0/app.apk` |
+
+**Taskora**
+
+| Field       | Value |
+| ----------- | ----- |
+| title       | Taskora |
+| description | Capture tasks fast and stay organized on mobile or web. |
+| categories  | `Android`, `Web` |
+| apkKey      | `apps/taskora/2.1.0/app.apk` |
+
+**Arthos Financial Planner**
+
+| Field       | Value |
+| ----------- | ----- |
+| title       | Arthos Financial Planner |
+| description | Plan budgets and track financial goals in one Android app. |
+| categories  | `Android` |
+| apkKey      | `apps/arthos-financial-planner/1.0.0/app.apk` |
+
+Books (*Range*, *Dare to Lead*, etc.) use `resourceType: book` — they appear under **Resources → Books**, not Apps.
 
 ---
 
@@ -259,7 +313,7 @@ R2_APPS_PREFIX=apps/
 
 ### Object key convention
 
-Store these keys in Notion **Apk Key** / **Msix Key** fields (not full URLs):
+Store these keys in Tina **`apkKey`** / **`msixKey`** fields (not full URLs):
 
 ```
 apps/{slug}/{version}/app.apk
@@ -277,13 +331,13 @@ wrangler r2 object put nomadic-notions-apps/apps/my-app/1.0.0/app.apk --file=./r
 wrangler r2 object put nomadic-notions-apps/apps/my-app/1.0.0/app.msix --file=./release.msix
 ```
 
-Or upload via the Cloudflare R2 dashboard. Then paste the object key into the matching Notion property.
+Or upload via the Cloudflare R2 dashboard. Then paste the object key into the matching Tina app entry.
 
 ### Vercel checklist
 
 1. Add all `R2_*` env vars in Vercel project settings.
 2. Redeploy after adding variables.
-3. Create a test app row in Notion (Type = App, Published = true) with a valid Apk Key.
+3. Create a test app in Tina (`content/apps/`, `published: true`) with a valid `apkKey`.
 4. Sign in on `/library` → Apps tab → verify list and download redirect.
 
 ---
@@ -312,7 +366,7 @@ Or upload via the Cloudflare R2 dashboard. Then paste the object key into the ma
 
 ## Resources (Library)
 
-- **Notion:** Books, Tools, Learning Resources, and Apps from the same Notion DB (see Notion section).
+- **Tina CMS:** Books, Tools, Learning Resources (`content/resources/`) and Apps (`content/apps/`).
 - **R2:** App binaries (APK/MSIX) via presigned URLs for signed-in users.
 - **ImageKit:** Photos and videos.
-- **Static:** `data/index.ts` → `resourcesPage` fallback data.
+- **Static:** `data/index.ts` → `resourcesPage` for the public `/resources` starter page.

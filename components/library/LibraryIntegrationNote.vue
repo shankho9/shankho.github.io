@@ -93,16 +93,16 @@ const INTEGRATION_INFO: Record<
   resources: {
     emoji: '📚',
     label: 'Resources',
-    stack: 'Notion API',
+    stack: 'Tina CMS + Nuxt Content',
     blurb:
-      'Books, tools & learning picks sync straight from a Notion database. Edit in Notion, browse here — headless CMS vibes without the fuss 📖',
+      'Books, tools & learning picks are Git-backed MDX — edited in Tina, rendered with love. Commit to publish 📖',
   },
   apps: {
     emoji: '📱',
     label: 'Apps',
-    stack: 'Notion + Cloudflare R2',
+    stack: 'Tina CMS + Cloudflare R2',
     blurb:
-      'App listings from Notion; APK/MSIX binaries in private Cloudflare R2 with presigned download links. Metadata in the cloud, binaries locked down 🔐',
+      'App listings from Tina CMS; APK/MSIX binaries in private Cloudflare R2 with presigned download links. Metadata in Git, binaries locked down 🔐',
   },
 }
 

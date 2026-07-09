@@ -206,8 +206,6 @@ export default defineNuxtConfig({
       // ImageKit root folders (configurable)
       imageKitPhotosRootFolder: process.env.IMAGEKIT_PHOTOS_ROOT_FOLDER || 'Library/Photos',
       imageKitVideosRootFolder: process.env.IMAGEKIT_VIDEOS_ROOT_FOLDER || 'Library/Videos',
-      // Notion database ID (client-side accessible for API calls)
-      notionDatabaseId: process.env.NOTION_DATABASE_ID,
       tinaClientId: process.env.NUXT_PUBLIC_TINA_CLIENT_ID || '',
       tinaAdminBuilt,
     },
@@ -226,9 +224,6 @@ export default defineNuxtConfig({
     // ImageKit root folders (server-side, same as public for consistency)
     imageKitPhotosRootFolder: process.env.IMAGEKIT_PHOTOS_ROOT_FOLDER || 'Library/Photos',
     imageKitVideosRootFolder: process.env.IMAGEKIT_VIDEOS_ROOT_FOLDER || 'Library/Videos',
-    // Notion configuration (server-side only)
-    notionApiKey: process.env.NOTION_API_KEY,
-    notionDatabaseId: process.env.NOTION_DATABASE_ID,
     tinaToken: process.env.TINA_TOKEN || '',
     tinaBranch: process.env.TINA_BRANCH || 'main',
     // Cloudflare R2 (server-side only, for app binary downloads)

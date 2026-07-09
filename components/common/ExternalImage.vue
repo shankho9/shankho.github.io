@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Renders external image URLs with a native <img> to avoid IPX failures on
- * third-party hosts (Notion S3, ImageKit, etc.). Local paths still use NuxtImg.
+ * third-party hosts (ImageKit, R2, etc.). Local paths still use NuxtImg.
  */
 interface Props {
   src: string
@@ -26,8 +26,6 @@ const isExternal = computed(
     (props.src.startsWith('http://') || props.src.startsWith('https://')),
 )
 
-const isProxied = computed(() => props.src.startsWith('/api/notion/image'))
-
 const handleError = () => {
   emit('error')
 }
@@ -35,7 +33,7 @@ const handleError = () => {
 
 <template>
   <NuxtImg
-    v-if="!isExternal && !isProxied"
+    v-if="!isExternal"
     :src="src"
     :alt="alt"
     :class="imgClass"

@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
-import { useNotion } from '~/composables/useNotion'
 import { useGalleryEngagementStats } from '~/composables/useGalleryEngagementStats'
 import { useImageKitFoldersLoader } from '~/composables/useImageKitFolders'
-import { resourcesPage, seoData } from '~/data'
+import { seoData } from '~/data'
 import GalleryLightbox from '~/components/gallery/Lightbox.vue'
 import GoogleMap from '~/components/blog/GoogleMap.vue'
-import ResourcesTabs from '~/components/notion/ResourcesTabs.vue'
+import ResourcesTab from '~/components/library/ResourcesTab.vue'
 import AppsTab from '~/components/library/AppsTab.vue'
 import MusicalNotesTab from '~/components/library/MusicalNotesTab.vue'
 import LibraryShareBar from '~/components/library/LibraryShareBar.vue'
@@ -390,11 +389,11 @@ const loadVideosFromImageKit = async (folderPath: string = '/') => {
 // Load like and comment counts for a batch of video items (current page).
 const loadVideoStatsForItems = (videos: typeof videoItems.value) => loadStatsForItems(videos)
 
-// Resources count from Notion
+// Resources count (Nuxt Content)
 const resourcesCount = ref(0)
 const isLoadingResourcesCount = ref(false)
 
-// Apps count (auth-gated API)
+// Apps count (Nuxt Content)
 const appsCount = ref(0)
 const isLoadingAppsCount = ref(false)
 
@@ -402,57 +401,27 @@ const isLoadingAppsCount = ref(false)
 const musicCount = ref(0)
 const isLoadingMusicCount = ref(false)
 
-// Load resources count from Notion
 const loadResourcesCount = async () => {
-  if (resourcesCount.value > 0 || isLoadingResourcesCount.value) return // Already loaded
+  if (resourcesCount.value > 0 || isLoadingResourcesCount.value) return
 
   isLoadingResourcesCount.value = true
   try {
-    const config = useRuntimeConfig()
-    const databaseId = config.public.notionDatabaseId
-
-    if (databaseId && typeof databaseId === 'string') {
-      const { fetchDatabase } = useNotion()
-      const response = await fetchDatabase({})
-
-      if (response.success && response.items) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const publishedItems = response.items.filter((item: any) => {
-          const published = item.Published || item.published || false
-          return published
-        })
-
-        resourcesCount.value = publishedItems.length
-      }
-    } else {
-      // Fallback to static count if Notion not configured
-      resourcesCount.value =
-        resourcesPage.books.length +
-        resourcesPage.tools.length +
-        resourcesPage.learningResources.length
-    }
+    const docs = await queryCollection('resources').all()
+    resourcesCount.value = docs.filter((doc) => doc.published === true).length
   } catch (error) {
     console.error('[Library] Failed to load resources count:', error)
-    // Fallback to static count on error
-    resourcesCount.value =
-      resourcesPage.books.length +
-      resourcesPage.tools.length +
-      resourcesPage.learningResources.length
   } finally {
     isLoadingResourcesCount.value = false
   }
 }
 
-// Load apps count from auth-gated API
 const loadAppsCount = async () => {
-  if (appsCount.value > 0 || isLoadingAppsCount.value || !isAuthenticated.value) return
+  if (appsCount.value > 0 || isLoadingAppsCount.value) return
 
   isLoadingAppsCount.value = true
   try {
-    const response = await $fetch<{ success: boolean; items: unknown[] }>('/api/apps/list')
-    if (response.success && response.items) {
-      appsCount.value = response.items.length
-    }
+    const docs = await queryCollection('apps').all()
+    appsCount.value = docs.filter((doc) => doc.published === true).length
   } catch (error) {
     console.error('[Library] Failed to load apps count:', error)
   } finally {
@@ -1807,8 +1776,7 @@ try {
           v-else-if="activeTab === 'resources' && (isAuthenticated || !currentTabRequiresAuth)"
           :key="'resources'"
         >
-          <!-- Notion Resources with Tabs and Search -->
-          <ResourcesTabs />
+          <ResourcesTab />
         </div>
 
         <!-- Apps Tab -->
