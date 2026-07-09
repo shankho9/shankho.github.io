@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Icon } from '@iconify/vue'
 import { seoData, siteBrand } from '~/data'
 import { ref, computed, onMounted, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
@@ -3156,7 +3155,7 @@ const activeTab = ref('assumptions')
           to="/dev"
           class="inline-flex items-center text-sm text-sky-600 dark:text-sky-400 hover:underline"
         >
-          <Icon icon="mdi:arrow-left" class="mr-1.5 text-base" />
+          <Icon name="mdi:arrow-left" class="mr-1.5 text-base" />
           Back to Utilities
         </NuxtLink>
         <span class="hidden sm:inline text-gray-300 dark:text-slate-600">|</span>
@@ -3164,14 +3163,14 @@ const activeTab = ref('assumptions')
           class="inline-flex items-center px-2.5 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
           @click="showTemplatesModal = true"
         >
-          <Icon icon="mdi:file-multiple" class="mr-1.5 text-base" />
+          <Icon name="mdi:file-multiple" class="mr-1.5 text-base" />
           Templates
         </button>
         <button
           class="inline-flex items-center px-2.5 py-1.5 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors"
           @click="showSaveModal = true"
         >
-          <Icon icon="mdi:content-save" class="mr-1.5 text-base" />
+          <Icon name="mdi:content-save" class="mr-1.5 text-base" />
           Save
         </button>
         <button
@@ -3179,7 +3178,7 @@ const activeTab = ref('assumptions')
           class="inline-flex items-center px-2.5 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           @click="exportToPDF"
         >
-          <Icon icon="mdi:file-pdf-box" class="mr-1.5 text-base" />
+          <Icon name="mdi:file-pdf-box" class="mr-1.5 text-base" />
           {{ isExportingPDF ? 'Exporting…' : 'PDF' }}
         </button>
         <button
@@ -3187,7 +3186,7 @@ const activeTab = ref('assumptions')
           title="Reset all fields to blank defaults"
           @click="resetToDefaults"
         >
-          <Icon icon="mdi:refresh" class="mr-1.5 text-base" />
+          <Icon name="mdi:refresh" class="mr-1.5 text-base" />
           Reset
         </button>
       </div>
@@ -3203,7 +3202,7 @@ const activeTab = ref('assumptions')
         v-if="isCalculating"
         class="mt-4 flex items-center justify-center gap-2 text-sm text-sky-600 dark:text-sky-400"
       >
-        <Icon icon="mdi:loading" class="animate-spin" />
+        <Icon name="mdi:loading" class="animate-spin" />
         <span>Calculating...</span>
       </div>
     </div>
@@ -3220,7 +3219,7 @@ const activeTab = ref('assumptions')
     >
       <div class="flex items-start gap-4">
         <Icon
-          :icon="
+          :name="
             recommendation.recommended.includes('Option') ? 'mdi:check-circle' : 'mdi:information'
           "
           class="text-3xl flex-shrink-0"
@@ -3274,7 +3273,7 @@ const activeTab = ref('assumptions')
           "
           @click="activeTab = tab.id"
         >
-          <Icon :icon="tab.icon" class="inline mr-2" />
+          <Icon :name="tab.icon" class="inline mr-2" />
           {{ tab.label }}
         </button>
       </div>
@@ -3289,7 +3288,7 @@ const activeTab = ref('assumptions')
         <div>
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-2xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center">
-              <Icon icon="mdi:cog" class="mr-2 text-sky-600" />
+              <Icon name="mdi:cog" class="mr-2 text-sky-600" />
               Assumptions (Edit Here)
             </h2>
             <div class="flex items-center gap-2">
@@ -3298,14 +3297,14 @@ const activeTab = ref('assumptions')
                 class="inline-flex items-center px-3 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm"
                 @click="startTour"
               >
-                <Icon icon="mdi:compass" class="mr-1.5" />
+                <Icon name="mdi:compass" class="mr-1.5" />
                 Take a Tour
               </button>
               <button
                 class="inline-flex items-center px-3 py-1.5 bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors text-sm"
                 @click="openHelpPanel"
               >
-                <Icon icon="mdi:help-circle" class="mr-1.5" />
+                <Icon name="mdi:help-circle" class="mr-1.5" />
                 Help
               </button>
             </div>
@@ -3339,7 +3338,7 @@ const activeTab = ref('assumptions')
                 class="text-xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2"
               >
                 <Icon
-                  icon="mdi:chevron-down"
+                  name="mdi:chevron-down"
                   class="text-sky-600 dark:text-sky-400 transition-transform"
                   :class="{ 'rotate-180': !sectionExpanded.general }"
                 />
@@ -3401,7 +3400,7 @@ const activeTab = ref('assumptions')
                     "
                     class="text-green-600 dark:text-green-400"
                   >
-                    <Icon icon="mdi:check-circle" class="text-sm" />
+                    <Icon name="mdi:check-circle" class="text-sm" />
                   </span>
                   <span
                     v-else-if="
@@ -3410,7 +3409,7 @@ const activeTab = ref('assumptions')
                     class="text-yellow-600 dark:text-yellow-400"
                   >
                     <Icon
-                      icon="mdi:alert"
+                      name="mdi:alert"
                       class="text-sm"
                       title="Value outside typical range (3-10 years)"
                     />
@@ -3432,7 +3431,7 @@ const activeTab = ref('assumptions')
                     v-if="getFieldStatus('analysisPeriod', assumptions.analysisPeriod) === 'filled'"
                     class="absolute right-2 top-1/2 -translate-y-1/2 text-green-600 dark:text-green-400"
                   >
-                    <Icon icon="mdi:check-circle" class="text-base" />
+                    <Icon name="mdi:check-circle" class="text-base" />
                   </span>
                 </div>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -3448,7 +3447,7 @@ const activeTab = ref('assumptions')
               <h4
                 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2"
               >
-                <Icon icon="mdi:fuel" class="text-sky-600" />
+                <Icon name="mdi:fuel" class="text-sky-600" />
                 Fuel-Related Costs
               </h4>
               <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -3463,7 +3462,7 @@ const activeTab = ref('assumptions')
                       "
                       class="text-green-600 dark:text-green-400"
                     >
-                      <Icon icon="mdi:check-circle" class="text-sm" />
+                      <Icon name="mdi:check-circle" class="text-sm" />
                     </span>
                     <span
                       v-else-if="
@@ -3473,7 +3472,7 @@ const activeTab = ref('assumptions')
                       class="text-yellow-600 dark:text-yellow-400"
                     >
                       <Icon
-                        icon="mdi:alert"
+                        name="mdi:alert"
                         class="text-sm"
                         title="Value outside typical range (5,000-50,000 km/year)"
                       />
@@ -3496,7 +3495,7 @@ const activeTab = ref('assumptions')
                       "
                       class="absolute right-2 top-1/2 -translate-y-1/2 text-green-600 dark:text-green-400"
                     >
-                      <Icon icon="mdi:check-circle" class="text-base" />
+                      <Icon name="mdi:check-circle" class="text-base" />
                     </span>
                   </div>
                   <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -3515,7 +3514,7 @@ const activeTab = ref('assumptions')
                       v-if="getFieldValidation('fuelPrice', assumptions.fuelPrice) === 'valid'"
                       class="text-green-600 dark:text-green-400"
                     >
-                      <Icon icon="mdi:check-circle" class="text-sm" />
+                      <Icon name="mdi:check-circle" class="text-sm" />
                     </span>
                     <span
                       v-else-if="
@@ -3524,7 +3523,7 @@ const activeTab = ref('assumptions')
                       class="text-yellow-600 dark:text-yellow-400"
                     >
                       <Icon
-                        icon="mdi:alert"
+                        name="mdi:alert"
                         class="text-sm"
                         title="Value outside typical range for selected currency"
                       />
@@ -3544,7 +3543,7 @@ const activeTab = ref('assumptions')
                       v-if="getFieldStatus('fuelPrice', assumptions.fuelPrice) === 'filled'"
                       class="absolute right-12 top-1/2 -translate-y-1/2 text-green-600 dark:text-green-400 z-10"
                     >
-                      <Icon icon="mdi:check-circle" class="text-base" />
+                      <Icon name="mdi:check-circle" class="text-base" />
                     </span>
                     <span
                       class="px-2 py-2 text-sm bg-gray-100 dark:bg-slate-700 border border-l-0 border-yellow-300 dark:border-slate-600 rounded-r text-gray-700 dark:text-gray-300 whitespace-nowrap flex-shrink-0"
@@ -3568,14 +3567,14 @@ const activeTab = ref('assumptions')
                       v-if="getFieldValidation('mileage', assumptions.mileage) === 'valid'"
                       class="text-green-600 dark:text-green-400"
                     >
-                      <Icon icon="mdi:check-circle" class="text-sm" />
+                      <Icon name="mdi:check-circle" class="text-sm" />
                     </span>
                     <span
                       v-else-if="getFieldValidation('mileage', assumptions.mileage) === 'warning'"
                       class="text-yellow-600 dark:text-yellow-400"
                     >
                       <Icon
-                        icon="mdi:alert"
+                        name="mdi:alert"
                         class="text-sm"
                         title="Value outside typical range (10-25 km/L)"
                       />
@@ -3594,7 +3593,7 @@ const activeTab = ref('assumptions')
                       v-if="getFieldStatus('mileage', assumptions.mileage) === 'filled'"
                       class="absolute right-2 top-1/2 -translate-y-1/2 text-green-600 dark:text-green-400"
                     >
-                      <Icon icon="mdi:check-circle" class="text-base" />
+                      <Icon name="mdi:check-circle" class="text-base" />
                     </span>
                   </div>
                   <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -3621,7 +3620,7 @@ const activeTab = ref('assumptions')
                 class="text-xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2"
               >
                 <Icon
-                  icon="mdi:chevron-down"
+                  name="mdi:chevron-down"
                   class="text-sky-600 dark:text-sky-400 transition-transform"
                   :class="{ 'rotate-180': !sectionExpanded.ownedCar }"
                 />
@@ -3675,7 +3674,7 @@ const activeTab = ref('assumptions')
                       title="Increase year"
                       @click="incrementPurchaseYear"
                     >
-                      <Icon icon="mdi:chevron-up" class="w-3 h-3" />
+                      <Icon name="mdi:chevron-up" class="w-3 h-3" />
                     </button>
                     <button
                       class="px-2 py-1 text-xs bg-sky-100 dark:bg-slate-700 hover:bg-sky-200 dark:hover:bg-slate-600 text-sky-700 dark:text-sky-300 transition-colors flex items-center justify-center"
@@ -3683,7 +3682,7 @@ const activeTab = ref('assumptions')
                       title="Decrease year"
                       @click="decrementPurchaseYear"
                     >
-                      <Icon icon="mdi:chevron-down" class="w-3 h-3" />
+                      <Icon name="mdi:chevron-down" class="w-3 h-3" />
                     </button>
                   </div>
                 </div>
@@ -3704,7 +3703,7 @@ const activeTab = ref('assumptions')
                     "
                     class="text-green-600 dark:text-green-400"
                   >
-                    <Icon icon="mdi:check-circle" class="text-sm" />
+                    <Icon name="mdi:check-circle" class="text-sm" />
                   </span>
                   <span
                     v-else-if="
@@ -3714,7 +3713,7 @@ const activeTab = ref('assumptions')
                     class="text-yellow-600 dark:text-yellow-400"
                   >
                     <Icon
-                      icon="mdi:alert"
+                      name="mdi:alert"
                       class="text-sm"
                       title="Value outside typical range for selected currency"
                     />
@@ -3740,7 +3739,7 @@ const activeTab = ref('assumptions')
                     "
                     class="absolute right-12 top-1/2 -translate-y-1/2 text-green-600 dark:text-green-400 z-10"
                   >
-                    <Icon icon="mdi:check-circle" class="text-base" />
+                    <Icon name="mdi:check-circle" class="text-base" />
                   </span>
                   <span
                     class="px-2 py-2 text-sm bg-gray-100 dark:bg-slate-700 border border-l-0 border-yellow-300 dark:border-slate-600 rounded-r text-gray-700 dark:text-gray-300 whitespace-nowrap flex-shrink-0"
@@ -3771,7 +3770,7 @@ const activeTab = ref('assumptions')
                     class="text-red-600 dark:text-red-400"
                     title="Expected value cannot exceed current market value"
                   >
-                    <Icon icon="mdi:alert-circle" class="text-sm" />
+                    <Icon name="mdi:alert-circle" class="text-sm" />
                   </span>
                 </label>
                 <div class="flex items-center relative">
@@ -3798,7 +3797,7 @@ const activeTab = ref('assumptions')
                     "
                     class="absolute right-12 top-1/2 -translate-y-1/2 text-green-600 dark:text-green-400 z-10"
                   >
-                    <Icon icon="mdi:check-circle" class="text-base" />
+                    <Icon name="mdi:check-circle" class="text-base" />
                   </span>
                   <span
                     class="px-2 py-2 text-sm bg-gray-100 dark:bg-slate-700 border border-l-0 border-yellow-300 dark:border-slate-600 rounded-r text-gray-700 dark:text-gray-300 whitespace-nowrap flex-shrink-0"
@@ -3879,7 +3878,7 @@ const activeTab = ref('assumptions')
               <h4
                 class="text-sm font-bold text-zinc-800 dark:text-zinc-200 mb-3 flex items-center gap-2"
               >
-                <Icon icon="mdi:calculator-variant" class="text-sky-600 dark:text-sky-400" />
+                <Icon name="mdi:calculator-variant" class="text-sky-600 dark:text-sky-400" />
                 Calculation Factors
               </h4>
               <p class="text-xs text-gray-600 dark:text-gray-400 mb-3">
@@ -3898,7 +3897,7 @@ const activeTab = ref('assumptions')
                       title="Click for help"
                       @click.stop="toggleTooltip('depreciation')"
                     >
-                      <Icon icon="mdi:help-circle" class="text-base" />
+                      <Icon name="mdi:help-circle" class="text-base" />
                     </button>
                     <button
                       class="ml-2 text-sm text-sky-600 dark:text-sky-400 hover:underline"
@@ -3947,7 +3946,7 @@ const activeTab = ref('assumptions')
                         type="button"
                         @click.stop="showTooltip = null"
                       >
-                        <Icon icon="mdi:close" />
+                        <Icon name="mdi:close" />
                       </button>
                     </div>
                   </div>
@@ -4000,7 +3999,7 @@ const activeTab = ref('assumptions')
                         title="Click for help"
                         @click.stop="toggleTooltip('repairsFactor')"
                       >
-                        <Icon icon="mdi:help-circle" class="text-base" />
+                        <Icon name="mdi:help-circle" class="text-base" />
                       </button>
                       <button
                         class="ml-2 text-sm text-sky-600 dark:text-sky-400 hover:underline"
@@ -4056,7 +4055,7 @@ const activeTab = ref('assumptions')
                         type="button"
                         @click.stop="showTooltip = null"
                       >
-                        <Icon icon="mdi:close" />
+                        <Icon name="mdi:close" />
                       </button>
                     </div>
                   </div>
@@ -4096,7 +4095,7 @@ const activeTab = ref('assumptions')
                       title="Click for help"
                       @click.stop="toggleTooltip('returnOnInvestment')"
                     >
-                      <Icon icon="mdi:help-circle" class="text-base" />
+                      <Icon name="mdi:help-circle" class="text-base" />
                     </button>
                     <button
                       class="ml-2 text-sm text-sky-600 dark:text-sky-400 hover:underline"
@@ -4135,7 +4134,7 @@ const activeTab = ref('assumptions')
                         type="button"
                         @click.stop="showTooltip = null"
                       >
-                        <Icon icon="mdi:close" />
+                        <Icon name="mdi:close" />
                       </button>
                     </div>
                   </div>
@@ -4181,7 +4180,7 @@ const activeTab = ref('assumptions')
                   class="text-xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2"
                 >
                   <Icon
-                    icon="mdi:chevron-down"
+                    name="mdi:chevron-down"
                     class="text-sky-600 dark:text-sky-400 transition-transform"
                     :class="{ 'rotate-180': !sectionExpanded.leaseOptions }"
                   />
@@ -4198,7 +4197,7 @@ const activeTab = ref('assumptions')
               title="Add Lease Option"
               @click="addLeaseOption"
             >
-              <Icon icon="mdi:plus-circle" class="w-5 h-5" />
+              <Icon name="mdi:plus-circle" class="w-5 h-5" />
               Add Option
             </button>
             <span
@@ -4218,7 +4217,7 @@ const activeTab = ref('assumptions')
               >
                 <div class="flex items-center gap-1.5 flex-1 min-w-0">
                   <Icon
-                    icon="mdi:car-sports"
+                    name="mdi:car-sports"
                     class="text-sky-600 dark:text-sky-400 text-lg flex-shrink-0"
                   />
                   <input
@@ -4234,7 +4233,7 @@ const activeTab = ref('assumptions')
                   title="Remove Lease Option"
                   @click.stop="openDeleteLeaseOptionModal(index)"
                 >
-                  <Icon icon="mdi:delete-outline" class="w-5 h-5" />
+                  <Icon name="mdi:delete-outline" class="w-5 h-5" />
                 </button>
               </div>
 
@@ -4299,7 +4298,7 @@ const activeTab = ref('assumptions')
                         title="Quick add 12 months"
                         @click="option.tenure = Math.max(0, option.tenure + 12)"
                       >
-                        <Icon icon="mdi:chevron-up" class="w-3 h-3" />
+                        <Icon name="mdi:chevron-up" class="w-3 h-3" />
                       </button>
                       <button
                         class="px-2 py-1 text-xs bg-sky-100 dark:bg-slate-700 hover:bg-sky-200 dark:hover:bg-slate-600 text-sky-700 dark:text-sky-300 transition-colors flex items-center justify-center"
@@ -4307,7 +4306,7 @@ const activeTab = ref('assumptions')
                         title="Quick subtract 12 months"
                         @click="option.tenure = Math.max(0, option.tenure - 12)"
                       >
-                        <Icon icon="mdi:chevron-down" class="w-3 h-3" />
+                        <Icon name="mdi:chevron-down" class="w-3 h-3" />
                       </button>
                     </div>
                     <span
@@ -4340,7 +4339,7 @@ const activeTab = ref('assumptions')
                         title="Quick add 1000 km"
                         @click="incrementAllowedKM(option)"
                       >
-                        <Icon icon="mdi:chevron-up" class="w-3 h-3" />
+                        <Icon name="mdi:chevron-up" class="w-3 h-3" />
                       </button>
                       <button
                         class="px-2 py-1 text-xs bg-sky-100 dark:bg-slate-700 hover:bg-sky-200 dark:hover:bg-slate-600 text-sky-700 dark:text-sky-300 transition-colors flex items-center justify-center"
@@ -4348,7 +4347,7 @@ const activeTab = ref('assumptions')
                         title="Quick subtract 1000 km"
                         @click="decrementAllowedKM(option)"
                       >
-                        <Icon icon="mdi:chevron-down" class="w-3 h-3" />
+                        <Icon name="mdi:chevron-down" class="w-3 h-3" />
                       </button>
                     </div>
                   </div>
@@ -4402,7 +4401,7 @@ const activeTab = ref('assumptions')
                 class="text-xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2"
               >
                 <Icon
-                  icon="mdi:chevron-down"
+                  name="mdi:chevron-down"
                   class="text-sky-600 dark:text-sky-400 transition-transform"
                   :class="{ 'rotate-180': !sectionExpanded.reimbursements }"
                 />
@@ -4492,7 +4491,7 @@ const activeTab = ref('assumptions')
                 class="text-xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2"
               >
                 <Icon
-                  icon="mdi:chevron-down"
+                  name="mdi:chevron-down"
                   class="text-sky-600 dark:text-sky-400 transition-transform"
                   :class="{ 'rotate-180': !sectionExpanded.postLease }"
                 />
@@ -4516,7 +4515,7 @@ const activeTab = ref('assumptions')
                   title="Click for help"
                   @click.stop="toggleTooltip('postLeaseScenario')"
                 >
-                  <Icon icon="mdi:help-circle" class="text-base" />
+                  <Icon name="mdi:help-circle" class="text-base" />
                 </button>
               </label>
               <!-- Tooltip for Post-Lease Scenario -->
@@ -4549,7 +4548,7 @@ const activeTab = ref('assumptions')
                     type="button"
                     @click.stop="showTooltip = null"
                   >
-                    <Icon icon="mdi:close" />
+                    <Icon name="mdi:close" />
                   </button>
                 </div>
               </div>
@@ -4583,7 +4582,7 @@ const activeTab = ref('assumptions')
                 class="text-xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2"
               >
                 <Icon
-                  icon="mdi:chevron-down"
+                  name="mdi:chevron-down"
                   class="text-sky-600 dark:text-sky-400 transition-transform"
                   :class="{ 'rotate-180': !sectionExpanded.taxInvestment }"
                 />
@@ -4610,7 +4609,7 @@ const activeTab = ref('assumptions')
                   title="Click for help"
                   @click.stop="toggleTooltip('effectiveTaxRate')"
                 >
-                  <Icon icon="mdi:help-circle" class="text-base" />
+                  <Icon name="mdi:help-circle" class="text-base" />
                 </button>
               </label>
               <!-- Tooltip for Effective Tax Rate -->
@@ -4643,7 +4642,7 @@ const activeTab = ref('assumptions')
                     type="button"
                     @click.stop="showTooltip = null"
                   >
-                    <Icon icon="mdi:close" />
+                    <Icon name="mdi:close" />
                   </button>
                 </div>
               </div>
@@ -4685,7 +4684,7 @@ const activeTab = ref('assumptions')
                   title="Click for help"
                   @click.stop="toggleTooltip('otherTaxDeductions')"
                 >
-                  <Icon icon="mdi:help-circle" class="text-base" />
+                  <Icon name="mdi:help-circle" class="text-base" />
                 </button>
               </label>
               <!-- Tooltip for Other Tax Deductions -->
@@ -4716,7 +4715,7 @@ const activeTab = ref('assumptions')
                     type="button"
                     @click.stop="showTooltip = null"
                   >
-                    <Icon icon="mdi:close" />
+                    <Icon name="mdi:close" />
                   </button>
                 </div>
               </div>
@@ -4747,7 +4746,7 @@ const activeTab = ref('assumptions')
       <!-- 02 OWNERSHIP -->
       <div v-show="activeTab === 'ownership'" class="space-y-6">
         <h2 class="text-2xl font-bold mb-4 text-zinc-800 dark:text-zinc-200 flex items-center">
-          <Icon icon="mdi:car" class="mr-2 text-sky-600" />
+          <Icon name="mdi:car" class="mr-2 text-sky-600" />
           {{ assumptions.carName || 'Car' }} Ownership Costs
         </h2>
 
@@ -5005,7 +5004,7 @@ const activeTab = ref('assumptions')
       <!-- 03 LEASE COMPARISON -->
       <div v-show="activeTab === 'lease'" class="space-y-6">
         <h2 class="text-2xl font-bold mb-4 text-zinc-800 dark:text-zinc-200 flex items-center">
-          <Icon icon="mdi:file-compare" class="mr-2 text-sky-600" />
+          <Icon name="mdi:file-compare" class="mr-2 text-sky-600" />
           Lease Comparison
         </h2>
 
@@ -5335,7 +5334,7 @@ const activeTab = ref('assumptions')
       <!-- 04 INVESTMENT RETURN -->
       <div v-show="activeTab === 'investment'" class="space-y-6">
         <h2 class="text-2xl font-bold mb-4 text-zinc-800 dark:text-zinc-200 flex items-center">
-          <Icon icon="mdi:chart-line" class="mr-2 text-sky-600" />
+          <Icon name="mdi:chart-line" class="mr-2 text-sky-600" />
           Investment Return (Sale of {{ assumptions.carName }})
         </h2>
 
@@ -5483,7 +5482,7 @@ const activeTab = ref('assumptions')
       <!-- 05 FINAL COMPARISON -->
       <div v-show="activeTab === 'comparison'" class="space-y-6">
         <h2 class="text-2xl font-bold mb-4 text-zinc-800 dark:text-zinc-200 flex items-center">
-          <Icon icon="mdi:scale-balance" class="mr-2 text-sky-600" />
+          <Icon name="mdi:scale-balance" class="mr-2 text-sky-600" />
           Final Comparison
         </h2>
 
@@ -5500,7 +5499,7 @@ const activeTab = ref('assumptions')
         >
           <div class="flex items-start gap-3">
             <Icon
-              :icon="
+              :name="
                 recommendation.recommended.includes('Leased') ||
                 recommendation.recommended.includes('lease')
                   ? 'mdi:check-circle'
@@ -5797,7 +5796,7 @@ const activeTab = ref('assumptions')
                       title="Click for explanation"
                       @click.stop="toggleTooltip('purchasePrice')"
                     >
-                      <Icon icon="mdi:help-circle" class="text-base" />
+                      <Icon name="mdi:help-circle" class="text-base" />
                     </button>
                   </div>
                   <!-- Tooltip for Purchase Price -->
@@ -5828,7 +5827,7 @@ const activeTab = ref('assumptions')
                         type="button"
                         @click.stop="showTooltip = null"
                       >
-                        <Icon icon="mdi:close" />
+                        <Icon name="mdi:close" />
                       </button>
                     </div>
                   </div>
@@ -5852,7 +5851,7 @@ const activeTab = ref('assumptions')
                       title="Click for explanation"
                       @click.stop="toggleTooltip('operatingCost')"
                     >
-                      <Icon icon="mdi:help-circle" class="text-base" />
+                      <Icon name="mdi:help-circle" class="text-base" />
                     </button>
                   </div>
                   <!-- Tooltip for Operating Cost -->
@@ -5897,7 +5896,7 @@ const activeTab = ref('assumptions')
                         type="button"
                         @click.stop="showTooltip = null"
                       >
-                        <Icon icon="mdi:close" />
+                        <Icon name="mdi:close" />
                       </button>
                     </div>
                   </div>
@@ -5925,7 +5924,7 @@ const activeTab = ref('assumptions')
                       title="Click for explanation"
                       @click.stop="toggleTooltip('resaleInvestment')"
                     >
-                      <Icon icon="mdi:help-circle" class="text-base" />
+                      <Icon name="mdi:help-circle" class="text-base" />
                     </button>
                   </div>
                   <!-- Tooltip for Resale/Investment Gain -->
@@ -5966,7 +5965,7 @@ const activeTab = ref('assumptions')
                         type="button"
                         @click.stop="showTooltip = null"
                       >
-                        <Icon icon="mdi:close" />
+                        <Icon name="mdi:close" />
                       </button>
                     </div>
                   </div>
@@ -5992,7 +5991,7 @@ const activeTab = ref('assumptions')
                       title="Click for explanation"
                       @click.stop="toggleTooltip('netCost')"
                     >
-                      <Icon icon="mdi:help-circle" class="text-base" />
+                      <Icon name="mdi:help-circle" class="text-base" />
                     </button>
                   </div>
                   <!-- Tooltip for Net Cost -->
@@ -6033,7 +6032,7 @@ const activeTab = ref('assumptions')
                         type="button"
                         @click.stop="showTooltip = null"
                       >
-                        <Icon icon="mdi:close" />
+                        <Icon name="mdi:close" />
                       </button>
                     </div>
                   </div>
@@ -6055,7 +6054,7 @@ const activeTab = ref('assumptions')
                       title="Click for explanation"
                       @click.stop="toggleTooltip('avgMonthlyCost')"
                     >
-                      <Icon icon="mdi:help-circle" class="text-base" />
+                      <Icon name="mdi:help-circle" class="text-base" />
                     </button>
                   </div>
                   <!-- Tooltip for Average Monthly Cost -->
@@ -6087,7 +6086,7 @@ const activeTab = ref('assumptions')
                         type="button"
                         @click.stop="showTooltip = null"
                       >
-                        <Icon icon="mdi:close" />
+                        <Icon name="mdi:close" />
                       </button>
                     </div>
                   </div>
@@ -6109,7 +6108,7 @@ const activeTab = ref('assumptions')
                       title="Click for explanation"
                       @click.stop="toggleTooltip('maintenanceRisk')"
                     >
-                      <Icon icon="mdi:help-circle" class="text-base" />
+                      <Icon name="mdi:help-circle" class="text-base" />
                     </button>
                   </div>
                   <!-- Tooltip for Maintenance Risk -->
@@ -6142,7 +6141,7 @@ const activeTab = ref('assumptions')
                         type="button"
                         @click.stop="showTooltip = null"
                       >
-                        <Icon icon="mdi:close" />
+                        <Icon name="mdi:close" />
                       </button>
                     </div>
                   </div>
@@ -6164,7 +6163,7 @@ const activeTab = ref('assumptions')
                       title="Click for explanation"
                       @click.stop="toggleTooltip('taxBenefit')"
                     >
-                      <Icon icon="mdi:help-circle" class="text-base" />
+                      <Icon name="mdi:help-circle" class="text-base" />
                     </button>
                   </div>
                   <!-- Tooltip for Tax Benefit -->
@@ -6199,7 +6198,7 @@ const activeTab = ref('assumptions')
                         type="button"
                         @click.stop="showTooltip = null"
                       >
-                        <Icon icon="mdi:close" />
+                        <Icon name="mdi:close" />
                       </button>
                     </div>
                   </div>
@@ -6223,7 +6222,7 @@ const activeTab = ref('assumptions')
                       title="Click for explanation"
                       @click.stop="toggleTooltip('assetAtEnd')"
                     >
-                      <Icon icon="mdi:help-circle" class="text-base" />
+                      <Icon name="mdi:help-circle" class="text-base" />
                     </button>
                   </div>
                   <!-- Tooltip for Asset at End -->
@@ -6258,7 +6257,7 @@ const activeTab = ref('assumptions')
                         type="button"
                         @click.stop="showTooltip = null"
                       >
-                        <Icon icon="mdi:close" />
+                        <Icon name="mdi:close" />
                       </button>
                     </div>
                   </div>
@@ -6442,12 +6441,12 @@ const activeTab = ref('assumptions')
         class="inline-block bg-gray-50 dark:bg-slate-800/50 rounded-lg p-4 max-w-2xl border border-gray-200 dark:border-slate-700"
       >
         <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
-          <Icon icon="mdi:code-tags" class="inline mr-1.5 text-sky-600 dark:text-sky-400" />
+          <Icon name="mdi:code-tags" class="inline mr-1.5 text-sky-600 dark:text-sky-400" />
           <span class="font-semibold text-zinc-700 dark:text-zinc-300">Tool Author:</span>
           <span class="text-zinc-800 dark:text-zinc-200"> {{ siteBrand.authorName }}</span>
         </p>
         <p class="text-xs text-zinc-500 dark:text-zinc-400">
-          <Icon icon="mdi:email-outline" class="inline mr-1.5" />
+          <Icon name="mdi:email-outline" class="inline mr-1.5" />
           For correspondence:
           <a
             :href="`mailto:${siteBrand.contactEmail}`"
@@ -6470,7 +6469,7 @@ const activeTab = ref('assumptions')
       >
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-2xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center">
-            <Icon icon="mdi:file-multiple" class="mr-2 text-green-600" />
+            <Icon name="mdi:file-multiple" class="mr-2 text-green-600" />
             Template Comparison
           </h2>
           <button
@@ -6492,12 +6491,12 @@ const activeTab = ref('assumptions')
               title="Export current template as JSON file"
               @click="exportTemplateAsJSON"
             >
-              <Icon icon="mdi:download" class="text-lg" />
+              <Icon name="mdi:download" class="text-lg" />
             </button>
             <label
               class="p-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors cursor-pointer"
             >
-              <Icon icon="mdi:upload" class="text-lg" />
+              <Icon name="mdi:upload" class="text-lg" />
               <input
                 type="file"
                 accept=".json,application/json"
@@ -6516,7 +6515,7 @@ const activeTab = ref('assumptions')
         </div>
 
         <div v-if="savedTemplates.length === 0" class="text-center py-12">
-          <Icon icon="mdi:file-document-outline" class="text-6xl text-gray-400 mb-4" />
+          <Icon name="mdi:file-document-outline" class="text-6xl text-gray-400 mb-4" />
           <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">No templates saved yet</p>
           <button
             class="px-4 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors"
@@ -6548,7 +6547,7 @@ const activeTab = ref('assumptions')
                   title="Edit template"
                   @click="openEditTemplateModal(template)"
                 >
-                  <Icon icon="mdi:pencil" />
+                  <Icon name="mdi:pencil" />
                 </button>
               </div>
               <div
@@ -6807,7 +6806,7 @@ const activeTab = ref('assumptions')
     >
       <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full p-6">
         <div class="flex items-center gap-3 mb-4">
-          <Icon icon="mdi:alert-circle" class="text-yellow-600 dark:text-yellow-400 text-3xl" />
+          <Icon name="mdi:alert-circle" class="text-yellow-600 dark:text-yellow-400 text-3xl" />
           <h2 class="text-2xl font-bold text-zinc-800 dark:text-zinc-200">Unsaved Changes</h2>
         </div>
         <p class="text-gray-700 dark:text-gray-300 mb-6">
@@ -6818,14 +6817,14 @@ const activeTab = ref('assumptions')
             class="w-full px-4 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors flex items-center justify-center gap-2"
             @click="handleNavigationSave"
           >
-            <Icon icon="mdi:content-save" />
+            <Icon name="mdi:content-save" />
             Save Template
           </button>
           <button
             class="w-full px-4 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors flex items-center justify-center gap-2"
             @click="handleNavigationDiscard"
           >
-            <Icon icon="mdi:close-circle" />
+            <Icon name="mdi:close-circle" />
             Discard Changes
           </button>
           <button
@@ -6914,14 +6913,14 @@ const activeTab = ref('assumptions')
           class="sticky top-0 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 p-4 flex items-center justify-between"
         >
           <h2 class="text-2xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
-            <Icon icon="mdi:help-circle" class="text-sky-600" />
+            <Icon name="mdi:help-circle" class="text-sky-600" />
             Help & Guide
           </h2>
           <button
             class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             @click="closeHelpPanel"
           >
-            <Icon icon="mdi:close" size="24" />
+            <Icon name="mdi:close" size="24" />
           </button>
         </div>
 
@@ -6931,7 +6930,7 @@ const activeTab = ref('assumptions')
             <h3
               class="text-xl font-bold mb-3 text-zinc-800 dark:text-zinc-200 flex items-center gap-2"
             >
-              <Icon icon="mdi:rocket-launch" class="text-sky-600" />
+              <Icon name="mdi:rocket-launch" class="text-sky-600" />
               Quick Start
             </h3>
             <div class="space-y-3 text-sm text-gray-700 dark:text-gray-300">
@@ -6965,7 +6964,7 @@ const activeTab = ref('assumptions')
             <h3
               class="text-xl font-bold mb-3 text-zinc-800 dark:text-zinc-200 flex items-center gap-2"
             >
-              <Icon icon="mdi:book-open-variant" class="text-sky-600" />
+              <Icon name="mdi:book-open-variant" class="text-sky-600" />
               Key Concepts
             </h3>
             <div class="space-y-4">
@@ -7047,40 +7046,40 @@ const activeTab = ref('assumptions')
             <h3
               class="text-xl font-bold mb-3 text-zinc-800 dark:text-zinc-200 flex items-center gap-2"
             >
-              <Icon icon="mdi:lightbulb-on" class="text-sky-600" />
+              <Icon name="mdi:lightbulb-on" class="text-sky-600" />
               Tips & Best Practices
             </h3>
             <div class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
               <p class="flex items-start gap-2">
-                <Icon icon="mdi:check-circle" class="text-green-600 mt-0.5 flex-shrink-0" />
+                <Icon name="mdi:check-circle" class="text-green-600 mt-0.5 flex-shrink-0" />
                 <span>Use the car selector to auto-fill car specifications from the database</span>
               </p>
               <p class="flex items-start gap-2">
-                <Icon icon="mdi:check-circle" class="text-green-600 mt-0.5 flex-shrink-0" />
+                <Icon name="mdi:check-circle" class="text-green-600 mt-0.5 flex-shrink-0" />
                 <span>Save multiple templates to compare different scenarios side-by-side</span>
               </p>
               <p class="flex items-start gap-2">
-                <Icon icon="mdi:check-circle" class="text-green-600 mt-0.5 flex-shrink-0" />
+                <Icon name="mdi:check-circle" class="text-green-600 mt-0.5 flex-shrink-0" />
                 <span
                   >Look for green checkmarks (✓) to confirm values are within typical ranges</span
                 >
               </p>
               <p class="flex items-start gap-2">
-                <Icon icon="mdi:check-circle" class="text-green-600 mt-0.5 flex-shrink-0" />
+                <Icon name="mdi:check-circle" class="text-green-600 mt-0.5 flex-shrink-0" />
                 <span
                   >Yellow warning icons (⚠) indicate values outside typical ranges - review if
                   needed</span
                 >
               </p>
               <p class="flex items-start gap-2">
-                <Icon icon="mdi:check-circle" class="text-green-600 mt-0.5 flex-shrink-0" />
+                <Icon name="mdi:check-circle" class="text-green-600 mt-0.5 flex-shrink-0" />
                 <span
-                  >Click the <Icon icon="mdi:help-circle" class="inline text-sky-600" /> icon next
+                  >Click the <Icon name="mdi:help-circle" class="inline text-sky-600" /> icon next
                   to complex fields for detailed explanations</span
                 >
               </p>
               <p class="flex items-start gap-2">
-                <Icon icon="mdi:check-circle" class="text-green-600 mt-0.5 flex-shrink-0" />
+                <Icon name="mdi:check-circle" class="text-green-600 mt-0.5 flex-shrink-0" />
                 <span>Export your calculations to PDF for sharing or record-keeping</span>
               </p>
             </div>
@@ -7091,7 +7090,7 @@ const activeTab = ref('assumptions')
             <h3
               class="text-xl font-bold mb-3 text-zinc-800 dark:text-zinc-200 flex items-center gap-2"
             >
-              <Icon icon="mdi:chart-line" class="text-sky-600" />
+              <Icon name="mdi:chart-line" class="text-sky-600" />
               Example Scenarios
             </h3>
             <div class="space-y-3 text-sm">

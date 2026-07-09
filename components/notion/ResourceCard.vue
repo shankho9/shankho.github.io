@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { NotionItem } from '~/composables/useNotion'
+import { getNotionItemImageUrl } from '~/utils/notion/images'
 
 interface Props {
   item: NotionItem
@@ -140,11 +141,11 @@ const typeBadgeClass = computed(() => {
   }
 })
 
-const imageUrl = computed(() => {
-  const image = props.item.Image || props.item.image || props.item.Cover || props.item.cover
-  if (Array.isArray(image) && image.length > 0) return image[0]
-  if (typeof image === 'string' && image) return image
-  return null
+const imageUrl = computed(() => getNotionItemImageUrl(props.item))
+const imageFailed = ref(false)
+
+watch(imageUrl, () => {
+  imageFailed.value = false
 })
 
 const platformIcon = (platform: string): string => {
@@ -171,14 +172,12 @@ const platformIcon = (platform: string): string => {
       <div
         class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/40 dark:to-indigo-900/40"
       >
-        <NuxtImg
-          v-if="imageUrl"
+        <CommonExternalImage
+          v-if="imageUrl && !imageFailed"
           :src="imageUrl"
           :alt="title"
-          class="h-full w-full object-cover"
-          loading="lazy"
-          format="webp"
-          quality="80"
+          img-class="h-full w-full object-cover"
+          @error="imageFailed = true"
         />
         <Icon v-else :name="typeIcon" class="text-2xl text-sky-700 dark:text-sky-400" />
       </div>

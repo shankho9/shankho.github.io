@@ -112,7 +112,7 @@ watch(showMobileMenu, (open) => {
 onMounted(() => {
   if (typeof window !== 'undefined') {
     document.addEventListener('click', clickHandler)
-    checkAuth()
+    checkAuth(true)
   }
 })
 
@@ -167,12 +167,13 @@ onUnmounted(() => {
         <NuxtLink
           v-if="isAdmin"
           to="/dev"
-          class="hover:opacity-80 transition-opacity flex items-center gap-1"
+          class="hover:opacity-80 transition-opacity flex items-center gap-1.5"
           :class="{ underline: isActive('/dev') }"
           title="Utilities"
           aria-label="Utilities"
         >
           <Icon name="mdi:tools" size="18" />
+          <span>Utilities</span>
         </NuxtLink>
         <NuxtLink
           to="/about"

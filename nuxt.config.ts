@@ -24,7 +24,7 @@ export default defineNuxtConfig({
   },
 
   modules: [
-    'nuxt-icon',
+    '@nuxt/icon',
     '@nuxt/image',
     // @nuxt/fonts disabled - fonts loaded via Google Fonts link tag
     // '@nuxt/fonts',
@@ -184,6 +184,11 @@ export default defineNuxtConfig({
     googleMapsServerApiKey:
       process.env.GOOGLE_MAPS_SERVER_API_KEY || process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY,
     public: {
+      buildId:
+        process.env.VERCEL_GIT_COMMIT_SHA ||
+        process.env.VERCEL_DEPLOYMENT_ID ||
+        process.env.NUXT_PUBLIC_BUILD_ID ||
+        (process.env.NODE_ENV === 'production' ? `build-${Date.now()}` : 'dev'),
       // CRITICAL: Always ensure siteUrl is a string, never undefined
       siteUrl: String(process.env.NUXT_PUBLIC_SITE_URL || 'https://www.nomadic-notions.co.in'),
       googleAnalytics: {
@@ -240,6 +245,18 @@ export default defineNuxtConfig({
 
   typescript: {
     strict: true,
+  },
+
+  icon: {
+    // Avoid /api/* — this app uses that prefix for Nitro API routes
+    localApiEndpoint: '/_nuxt_icon',
+    serverBundle: {
+      collections: ['mdi', 'svg-spinners', 'icon-park', 'noto', 'simple-icons'],
+    },
+    clientBundle: {
+      scan: true,
+      sizeLimitKb: 512,
+    },
   },
 
   // Disable dynamic OG image generation on content pages — use static og:image from useHead instead

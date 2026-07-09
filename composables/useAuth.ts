@@ -1,5 +1,7 @@
 // composables/useAuth.ts
 import { ref, computed } from 'vue'
+import { getFetchErrorStatus } from '~/utils/common/fetchError'
+import { isProtectedAppRoute } from '~/utils/auth/routes'
 
 interface User {
   id: string | number
@@ -74,6 +76,17 @@ if (typeof window !== 'undefined' && !storageHandler) {
   window.addEventListener('auth:signin', signInHandler)
 }
 
+/** Clear all client-side auth state without calling the logout API. */
+export function clearClientAuthState() {
+  sharedUser.value = null
+  sharedLastCheck.value = 0
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('auth_user')
+    sessionStorage.removeItem('admin_passcode_verified')
+    window.dispatchEvent(new CustomEvent('auth:signout'))
+  }
+}
+
 export const useAuth = () => {
   const user = sharedUser
   const isLoading = sharedIsLoading
@@ -85,9 +98,14 @@ export const useAuth = () => {
    * Check authentication status
    */
   const checkAuth = async (force = false): Promise<boolean> => {
-    // Use cache if available and not forcing
     const now = Date.now()
-    if (!force && now - sharedLastCheck.value < CHECK_CACHE_DURATION && user.value) {
+    // Use cache only after a successful server validation (sharedLastCheck > 0).
+    if (
+      !force &&
+      sharedLastCheck.value > 0 &&
+      now - sharedLastCheck.value < CHECK_CACHE_DURATION &&
+      user.value
+    ) {
       return true
     }
 
@@ -128,8 +146,34 @@ export const useAuth = () => {
       console.warn('[Auth] Auth check failed:', error)
       sharedIsChecking.value = false
       sharedLastCheck.value = now
-      // On error, keep existing state if available
+
+      const statusCode = getFetchErrorStatus(error)
+      if (statusCode === 401) {
+        clearClientAuthState()
+        return false
+      }
+
+      // Network/offline errors: keep existing state so the UI stays usable.
       return !!user.value
+    }
+  }
+
+  /**
+   * Handle an expired or invalid session (401 from protected APIs).
+   */
+  const handleSessionExpired = async (message = 'Your session expired. Please sign in again.') => {
+    const wasAuthenticated = !!user.value
+    clearClientAuthState()
+
+    if (!wasAuthenticated || typeof window === 'undefined') return
+
+    const { showToast } = useToast()
+    showToast(message, 'warning', 6000)
+
+    const router = useRouter()
+    const currentPath = router.currentRoute.value.fullPath
+    if (isProtectedAppRoute(router.currentRoute.value.path)) {
+      await navigateTo('/auth/login?redirect=' + encodeURIComponent(currentPath))
     }
   }
 
@@ -499,21 +543,11 @@ export const useAuth = () => {
       console.error('[Auth] Logout error:', error)
     } finally {
       // Clear all client-side authentication state
-      user.value = null
-      sharedUser.value = null
-      localStorage.removeItem('auth_user')
-      sharedLastCheck.value = 0
+      clearClientAuthState()
 
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('admin_passcode_verified')
-
-        // Clear Google OAuth initialization flag to allow re-initialization on next login
         sessionStorage.removeItem('google_oauth_initialized')
 
-        // Dispatch custom event for cross-tab synchronization
-        window.dispatchEvent(new CustomEvent('auth:signout'))
-
-        // Clear OAuth provider states
         // Google
         if (window.google?.accounts?.id) {
           try {
@@ -596,6 +630,7 @@ export const useAuth = () => {
     isAuthenticated,
     isAdmin,
     checkAuth,
+    handleSessionExpired,
     register,
     login,
     loginWithGoogle,

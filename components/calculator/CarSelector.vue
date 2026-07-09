@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Icon } from '@iconify/vue'
 import { ref, watch, computed, onUnmounted } from 'vue'
 
 interface Manufacturer {
@@ -315,11 +314,11 @@ onUnmounted(() => {
         type="button"
         @click="clearSelection"
       >
-        <Icon icon="mdi:close" class="text-sm" />
+        <Icon name="mdi:close" class="text-sm" />
       </button>
       <Icon
         v-if="isLoading"
-        icon="mdi:loading"
+        name="mdi:loading"
         class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 animate-spin"
       />
     </div>
@@ -339,7 +338,7 @@ onUnmounted(() => {
           </div>
         </div>
         <button class="text-gray-400 hover:text-gray-600" type="button" @click="clearSelection">
-          <Icon icon="mdi:close" class="text-xs" />
+          <Icon name="mdi:close" class="text-xs" />
         </button>
       </div>
       <div class="grid grid-cols-2 gap-2 text-xs">
@@ -382,7 +381,7 @@ onUnmounted(() => {
       >
         <div class="flex items-center gap-2">
           <Icon
-            :icon="
+            :name="
               result.type === 'manufacturer'
                 ? 'mdi:factory'
                 : result.type === 'model'

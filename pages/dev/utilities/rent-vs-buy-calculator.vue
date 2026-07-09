@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Icon } from '@iconify/vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { seoData } from '~/data'
 import { useAuth } from '~/composables/useAuth'
@@ -1058,7 +1057,7 @@ watch(
           to="/dev"
           class="inline-flex items-center text-sm text-sky-600 dark:text-sky-400 hover:underline"
         >
-          <Icon icon="mdi:arrow-left" class="mr-1.5 text-base" />
+          <Icon name="mdi:arrow-left" class="mr-1.5 text-base" />
           Back to Utilities
         </NuxtLink>
         <span class="hidden sm:inline text-gray-300 dark:text-slate-600">|</span>
@@ -1066,14 +1065,14 @@ watch(
           class="inline-flex items-center px-2.5 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
           @click="showTemplatesModal = true"
         >
-          <Icon icon="mdi:file-multiple" class="mr-1.5 text-base" />
+          <Icon name="mdi:file-multiple" class="mr-1.5 text-base" />
           Templates
         </button>
         <button
           class="inline-flex items-center px-2.5 py-1.5 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors"
           @click="showSaveModal = true"
         >
-          <Icon icon="mdi:content-save" class="mr-1.5 text-base" />
+          <Icon name="mdi:content-save" class="mr-1.5 text-base" />
           Save
         </button>
         <button
@@ -1081,7 +1080,7 @@ watch(
           class="inline-flex items-center px-2.5 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           @click="exportToPDF"
         >
-          <Icon icon="mdi:file-pdf-box" class="mr-1.5 text-base" />
+          <Icon name="mdi:file-pdf-box" class="mr-1.5 text-base" />
           {{ isExportingPDF ? 'Exporting…' : 'PDF' }}
         </button>
       </div>
@@ -1105,7 +1104,7 @@ watch(
     >
       <div class="flex items-start gap-4">
         <Icon
-          :icon="recommendation.recommended === 'Buy' ? 'mdi:check-circle' : 'mdi:information'"
+          :name="recommendation.recommended === 'Buy' ? 'mdi:check-circle' : 'mdi:information'"
           class="text-3xl flex-shrink-0"
           :class="
             recommendation.recommended === 'Buy'
@@ -1156,7 +1155,7 @@ watch(
           "
           @click="activeTab = tab.id"
         >
-          <Icon :icon="tab.icon" class="inline mr-2" />
+          <Icon :name="tab.icon" class="inline mr-2" />
           {{ tab.label }}
         </button>
       </div>
@@ -1281,7 +1280,7 @@ watch(
             class="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800"
           >
             <h3 class="text-lg font-bold text-zinc-800 dark:text-zinc-200 mb-3 flex items-center">
-              <Icon icon="mdi:home" class="mr-2 text-sky-600" /> Buy inputs
+              <Icon name="mdi:home" class="mr-2 text-sky-600" /> Buy inputs
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -1424,7 +1423,7 @@ watch(
             class="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800"
           >
             <h3 class="text-lg font-bold text-zinc-800 dark:text-zinc-200 mb-3 flex items-center">
-              <Icon icon="mdi:home-outline" class="mr-2 text-sky-600" /> Rent inputs
+              <Icon name="mdi:home-outline" class="mr-2 text-sky-600" /> Rent inputs
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -1498,7 +1497,7 @@ watch(
         <h2
           class="text-xl sm:text-2xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center"
         >
-          <Icon icon="mdi:home" class="mr-2 text-sky-600" />
+          <Icon name="mdi:home" class="mr-2 text-sky-600" />
           Buy (EMI) Breakdown
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1623,7 +1622,7 @@ watch(
         <h2
           class="text-xl sm:text-2xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center"
         >
-          <Icon icon="mdi:home-outline" class="mr-2 text-sky-600" />
+          <Icon name="mdi:home-outline" class="mr-2 text-sky-600" />
           Rent Breakdown
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1700,7 +1699,7 @@ watch(
         <h2
           class="text-xl sm:text-2xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center"
         >
-          <Icon icon="mdi:scale-balance" class="mr-2 text-sky-600" />
+          <Icon name="mdi:scale-balance" class="mr-2 text-sky-600" />
           Final Comparison
         </h2>
 
@@ -1837,7 +1836,7 @@ watch(
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-bold text-zinc-800 dark:text-zinc-200">Local Templates</h3>
           <button class="text-gray-500 hover:text-gray-700" @click="showTemplatesModal = false">
-            <Icon icon="mdi:close" />
+            <Icon name="mdi:close" />
           </button>
         </div>
         <div v-if="isLoadingTemplates" class="text-sm text-gray-600 dark:text-gray-400">
@@ -1898,7 +1897,7 @@ watch(
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-bold text-zinc-800 dark:text-zinc-200">Save template</h3>
           <button class="text-gray-500 hover:text-gray-700" @click="showSaveModal = false">
-            <Icon icon="mdi:close" />
+            <Icon name="mdi:close" />
           </button>
         </div>
         <div class="space-y-3">

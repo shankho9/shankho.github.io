@@ -1,5 +1,6 @@
 import type { NotionItem } from '~/server/utils/notion'
 import { getItemCategories, getItemImageUrl, getItemString } from '~/server/utils/notion'
+import { isNotionHostedImageUrl, toNotionImageProxyUrl } from '~/server/utils/notionImages'
 
 export interface AppListItem {
   id: string
@@ -26,6 +27,11 @@ export function getAppR2Key(item: NotionItem, format: 'apk' | 'msix'): string | 
 export function toAppListItem(item: NotionItem): AppListItem {
   const apkKey = getAppR2Key(item, 'apk')
   const msixKey = getAppR2Key(item, 'msix')
+  const rawIconUrl = getItemImageUrl(item)
+  const iconUrl =
+    rawIconUrl && isNotionHostedImageUrl(rawIconUrl)
+      ? toNotionImageProxyUrl(rawIconUrl)
+      : rawIconUrl
 
   return {
     id: item.id,
@@ -36,7 +42,7 @@ export function toAppListItem(item: NotionItem): AppListItem {
     playStoreUrl:
       getItemString(item, 'Play Store URL', 'PlayStoreURL', 'playStoreUrl', 'Play Store Url') ||
       null,
-    iconUrl: getItemImageUrl(item),
+    iconUrl,
     hasApk: Boolean(apkKey),
     hasMsix: Boolean(msixKey),
     updatedAt: item.updatedAt || null,

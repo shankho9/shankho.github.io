@@ -48,7 +48,16 @@ const getIcon = (type: string) => {
             ]"
           >
             <Icon :name="getIcon(toast.type)" size="20" class="flex-shrink-0 mt-0.5" />
-            <p class="flex-1 text-sm font-medium leading-5">{{ toast.message }}</p>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium leading-5">{{ toast.message }}</p>
+              <button
+                v-if="toast.action"
+                class="mt-2 text-sm font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity"
+                @click="toast.action.onClick()"
+              >
+                {{ toast.action.label }}
+              </button>
+            </div>
             <button
               class="flex-shrink-0 hover:opacity-80 transition-opacity"
               @click="removeToast(toast.id)"

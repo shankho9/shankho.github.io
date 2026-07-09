@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Icon } from '@iconify/vue'
 import { aboutPage, footerData, navbarData, socialLinks } from '~/data'
 
 useHead({
@@ -74,7 +73,7 @@ const socialIcons = {
             class="flex items-center px-4 py-2 rounded-lg shadow-md bg-gray-200 text-gray-900 dark:bg-slate-800 dark:text-white hover:bg-gray-300 dark:hover:bg-slate-600 transition transform hover:scale-105"
             :aria-label="`Visit my ${key} profile`"
           >
-            <Icon :icon="socialIcons[key]" class="mr-2" width="24" height="24" />
+            <Icon :name="socialIcons[key]" class="mr-2" width="24" height="24" />
             <span class="capitalize font-medium">{{ key }}</span>
           </NuxtLink>
         </div>
@@ -93,7 +92,7 @@ const socialIcons = {
 
     <div class="flex items-center my-6 text-gray-400">
       <div class="flex-grow border-t"></div>
-      <Icon icon="mdi:star" class="mx-4 text-xl" />
+      <Icon name="mdi:star" class="mx-4 text-xl" />
       <div class="flex-grow border-t"></div>
     </div>
 
@@ -136,7 +135,7 @@ const socialIcons = {
 
     <div class="flex items-center my-6 text-gray-400">
       <div class="flex-grow border-t"></div>
-      <Icon icon="mdi:star" class="mx-4 text-xl" />
+      <Icon name="mdi:star" class="mx-4 text-xl" />
       <div class="flex-grow border-t"></div>
     </div>
 
@@ -209,7 +208,7 @@ const socialIcons = {
 
     <div class="flex items-center my-6 text-gray-400">
       <div class="flex-grow border-t"></div>
-      <Icon icon="mdi:star" class="mx-4 text-xl" />
+      <Icon name="mdi:star" class="mx-4 text-xl" />
       <div class="flex-grow border-t"></div>
     </div>
 

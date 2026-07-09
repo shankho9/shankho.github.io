@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Icon } from '@iconify/vue'
 import { resourcesPage, seoData } from '~/data'
 
 useHead({
@@ -70,7 +69,7 @@ onMounted(async () => {
     <!-- Recommended Books Section -->
     <section class="mb-16">
       <div class="flex items-center mb-6">
-        <Icon icon="mdi:book-open-variant" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
+        <Icon name="mdi:book-open-variant" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
         <h2 class="text-3xl font-bold text-zinc-800 dark:text-zinc-200">Recommended Books</h2>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -88,7 +87,7 @@ onMounted(async () => {
             >
               {{ book.title }}
             </h3>
-            <Icon icon="mdi:open-in-new" class="text-zinc-400 group-hover:text-sky-600" />
+            <Icon name="mdi:open-in-new" class="text-zinc-400 group-hover:text-sky-600" />
           </div>
           <p class="text-sm text-sky-600 dark:text-sky-400 font-medium mb-2">{{ book.author }}</p>
           <p class="text-zinc-600 dark:text-zinc-400 mb-3">{{ book.description }}</p>
@@ -104,7 +103,7 @@ onMounted(async () => {
     <!-- Tools Section -->
     <section class="mb-16">
       <div class="flex items-center mb-6">
-        <Icon icon="mdi:tools" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
+        <Icon name="mdi:tools" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
         <h2 class="text-3xl font-bold text-zinc-800 dark:text-zinc-200">Tools I Use</h2>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -118,10 +117,10 @@ onMounted(async () => {
         >
           <div class="flex items-center justify-between mb-4">
             <Icon
-              :icon="tool.icon"
+              :name="tool.icon"
               class="text-4xl text-sky-700 dark:text-sky-400 group-hover:scale-110 transition-transform"
             />
-            <Icon icon="mdi:open-in-new" class="text-zinc-400 group-hover:text-sky-600" />
+            <Icon name="mdi:open-in-new" class="text-zinc-400 group-hover:text-sky-600" />
           </div>
           <h3
             class="text-xl font-semibold text-zinc-800 dark:text-zinc-200 mb-2 group-hover:text-sky-700 dark:group-hover:text-sky-400 transition-colors"
@@ -141,7 +140,7 @@ onMounted(async () => {
     <!-- Learning Resources Section -->
     <section class="mb-16">
       <div class="flex items-center mb-6">
-        <Icon icon="mdi:school" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
+        <Icon name="mdi:school" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
         <h2 class="text-3xl font-bold text-zinc-800 dark:text-zinc-200">Learning Resources</h2>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -155,10 +154,10 @@ onMounted(async () => {
         >
           <div class="flex items-center justify-between mb-4">
             <Icon
-              :icon="resource.icon"
+              :name="resource.icon"
               class="text-4xl text-sky-700 dark:text-sky-400 group-hover:scale-110 transition-transform"
             />
-            <Icon icon="mdi:open-in-new" class="text-zinc-400 group-hover:text-sky-600" />
+            <Icon name="mdi:open-in-new" class="text-zinc-400 group-hover:text-sky-600" />
           </div>
           <h3
             class="text-xl font-semibold text-zinc-800 dark:text-zinc-200 mb-2 group-hover:text-sky-700 dark:group-hover:text-sky-400 transition-colors"
@@ -178,7 +177,7 @@ onMounted(async () => {
     <!-- Templates & Downloads Section -->
     <section class="mb-16">
       <div class="flex items-center mb-6">
-        <Icon icon="mdi:file-download" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
+        <Icon name="mdi:file-download" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
         <h2 class="text-3xl font-bold text-zinc-800 dark:text-zinc-200">Templates & Downloads</h2>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -189,15 +188,15 @@ onMounted(async () => {
         >
           <div class="flex items-center justify-between mb-4">
             <Icon
-              :icon="template.icon"
+              :name="template.icon"
               class="text-4xl text-sky-700 dark:text-sky-400 group-hover:scale-110 transition-transform"
             />
             <Icon
               v-if="template.download"
-              icon="mdi:download"
+              name="mdi:download"
               class="text-zinc-400 group-hover:text-sky-600"
             />
-            <Icon v-else icon="mdi:clock-outline" class="text-zinc-400" title="Coming soon" />
+            <Icon v-else name="mdi:clock-outline" class="text-zinc-400" title="Coming soon" />
           </div>
           <h3 class="text-xl font-semibold text-zinc-800 dark:text-zinc-200 mb-2">
             {{ template.title }}
@@ -220,7 +219,7 @@ onMounted(async () => {
     <!-- Images Gallery Section -->
     <section v-if="resourcesPage.images && resourcesPage.images.length > 0" class="mb-16">
       <div class="flex items-center mb-6">
-        <Icon icon="mdi:image-multiple" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
+        <Icon name="mdi:image-multiple" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
         <h2 class="text-3xl font-bold text-zinc-800 dark:text-zinc-200">Image Gallery</h2>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -248,7 +247,7 @@ onMounted(async () => {
               <div
                 class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white text-center px-4"
               >
-                <Icon icon="mdi:fullscreen" class="text-3xl mb-2" />
+                <Icon name="mdi:fullscreen" class="text-3xl mb-2" />
                 <p class="text-sm">Click to view full-size</p>
               </div>
             </div>
@@ -278,7 +277,7 @@ onMounted(async () => {
     <!-- Videos Section -->
     <section v-if="resourcesPage.videos && resourcesPage.videos.length > 0" class="mb-16">
       <div class="flex items-center mb-6">
-        <Icon icon="mdi:video" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
+        <Icon name="mdi:video" class="text-3xl mr-3 text-sky-700 dark:text-sky-400" />
         <h2 class="text-3xl font-bold text-zinc-800 dark:text-zinc-200">Video Resources</h2>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -306,7 +305,7 @@ onMounted(async () => {
               <div
                 class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white"
               >
-                <Icon icon="mdi:play-circle" class="text-6xl" />
+                <Icon name="mdi:play-circle" class="text-6xl" />
               </div>
             </div>
             <div
@@ -341,7 +340,7 @@ onMounted(async () => {
     <section v-if="resourcesPage.content && resourcesPage.content.length > 0" class="mb-16">
       <div class="flex items-center mb-6">
         <Icon
-          icon="mdi:file-document-multiple"
+          name="mdi:file-document-multiple"
           class="text-3xl mr-3 text-sky-700 dark:text-sky-400"
         />
         <h2 class="text-3xl font-bold text-zinc-800 dark:text-zinc-200">Featured Content</h2>
@@ -355,10 +354,10 @@ onMounted(async () => {
         >
           <div class="flex items-center justify-between mb-4">
             <Icon
-              :icon="item.icon"
+              :name="item.icon"
               class="text-4xl text-sky-700 dark:text-sky-400 group-hover:scale-110 transition-transform"
             />
-            <Icon icon="mdi:arrow-right" class="text-zinc-400 group-hover:text-sky-600" />
+            <Icon name="mdi:arrow-right" class="text-zinc-400 group-hover:text-sky-600" />
           </div>
           <h3
             class="text-xl font-semibold text-zinc-800 dark:text-zinc-200 mb-2 group-hover:text-sky-700 dark:group-hover:text-sky-400 transition-colors"

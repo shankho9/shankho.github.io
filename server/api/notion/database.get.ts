@@ -9,6 +9,7 @@ import {
   queryNotionDatabase,
   queryNotionDatabaseAll,
 } from '~/server/utils/notion'
+import { proxyNotionImageUrls } from '~/server/utils/notionImages'
 
 export default defineEventHandler(async (event) => {
   const user = await getCurrentUser(event)
@@ -96,7 +97,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    const publishedItems = filterPublishedItems(result.items)
+    const publishedItems = filterPublishedItems(result.items).map(proxyNotionImageUrls)
 
     return {
       success: true,

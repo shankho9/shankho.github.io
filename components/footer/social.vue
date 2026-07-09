@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Icon } from '@iconify/vue'
 import { socialLinks, seoData, footerData } from '~/data'
 import { computed } from 'vue'
 
@@ -76,7 +75,7 @@ const filteredSocialLinks = computed(() => {
       >
         <!-- Icon -->
         <Icon
-          :icon="socialIcons[key] || `mdi:${key}`"
+          :name="socialIcons[key] || `mdi:${key}`"
           width="24"
           height="24"
           class="mb-1.5 flex-shrink-0"
@@ -111,7 +110,7 @@ const filteredSocialLinks = computed(() => {
       >
         <!-- Icon -->
         <Icon
-          icon="mdi:email"
+          name="mdi:email"
           width="24"
           height="24"
           class="mb-1.5 flex-shrink-0"

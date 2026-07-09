@@ -236,13 +236,32 @@ export function getItemString(item: NotionItem, ...keys: string[]): string {
 }
 
 export function getItemImageUrl(item: NotionItem): string | null {
-  const image = item.Image || item.image || item.Cover || item.cover
-  if (Array.isArray(image) && image.length > 0) {
-    return typeof image[0] === 'string' ? image[0] : null
+  const keys = [
+    'Image',
+    'image',
+    'Cover',
+    'cover',
+    'Thumbnail',
+    'thumbnail',
+    'Icon',
+    'icon',
+    'Cover Image',
+    'coverImage',
+    'Cover URL',
+    'coverUrl',
+    'Poster',
+    'poster',
+  ]
+
+  for (const key of keys) {
+    const image = item[key]
+    if (Array.isArray(image) && image.length > 0) {
+      const first = image[0]
+      if (typeof first === 'string' && first.trim()) return first.trim()
+    }
+    if (typeof image === 'string' && image.trim()) return image.trim()
   }
-  if (typeof image === 'string' && image) {
-    return image
-  }
+
   return null
 }
 

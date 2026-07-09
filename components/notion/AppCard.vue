@@ -47,6 +47,14 @@ const formattedUpdatedAt = computed(() => {
 })
 
 const hasAnyAction = computed(() => props.app.playStoreUrl || props.app.hasApk || props.app.hasMsix)
+const imageFailed = ref(false)
+
+watch(
+  () => props.app.iconUrl,
+  () => {
+    imageFailed.value = false
+  },
+)
 </script>
 
 <template>
@@ -57,14 +65,12 @@ const hasAnyAction = computed(() => props.app.playStoreUrl || props.app.hasApk |
       <div
         class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/40 dark:to-indigo-900/40"
       >
-        <NuxtImg
-          v-if="app.iconUrl"
+        <CommonExternalImage
+          v-if="app.iconUrl && !imageFailed"
           :src="app.iconUrl"
           :alt="app.title"
-          class="h-full w-full object-cover"
-          loading="lazy"
-          format="webp"
-          quality="80"
+          img-class="h-full w-full object-cover"
+          @error="imageFailed = true"
         />
         <Icon v-else name="mdi:cellphone" class="text-2xl text-sky-700 dark:text-sky-400" />
       </div>

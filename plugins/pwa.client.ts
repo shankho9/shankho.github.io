@@ -1,6 +1,8 @@
 /**
  * PWA Plugin - Registers Service Worker and Handles Install Prompt
  */
+import { showAppUpdatePrompt } from '~/utils/app/updatePrompt'
+
 export default defineNuxtPlugin(() => {
   if (import.meta.server) return
 
@@ -18,9 +20,8 @@ export default defineNuxtPlugin(() => {
             if (newWorker) {
               newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New service worker available, prompt user to reload
                   console.log('[PWA] New service worker available')
-                  // You could show a toast notification here
+                  showAppUpdatePrompt()
                 }
               })
             }

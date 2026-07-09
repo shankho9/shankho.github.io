@@ -379,7 +379,7 @@ try {
       <div
         class="bg-[#F1F2F4] dark:bg-slate-900 rounded-lg p-8 text-center border border-gray-200 dark:border-slate-800"
       >
-        <Icon icon="mdi:lock" class="text-6xl text-sky-700 dark:text-sky-400 mb-4 mx-auto" />
+        <Icon name="mdi:lock" class="text-6xl text-sky-700 dark:text-sky-400 mb-4 mx-auto" />
         <h2 class="text-2xl font-bold mb-4 text-zinc-800 dark:text-zinc-200">
           Authentication Required
         </h2>
@@ -794,7 +794,7 @@ try {
 
       <!-- Empty State -->
       <div v-if="sortedItems.length === 0" class="text-center py-12">
-        <Icon icon="mdi:image-off" class="text-6xl text-zinc-400 mb-4" />
+        <Icon name="mdi:image-off" class="text-6xl text-zinc-400 mb-4" />
         <p class="text-lg text-zinc-600 dark:text-zinc-400">No items found in this category</p>
       </div>
     </div>

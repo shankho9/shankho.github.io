@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Icon } from '@iconify/vue'
 import { ref, computed, onMounted, watch, shallowRef } from 'vue'
 import { seoData } from '~/data'
 import { useToast } from '~/composables/useToast'
@@ -2326,7 +2325,7 @@ onMounted(async () => {
           to="/dev"
           class="inline-flex items-center text-sm text-sky-600 dark:text-sky-400 hover:underline"
         >
-          <Icon icon="mdi:arrow-left" class="mr-1.5 text-base" />
+          <Icon name="mdi:arrow-left" class="mr-1.5 text-base" />
           Back to Utilities
         </NuxtLink>
         <span class="hidden sm:inline text-gray-300 dark:text-slate-600">|</span>
@@ -2335,7 +2334,7 @@ onMounted(async () => {
           class="inline-flex items-center px-2.5 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
           @click="showTemplatesModal = true"
         >
-          <Icon icon="mdi:file-multiple" class="mr-1.5 text-base" />
+          <Icon name="mdi:file-multiple" class="mr-1.5 text-base" />
           Templates
         </button>
         <button
@@ -2343,7 +2342,7 @@ onMounted(async () => {
           class="inline-flex items-center px-2.5 py-1.5 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors"
           @click="openSaveModal"
         >
-          <Icon icon="mdi:content-save" class="mr-1.5 text-base" />
+          <Icon name="mdi:content-save" class="mr-1.5 text-base" />
           Save
         </button>
         <div class="relative">
@@ -2353,9 +2352,9 @@ onMounted(async () => {
             @click="showExportMenu = !showExportMenu"
             @blur="closeExportMenu"
           >
-            <Icon icon="mdi:download" class="mr-1.5 text-base" />
+            <Icon name="mdi:download" class="mr-1.5 text-base" />
             Export
-            <Icon icon="mdi:chevron-down" class="ml-1.5 text-xs" />
+            <Icon name="mdi:chevron-down" class="ml-1.5 text-xs" />
           </button>
           <div
             v-if="showExportMenu"
@@ -2369,7 +2368,7 @@ onMounted(async () => {
               :disabled="isExporting"
               @click="exportToCSV"
             >
-              <Icon icon="mdi:file-excel" class="text-green-600" />
+              <Icon name="mdi:file-excel" class="text-green-600" />
               Export CSV
             </button>
             <button
@@ -2378,7 +2377,7 @@ onMounted(async () => {
               :disabled="isExporting"
               @click="exportToPDF"
             >
-              <Icon icon="mdi:file-pdf" class="text-red-600" />
+              <Icon name="mdi:file-pdf" class="text-red-600" />
               Export PDF
             </button>
           </div>
@@ -2406,7 +2405,7 @@ onMounted(async () => {
           ]"
           @click="activeTab = 'plan'"
         >
-          <Icon icon="mdi:map-outline" class="inline mr-1.5" />
+          <Icon name="mdi:map-outline" class="inline mr-1.5" />
           Trip Plan
         </button>
         <button
@@ -2420,7 +2419,7 @@ onMounted(async () => {
           ]"
           @click="activeTab = 'transport-costs'"
         >
-          <Icon icon="mdi:car-multiple" class="inline mr-1.5" />
+          <Icon name="mdi:car-multiple" class="inline mr-1.5" />
           Transport
         </button>
         <button
@@ -2434,7 +2433,7 @@ onMounted(async () => {
           ]"
           @click="activeTab = 'accommodation-activities'"
         >
-          <Icon icon="mdi:home-group" class="inline mr-1.5" />
+          <Icon name="mdi:home-group" class="inline mr-1.5" />
           Accommodation & Activities
         </button>
         <button
@@ -2447,7 +2446,7 @@ onMounted(async () => {
           ]"
           @click="activeTab = 'comparison'"
         >
-          <Icon icon="mdi:chart-line" class="inline mr-1.5" />
+          <Icon name="mdi:chart-line" class="inline mr-1.5" />
           Comparison
         </button>
         <button
@@ -2460,7 +2459,7 @@ onMounted(async () => {
           ]"
           @click="activeTab = 'itinerary'"
         >
-          <Icon icon="mdi:calendar-text" class="inline mr-1.5" />
+          <Icon name="mdi:calendar-text" class="inline mr-1.5" />
           Itinerary
         </button>
         <button
@@ -2473,7 +2472,7 @@ onMounted(async () => {
           ]"
           @click="activeTab = 'expenses'"
         >
-          <Icon icon="mdi:wallet" class="inline mr-1.5" />
+          <Icon name="mdi:wallet" class="inline mr-1.5" />
           Expenses
         </button>
         <button
@@ -2486,7 +2485,7 @@ onMounted(async () => {
           ]"
           @click="activeTab = 'packing'"
         >
-          <Icon icon="mdi:luggage" class="inline mr-1.5" />
+          <Icon name="mdi:luggage" class="inline mr-1.5" />
           Packing
         </button>
         <button
@@ -2499,7 +2498,7 @@ onMounted(async () => {
           ]"
           @click="activeTab = 'documents'"
         >
-          <Icon icon="mdi:file-document" class="inline mr-1.5" />
+          <Icon name="mdi:file-document" class="inline mr-1.5" />
           Documents
         </button>
       </div>
@@ -2521,7 +2520,7 @@ onMounted(async () => {
       >
         <div class="flex items-center gap-2">
           <Icon
-            :icon="
+            :name="
               alert.type === 'error'
                 ? 'mdi:alert-circle'
                 : alert.type === 'warning'
@@ -2564,7 +2563,7 @@ onMounted(async () => {
                     v-if="plan.origin"
                     class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-100/50 dark:bg-blue-900/30"
                   >
-                    <Icon icon="mdi:map-marker" class="text-blue-600 dark:text-blue-400 text-lg" />
+                    <Icon name="mdi:map-marker" class="text-blue-600 dark:text-blue-400 text-lg" />
                     <span class="font-medium">{{ plan.origin }}</span>
                   </div>
                   <div
@@ -2572,7 +2571,7 @@ onMounted(async () => {
                     class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-100/50 dark:bg-indigo-900/30"
                   >
                     <Icon
-                      icon="mdi:map-marker-multiple"
+                      name="mdi:map-marker-multiple"
                       class="text-indigo-600 dark:text-indigo-400 text-lg"
                     />
                     <span
@@ -2584,7 +2583,7 @@ onMounted(async () => {
                     v-if="plan.startDate"
                     class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-green-100/50 dark:bg-green-900/30"
                   >
-                    <Icon icon="mdi:calendar" class="text-green-600 dark:text-green-400 text-lg" />
+                    <Icon name="mdi:calendar" class="text-green-600 dark:text-green-400 text-lg" />
                     <span>{{ new Date(plan.startDate).toLocaleDateString() }}</span>
                   </div>
                   <div
@@ -2592,7 +2591,7 @@ onMounted(async () => {
                     class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-100/50 dark:bg-purple-900/30"
                   >
                     <Icon
-                      icon="mdi:clock-outline"
+                      name="mdi:clock-outline"
                       class="text-purple-600 dark:text-purple-400 text-lg"
                     />
                     <span>{{ totalDays }} {{ totalDays === 1 ? 'day' : 'days' }}</span>
@@ -2601,7 +2600,7 @@ onMounted(async () => {
                     class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-orange-100/50 dark:bg-orange-900/30"
                   >
                     <Icon
-                      icon="mdi:account-group"
+                      name="mdi:account-group"
                       class="text-orange-600 dark:text-orange-400 text-lg"
                     />
                     <span
@@ -2623,7 +2622,7 @@ onMounted(async () => {
                   "
                 >
                   <Icon
-                    :icon="
+                    :name="
                       recommendation.recommended === 'Road Trip'
                         ? 'mdi:car'
                         : recommendation.recommended === 'Flight'
@@ -2652,7 +2651,7 @@ onMounted(async () => {
                       class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-100 dark:bg-blue-800/50 text-blue-800 dark:text-blue-200"
                     >
                       <Icon
-                        :icon="
+                        :name="
                           mode === 'road'
                             ? 'mdi:car'
                             : mode === 'flight'
@@ -2687,7 +2686,7 @@ onMounted(async () => {
                       :key="category"
                       class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-800/50 text-emerald-800 dark:text-emerald-200"
                     >
-                      <Icon :icon="stayCategoryIcons[category]" class="text-xs" />
+                      <Icon :name="stayCategoryIcons[category]" class="text-xs" />
                       <span>{{ stayCategoryLabels[category] }}</span>
                     </span>
                   </div>
@@ -2754,7 +2753,7 @@ onMounted(async () => {
                     title="Auto-calculate based on duration and travelers"
                     @click="applyBudgetPreset"
                   >
-                    <Icon icon="mdi:auto-fix" class="text-xs" />
+                    <Icon name="mdi:auto-fix" class="text-xs" />
                   </button>
                 </div>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -2792,11 +2791,11 @@ onMounted(async () => {
                     "
                     @click="toggleTransportMode('road')"
                   >
-                    <Icon icon="mdi:car" class="text-sm text-orange-600 dark:text-orange-400" />
+                    <Icon name="mdi:car" class="text-sm text-orange-600 dark:text-orange-400" />
                     <span class="font-medium leading-tight">Road Trip</span>
                     <Icon
                       v-if="plan.transportModes.includes('road')"
-                      icon="mdi:check-circle"
+                      name="mdi:check-circle"
                       class="absolute top-0 right-0 text-orange-600 dark:text-orange-400 text-[10px]"
                     />
                   </button>
@@ -2810,11 +2809,11 @@ onMounted(async () => {
                     "
                     @click="toggleTransportMode('flight')"
                   >
-                    <Icon icon="mdi:airplane" class="text-sm text-sky-600 dark:text-sky-400" />
+                    <Icon name="mdi:airplane" class="text-sm text-sky-600 dark:text-sky-400" />
                     <span class="font-medium leading-tight">Flight</span>
                     <Icon
                       v-if="plan.transportModes.includes('flight')"
-                      icon="mdi:check-circle"
+                      name="mdi:check-circle"
                       class="absolute top-0 right-0 text-sky-600 dark:text-sky-400 text-[10px]"
                     />
                   </button>
@@ -2828,11 +2827,11 @@ onMounted(async () => {
                     "
                     @click="toggleTransportMode('train')"
                   >
-                    <Icon icon="mdi:train" class="text-sm text-teal-600 dark:text-teal-400" />
+                    <Icon name="mdi:train" class="text-sm text-teal-600 dark:text-teal-400" />
                     <span class="font-medium leading-tight">Train</span>
                     <Icon
                       v-if="plan.transportModes.includes('train')"
-                      icon="mdi:check-circle"
+                      name="mdi:check-circle"
                       class="absolute top-0 right-0 text-teal-600 dark:text-teal-400 text-[10px]"
                     />
                   </button>
@@ -2846,11 +2845,11 @@ onMounted(async () => {
                     "
                     @click="toggleTransportMode('taxi')"
                   >
-                    <Icon icon="mdi:taxi" class="text-sm text-yellow-600 dark:text-yellow-400" />
+                    <Icon name="mdi:taxi" class="text-sm text-yellow-600 dark:text-yellow-400" />
                     <span class="font-medium leading-tight">Taxi</span>
                     <Icon
                       v-if="plan.transportModes.includes('taxi')"
-                      icon="mdi:check-circle"
+                      name="mdi:check-circle"
                       class="absolute top-0 right-0 text-yellow-600 dark:text-yellow-400 text-[10px]"
                     />
                   </button>
@@ -2864,11 +2863,11 @@ onMounted(async () => {
                     "
                     @click="toggleTransportMode('cruise')"
                   >
-                    <Icon icon="mdi:ferry" class="text-sm text-cyan-600 dark:text-cyan-400" />
+                    <Icon name="mdi:ferry" class="text-sm text-cyan-600 dark:text-cyan-400" />
                     <span class="font-medium leading-tight">Cruise</span>
                     <Icon
                       v-if="plan.transportModes.includes('cruise')"
-                      icon="mdi:check-circle"
+                      name="mdi:check-circle"
                       class="absolute top-0 right-0 text-cyan-600 dark:text-cyan-400 text-[10px]"
                     />
                   </button>
@@ -2897,13 +2896,13 @@ onMounted(async () => {
                     @click="toggleStayCategory(category)"
                   >
                     <Icon
-                      :icon="stayCategoryIcons[category]"
+                      :name="stayCategoryIcons[category]"
                       :class="getStayCategoryIconClass(category)"
                     />
                     <span class="font-medium leading-tight">{{ label }}</span>
                     <Icon
                       v-if="plan.stayCategories.includes(category)"
-                      icon="mdi:check-circle"
+                      name="mdi:check-circle"
                       :class="getStayCategoryCheckClass(category)"
                     />
                   </button>
@@ -2937,10 +2936,10 @@ onMounted(async () => {
                     @blur="closeDurationMenu"
                   >
                     <span class="flex items-center gap-1">
-                      <Icon icon="mdi:calendar-range" class="text-xs" />
+                      <Icon name="mdi:calendar-range" class="text-xs" />
                       <span class="truncate">{{ durationLabels[plan.duration] }}</span>
                     </span>
-                    <Icon icon="mdi:chevron-down" class="text-xs shrink-0" />
+                    <Icon name="mdi:chevron-down" class="text-xs shrink-0" />
                   </button>
                   <div
                     v-if="showDurationMenu"
@@ -2975,7 +2974,7 @@ onMounted(async () => {
                       }}</span>
                       <span class="text-xs">{{ currencies[plan.currency].code }}</span>
                     </span>
-                    <Icon icon="mdi:chevron-down" class="text-xs shrink-0" />
+                    <Icon name="mdi:chevron-down" class="text-xs shrink-0" />
                   </button>
                   <div
                     v-if="showCurrencyMenu"
@@ -3014,7 +3013,7 @@ onMounted(async () => {
                     <span
                       class="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none"
                     >
-                      <Icon icon="mdi:account" class="text-xs" />
+                      <Icon name="mdi:account" class="text-xs" />
                     </span>
                   </div>
                   <div class="relative">
@@ -3030,7 +3029,7 @@ onMounted(async () => {
                     <span
                       class="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none"
                     >
-                      <Icon icon="mdi:account-child" class="text-xs" />
+                      <Icon name="mdi:account-child" class="text-xs" />
                     </span>
                   </div>
                 </div>
@@ -3056,7 +3055,7 @@ onMounted(async () => {
               class="inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline"
               @click="addDestination"
             >
-              <Icon icon="mdi:map-marker-plus" class="text-base" />
+              <Icon name="mdi:map-marker-plus" class="text-base" />
               Add Stops
             </button>
           </div>
@@ -3118,7 +3117,7 @@ onMounted(async () => {
                   @drop="handleDrop($event, dest.id)"
                 >
                   <div class="flex items-center text-gray-400 dark:text-gray-500 cursor-move mt-2">
-                    <Icon icon="mdi:drag" class="text-lg" />
+                    <Icon name="mdi:drag" class="text-lg" />
                   </div>
                   <div class="flex-1 space-y-2">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -3165,7 +3164,7 @@ onMounted(async () => {
                           class="px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
                           @click="removeDestination(dest.id)"
                         >
-                          <Icon icon="mdi:delete" />
+                          <Icon name="mdi:delete" />
                         </button>
                       </div>
                     </div>
@@ -3194,7 +3193,7 @@ onMounted(async () => {
           >
             <span v-if="!isLoadingDistance">Calculate Distance & Time</span>
             <span v-else class="flex items-center justify-center">
-              <Icon icon="mdi:loading" class="animate-spin mr-2" />
+              <Icon name="mdi:loading" class="animate-spin mr-2" />
               Calculating...
             </span>
           </button>
@@ -3230,7 +3229,7 @@ onMounted(async () => {
         >
           <div class="mb-4 flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Icon icon="mdi:bed" class="text-emerald-600 dark:text-emerald-400" />
+              <Icon name="mdi:bed" class="text-emerald-600 dark:text-emerald-400" />
               Accommodation Details
             </h3>
             <div class="flex items-center gap-2">
@@ -3273,7 +3272,7 @@ onMounted(async () => {
                   @click="plan.stay.category = category"
                 >
                   <Icon
-                    :icon="stayCategoryIcons[category]"
+                    :name="stayCategoryIcons[category]"
                     :class="getStayCategoryIconClass(category)"
                   />
                   <span class="font-medium">{{ label }}</span>
@@ -3413,7 +3412,7 @@ onMounted(async () => {
         >
           <div class="flex items-start gap-3">
             <Icon
-              icon="mdi:lightbulb-on"
+              name="mdi:lightbulb-on"
               class="text-2xl text-green-600 dark:text-green-400 shrink-0 mt-0.5"
             />
             <div class="flex-1">
@@ -3433,7 +3432,7 @@ onMounted(async () => {
         >
           <div class="mb-4 flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Icon icon="mdi:food" class="text-amber-600 dark:text-amber-400" />
+              <Icon name="mdi:food" class="text-amber-600 dark:text-amber-400" />
               Food & Dining
             </h3>
             <div class="flex items-center gap-2">
@@ -3494,7 +3493,7 @@ onMounted(async () => {
         >
           <div class="mb-4 flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Icon icon="mdi:camera" class="text-purple-600 dark:text-purple-400" />
+              <Icon name="mdi:camera" class="text-purple-600 dark:text-purple-400" />
               Sites & Attractions
             </h3>
             <div class="flex items-center gap-2">
@@ -3525,7 +3524,7 @@ onMounted(async () => {
                 aria-label="Add new site or attraction"
                 @click="addSite"
               >
-                <Icon icon="mdi:plus" class="text-base" />
+                <Icon name="mdi:plus" class="text-base" />
                 Add Site
               </button>
             </div>
@@ -3644,7 +3643,7 @@ onMounted(async () => {
                     :aria-label="`Remove ${site.name || 'site'}`"
                     @click="removeSite(site.id)"
                   >
-                    <Icon icon="mdi:delete" class="inline mr-1" />
+                    <Icon name="mdi:delete" class="inline mr-1" />
                     Remove
                   </button>
                 </div>
@@ -3672,7 +3671,7 @@ onMounted(async () => {
               class="inline-flex items-center px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
               @click="animateRoute(false)"
             >
-              <Icon icon="mdi:play" class="mr-1.5 text-base" />
+              <Icon name="mdi:play" class="mr-1.5 text-base" />
               {{ isAnimatingRoute ? 'Animating…' : 'Animate route' }}
             </button>
             <button
@@ -3681,7 +3680,7 @@ onMounted(async () => {
               class="inline-flex items-center px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
               @click="animateRoute(true)"
             >
-              <Icon icon="mdi:download" class="mr-1.5 text-base" />
+              <Icon name="mdi:download" class="mr-1.5 text-base" />
               {{ isRecordingGif ? 'Recording…' : 'Record & Download GIF' }}
             </button>
           </div>
@@ -3699,7 +3698,7 @@ onMounted(async () => {
         <!-- Road Trip Section -->
         <div v-if="plan.transportModes.includes('road')" class="space-y-6">
           <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Icon icon="mdi:car" class="text-orange-600 dark:text-orange-400" />
+            <Icon name="mdi:car" class="text-orange-600 dark:text-orange-400" />
             Road Trip
           </h2>
           <div class="flex items-center gap-2">
@@ -3733,7 +3732,7 @@ onMounted(async () => {
                     class="px-2 py-1 text-sm border border-orange-600 text-orange-600 rounded-md"
                     @click="addRoadTripLeg"
                   >
-                    <Icon icon="mdi:plus" class="text-sm" /> Add Leg
+                    <Icon name="mdi:plus" class="text-sm" /> Add Leg
                   </button>
                 </div>
               </div>
@@ -3750,7 +3749,7 @@ onMounted(async () => {
                     class="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                     @click="removeRoadTripLeg(leg.id)"
                   >
-                    <Icon icon="mdi:delete" class="text-base" />
+                    <Icon name="mdi:delete" class="text-base" />
                   </button>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -3959,7 +3958,7 @@ onMounted(async () => {
           class="space-y-6 pt-6 border-t border-gray-200 dark:border-slate-700"
         >
           <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Icon icon="mdi:airplane" class="text-sky-600 dark:text-sky-400" />
+            <Icon name="mdi:airplane" class="text-sky-600 dark:text-sky-400" />
             Public Transport
           </h2>
           <div class="flex items-center justify-between gap-2">
@@ -3983,7 +3982,7 @@ onMounted(async () => {
               class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
               @click="addTransportOption"
             >
-              <Icon icon="mdi:plus" class="text-base" />
+              <Icon name="mdi:plus" class="text-base" />
               Add Transport Option
             </button>
           </div>
@@ -3993,7 +3992,7 @@ onMounted(async () => {
               v-if="plan.publicTransport.options.length === 0"
               class="text-center py-8 text-gray-500 dark:text-gray-400"
             >
-              <Icon icon="mdi:train" class="text-4xl mb-2 mx-auto opacity-50" />
+              <Icon name="mdi:train" class="text-4xl mb-2 mx-auto opacity-50" />
               <p class="text-sm">
                 No transport options added yet. Click "Add Transport Option" to get started.
               </p>
@@ -4030,7 +4029,7 @@ onMounted(async () => {
                     class="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md p-1.5"
                     @click="removeTransportOption(option.id)"
                   >
-                    <Icon icon="mdi:delete" />
+                    <Icon name="mdi:delete" />
                   </button>
                 </div>
 
@@ -4060,7 +4059,7 @@ onMounted(async () => {
                           "
                           @click="option.type = transportType"
                         >
-                          <Icon :icon="getTransportTypeIcon(transportType)" class="text-lg" />
+                          <Icon :name="getTransportTypeIcon(transportType)" class="text-lg" />
                           <span class="text-xs font-medium">{{
                             getTransportTypeLabel(transportType)
                           }}</span>
@@ -4180,12 +4179,12 @@ onMounted(async () => {
         <!-- Stay Section -->
         <div v-if="plan.stayCategories.length > 0" class="space-y-6">
           <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Icon icon="mdi:bed" class="text-emerald-600 dark:text-emerald-400" />
+            <Icon name="mdi:bed" class="text-emerald-600 dark:text-emerald-400" />
             Accommodation Costs
           </h2>
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2">
-              <Icon icon="mdi:bed" class="text-2xl text-emerald-600 dark:text-emerald-400" />
+              <Icon name="mdi:bed" class="text-2xl text-emerald-600 dark:text-emerald-400" />
               <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Stay & Accommodation</h2>
             </div>
             <div class="flex items-center gap-2">
@@ -4219,7 +4218,7 @@ onMounted(async () => {
                   :key="category"
                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-100 dark:bg-emerald-800/50 text-emerald-800 dark:text-emerald-200"
                 >
-                  <Icon :icon="stayCategoryIcons[category]" class="text-sm" />
+                  <Icon :name="stayCategoryIcons[category]" class="text-sm" />
                   <span class="font-medium">{{ stayCategoryLabels[category] }}</span>
                 </span>
               </div>
@@ -4250,13 +4249,13 @@ onMounted(async () => {
                   @click="plan.stay.category = category"
                 >
                   <Icon
-                    :icon="stayCategoryIcons[category]"
+                    :name="stayCategoryIcons[category]"
                     :class="getStayCategoryIconClass(category)"
                   />
                   <span class="font-medium">{{ label }}</span>
                   <Icon
                     v-if="plan.stay.category === category"
-                    icon="mdi:check-circle"
+                    name="mdi:check-circle"
                     :class="getStayCategoryCheckClass(category)"
                   />
                 </button>
@@ -4335,7 +4334,7 @@ onMounted(async () => {
                   class="inline-flex items-center px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
                   @click="autoEstimateStayCost"
                 >
-                  <Icon icon="mdi:hotel" class="mr-1.5 text-base" />
+                  <Icon name="mdi:hotel" class="mr-1.5 text-base" />
                   Auto price by destination
                 </button>
                 <a
@@ -4348,7 +4347,7 @@ onMounted(async () => {
                   rel="noopener"
                   class="inline-flex items-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
-                  <Icon icon="mdi:bed" class="mr-1.5 text-base" />
+                  <Icon name="mdi:bed" class="mr-1.5 text-base" />
                   Search {{ plan.stay.category === 'hotel' ? 'Hotels' : 'Resorts' }}
                 </a>
               </div>
@@ -4444,7 +4443,7 @@ onMounted(async () => {
             class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 p-8 text-center"
           >
             <Icon
-              icon="mdi:bed-outline"
+              name="mdi:bed-outline"
               class="text-4xl text-gray-400 dark:text-gray-500 mx-auto mb-3"
             />
             <p class="text-gray-600 dark:text-gray-400">
@@ -4459,7 +4458,7 @@ onMounted(async () => {
           class="space-y-6 pt-6 border-t border-gray-200 dark:border-slate-700"
         >
           <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Icon icon="mdi:food" class="text-amber-600 dark:text-amber-400" />
+            <Icon name="mdi:food" class="text-amber-600 dark:text-amber-400" />
             Food & Dining Costs
           </h2>
           <div class="flex items-center gap-2">
@@ -4479,7 +4478,7 @@ onMounted(async () => {
               v-if="itineraryDays.length === 0"
               class="text-center py-8 text-gray-500 dark:text-gray-400"
             >
-              <Icon icon="mdi:food" class="text-4xl mb-2 mx-auto opacity-50" />
+              <Icon name="mdi:food" class="text-4xl mb-2 mx-auto opacity-50" />
               <p class="text-sm">Add destinations to your trip to start tracking food costs.</p>
             </div>
 
@@ -4602,7 +4601,7 @@ onMounted(async () => {
           class="space-y-6 pt-6 border-t border-gray-200 dark:border-slate-700"
         >
           <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Icon icon="mdi:camera" class="text-purple-600 dark:text-purple-400" />
+            <Icon name="mdi:camera" class="text-purple-600 dark:text-purple-400" />
             Sites & Attractions Costs
           </h2>
           <div class="flex items-center justify-between gap-2 mb-4">
@@ -4625,7 +4624,7 @@ onMounted(async () => {
               class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
               @click="addSite"
             >
-              <Icon icon="mdi:plus" class="text-base" />
+              <Icon name="mdi:plus" class="text-base" />
               Add Site
             </button>
           </div>
@@ -4635,7 +4634,7 @@ onMounted(async () => {
               v-if="plan.sites.sites.length === 0"
               class="text-center py-8 text-gray-500 dark:text-gray-400"
             >
-              <Icon icon="mdi:map-marker-star" class="text-4xl mb-2 mx-auto opacity-50" />
+              <Icon name="mdi:map-marker-star" class="text-4xl mb-2 mx-auto opacity-50" />
               <p class="text-sm">No sites added yet. Click "Add Site" to get started.</p>
               <p class="text-xs mt-2 text-gray-400 dark:text-gray-500">
                 You can add sites manually or import from third-party apps (coming soon)
@@ -4652,7 +4651,7 @@ onMounted(async () => {
                   <div class="flex-1">
                     <div class="flex items-center gap-2 mb-2">
                       <Icon
-                        icon="mdi:map-marker-star"
+                        name="mdi:map-marker-star"
                         class="text-lg text-blue-600 dark:text-blue-400"
                       />
                       <input
@@ -4693,7 +4692,7 @@ onMounted(async () => {
                     class="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md p-1.5 ml-2"
                     @click="removeSite(site.id)"
                   >
-                    <Icon icon="mdi:delete" />
+                    <Icon name="mdi:delete" />
                   </button>
                 </div>
 
@@ -4787,7 +4786,7 @@ onMounted(async () => {
         >
           <div class="flex items-start gap-4">
             <Icon
-              icon="mdi:check-circle"
+              name="mdi:check-circle"
               class="text-3xl text-green-600 dark:text-green-400 shrink-0"
             />
             <div>
@@ -5112,7 +5111,7 @@ onMounted(async () => {
             class="px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-sm"
             @click="addExpense"
           >
-            <Icon icon="mdi:plus" class="inline mr-1" />
+            <Icon name="mdi:plus" class="inline mr-1" />
             Add Expense
           </button>
         </div>
@@ -5184,7 +5183,7 @@ onMounted(async () => {
                   class="px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md mt-6"
                   @click="removeExpense(expense.id)"
                 >
-                  <Icon icon="mdi:delete" />
+                  <Icon name="mdi:delete" />
                 </button>
               </div>
             </div>
@@ -5238,7 +5237,7 @@ onMounted(async () => {
                 class="px-2 py-1 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors"
                 @click="addPackingItem(category as keyof typeof plan.packing.lists)"
               >
-                <Icon icon="mdi:plus" class="inline mr-1" />
+                <Icon name="mdi:plus" class="inline mr-1" />
                 Add
               </button>
             </div>
@@ -5268,7 +5267,7 @@ onMounted(async () => {
                   class="px-2 py-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
                   @click="removePackingItem(category as keyof typeof plan.packing.lists, item.id)"
                 >
-                  <Icon icon="mdi:delete" class="text-sm" />
+                  <Icon name="mdi:delete" class="text-sm" />
                 </button>
               </div>
             </div>
@@ -5317,7 +5316,7 @@ onMounted(async () => {
           class="p-4 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800"
         >
           <div class="flex items-center gap-2">
-            <Icon icon="mdi:information" class="text-teal-600 dark:text-teal-400" />
+            <Icon name="mdi:information" class="text-teal-600 dark:text-teal-400" />
             <span class="text-sm text-teal-800 dark:text-teal-200">
               {{ plan.documents.checklist.filter((d) => d.checked).length }}/{{
                 plan.documents.checklist.length
@@ -5340,7 +5339,7 @@ onMounted(async () => {
             class="text-gray-500 hover:text-gray-700 dark:text-gray-400"
             @click="showTemplatesModal = false"
           >
-            <Icon icon="mdi:close" />
+            <Icon name="mdi:close" />
           </button>
         </div>
         <div v-if="isLoadingTemplates" class="text-sm text-gray-600 dark:text-gray-400">
@@ -5395,7 +5394,7 @@ onMounted(async () => {
             class="text-gray-500 hover:text-gray-700 dark:text-gray-400"
             @click="showSaveModal = false"
           >
-            <Icon icon="mdi:close" />
+            <Icon name="mdi:close" />
           </button>
         </div>
         <div class="space-y-4">
@@ -5459,7 +5458,7 @@ onMounted(async () => {
             >
               <span v-if="!isSavingTemplate">Save</span>
               <span v-else class="flex items-center">
-                <Icon icon="mdi:loading" class="animate-spin mr-2" />
+                <Icon name="mdi:loading" class="animate-spin mr-2" />
                 Saving…
               </span>
             </button>
