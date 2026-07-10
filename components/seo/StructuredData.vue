@@ -26,7 +26,7 @@ const props = withDefaults(defineProps<Props>(), {
   image: seoData?.image || '/not-found.jpg',
   author: () => ({
     name: siteBrand.authorName,
-    url: seoData?.mySite || 'https://shankho-blogsite.vercel.app',
+    url: seoData?.mySite || 'https://www.nomadic-notions.co.in',
   }),
   publishedDate: undefined,
   modifiedDate: undefined,
@@ -35,7 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const siteUrl =
   (config.public.siteUrl as string) ||
-  (seoData?.mySite ? seoData.mySite.replace(/\/$/, '') : 'https://shankho-blogsite.vercel.app')
+  (seoData?.mySite ? seoData.mySite.replace(/\/$/, '') : 'https://www.nomadic-notions.co.in')
 const currentUrl = `${siteUrl}${route.path}`
 
 const websiteSchema = computed(() => ({

@@ -4,5 +4,13 @@
   "regions": ["iad1"],
   "env": {
     "NUXT_PUBLIC_SITE_URL": "https://www.nomadic-notions.co.in"
-  }
+  },
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "shankho-blogsite.vercel.app" }],
+      "destination": "https://www.nomadic-notions.co.in/:path*",
+      "permanent": true
+    }
+  ]
 }

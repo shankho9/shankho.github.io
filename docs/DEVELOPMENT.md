@@ -74,6 +74,17 @@ Nav links for LifeLines, Library, and Gallery are visible to everyone; opening t
 
 ---
 
+## Canonical domain redirect
+
+Production domain is **`https://www.nomadic-notions.co.in`**. The old Vercel host `shankho-blogsite.vercel.app` permanently redirects (308 / Vercel permanent) to the new domain with path and query preserved (so OAuth callbacks and deep links keep working).
+
+- Edge: [`vercel.json`](../vercel.json) host-based redirect
+- App fallback: [`server/middleware/canonical-host.ts`](../server/middleware/canonical-host.ts)
+
+Ensure Google / GitHub / Outlook OAuth authorized redirect URIs use `https://www.nomadic-notions.co.in` (not the old Vercel URL).
+
+---
+
 ## Auth
 
 Unified auth: email/password (with MFA) and Google OAuth. Sessions in DB; httpOnly cookies.

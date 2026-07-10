@@ -307,7 +307,7 @@ export const seoData = {
   twitterDescription: `Sid's Blog, where I play around content, resources, etc - Sid's Blog | Nomadic Notions`,
   image:
     'https://res.cloudinary.com/dmecmyphj/image/upload/v1673548905/nuxt-blog/cover_ntgs6u.webp',
-  mySite: 'https://shankho-blogsite.vercel.app/',
+  mySite: 'https://www.nomadic-notions.co.in/',
   twitterHandle: '@shankho99',
   mailAddress: siteBrand.contactEmail,
   publisherName: siteBrand.publisherName,
@@ -325,7 +325,7 @@ export const socialLinks = {
 
 // Use a function to ensure seoData is available and provide fallbacks
 export const siteMetaData = (() => {
-  const mySite = seoData?.mySite || 'https://shankho-blogsite.vercel.app'
+  const mySite = seoData?.mySite || 'https://www.nomadic-notions.co.in'
   const description = seoData?.description || "Sid's personal blog site"
   const ogTitle = seoData?.ogTitle || "Sid's Blog | Nomadic Notions"
   const image = seoData?.image || '/not-found.jpg'

@@ -19,14 +19,14 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   image: seoData?.image || '/not-found.jpg',
   authorName: siteBrand.authorName,
-  authorUrl: seoData?.mySite || 'https://shankho-blogsite.vercel.app',
+  authorUrl: seoData?.mySite || 'https://www.nomadic-notions.co.in',
   modifiedDate: undefined,
   tags: () => [],
 })
 
 const siteUrl =
   (config.public.siteUrl as string) ||
-  (seoData?.mySite ? seoData.mySite.replace(/\/$/, '') : 'https://shankho-blogsite.vercel.app')
+  (seoData?.mySite ? seoData.mySite.replace(/\/$/, '') : 'https://www.nomadic-notions.co.in')
 const currentUrl = `${siteUrl}${route.path}`
 
 const schema = computed(() => ({

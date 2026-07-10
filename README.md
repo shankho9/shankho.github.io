@@ -1,6 +1,6 @@
 # Sid's Personal Blog Site
 
-[Visit Sid's Blog Site](https://shankho-blogsite.vercel.app/)
+[Visit Sid's Blog Site](https://www.nomadic-notions.co.in/)
 
 ## Built with
 
@@ -22,7 +22,7 @@ Nuxt Blog built with [Nuxt3](https://nuxt.com), [Nuxt-Content2](https://content.
 
 ## Demo
 
-<https://shankho-blogsite.vercel.app>
+<https://www.nomadic-notions.co.in>
 
 > Hosted on [Vercel](https://vercel.com/): `npm run build`
 

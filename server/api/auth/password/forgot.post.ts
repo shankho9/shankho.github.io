@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
       const siteUrl =
         config.public.siteUrl ||
         process.env.NUXT_PUBLIC_SITE_URL ||
-        'https://shankho-blogsite.vercel.app'
+        'https://www.nomadic-notions.co.in'
       const resetUrl = `${siteUrl}/auth/reset-password?token=${resetToken}`
 
       console.log('[Auth] Sending password reset email to:', user.email)
