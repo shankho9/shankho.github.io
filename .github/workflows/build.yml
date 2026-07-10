@@ -12,10 +12,18 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      # After optional content auto-format commit, Vercel deploys HEAD — not the
+      # workflow's original github.sha. wait-vercel must poll this SHA.
+      deploy-sha: ${{ steps.resolve-deploy-sha.outputs.sha }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # Needed so auto-commit can push and we can read the new HEAD SHA
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Node.js
         uses: actions/setup-node@v5
@@ -32,11 +40,23 @@ jobs:
         run: npx prettier --write 'content/**'
 
       - name: Commit formatted content
+        id: auto-commit
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'chore: format content [skip ci]'
           file_pattern: 'content/**'
+
+      - name: Resolve deploy SHA
+        id: resolve-deploy-sha
+        run: |
+          SHA="$(git rev-parse HEAD)"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Workflow event SHA: ${{ github.sha }}"
+          echo "Deploy wait SHA (HEAD after auto-format): ${SHA}"
+          if [ "${SHA}" != "${{ github.sha }}" ]; then
+            echo "Auto-format created a new commit; wait-vercel will poll the new SHA."
+          fi
 
       - name: Check Linting
         run: npm run lint
@@ -64,7 +84,8 @@ jobs:
           npm run build
 
   # After CI build succeeds, wait for Vercel Git integration to finish deploying
-  # this commit to production. Requires VERCEL_TOKEN + VERCEL_PROJECT_ID secrets.
+  # the commit that will be in production (HEAD after optional format commit).
+  # Requires VERCEL_TOKEN + VERCEL_PROJECT_ID; VERCEL_TEAM_ID for team projects.
   wait-vercel:
     name: Wait for Vercel deploy
     needs: build
@@ -74,13 +95,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.build.outputs.deploy-sha }}
 
       - name: Wait until Vercel production deploy is READY
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
-          SHA: ${{ github.sha }}
+          SHA: ${{ needs.build.outputs.deploy-sha }}
           MAX_ATTEMPTS: '60'
           SLEEP_SECONDS: '20'
         run: python3 scripts/wait-vercel-deploy.py

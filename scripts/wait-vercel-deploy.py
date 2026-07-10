@@ -8,6 +8,7 @@ import os
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 
@@ -15,17 +16,68 @@ def env(name: str, default: str = "") -> str:
     return (os.environ.get(name) or default).strip()
 
 
-def fetch_deployments(token: str, project_id: str, team_id: str) -> list[dict]:
-    qs = f"projectId={project_id}&limit=20"
-    if team_id:
-        qs += f"&teamId={team_id}"
-    url = f"https://api.vercel.com/v6/deployments?{qs}"
+def api_get(token: str, path: str, query: dict[str, str] | None = None) -> dict:
+    qs = urllib.parse.urlencode({k: v for k, v in (query or {}).items() if v})
+    url = f"https://api.vercel.com{path}"
+    if qs:
+        url = f"{url}?{qs}"
     req = urllib.request.Request(
         url,
         headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
-        data = json.load(resp)
+        return json.load(resp)
+
+
+def resolve_team_id(token: str, project_id: str, team_id: str) -> str:
+    """
+    Ensure we can see the project. Team projects require teamId on list APIs;
+    without it Vercel often returns an empty deployment list (silent timeout).
+    Prefer explicit VERCEL_TEAM_ID; otherwise use project.accountId when available.
+    """
+    query: dict[str, str] = {}
+    if team_id:
+        query["teamId"] = team_id
+
+    try:
+        project = api_get(token, f"/v9/projects/{urllib.parse.quote(project_id)}", query)
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        if exc.code in {403, 404} and not team_id:
+            print(
+                "::error::Vercel project not found without a team id. "
+                "This project is likely under a Vercel team — set secret VERCEL_TEAM_ID "
+                "(Team Settings → Team ID) and re-run.",
+                file=sys.stderr,
+            )
+            print(f"API response: {body[:400]}", file=sys.stderr)
+            raise SystemExit(1) from exc
+        print(f"::error::Failed to load Vercel project ({exc.code}): {body[:400]}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+    account_id = (project.get("accountId") or "").strip()
+    if team_id:
+        return team_id
+
+    # Team-owned projects need teamId on /v6/deployments; accountId is that team id.
+    # Personal projects usually work without teamId — still pass accountId when present
+    # so list calls are scoped correctly.
+    if account_id:
+        print(f"Using Vercel accountId as teamId for API calls: {account_id}")
+        return account_id
+
+    print(
+        "::warning::No VERCEL_TEAM_ID and project has no accountId; "
+        "listing deployments without teamId.",
+    )
+    return ""
+
+
+def fetch_deployments(token: str, project_id: str, team_id: str) -> list[dict]:
+    query: dict[str, str] = {"projectId": project_id, "limit": "20"}
+    if team_id:
+        query["teamId"] = team_id
+    data = api_get(token, "/v6/deployments", query)
     return data.get("deployments") or []
 
 
@@ -48,7 +100,7 @@ def match_deployment(deployments: list[dict], sha: str) -> tuple[str, str, str]:
 def main() -> int:
     token = env("VERCEL_TOKEN")
     project_id = env("VERCEL_PROJECT_ID")
-    team_id = env("VERCEL_TEAM_ID")
+    explicit_team_id = env("VERCEL_TEAM_ID")
     sha = env("SHA") or env("GITHUB_SHA")
 
     if not token or not project_id:
@@ -63,8 +115,14 @@ def main() -> int:
         print("::error::Missing SHA / GITHUB_SHA", file=sys.stderr)
         return 1
 
+    try:
+        team_id = resolve_team_id(token, project_id, explicit_team_id)
+    except SystemExit as exc:
+        return int(exc.code) if isinstance(exc.code, int) else 1
+
     max_attempts = int(env("MAX_ATTEMPTS", "60"))
     sleep_seconds = int(env("SLEEP_SECONDS", "20"))
+    empty_streak = 0
 
     print(f"Waiting for Vercel deploy of commit {sha}...")
 
@@ -73,6 +131,14 @@ def main() -> int:
             deployments = fetch_deployments(token, project_id, team_id)
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")
+            if exc.code in {403, 404} and not explicit_team_id:
+                print(
+                    "::error::Deployments API denied/not found. "
+                    "If this is a team project, set VERCEL_TEAM_ID.",
+                    file=sys.stderr,
+                )
+                print(f"API response: {body[:400]}", file=sys.stderr)
+                return 1
             print(f"::warning::Vercel API HTTP {exc.code}: {body[:300]}")
             time.sleep(sleep_seconds)
             continue
@@ -81,10 +147,25 @@ def main() -> int:
             time.sleep(sleep_seconds)
             continue
 
+        if not deployments:
+            empty_streak += 1
+            # Empty lists without any team/account scope usually mean a team project
+            # queried without teamId — fail fast instead of timing out.
+            if empty_streak >= 3 and not team_id:
+                print(
+                    "::error::Vercel returned no deployments repeatedly and no team id "
+                    "is configured. Set secret VERCEL_TEAM_ID for team projects.",
+                    file=sys.stderr,
+                )
+                return 1
+        else:
+            empty_streak = 0
+
         state, target, url = match_deployment(deployments, sha)
         print(
             f"[attempt {attempt}/{max_attempts}] "
-            f"state={state} target={target or 'n/a'} url={url or 'n/a'}"
+            f"state={state} target={target or 'n/a'} url={url or 'n/a'} "
+            f"(listed={len(deployments)})"
         )
 
         if state == "READY":

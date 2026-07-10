@@ -90,15 +90,16 @@ Ensure Google / GitHub / Outlook OAuth authorized redirect URIs use `https://www
 Workflow: [`.github/workflows/build.yml`](../.github/workflows/build.yml)
 
 1. Lint, format, and `npm run build` (validation only — production still deploys via Vercel Git).
-2. On **push to `main`**, `wait-vercel` polls the Vercel API until a production deploy for that commit is `READY` (fails on `ERROR` / timeout).
+2. On **push to `main`**, if Tina content was auto-formatted, a new commit may be pushed (`[skip ci]`). `wait-vercel` polls for **that HEAD SHA** (not the original workflow SHA), until Vercel reports `READY`.
+3. Team projects: set `VERCEL_TEAM_ID` (or the script resolves `accountId` from the project). Missing team id used to return an empty deploy list and time out — it now fails fast with a clear error.
 
 ### Secrets for `wait-vercel`
 
-| Secret              | Required        | Where to get it                                                |
-| ------------------- | --------------- | -------------------------------------------------------------- |
-| `VERCEL_TOKEN`      | Yes             | [Vercel → Account → Tokens](https://vercel.com/account/tokens) |
-| `VERCEL_PROJECT_ID` | Yes             | Project → Settings → General → Project ID                      |
-| `VERCEL_TEAM_ID`    | If team project | Team Settings → Team ID                                        |
+| Secret              | Required      | Where to get it                                                |
+| ------------------- | ------------- | -------------------------------------------------------------- |
+| `VERCEL_TOKEN`      | Yes           | [Vercel → Account → Tokens](https://vercel.com/account/tokens) |
+| `VERCEL_PROJECT_ID` | Yes           | Project → Settings → General → Project ID                      |
+| `VERCEL_TEAM_ID`    | Team projects | Team Settings → Team ID (required if project is under a team)  |
 
 Add them under GitHub → repo **Settings → Secrets and variables → Actions**.
 
