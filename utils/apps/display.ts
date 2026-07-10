@@ -34,5 +34,5 @@ export function getAppModalBody(app: AppListItem): string {
 }
 
 export function appHasAnyAction(app: AppListItem): boolean {
-  return Boolean(app.webUrl || app.playStoreUrl || app.hasApk || app.hasMsix)
+  return Boolean(app.webUrl || app.storeUrl || app.hasApk || app.hasMsix)
 }

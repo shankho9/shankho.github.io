@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import TinaEditButton from '~/components/library/TinaEditButton.vue'
 import MusicDetailModal from '~/components/music/MusicDetailModal.vue'
 import MusicListRow, {
   type MusicListItem,
   type MusicType,
 } from '~/components/library/MusicListRow.vue'
+import LibraryFilterChips from '~/components/library/LibraryFilterChips.vue'
+import LibraryPagination from '~/components/library/LibraryPagination.vue'
+import { uniqueSortedLabels, useLibraryPagination } from '~/composables/useLibraryPagination'
 
 type MusicTab = 'lyrics' | 'instrumental' | 'notation'
 
 const activeMusicTab = ref<MusicTab>('lyrics')
 const searchQuery = ref('')
+const languageFilter = ref<string | null>(null)
 const isLoading = ref(true)
 const error = ref<string | null>(null)
 const items = ref<MusicListItem[]>([])
@@ -73,16 +77,44 @@ const tabItems = computed(() =>
   items.value.filter((item) => item.musicType === activeMusicTab.value),
 )
 
+const languageOptions = computed(() =>
+  uniqueSortedLabels(tabItems.value.map((item) => item.language)),
+)
+
 const filteredItems = computed(() => {
-  if (!searchQuery.value.trim()) return tabItems.value
+  let list = tabItems.value
+
+  if (languageFilter.value) {
+    list = list.filter((item) => item.language === languageFilter.value)
+  }
+
+  if (!searchQuery.value.trim()) return list
   const q = searchQuery.value.toLowerCase().trim()
-  return tabItems.value.filter((item) => {
+  return list.filter((item) => {
     if (item.title.toLowerCase().includes(q)) return true
     if (item.artist?.toLowerCase().includes(q)) return true
     if (item.language?.toLowerCase().includes(q)) return true
     if (item.tags?.some((t) => t.toLowerCase().includes(q))) return true
     return false
   })
+})
+
+const { currentPage, pageItems, totalPages, rangeLabel, resetPage, goToPage } =
+  useLibraryPagination(filteredItems)
+
+watch(activeMusicTab, () => {
+  languageFilter.value = null
+  resetPage()
+})
+
+watch([searchQuery, languageFilter], () => {
+  resetPage()
+})
+
+watch(languageOptions, (options) => {
+  if (languageFilter.value && !options.includes(languageFilter.value)) {
+    languageFilter.value = null
+  }
 })
 
 const loadMusic = async () => {
@@ -148,32 +180,41 @@ defineExpose({ items, loadMusic, isLoading })
         </template>
       </LibraryTabToolbar>
 
-      <p v-if="searchQuery" class="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
+      <LibraryFilterChips
+        v-model="languageFilter"
+        label="Language"
+        :options="languageOptions"
+        all-label="All languages"
+      />
+
+      <p v-if="searchQuery || languageFilter" class="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
         {{ filteredItems.length }} {{ filteredItems.length === 1 ? 'result' : 'results' }}
       </p>
 
-      <div v-if="filteredItems.length > 0" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <MusicListRow
-          v-for="item in filteredItems"
-          :key="item.id"
-          :item="item"
-          @select="openDetail"
-        />
+      <div v-if="pageItems.length > 0" class="flex flex-col gap-3">
+        <MusicListRow v-for="item in pageItems" :key="item.id" :item="item" @select="openDetail" />
       </div>
 
       <div v-else class="py-12 text-center">
         <Icon name="mdi:music-off" class="mb-4 text-6xl text-zinc-400" />
         <p class="text-lg text-zinc-600 dark:text-zinc-400">
           {{
-            searchQuery
-              ? `No results matching "${searchQuery}"`
+            searchQuery || languageFilter
+              ? 'No results match your filters'
               : `No ${activeMusicTab} entries yet`
           }}
         </p>
-        <p v-if="!searchQuery" class="mt-2 text-sm text-zinc-500">
-          Click a card to view lyrics, notation, and streaming links.
+        <p v-if="!searchQuery && !languageFilter" class="mt-2 text-sm text-zinc-500">
+          Click a row to view lyrics, notation, and streaming links.
         </p>
       </div>
+
+      <LibraryPagination
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        :range-label="rangeLabel"
+        @update:current-page="goToPage"
+      />
 
       <MusicDetailModal :open="detailOpen" :slug="selectedItem?.slug" @close="closeDetail" />
     </div>

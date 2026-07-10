@@ -159,7 +159,7 @@ On **Vercel → Environment Variables**, set `FROM_EMAIL` to `blogsite@nomadic-n
 | categories   | list    | e.g. `Android`, `Web`                   |
 | version      | string  | e.g. `1.0.0`                            |
 | webUrl       | string  | Web/PWA link (optional)                 |
-| playStoreUrl | string  | Google Play link (optional)             |
+| storeUrl      | string  | App store link (Play / Microsoft / etc.) |
 | iconUrl      | string  | R2 public URL or any HTTPS icon URL     |
 | apkKey       | string  | R2 object key (not a full URL)          |
 | msixKey      | string  | R2 object key (optional)                |

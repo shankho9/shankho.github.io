@@ -218,8 +218,8 @@ export default defineConfig({
           },
           {
             type: 'string',
-            name: 'playStoreUrl',
-            label: 'Play Store URL',
+            name: 'storeUrl',
+            label: 'Store URL',
           },
           {
             type: 'string',

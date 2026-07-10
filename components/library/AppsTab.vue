@@ -1,25 +1,40 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import type { AppListItem } from '~/types/apps'
 import { toAppListItem } from '~/utils/apps/content'
 import AppCard from '~/components/library/AppCard.vue'
 import AppDetailModal from '~/components/library/AppDetailModal.vue'
 import TinaEditButton from '~/components/library/TinaEditButton.vue'
+import LibraryFilterChips from '~/components/library/LibraryFilterChips.vue'
+import LibraryPagination from '~/components/library/LibraryPagination.vue'
 import { useTinaEditor } from '~/composables/useTinaEditor'
+import { uniqueSortedLabels, useLibraryPagination } from '~/composables/useLibraryPagination'
 
 const apps = ref<AppListItem[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 const searchQuery = ref('')
+const categoryFilter = ref<string | null>(null)
 const selectedApp = ref<AppListItem | null>(null)
 const showModal = ref(false)
 
 const { appsCollectionUrl } = useTinaEditor()
 
+const categoryOptions = computed(() =>
+  uniqueSortedLabels(apps.value.flatMap((app) => app.categories)),
+)
+
 const filteredApps = computed(() => {
-  if (!searchQuery.value.trim()) return apps.value
+  let list = apps.value
+
+  if (categoryFilter.value) {
+    list = list.filter((app) => app.categories.includes(categoryFilter.value!))
+  }
+
+  if (!searchQuery.value.trim()) return list
+
   const query = searchQuery.value.toLowerCase().trim()
-  return apps.value.filter((app) => {
+  return list.filter((app) => {
     if (app.title.toLowerCase().includes(query)) return true
     if (app.description.toLowerCase().includes(query)) return true
     if (app.details?.toLowerCase().includes(query)) return true
@@ -27,6 +42,19 @@ const filteredApps = computed(() => {
     if (app.version.toLowerCase().includes(query)) return true
     return false
   })
+})
+
+const { currentPage, pageItems, totalPages, rangeLabel, resetPage, goToPage } =
+  useLibraryPagination(filteredApps)
+
+watch([searchQuery, categoryFilter], () => {
+  resetPage()
+})
+
+watch(categoryOptions, (options) => {
+  if (categoryFilter.value && !options.includes(categoryFilter.value)) {
+    categoryFilter.value = null
+  }
 })
 
 const openApp = (app: AppListItem) => {
@@ -92,23 +120,42 @@ defineExpose({ apps, loadApps, isLoading })
         </template>
       </LibraryTabToolbar>
 
-      <p v-if="searchQuery" class="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
+      <LibraryFilterChips
+        v-model="categoryFilter"
+        label="Platform"
+        :options="categoryOptions"
+        all-label="All platforms"
+      />
+
+      <p v-if="searchQuery || categoryFilter" class="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
         {{ filteredApps.length }} {{ filteredApps.length === 1 ? 'result' : 'results' }}
       </p>
 
-      <div v-if="filteredApps.length > 0" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <AppCard v-for="app in filteredApps" :key="app.id" :app="app" @select="openApp(app)" />
+      <div v-if="pageItems.length > 0" class="flex flex-col gap-3">
+        <AppCard v-for="app in pageItems" :key="app.id" :app="app" @select="openApp(app)" />
       </div>
 
       <div v-else class="py-12 text-center">
         <Icon name="mdi:cellphone-off" class="mb-4 text-6xl text-zinc-400" />
         <p class="text-lg text-zinc-600 dark:text-zinc-400">
-          {{ searchQuery ? `No apps found matching "${searchQuery}"` : 'No apps available yet' }}
+          {{
+            searchQuery || categoryFilter ? 'No apps match your filters' : 'No apps available yet'
+          }}
         </p>
-        <p v-if="!searchQuery" class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+        <p
+          v-if="!searchQuery && !categoryFilter"
+          class="mt-2 text-sm text-zinc-500 dark:text-zinc-400"
+        >
           Add apps in Tina CMS to see them here.
         </p>
       </div>
+
+      <LibraryPagination
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        :range-label="rangeLabel"
+        @update:current-page="goToPage"
+      />
     </div>
 
     <AppDetailModal :open="showModal" :app="selectedApp" @close="closeModal" />

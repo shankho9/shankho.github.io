@@ -7,7 +7,7 @@ export interface AppListItem {
   version: string
   categories: string[]
   webUrl: string | null
-  playStoreUrl: string | null
+  storeUrl: string | null
   iconUrl: string | null
   hasApk: boolean
   hasMsix: boolean

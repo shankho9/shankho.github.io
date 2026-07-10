@@ -1,15 +1,19 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import TinaEditButton from '~/components/library/TinaEditButton.vue'
 import ResourceCard from '~/components/library/ResourceCard.vue'
+import LibraryFilterChips from '~/components/library/LibraryFilterChips.vue'
+import LibraryPagination from '~/components/library/LibraryPagination.vue'
 import type { ResourceListItem, ResourceType } from '~/types/resources'
 import { toResourceListItem } from '~/utils/resources/display'
 import { useTinaEditor } from '~/composables/useTinaEditor'
+import { uniqueSortedLabels, useLibraryPagination } from '~/composables/useLibraryPagination'
 
 type ResourceTab = 'books' | 'tools' | 'learning'
 
 const activeResourceTab = ref<ResourceTab>('books')
 const searchQuery = ref('')
+const categoryFilter = ref<string | null>(null)
 const isLoading = ref(true)
 const error = ref<string | null>(null)
 const items = ref<ResourceListItem[]>([])
@@ -58,17 +62,46 @@ const currentTabItems = computed(() => {
   }
 })
 
+const categoryOptions = computed(() =>
+  uniqueSortedLabels(currentTabItems.value.map((item) => item.category)),
+)
+
 const filteredItems = computed(() => {
-  if (!searchQuery.value.trim()) return currentTabItems.value
+  let list = currentTabItems.value
+
+  if (categoryFilter.value) {
+    list = list.filter((item) => item.category === categoryFilter.value)
+  }
+
+  if (!searchQuery.value.trim()) return list
 
   const query = searchQuery.value.toLowerCase().trim()
-  return currentTabItems.value.filter((item) => {
+  return list.filter((item) => {
     if (item.title.toLowerCase().includes(query)) return true
     if (item.description.toLowerCase().includes(query)) return true
     if (item.category.toLowerCase().includes(query)) return true
     if (item.author?.toLowerCase().includes(query)) return true
+    if (item.tags.some((t) => t.toLowerCase().includes(query))) return true
     return false
   })
+})
+
+const { currentPage, pageItems, totalPages, rangeLabel, resetPage, goToPage } =
+  useLibraryPagination(filteredItems)
+
+watch(activeResourceTab, () => {
+  categoryFilter.value = null
+  resetPage()
+})
+
+watch([searchQuery, categoryFilter], () => {
+  resetPage()
+})
+
+watch(categoryOptions, (options) => {
+  if (categoryFilter.value && !options.includes(categoryFilter.value)) {
+    categoryFilter.value = null
+  }
 })
 
 const searchPlaceholder = computed(() => {
@@ -149,12 +182,19 @@ defineExpose({ items, loadResources, isLoading })
         </template>
       </LibraryTabToolbar>
 
-      <p v-if="searchQuery" class="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
+      <LibraryFilterChips
+        v-model="categoryFilter"
+        label="Category"
+        :options="categoryOptions"
+        all-label="All categories"
+      />
+
+      <p v-if="searchQuery || categoryFilter" class="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
         {{ filteredItems.length }} {{ filteredItems.length === 1 ? 'result' : 'results' }}
       </p>
 
-      <div v-if="filteredItems.length > 0" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <ResourceCard v-for="item in filteredItems" :key="item.id" :item="item" :type="cardType" />
+      <div v-if="pageItems.length > 0" class="flex flex-col gap-3">
+        <ResourceCard v-for="item in pageItems" :key="item.id" :item="item" :type="cardType" />
       </div>
 
       <div v-else class="py-12 text-center">
@@ -170,15 +210,25 @@ defineExpose({ items, loadResources, isLoading })
         />
         <p class="text-lg text-zinc-600 dark:text-zinc-400">
           {{
-            searchQuery
-              ? `No results matching "${searchQuery}"`
+            searchQuery || categoryFilter
+              ? 'No results match your filters'
               : `No ${activeResourceTab} available yet`
           }}
         </p>
-        <p v-if="!searchQuery" class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+        <p
+          v-if="!searchQuery && !categoryFilter"
+          class="mt-2 text-sm text-zinc-500 dark:text-zinc-400"
+        >
           Add items in Tina CMS to see them here.
         </p>
       </div>
+
+      <LibraryPagination
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        :range-label="rangeLabel"
+        @update:current-page="goToPage"
+      />
     </div>
   </div>
 </template>

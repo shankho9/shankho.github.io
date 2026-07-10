@@ -58,7 +58,7 @@ export default defineContentConfig({
         categories: z.array(z.string()).optional(),
         version: z.string().optional(),
         webUrl: z.string().optional(),
-        playStoreUrl: z.string().optional(),
+        storeUrl: z.string().optional(),
         iconUrl: z.string().optional(),
         apkKey: z.string().optional(),
         msixKey: z.string().optional(),

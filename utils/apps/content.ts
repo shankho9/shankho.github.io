@@ -12,7 +12,7 @@ export interface AppContentDoc {
   categories?: string[]
   version?: string
   webUrl?: string
-  playStoreUrl?: string
+  storeUrl?: string
   iconUrl?: string
   apkKey?: string
   msixKey?: string
@@ -32,7 +32,7 @@ export function toAppListItem(doc: AppContentDoc): AppListItem {
     version: doc.version || '',
     categories: doc.categories || [],
     webUrl: doc.webUrl?.trim() || null,
-    playStoreUrl: doc.playStoreUrl?.trim() || null,
+    storeUrl: doc.storeUrl?.trim() || null,
     iconUrl: doc.iconUrl?.trim() || null,
     hasApk: Boolean(doc.apkKey?.trim()),
     hasMsix: Boolean(doc.msixKey?.trim()),

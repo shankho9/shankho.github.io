@@ -293,9 +293,9 @@
           },
           {
             "type": "string",
-            "name": "playStoreUrl",
-            "label": "Play Store URL",
-            "namespace": ["apps", "playStoreUrl"],
+            "name": "storeUrl",
+            "label": "Store URL",
+            "namespace": ["apps", "storeUrl"],
             "searchable": true,
             "uid": false
           },
@@ -1777,7 +1777,7 @@
           },
           {
             "kind": "FieldDefinition",
-            "name": { "kind": "Name", "value": "playStoreUrl" },
+            "name": { "kind": "Name", "value": "storeUrl" },
             "arguments": [],
             "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "String" } }
           },
@@ -1870,7 +1870,7 @@
           },
           {
             "kind": "InputValueDefinition",
-            "name": { "kind": "Name", "value": "playStoreUrl" },
+            "name": { "kind": "Name", "value": "storeUrl" },
             "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "StringFilter" } }
           },
           {
@@ -2513,7 +2513,7 @@
           },
           {
             "kind": "InputValueDefinition",
-            "name": { "kind": "Name", "value": "playStoreUrl" },
+            "name": { "kind": "Name", "value": "storeUrl" },
             "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "String" } }
           },
           {

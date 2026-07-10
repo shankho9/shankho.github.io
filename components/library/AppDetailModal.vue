@@ -184,14 +184,14 @@ onUnmounted(() => {
                     Open Web App
                   </a>
                   <a
-                    v-if="app.playStoreUrl"
-                    :href="app.playStoreUrl"
+                    v-if="app.storeUrl"
+                    :href="app.storeUrl"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
                   >
-                    <Icon name="mdi:google-play" size="16" />
-                    Google Play
+                    <Icon name="mdi:store" size="16" />
+                    Open Store
                   </a>
                   <a
                     v-if="app.hasApk"
