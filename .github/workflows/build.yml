@@ -62,3 +62,25 @@ jobs:
             echo "::warning::Tina secrets not configured — tinacms build will be skipped in CI"
           fi
           npm run build
+
+  # After CI build succeeds, wait for Vercel Git integration to finish deploying
+  # this commit to production. Requires VERCEL_TOKEN + VERCEL_PROJECT_ID secrets.
+  wait-vercel:
+    name: Wait for Vercel deploy
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Wait until Vercel production deploy is READY
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          SHA: ${{ github.sha }}
+          MAX_ATTEMPTS: '60'
+          SLEEP_SECONDS: '20'
+        run: python3 scripts/wait-vercel-deploy.py
