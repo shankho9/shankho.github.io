@@ -49,6 +49,8 @@ jobs:
       # CI — GitHub runners lack production secrets and bake empty runtimeConfig.
       - name: Build
         env:
+          # Nitro packaging of Nuxt Content + Tina admin exceeds default ~4GB heap on GHA
+          NODE_OPTIONS: --max-old-space-size=8192
           TINA_TOKEN: ${{ secrets.TINA_TOKEN }}
           NUXT_PUBLIC_TINA_CLIENT_ID: ${{ secrets.NUXT_PUBLIC_TINA_CLIENT_ID }}
           TINA_BRANCH: main
