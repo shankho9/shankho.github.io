@@ -18,9 +18,7 @@ const emit = defineEmits<{
   select: []
 }>()
 
-const cardDescription = computed(
-  () => props.app.description.trim() || 'Tap for details',
-)
+const cardDescription = computed(() => props.app.description.trim() || 'Tap for details')
 
 const formattedUpdatedAt = computed(() => formatAppUpdatedAt(props.app.updatedAt))
 const hasAnyAction = computed(() => appHasAnyAction(props.app))

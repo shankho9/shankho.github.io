@@ -44,9 +44,7 @@ const loadApps = async () => {
   error.value = null
   try {
     const docs = await queryCollection('apps').all()
-    apps.value = docs
-      .filter((doc) => doc.published === true)
-      .map((doc) => toAppListItem(doc))
+    apps.value = docs.filter((doc) => doc.published === true).map((doc) => toAppListItem(doc))
   } catch (err) {
     console.error('[AppsTab] Failed to load apps:', err)
     error.value = err instanceof Error ? err.message : 'Failed to load apps'

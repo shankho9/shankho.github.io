@@ -146,15 +146,14 @@ onUnmounted(() => {
                 <h3 class="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">
                   About
                 </h3>
-                <p class="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+                <p
+                  class="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700 dark:text-zinc-300"
+                >
                   {{ modalBody }}
                 </p>
               </section>
 
-              <p
-                v-else
-                class="text-sm italic text-zinc-500 dark:text-zinc-400"
-              >
+              <p v-else class="text-sm italic text-zinc-500 dark:text-zinc-400">
                 No description available for this app yet.
               </p>
 
@@ -166,7 +165,10 @@ onUnmounted(() => {
                 Last updated {{ formattedUpdatedAt }}
               </p>
 
-              <section v-if="hasActions" class="border-t border-gray-100 pt-4 dark:border-slate-700">
+              <section
+                v-if="hasActions"
+                class="border-t border-gray-100 pt-4 dark:border-slate-700"
+              >
                 <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
                   Get the app
                 </h3>

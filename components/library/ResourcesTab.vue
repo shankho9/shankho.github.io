@@ -154,12 +154,7 @@ defineExpose({ items, loadResources, isLoading })
       </p>
 
       <div v-if="filteredItems.length > 0" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <ResourceCard
-          v-for="item in filteredItems"
-          :key="item.id"
-          :item="item"
-          :type="cardType"
-        />
+        <ResourceCard v-for="item in filteredItems" :key="item.id" :item="item" :type="cardType" />
       </div>
 
       <div v-else class="py-12 text-center">

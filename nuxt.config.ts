@@ -231,6 +231,9 @@ export default defineNuxtConfig({
     r2AccessKeyId: process.env.R2_ACCESS_KEY_ID,
     r2SecretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
     r2BucketName: process.env.R2_BUCKET_NAME,
+    // * = any top-level folder (Android/, Desktop/, iOS/, …); or comma list to restrict
+    r2AllowedKeyPrefixes: process.env.R2_ALLOWED_KEY_PREFIXES || '*',
+    // Legacy single-prefix env (unused when R2_ALLOWED_KEY_PREFIXES is * or set)
     r2AppsPrefix: process.env.R2_APPS_PREFIX || 'apps/',
     // OAuth provider secrets (server-side only)
     outlookClientSecret: process.env.OUTLOOK_CLIENT_SECRET,

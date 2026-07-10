@@ -47,8 +47,8 @@ onMounted(async () => {
         class="mx-auto mb-6 max-w-2xl rounded-xl border border-sky-200/80 bg-sky-50/70 px-4 py-3 text-left text-sm text-sky-900 dark:border-sky-800/50 dark:bg-sky-950/30 dark:text-sky-100"
       >
         <p>
-          This page is a curated starter list of books and tools. For the full catalog
-          (books, tools, learning resources, and apps), sign in to the
+          This page is a curated starter list of books and tools. For the full catalog (books,
+          tools, learning resources, and apps), sign in to the
           <NuxtLink
             to="/library?tab=resources"
             class="font-semibold text-sky-700 underline underline-offset-2 hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200"

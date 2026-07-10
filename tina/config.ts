@@ -229,12 +229,12 @@ export default defineConfig({
           {
             type: 'string',
             name: 'apkKey',
-            label: 'APK Key (R2 object key)',
+            label: 'APK Key (R2 object key, e.g. Android/App_v1.0.0.apk)',
           },
           {
             type: 'string',
             name: 'msixKey',
-            label: 'MSIX Key (R2 object key)',
+            label: 'MSIX Key (R2 object key, e.g. Desktop/App_v1.0.0.msix)',
           },
           {
             type: 'boolean',

@@ -132,72 +132,56 @@ On **Vercel → Environment Variables**, set `FROM_EMAIL` to `blogsite@nomadic-n
 
 ### Resources frontmatter schema
 
-| Field          | Type    | Notes                                              |
-| -------------- | ------- | -------------------------------------------------- |
-| title          | string  | Resource name                                      |
-| resourceType   | select  | `book`, `tool`, or `learning`                      |
-| description    | string  | Card blurb                                         |
-| link           | string  | External URL                                       |
-| category       | string  | e.g. Programming, Leadership                       |
-| author         | string  | Books — optional                                   |
-| publisher      | string  | Optional                                           |
-| year           | string  | Optional                                           |
-| status         | string  | Optional                                           |
-| rating         | string  | Optional                                           |
-| tags           | list    | Optional                                           |
-| icon           | string  | MDI icon for tools/learning (e.g. `mdi:tools`)     |
-| coverImageUrl  | string  | R2, ImageKit, or any HTTPS URL (not Tina `image`)  |
-| published      | boolean | Must be `true` to appear in the library            |
+| Field         | Type    | Notes                                             |
+| ------------- | ------- | ------------------------------------------------- |
+| title         | string  | Resource name                                     |
+| resourceType  | select  | `book`, `tool`, or `learning`                     |
+| description   | string  | Card blurb                                        |
+| link          | string  | External URL                                      |
+| category      | string  | e.g. Programming, Leadership                      |
+| author        | string  | Books — optional                                  |
+| publisher     | string  | Optional                                          |
+| year          | string  | Optional                                          |
+| status        | string  | Optional                                          |
+| rating        | string  | Optional                                          |
+| tags          | list    | Optional                                          |
+| icon          | string  | MDI icon for tools/learning (e.g. `mdi:tools`)    |
+| coverImageUrl | string  | R2, ImageKit, or any HTTPS URL (not Tina `image`) |
+| published     | boolean | Must be `true` to appear in the library           |
 
 ### Apps frontmatter schema
 
-| Field         | Type    | Notes                                         |
-| ------------- | ------- | --------------------------------------------- |
-| title         | string  | App name (one row per product)                |
-| description   | string  | Short blurb — shown on the app card           |
-| details       | string  | Longer text — shown in the detail modal       |
-| categories    | list    | e.g. `Android`, `Web`                         |
-| version       | string  | e.g. `1.0.0`                                  |
-| webUrl        | string  | Web/PWA link (optional)                       |
-| playStoreUrl  | string  | Google Play link (optional)                   |
-| iconUrl       | string  | R2 public URL or any HTTPS icon URL           |
-| apkKey        | string  | R2 object key (not a full URL)                |
-| msixKey       | string  | R2 object key (optional)                      |
-| published     | boolean | Must be `true` to appear in the library       |
+| Field        | Type    | Notes                                   |
+| ------------ | ------- | --------------------------------------- |
+| title        | string  | App name (one row per product)          |
+| description  | string  | Short blurb — shown on the app card     |
+| details      | string  | Longer text — shown in the detail modal |
+| categories   | list    | e.g. `Android`, `Web`                   |
+| version      | string  | e.g. `1.0.0`                            |
+| webUrl       | string  | Web/PWA link (optional)                 |
+| playStoreUrl | string  | Google Play link (optional)             |
+| iconUrl      | string  | R2 public URL or any HTTPS icon URL     |
+| apkKey       | string  | R2 object key (not a full URL)          |
+| msixKey      | string  | R2 object key (optional)                |
+| published    | boolean | Must be `true` to appear in the library |
 
 **Publish workflow:** Upload binary to R2 → paste object key into Tina `apkKey` / `msixKey` → set `published: true` → save in Tina.
 
 #### Example apps (seed content)
 
-**Walking Challenge**
-
-| Field       | Value |
-| ----------- | ----- |
-| title       | Walking Challenge |
-| description | Track steps, join challenges, and hit daily goals — on web or Android. |
-| categories  | `Android`, `Web` |
-| version     | `1.0.0` |
-| apkKey      | `apps/walking-challenge/1.0.0/app.apk` |
-
 **Taskora**
 
-| Field       | Value |
-| ----------- | ----- |
-| title       | Taskora |
+| Field       | Value                                                   |
+| ----------- | ------------------------------------------------------- |
+| title       | Taskora                                                 |
 | description | Capture tasks fast and stay organized on mobile or web. |
-| categories  | `Android`, `Web` |
-| apkKey      | `apps/taskora/2.1.0/app.apk` |
+| categories  | `Android`, `Web`                                        |
+| version     | `1.0.0`                                                 |
+| apkKey      | `Android/Taskora_Android_v1.0.0.apk`                    |
 
-**Arthos Financial Planner**
+**Walking Challenge** / **Arthos** — set `apkKey` / `msixKey` to the real R2 object key under `Android/`, `Desktop/`, or `iOS/` when binaries are uploaded.
 
-| Field       | Value |
-| ----------- | ----- |
-| title       | Arthos Financial Planner |
-| description | Plan budgets and track financial goals in one Android app. |
-| categories  | `Android` |
-| apkKey      | `apps/arthos-financial-planner/1.0.0/app.apk` |
-
-Books (*Range*, *Dare to Lead*, etc.) use `resourceType: book` — they appear under **Resources → Books**, not Apps.
+Books (_Range_, _Dare to Lead_, etc.) use `resourceType: book` — they appear under **Resources → Books**, not Apps.
 
 ---
 
@@ -319,27 +303,38 @@ R2_ACCOUNT_ID=your_cloudflare_account_id
 R2_ACCESS_KEY_ID=your_r2_access_key_id
 R2_SECRET_ACCESS_KEY=your_r2_secret_access_key
 R2_BUCKET_NAME=nomadic-notions-apps
-R2_APPS_PREFIX=apps/
+# * = allow any top-level folder (Android/, Desktop/, iOS/, Web/, …)
+# Or restrict: R2_ALLOWED_KEY_PREFIXES=Android/,Desktop/,iOS/
+R2_ALLOWED_KEY_PREFIXES=*
 ```
 
-### Object key convention
+### Bucket layout / object key convention
 
-Store these keys in Tina **`apkKey`** / **`msixKey`** fields (not full URLs):
+Bucket: `nomadic-notions-apps`. Objects live under platform folders:
 
 ```
-apps/{slug}/{version}/app.apk
-apps/{slug}/{version}/app.msix
+Android/Taskora_Android_v1.0.0.apk
+Desktop/SomeApp_v1.0.0.msix
+iOS/...
 ```
 
-Example: `apps/travel-planner/1.0.0/app.apk`
+Store the **object key only** (not the bucket name) in Tina **`apkKey`** / **`msixKey`**:
+
+```
+Android/Taskora_Android_v1.0.0.apk
+```
+
+If you paste `nomadic-notions-apps/Android/...`, the server strips the bucket name automatically.
+
+New top-level folders (e.g. `Web/`) work automatically when `R2_ALLOWED_KEY_PREFIXES=*`.
 
 ### Upload binaries
 
 Using [Wrangler](https://developers.cloudflare.com/workers/wrangler/) CLI:
 
 ```bash
-wrangler r2 object put nomadic-notions-apps/apps/my-app/1.0.0/app.apk --file=./release.apk
-wrangler r2 object put nomadic-notions-apps/apps/my-app/1.0.0/app.msix --file=./release.msix
+wrangler r2 object put nomadic-notions-apps/Android/Taskora_Android_v1.0.0.apk --file=./release.apk
+wrangler r2 object put nomadic-notions-apps/Desktop/SomeApp_v1.0.0.msix --file=./release.msix
 ```
 
 Or upload via the Cloudflare R2 dashboard. Then paste the object key into the matching Tina app entry.

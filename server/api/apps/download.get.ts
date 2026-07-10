@@ -1,7 +1,12 @@
 import { createError, defineEventHandler, getQuery, sendRedirect } from 'h3'
 import { getCurrentUser } from '~/server/utils/auth'
 import { findAppBySlug, getAppR2Key } from '~/utils/apps/content'
-import { getPresignedDownloadUrl, isAllowedAppsKey } from '~/server/utils/r2'
+import {
+  getPresignedDownloadUrl,
+  isAllowedAppsKey,
+  normalizeAppsObjectKey,
+} from '~/server/utils/r2'
+import { envOrConfig } from '~/server/utils/runtimeEnv'
 
 export default defineEventHandler(async (event) => {
   const user = await getCurrentUser(event)
@@ -29,7 +34,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'App not found' })
   }
 
-  const objectKey = getAppR2Key(app, format)
+  const rawKey = getAppR2Key(app, format)
+  const config = useRuntimeConfig(event)
+  const bucketName = envOrConfig(config.r2BucketName, 'R2_BUCKET_NAME') || undefined
+  const objectKey = rawKey ? normalizeAppsObjectKey(rawKey, bucketName) : null
+
   if (!objectKey || !isAllowedAppsKey(objectKey)) {
     throw createError({
       statusCode: 404,

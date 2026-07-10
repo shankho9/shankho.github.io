@@ -10,18 +10,13 @@ export function showAppUpdatePrompt(message = 'Site updated — refresh to get t
 
   removeToast(UPDATE_TOAST_ID)
 
-  showToast(
-    message,
-    'info',
-    0,
-    {
-      id: UPDATE_TOAST_ID,
-      action: {
-        label: 'Refresh',
-        onClick: () => window.location.reload(),
-      },
+  showToast(message, 'info', 0, {
+    id: UPDATE_TOAST_ID,
+    action: {
+      label: 'Refresh',
+      onClick: () => window.location.reload(),
     },
-  )
+  })
 }
 
 /** True when a dynamic import/chunk load failed (common after deploys). */

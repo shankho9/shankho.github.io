@@ -22,9 +22,7 @@ const AUTH_SKIP_401_PATHS = [
 ]
 
 export function isProtectedAppRoute(path: string): boolean {
-  return PROTECTED_ROUTE_PREFIXES.some(
-    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
-  )
+  return PROTECTED_ROUTE_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
 }
 
 export function isAuthSkip401Url(url: string): boolean {
