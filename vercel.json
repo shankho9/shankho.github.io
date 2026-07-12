@@ -12,5 +12,11 @@
       "destination": "https://www.nomadic-notions.co.in/:path*",
       "permanent": true
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/taskora/privacy",
+      "destination": "/taskora/privacy.html"
+    }
   ]
 }

@@ -262,6 +262,13 @@ export default defineNuxtConfig({
     '/blogs/**': { ogImage: false },
     '/personalSpace/**': { ogImage: false },
     '/categories/**': { ogImage: false },
+    // Taskora legal (static public HTML) — keep off search indexes
+    '/taskora/**': { robots: 'noindex, nofollow' },
+  },
+
+  robots: {
+    // Extra robots.txt Disallow; page also has <meta name="robots" content="noindex, nofollow">
+    disallow: ['/taskora/'],
   },
 
   // nuxt-og-image v6: pin Satori so CI does not require optional @takumi-rs/* peers

@@ -83,6 +83,15 @@ Production domain is **`https://www.nomadic-notions.co.in`**. The old Vercel hos
 
 Ensure Google / GitHub / Outlook OAuth authorized redirect URIs use `https://www.nomadic-notions.co.in` (not the old Vercel URL).
 
+### Taskora privacy policy (static, no nav)
+
+Hosted for Google Play / in-app links only — **not** linked from site navigation:
+
+- Primary: `https://www.nomadic-notions.co.in/taskora/privacy`
+- Also: `https://www.nomadic-notions.co.in/taskora/privacy.html`
+- Files: [`public/taskora/privacy.html`](../public/taskora/privacy.html) and [`public/taskora/privacy/index.html`](../public/taskora/privacy/index.html)
+- Public HTTPS, no login wall; page includes `noindex`; `robots.txt` Disallow `/taskora/`
+
 ---
 
 ## GitHub CI
