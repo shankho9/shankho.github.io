@@ -14,18 +14,36 @@ const props = withDefaults(
   },
 )
 
-const { isAdmin } = useAuth()
+const { isAdmin, checkAuth } = useAuth()
 const {
   tinaConfigured,
   adminReachable,
   adminCheckDone,
   musicCollectionUrl,
   editorUnavailableHint,
+  checkAdminReachable,
 } = useTinaEditor()
 
 const editorUrl = computed(() => props.href || musicCollectionUrl)
 
-const showButton = computed(() => isAdmin.value && tinaConfigured.value)
+/** Only show once server session confirms admin — avoids stale localStorage false positives. */
+const sessionAdminConfirmed = ref(false)
+
+onMounted(async () => {
+  try {
+    await checkAuth(true)
+  } catch {
+    // ignore
+  }
+  sessionAdminConfirmed.value = isAdmin.value
+  if (isAdmin.value) {
+    void checkAdminReachable()
+  }
+})
+
+const showButton = computed(
+  () => sessionAdminConfirmed.value && isAdmin.value && tinaConfigured.value,
+)
 
 const showUnreachableHint = computed(
   () => showButton.value && adminCheckDone.value && !adminReachable.value,
@@ -42,8 +60,6 @@ const buttonClass = computed(() =>
   <div v-if="showButton" class="inline-flex flex-col items-end gap-1">
     <a
       :href="editorUrl"
-      target="_blank"
-      rel="noopener noreferrer"
       :class="[
         'inline-flex items-center justify-center gap-1.5 rounded-lg transition-colors',
         buttonClass,

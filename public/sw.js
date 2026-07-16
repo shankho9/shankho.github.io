@@ -2,9 +2,9 @@
 // IMPORTANT:
 // - Never serve a stale HTML shell (/) after deployments, or users will see a broken app until hard refresh.
 // - Use network-first for navigations/HTML and keep caches versioned so old caches are purged on activate.
-const CACHE_NAME = 'nomadic-notions-v2'
-const STATIC_CACHE_NAME = 'nomadic-notions-static-v2'
-const DYNAMIC_CACHE_NAME = 'nomadic-notions-dynamic-v2'
+const CACHE_NAME = 'nomadic-notions-v3'
+const STATIC_CACHE_NAME = 'nomadic-notions-static-v3'
+const DYNAMIC_CACHE_NAME = 'nomadic-notions-dynamic-v3'
 
 // Assets to cache immediately on install
 // Do NOT precache '/' or other HTML routes — that can cause stale HTML to reference removed JS bundles.
@@ -70,6 +70,11 @@ self.addEventListener('fetch', (event) => {
 
   // Skip non-GET requests and chrome-extension requests
   if (request.method !== 'GET' || url.protocol === 'chrome-extension:') {
+    return
+  }
+
+  // Never intercept Tina CMS admin — auth cookies + fresh assets must hit the network.
+  if (url.pathname.startsWith('/admin')) {
     return
   }
 

@@ -309,7 +309,7 @@ Ensure `.env` contains `NUXT_PUBLIC_TINA_CLIENT_ID`, `TINA_TOKEN`, and `TINA_BRA
 1. Set `NUXT_PUBLIC_TINA_CLIENT_ID`, `TINA_TOKEN`, `TINA_BRANCH` on Vercel.
 2. Connect Tina Cloud to the repo; invite admin editors only.
 3. Confirm build log includes `tinacms build` (skipped if env vars missing).
-4. Verify: visitor sees Musical Notes list; admin sees **Edit in Tina**; non-admin gets 403 on `/admin`.
+4. Verify: visitor sees Musical Notes list; admin sees **Edit in Tina**; unauthenticated `/admin` redirects to login; non-admin gets home with `admin-required`.
 
 ---
 
