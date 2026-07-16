@@ -3,6 +3,11 @@ name: Node.js CI
 permissions:
   contents: write
 
+# Vercel team that owns this project (siddhartha-basus-projects).
+# Not secret — required on deployment list APIs. Override via repo variable VERCEL_TEAM_ID if needed.
+env:
+  VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID || 'team_FxDqjAcjgtT7DAVB1NZ3ywf9' }}
+
 on:
   push:
     branches: ['main']
@@ -85,7 +90,7 @@ jobs:
 
   # After CI build succeeds, wait for Vercel Git integration to finish deploying
   # the commit that will be in production (HEAD after optional format commit).
-  # Requires VERCEL_TOKEN + VERCEL_PROJECT_ID; VERCEL_TEAM_ID for team projects.
+  # Requires VERCEL_TOKEN + VERCEL_PROJECT_ID (team id is set at workflow env above).
   wait-vercel:
     name: Wait for Vercel deploy
     needs: build
@@ -102,7 +107,7 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          VERCEL_TEAM_ID: ${{ env.VERCEL_TEAM_ID }}
           SHA: ${{ needs.build.outputs.deploy-sha }}
           MAX_ATTEMPTS: '60'
           SLEEP_SECONDS: '20'
