@@ -4,6 +4,7 @@ import { useAuth } from '~/composables/useAuth'
 import { useMusicTypeInfo } from '~/composables/useMusicTypeInfo'
 import { useTinaEditor } from '~/composables/useTinaEditor'
 import TinaEditButton from '~/components/library/TinaEditButton.vue'
+import LibraryItemEngagement from '~/components/library/LibraryItemEngagement.vue'
 import MusicStreamEmbeds from '~/components/music/MusicStreamEmbeds.vue'
 
 const props = defineProps<{
@@ -285,6 +286,13 @@ onUnmounted(() => {
               >
                 <TinaEditButton variant="outline" :href="editUrl" />
               </div>
+
+              <section
+                v-if="slug"
+                class="border-b border-amber-200/50 px-5 py-4 dark:border-slate-700"
+              >
+                <LibraryItemEngagement :item-id="slug" kind="music" />
+              </section>
 
               <section v-if="hasStreams" class="px-5 pt-5">
                 <div class="mb-3 flex items-center gap-2">

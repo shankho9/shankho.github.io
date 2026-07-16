@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { useTinaEditor } from '~/composables/useTinaEditor'
 import TinaEditButton from '~/components/library/TinaEditButton.vue'
+import LibraryItemEngagement from '~/components/library/LibraryItemEngagement.vue'
 import MusicStreamEmbeds from '~/components/music/MusicStreamEmbeds.vue'
 
 definePageMeta({ middleware: ['auth-login'] })
@@ -286,6 +287,10 @@ useHead({
             class="flex justify-end border-b border-zinc-100 px-6 py-3 dark:border-slate-700"
           >
             <TinaEditButton variant="outline" :href="editUrl" />
+          </div>
+
+          <div class="border-b border-zinc-100 px-6 py-4 dark:border-slate-700">
+            <LibraryItemEngagement :item-id="slug" kind="music" />
           </div>
         </div>
 

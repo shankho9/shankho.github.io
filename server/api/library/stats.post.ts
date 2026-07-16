@@ -1,9 +1,13 @@
 import { createError, defineEventHandler, readBody } from 'h3'
 import { getCurrentUser } from '~/server/utils/auth'
-import { batchLibraryStats } from '~/server/utils/libraryEngagementService'
+import {
+  batchLibraryStats,
+  parseLibraryEngagementKind,
+} from '~/server/utils/libraryEngagementService'
 
 interface StatsBody {
   itemIds?: Array<string | number>
+  kind?: string
 }
 
 export default defineEventHandler(async (event) => {
@@ -14,19 +18,20 @@ export default defineEventHandler(async (event) => {
 
   const body = await readBody<StatsBody>(event)
   const rawIds = body?.itemIds
+  const kind = parseLibraryEngagementKind(body?.kind, 'gallery')
 
   if (!rawIds?.length) {
     return { success: true, stats: {} }
   }
 
   try {
-    const stats = await batchLibraryStats('gallery', rawIds)
+    const stats = await batchLibraryStats(kind, rawIds)
     return { success: true, stats }
   } catch (error: unknown) {
-    console.error('[API] Failed to batch-load gallery stats:', error)
+    console.error('[API] Failed to batch-load library stats:', error)
     throw createError({
       statusCode: 500,
-      message: 'Failed to load gallery stats',
+      message: 'Failed to load library stats',
     })
   }
 })

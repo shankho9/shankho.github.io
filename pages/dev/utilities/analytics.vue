@@ -16,6 +16,20 @@ interface PopularPostsData {
   popularByVisits: Array<{ page: string; visit_count: number; unique_visitors: number }>
   popularByLikes: Array<{ post_id: string; like_count: number }>
   popularByComments: Array<{ post_id: string; comment_count: number }>
+  popularLibraryByLikes?: Array<{
+    post_id: string
+    like_count: number
+    label: string
+    href: string | null
+    kind: string
+  }>
+  popularLibraryByComments?: Array<{
+    post_id: string
+    comment_count: number
+    label: string
+    href: string | null
+    kind: string
+  }>
   readingTimeStats: Array<{ page: string; avg_duration: number; avg_completion: number }>
 }
 
@@ -225,6 +239,100 @@ watch(selectedPeriod, () => {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Media Library likes -->
+      <div class="rounded-lg bg-white p-4 shadow-lg dark:bg-slate-800 sm:p-6">
+        <h2
+          class="mb-4 flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-gray-100"
+        >
+          <Icon name="mdi:image-multiple" size="24" class="text-amber-600 dark:text-amber-400" />
+          Media Library — Most Liked
+        </h2>
+        <div v-if="popularPosts.popularLibraryByLikes?.length" class="space-y-2">
+          <div
+            v-for="(row, index) in popularPosts.popularLibraryByLikes"
+            :key="row.post_id"
+            class="flex items-center justify-between rounded-md bg-gray-50 p-3 dark:bg-slate-700"
+          >
+            <div class="flex min-w-0 flex-1 items-center gap-3">
+              <span class="w-6 text-lg font-bold text-amber-600 dark:text-amber-400">{{
+                index + 1
+              }}</span>
+              <div class="min-w-0 flex-1">
+                <NuxtLink
+                  v-if="row.href"
+                  :to="row.href"
+                  class="block truncate text-sm font-medium text-gray-900 hover:text-amber-600 dark:text-gray-100 dark:hover:text-amber-400"
+                >
+                  {{ row.label }}
+                </NuxtLink>
+                <span
+                  v-else
+                  class="block truncate text-sm font-medium text-gray-900 dark:text-gray-100"
+                >
+                  {{ row.label }}
+                </span>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ row.kind }} · {{ row.post_id }}
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
+              <Icon name="mdi:heart" size="16" class="text-red-500" />
+              {{ row.like_count }}
+            </div>
+          </div>
+        </div>
+        <p v-else class="text-sm text-gray-500 dark:text-gray-400">No Media Library likes yet</p>
+      </div>
+
+      <!-- Media Library comments -->
+      <div class="rounded-lg bg-white p-4 shadow-lg dark:bg-slate-800 sm:p-6">
+        <h2
+          class="mb-4 flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-gray-100"
+        >
+          <Icon name="mdi:comment-multiple" size="24" class="text-teal-600 dark:text-teal-400" />
+          Media Library — Most Commented
+        </h2>
+        <div v-if="popularPosts.popularLibraryByComments?.length" class="space-y-2">
+          <div
+            v-for="(row, index) in popularPosts.popularLibraryByComments"
+            :key="row.post_id"
+            class="flex items-center justify-between rounded-md bg-gray-50 p-3 dark:bg-slate-700"
+          >
+            <div class="flex min-w-0 flex-1 items-center gap-3">
+              <span class="w-6 text-lg font-bold text-teal-600 dark:text-teal-400">{{
+                index + 1
+              }}</span>
+              <div class="min-w-0 flex-1">
+                <NuxtLink
+                  v-if="row.href"
+                  :to="row.href"
+                  class="block truncate text-sm font-medium text-gray-900 hover:text-teal-600 dark:text-gray-100 dark:hover:text-teal-400"
+                >
+                  {{ row.label }}
+                </NuxtLink>
+                <span
+                  v-else
+                  class="block truncate text-sm font-medium text-gray-900 dark:text-gray-100"
+                >
+                  {{ row.label }}
+                </span>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ row.kind }} · {{ row.post_id }}
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
+              <Icon name="mdi:comment" size="16" />
+              {{ row.comment_count }}
+            </div>
+          </div>
+        </div>
+        <p v-else class="text-sm text-gray-500 dark:text-gray-400">
+          No Media Library comments in this period
+        </p>
       </div>
 
       <!-- Reading Time Stats -->

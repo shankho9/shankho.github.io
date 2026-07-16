@@ -1,13 +1,13 @@
 import { defineEventHandler, getQuery } from 'h3'
 import { getCurrentUser } from '~/server/utils/auth'
 import { query } from '~/server/utils/db'
+import { libraryEngagementLabel } from '~/server/utils/libraryEngagement'
 
 /**
  * Get popular posts analytics
  * Returns posts sorted by views, likes, comments, reading time, etc.
  */
 export default defineEventHandler(async (event) => {
-  // Verify authentication
   const user = await getCurrentUser(event)
   if (!user) {
     setResponseStatus(event, 401)
@@ -18,8 +18,14 @@ export default defineEventHandler(async (event) => {
   const limitNum = parseInt(String(limit), 10)
   const periodDays = parseInt(String(period), 10)
 
+  const libraryPostFilter = `(
+    post_id LIKE 'gallery_%'
+    OR post_id LIKE 'library_music_%'
+    OR post_id LIKE 'library_resource_%'
+    OR post_id LIKE 'library_app_%'
+  )`
+
   try {
-    // Get popular posts based on page visits
     const popularByVisits = await query<{
       page: string
       visit_count: number
@@ -38,7 +44,6 @@ export default defineEventHandler(async (event) => {
       [limitNum],
     )
 
-    // Get popular posts by likes (if likes table exists)
     let popularByLikes: Array<{ post_id: string; like_count: number }> = []
     try {
       popularByLikes = await query<{
@@ -56,11 +61,9 @@ export default defineEventHandler(async (event) => {
         [limitNum],
       )
     } catch {
-      // Likes table might not exist, skip
       console.warn('[Analytics] blog_likes table does not exist')
     }
 
-    // Get popular posts by comments
     let popularByComments: Array<{ post_id: string; comment_count: number }> = []
     try {
       popularByComments = await query<{
@@ -72,17 +75,87 @@ export default defineEventHandler(async (event) => {
           COUNT(*) as comment_count
         FROM comments
         WHERE created_at >= NOW() - INTERVAL '${periodDays} days'
+          AND deleted_at IS NULL
+          AND post_id NOT LIKE 'gallery_%'
+          AND post_id NOT LIKE 'library_%'
         GROUP BY post_id
         ORDER BY comment_count DESC
         LIMIT $1`,
         [limitNum],
       )
     } catch {
-      // Comments table might not exist, skip
       console.warn('[Analytics] comments table does not exist')
     }
 
-    // Get average reading time by post
+    let popularLibraryByLikes: Array<{
+      post_id: string
+      like_count: number
+      label: string
+      href: string | null
+      kind: string
+    }> = []
+    try {
+      const rows = await query<{ post_id: string; like_count: string }>(
+        `SELECT 
+          post_id,
+          COUNT(*)::text as like_count
+        FROM likes
+        WHERE deleted_at IS NULL
+          AND ${libraryPostFilter}
+        GROUP BY post_id
+        ORDER BY COUNT(*) DESC
+        LIMIT $1`,
+        [limitNum],
+      )
+      popularLibraryByLikes = rows.map((row) => {
+        const meta = libraryEngagementLabel(row.post_id)
+        return {
+          post_id: row.post_id,
+          like_count: parseInt(row.like_count ?? '0', 10),
+          label: meta.label,
+          href: meta.href,
+          kind: meta.kind,
+        }
+      })
+    } catch {
+      console.warn('[Analytics] likes table query for library failed')
+    }
+
+    let popularLibraryByComments: Array<{
+      post_id: string
+      comment_count: number
+      label: string
+      href: string | null
+      kind: string
+    }> = []
+    try {
+      const rows = await query<{ post_id: string; comment_count: string }>(
+        `SELECT 
+          post_id,
+          COUNT(*)::text as comment_count
+        FROM comments
+        WHERE deleted_at IS NULL
+          AND created_at >= NOW() - INTERVAL '${periodDays} days'
+          AND ${libraryPostFilter}
+        GROUP BY post_id
+        ORDER BY COUNT(*) DESC
+        LIMIT $1`,
+        [limitNum],
+      )
+      popularLibraryByComments = rows.map((row) => {
+        const meta = libraryEngagementLabel(row.post_id)
+        return {
+          post_id: row.post_id,
+          comment_count: parseInt(row.comment_count ?? '0', 10),
+          label: meta.label,
+          href: meta.href,
+          kind: meta.kind,
+        }
+      })
+    } catch {
+      console.warn('[Analytics] comments table query for library failed')
+    }
+
     let readingTimeStats: Array<{ page: string; avg_duration: number; avg_completion: number }> = []
     try {
       readingTimeStats = await query<{
@@ -105,7 +178,6 @@ export default defineEventHandler(async (event) => {
         [limitNum],
       )
     } catch {
-      // Reading time table might not exist, skip
       console.warn('[Analytics] reading_time table does not exist')
     }
 
@@ -115,6 +187,8 @@ export default defineEventHandler(async (event) => {
       popularByVisits: popularByVisits || [],
       popularByLikes: popularByLikes || [],
       popularByComments: popularByComments || [],
+      popularLibraryByLikes,
+      popularLibraryByComments,
       readingTimeStats: readingTimeStats || [],
     }
   } catch (error) {

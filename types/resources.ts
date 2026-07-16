@@ -17,4 +17,6 @@ export interface ResourceListItem {
   icon?: string
   coverImageUrl?: string
   updatedAt: string | null
+  likeCount?: number
+  commentCount?: number
 }

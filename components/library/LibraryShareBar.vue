@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRuntimeConfig } from '#imports'
+import { useRuntimeConfig, useRoute } from '#imports'
 import { useToast } from '~/composables/useToast'
 import type { LibraryTabId } from '~/components/library/LibraryIntegrationNote.vue'
 
@@ -20,6 +20,7 @@ const TAB_LABELS: Record<LibraryTabId, string> = {
 }
 
 const config = useRuntimeConfig()
+const route = useRoute()
 const { showToast } = useToast()
 const copied = ref(false)
 
@@ -28,11 +29,23 @@ const shareDescription = computed(
   () => props.description || 'Explore photos, videos, resources, and more at Nomadic Notions.',
 )
 
+/** Exact current library URL (path + query), e.g. /library?tab=apps */
 const shareUrl = computed(() => {
-  const siteUrl =
-    (config.public.siteUrl as string) ||
-    (import.meta.client ? window.location.origin : 'https://www.nomadic-notions.co.in')
-  return `${siteUrl}/library?tab=${props.tab}`
+  const siteUrl = String(
+    config.public.siteUrl ||
+      (import.meta.client ? window.location.origin : 'https://www.nomadic-notions.co.in'),
+  ).replace(/\/$/, '')
+
+  // Prefer the live route so share matches what the user is viewing.
+  // Fall back to tab prop if query is missing (should be rare).
+  const path =
+    route.path === '/library'
+      ? route.fullPath.includes('tab=')
+        ? route.fullPath
+        : `/library?tab=${props.tab}`
+      : route.fullPath || `/library?tab=${props.tab}`
+
+  return `${siteUrl}${path.startsWith('/') ? path : `/${path}`}`
 })
 
 const networks = ['facebook', 'twitter', 'linkedin', 'whatsapp', 'email'] as const
@@ -99,9 +112,13 @@ const nativeShare = async () => {
     </button>
 
     <div class="ml-auto flex flex-wrap items-center gap-1.5">
+      <!--
+        nuxt-social-share reads `url` once at setup (not reactive).
+        Remount on shareUrl change so each network link tracks the current tab.
+      -->
       <div
         v-for="network in networks"
-        :key="network"
+        :key="`${network}:${shareUrl}`"
         :class="`social-share-wrapper social-share-${network === 'twitter' ? 'x' : network}`"
         :data-network="network === 'twitter' ? 'x' : network"
         :title="`Share with ${network === 'twitter' ? 'X' : network.charAt(0).toUpperCase() + network.slice(1)}`"

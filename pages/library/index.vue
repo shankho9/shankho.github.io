@@ -115,6 +115,30 @@ const openLightbox = (index: number) => {
   lightboxOpen.value = true
 }
 
+const videoLightboxOpen = ref(false)
+const videoLightboxIndex = ref(0)
+
+const openVideoLightbox = (index: number) => {
+  videoLightboxIndex.value = index
+  videoLightboxOpen.value = true
+}
+
+/** Map video items into GalleryLightbox shape (image = playable URL). */
+const videoLightboxItems = computed(() =>
+  filteredVideos.value.map((video) => ({
+    id: video.id,
+    title: video.title,
+    description: video.description || '',
+    image: video.videoUrl || video.thumbnail || '',
+    thumbnail: video.thumbnail,
+    category: video.category || 'video',
+    date: video.date,
+    type: 'video',
+    likeCount: video.likeCount,
+    metadata: video.metadata,
+  })),
+)
+
 // Gallery items with like and comment counts (loaded from ImageKit)
 const galleryItems = ref<
   Array<{
@@ -388,6 +412,18 @@ const loadVideosFromImageKit = async (folderPath: string = '/') => {
 
 // Load like and comment counts for a batch of video items (current page).
 const loadVideoStatsForItems = (videos: typeof videoItems.value) => loadStatsForItems(videos)
+
+const refreshVideoItemStats = async (itemId: string | number) => {
+  await refreshItemStats(itemId, videoItems.value)
+}
+
+const handleVideoLikeChanged = async (itemId: string | number) => {
+  await refreshVideoItemStats(itemId)
+}
+
+const handleVideoCommentAdded = async (itemId: string | number) => {
+  await refreshVideoItemStats(itemId)
+}
 
 // Resources count (Nuxt Content)
 const resourcesCount = ref(0)
@@ -832,8 +868,26 @@ const currentTabRequiresAuth = computed(() => {
   return tabs.value.find((tab) => tab.id === activeTab.value)?.requiresAuth ?? false
 })
 
+const librarySharePath = computed(() => {
+  const tab = isValidTab(route.query.tab) ? route.query.tab : activeTab.value
+  return `/library?tab=${tab}`
+})
+
+const librarySharePageTitle = computed(() => {
+  const tab = isValidTab(route.query.tab) ? route.query.tab : activeTab.value
+  const labels: Record<TabType, string> = {
+    photos: 'Photos',
+    videos: 'Videos',
+    'musical-notes': 'Musical Notes',
+    'travel-map': 'Travel Map',
+    resources: 'Resources',
+    apps: 'Apps',
+  }
+  return `Media Library — ${labels[tab] || 'Library'}`
+})
+
 useHead({
-  title: 'Library',
+  title: librarySharePageTitle,
   meta: [
     {
       name: 'description',
@@ -841,14 +895,14 @@ useHead({
     },
     { property: 'og:site_name', content: seoData.mySite },
     { property: 'og:type', content: 'website' },
-    { property: 'og:url', content: `${seoData.mySite}/library` },
-    { property: 'og:title', content: 'Library' },
+    { property: 'og:url', content: () => `${seoData.mySite}${librarySharePath.value}` },
+    { property: 'og:title', content: librarySharePageTitle },
     {
       property: 'og:description',
       content: 'A curated collection of photos, videos, and resources',
     },
   ],
-  link: [{ rel: 'canonical', href: `${seoData.mySite}/library` }],
+  link: [{ rel: 'canonical', href: () => `${seoData.mySite}${librarySharePath.value}` }],
 })
 
 // Generate OG Image with error handling
@@ -1600,37 +1654,40 @@ try {
             <div
               v-for="video in paginatedVideos"
               :key="video.id"
-              class="group bg-white dark:bg-slate-800 rounded-xl overflow-hidden hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] border border-gray-200 dark:border-slate-700"
+              class="group cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl dark:border-slate-700 dark:bg-slate-800"
+              @click="
+                (() => {
+                  const index = filteredVideos.findIndex((v) => String(v.id) === String(video.id))
+                  if (index >= 0) openVideoLightbox(index)
+                })()
+              "
             >
-              <a
-                :href="video.videoUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="relative aspect-video overflow-hidden cursor-pointer block touch-manipulation active:opacity-90"
+              <div
+                class="relative aspect-video block cursor-pointer overflow-hidden touch-manipulation active:opacity-90"
                 style="touch-action: manipulation; -webkit-tap-highlight-color: transparent"
               >
                 <NuxtImg
                   :src="video.thumbnail"
                   :alt="video.title"
-                  class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                   loading="lazy"
                   sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   :quality="75"
                 />
                 <div
-                  class="absolute inset-0 bg-black bg-opacity-30 group-hover:bg-opacity-50 transition-all duration-300 flex items-center justify-center"
+                  class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 transition-all duration-300 group-hover:bg-opacity-50"
                 >
                   <Icon
                     name="mdi:play-circle"
-                    class="text-6xl text-white opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
+                    class="text-6xl text-white opacity-80 transition-all duration-300 group-hover:scale-110 group-hover:opacity-100"
                   />
                   <span
-                    class="absolute bottom-2 right-2 px-2 py-1 bg-black bg-opacity-70 text-white text-xs font-semibold rounded"
+                    class="absolute bottom-2 right-2 rounded bg-black bg-opacity-70 px-2 py-1 text-xs font-semibold text-white"
                   >
                     {{ video.duration }}
                   </span>
                 </div>
-              </a>
+              </div>
               <div class="p-4">
                 <h3 class="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">
                   {{ video.title }}
@@ -1867,7 +1924,7 @@ try {
         </div>
       </Transition>
 
-      <!-- Lightbox Component -->
+      <!-- Lightbox Component (photos) -->
       <GalleryLightbox
         v-if="activeTab === 'photos'"
         :items="sortedItems"
@@ -1877,6 +1934,19 @@ try {
         @update:current-index="lightboxIndex = $event"
         @like-changed="handleLikeChanged"
         @comment-added="handleCommentAdded"
+        @open-metadata="openMetadataPanel"
+      />
+
+      <!-- Lightbox Component (videos) -->
+      <GalleryLightbox
+        v-if="activeTab === 'videos'"
+        :items="videoLightboxItems"
+        :current-index="videoLightboxIndex"
+        :is-open="videoLightboxOpen"
+        @close="videoLightboxOpen = false"
+        @update:current-index="videoLightboxIndex = $event"
+        @like-changed="handleVideoLikeChanged"
+        @comment-added="handleVideoCommentAdded"
         @open-metadata="openMetadataPanel"
       />
 

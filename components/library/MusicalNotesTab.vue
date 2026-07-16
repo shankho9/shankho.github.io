@@ -9,8 +9,13 @@ import MusicListRow, {
 import LibraryFilterChips from '~/components/library/LibraryFilterChips.vue'
 import LibraryPagination from '~/components/library/LibraryPagination.vue'
 import { uniqueSortedLabels, useLibraryPagination } from '~/composables/useLibraryPagination'
+import { useAuth } from '~/composables/useAuth'
+import { useLibraryEngagementStats } from '~/composables/useLibraryEngagementStats'
 
 type MusicTab = 'lyrics' | 'instrumental' | 'notation'
+
+const { isAuthenticated } = useAuth()
+const { loadStatsForItems } = useLibraryEngagementStats(() => isAuthenticated.value)
 
 const activeMusicTab = ref<MusicTab>('lyrics')
 const searchQuery = ref('')
@@ -101,6 +106,27 @@ const filteredItems = computed(() => {
 
 const { currentPage, pageItems, totalPages, rangeLabel, resetPage, goToPage } =
   useLibraryPagination(filteredItems)
+
+async function syncPageEngagement() {
+  if (!isAuthenticated.value || pageItems.value.length === 0) return
+  const payload = pageItems.value.map((item) => ({
+    id: item.slug,
+    likeCount: item.likeCount ?? 0,
+    commentCount: item.commentCount ?? 0,
+  }))
+  await loadStatsForItems(payload, 'music')
+  for (const item of pageItems.value) {
+    const row = payload.find((p) => p.id === item.slug)
+    if (row) {
+      item.likeCount = row.likeCount
+      item.commentCount = row.commentCount
+    }
+  }
+}
+
+watch(pageItems, () => {
+  void syncPageEngagement()
+})
 
 watch(activeMusicTab, () => {
   languageFilter.value = null

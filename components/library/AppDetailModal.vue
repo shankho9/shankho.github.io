@@ -8,6 +8,7 @@ import {
   getAppDownloadUrl,
   getAppModalBody,
 } from '~/utils/apps/display'
+import LibraryItemEngagement from '~/components/library/LibraryItemEngagement.vue'
 
 const props = defineProps<{
   open: boolean
@@ -164,6 +165,13 @@ onUnmounted(() => {
                 <Icon name="mdi:update" size="14" />
                 Last updated {{ formattedUpdatedAt }}
               </p>
+
+              <section class="border-t border-gray-100 pt-4 dark:border-slate-700">
+                <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+                  Engagement
+                </h3>
+                <LibraryItemEngagement :item-id="app.slug" kind="app" />
+              </section>
 
               <section
                 v-if="hasActions"

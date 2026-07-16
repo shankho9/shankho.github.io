@@ -1,6 +1,9 @@
 import { defineEventHandler, getQuery } from 'h3'
 import { query } from '~/server/utils/db'
-import { toLibraryPostId } from '~/server/utils/libraryEngagement'
+import {
+  parseLibraryEngagementKind,
+  toLibraryPostId,
+} from '~/server/utils/libraryEngagementService'
 
 interface Comment extends Record<string, unknown> {
   id: number
@@ -13,7 +16,7 @@ interface Comment extends Record<string, unknown> {
 }
 
 export default defineEventHandler(async (event) => {
-  const { itemId, page = '1', limit = '10' } = getQuery(event)
+  const { itemId, kind: kindRaw, page = '1', limit = '10' } = getQuery(event)
 
   if (!itemId || typeof itemId !== 'string') {
     throw createError({
@@ -22,7 +25,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const postId = toLibraryPostId('gallery', itemId)
+  const kind = parseLibraryEngagementKind(kindRaw, 'gallery')
+  const postId = toLibraryPostId(kind, itemId)
 
   const pageNum = parseInt(page as string, 10) || 1
   const limitNum = parseInt(limit as string, 10) || 10
@@ -63,11 +67,10 @@ export default defineEventHandler(async (event) => {
       },
     }
   } catch (error: unknown) {
-    console.error('Failed to fetch gallery comments:', error)
+    console.error('Failed to fetch library comments:', error)
 
     if (error instanceof Error) {
       if (error.message.includes('ETIMEDOUT') || error.message.includes('timeout')) {
-        console.error('[API] Database connection timeout - returning empty comments')
         return {
           comments: [],
           pagination: {

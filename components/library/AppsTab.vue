@@ -9,6 +9,8 @@ import LibraryFilterChips from '~/components/library/LibraryFilterChips.vue'
 import LibraryPagination from '~/components/library/LibraryPagination.vue'
 import { useTinaEditor } from '~/composables/useTinaEditor'
 import { uniqueSortedLabels, useLibraryPagination } from '~/composables/useLibraryPagination'
+import { useAuth } from '~/composables/useAuth'
+import { useLibraryEngagementStats } from '~/composables/useLibraryEngagementStats'
 
 const apps = ref<AppListItem[]>([])
 const isLoading = ref(false)
@@ -18,6 +20,8 @@ const categoryFilter = ref<string | null>(null)
 const selectedApp = ref<AppListItem | null>(null)
 const showModal = ref(false)
 
+const { isAuthenticated } = useAuth()
+const { loadStatsForItems } = useLibraryEngagementStats(() => isAuthenticated.value)
 const { appsCollectionUrl } = useTinaEditor()
 
 const categoryOptions = computed(() =>
@@ -46,6 +50,31 @@ const filteredApps = computed(() => {
 
 const { currentPage, pageItems, totalPages, rangeLabel, resetPage, goToPage } =
   useLibraryPagination(filteredApps)
+
+async function syncPageEngagement() {
+  if (!isAuthenticated.value || pageItems.value.length === 0) return
+  const payload = pageItems.value.map((app) => ({
+    id: app.slug,
+    likeCount: app.likeCount ?? 0,
+    commentCount: app.commentCount ?? 0,
+  }))
+  await loadStatsForItems(payload, 'app')
+  for (const app of pageItems.value) {
+    const row = payload.find((p) => p.id === app.slug)
+    if (row) {
+      app.likeCount = row.likeCount
+      app.commentCount = row.commentCount
+    }
+  }
+  if (selectedApp.value) {
+    const updated = apps.value.find((a) => a.slug === selectedApp.value?.slug)
+    if (updated) selectedApp.value = { ...updated }
+  }
+}
+
+watch(pageItems, () => {
+  void syncPageEngagement()
+})
 
 watch([searchQuery, categoryFilter], () => {
   resetPage()

@@ -5,6 +5,7 @@ import {
   getResourceLinkHost,
   getResourceTypeIcon,
 } from '~/utils/resources/display'
+import LibraryItemEngagement from '~/components/library/LibraryItemEngagement.vue'
 
 interface Props {
   item: ResourceListItem
@@ -14,6 +15,10 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   type: 'default',
 })
+
+const emit = defineEmits<{
+  'engagement-changed': [slug: string]
+}>()
 
 const cardType = computed((): ResourceType => {
   if (props.type !== 'default') return props.type
@@ -74,101 +79,136 @@ const subtitle = computed(() => {
   if (year.value) parts.push(year.value)
   return parts.join(' · ')
 })
+
+function onEngagementChanged() {
+  emit('engagement-changed', props.item.slug)
+}
 </script>
 
 <template>
-  <a
-    :href="link || '#'"
-    :target="link ? '_blank' : undefined"
-    :rel="link ? 'noopener noreferrer' : undefined"
-    class="group flex w-full items-start gap-3 rounded-xl border border-gray-200/90 bg-white p-3 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-600 sm:items-center sm:gap-4 sm:p-4"
+  <article
+    class="rounded-xl border border-gray-200/90 bg-white p-3 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-600 sm:p-4"
   >
-    <div
-      class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/40 dark:to-indigo-900/40 sm:h-16 sm:w-16"
+    <a
+      :href="link || '#'"
+      :target="link ? '_blank' : undefined"
+      :rel="link ? 'noopener noreferrer' : undefined"
+      class="group flex w-full items-start gap-3 sm:items-center sm:gap-4"
     >
-      <CommonExternalImage
-        v-if="imageUrl && !imageFailed"
-        :src="imageUrl"
-        :alt="title"
-        img-class="h-full w-full object-cover"
-        @error="imageFailed = true"
-      />
-      <Icon v-else :name="typeIcon" class="text-2xl text-sky-700 dark:text-sky-400" />
-    </div>
-
-    <div class="min-w-0 flex-1">
-      <div class="flex flex-wrap items-start justify-between gap-2">
-        <div class="min-w-0">
-          <h3
-            class="text-base font-semibold text-zinc-800 group-hover:text-sky-700 dark:text-zinc-100 dark:group-hover:text-sky-400"
-          >
-            {{ title }}
-          </h3>
-          <p v-if="subtitle" class="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
-            {{ subtitle }}
-          </p>
-        </div>
-        <span
-          :class="[
-            'inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold',
-            typeBadgeClass,
-          ]"
-        >
-          <Icon :name="typeIcon" size="12" />
-          {{ typeLabel }}
-        </span>
-      </div>
-
-      <p v-if="description" class="mt-1.5 line-clamp-2 text-sm text-zinc-500 dark:text-zinc-400">
-        {{ description }}
-      </p>
-
       <div
-        class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-zinc-500 dark:text-zinc-400"
+        class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/40 dark:to-indigo-900/40 sm:h-16 sm:w-16"
       >
-        <span v-if="category" class="inline-flex items-center gap-1">
-          <Icon name="mdi:folder-outline" size="13" class="shrink-0 text-zinc-400" />
-          {{ category }}
-        </span>
-
-        <span
-          v-if="rating"
-          class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400"
-        >
-          <Icon name="mdi:star" size="13" />
-          {{ rating }}
-        </span>
-
-        <span v-if="status" class="inline-flex items-center gap-1">
-          <Icon name="mdi:progress-check" size="13" class="shrink-0 text-zinc-400" />
-          {{ status }}
-        </span>
-
-        <span
-          v-for="tag in tags"
-          :key="tag"
-          class="inline-flex items-center gap-0.5 rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-slate-700"
-        >
-          <Icon name="mdi:tag-outline" size="12" class="text-zinc-400" />
-          {{ tag }}
-        </span>
-
-        <span v-if="linkHost" class="inline-flex items-center gap-1 text-sky-600 dark:text-sky-400">
-          <Icon name="mdi:open-in-new" size="13" />
-          {{ linkHost }}
-        </span>
-
-        <span v-if="formattedUpdatedAt" class="inline-flex items-center gap-1">
-          <Icon name="mdi:clock-outline" size="13" class="shrink-0 text-zinc-400" />
-          {{ formattedUpdatedAt }}
-        </span>
+        <CommonExternalImage
+          v-if="imageUrl && !imageFailed"
+          :src="imageUrl"
+          :alt="title"
+          img-class="h-full w-full object-cover"
+          @error="imageFailed = true"
+        />
+        <Icon v-else :name="typeIcon" class="text-2xl text-sky-700 dark:text-sky-400" />
       </div>
-    </div>
 
-    <Icon
-      name="mdi:open-in-new"
-      class="mt-1 hidden shrink-0 text-zinc-400 group-hover:text-sky-600 sm:mt-0 sm:block"
-      size="18"
-    />
-  </a>
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="min-w-0">
+            <h3
+              class="text-base font-semibold text-zinc-800 group-hover:text-sky-700 dark:text-zinc-100 dark:group-hover:text-sky-400"
+            >
+              {{ title }}
+            </h3>
+            <p v-if="subtitle" class="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+              {{ subtitle }}
+            </p>
+          </div>
+          <span
+            :class="[
+              'inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold',
+              typeBadgeClass,
+            ]"
+          >
+            <Icon :name="typeIcon" size="12" />
+            {{ typeLabel }}
+          </span>
+        </div>
+
+        <p v-if="description" class="mt-1.5 line-clamp-2 text-sm text-zinc-500 dark:text-zinc-400">
+          {{ description }}
+        </p>
+
+        <div
+          class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-zinc-500 dark:text-zinc-400"
+        >
+          <span v-if="category" class="inline-flex items-center gap-1">
+            <Icon name="mdi:folder-outline" size="13" class="shrink-0 text-zinc-400" />
+            {{ category }}
+          </span>
+
+          <span
+            v-if="rating"
+            class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400"
+          >
+            <Icon name="mdi:star" size="13" />
+            {{ rating }}
+          </span>
+
+          <span v-if="status" class="inline-flex items-center gap-1">
+            <Icon name="mdi:progress-check" size="13" class="shrink-0 text-zinc-400" />
+            {{ status }}
+          </span>
+
+          <span
+            v-for="tag in tags"
+            :key="tag"
+            class="inline-flex items-center gap-0.5 rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-slate-700"
+          >
+            <Icon name="mdi:tag-outline" size="12" class="text-zinc-400" />
+            {{ tag }}
+          </span>
+
+          <span
+            v-if="linkHost"
+            class="inline-flex items-center gap-1 text-sky-600 dark:text-sky-400"
+          >
+            <Icon name="mdi:open-in-new" size="13" />
+            {{ linkHost }}
+          </span>
+
+          <span v-if="formattedUpdatedAt" class="inline-flex items-center gap-1">
+            <Icon name="mdi:clock-outline" size="13" class="shrink-0 text-zinc-400" />
+            {{ formattedUpdatedAt }}
+          </span>
+
+          <span
+            v-if="item.likeCount !== undefined && item.likeCount > 0"
+            class="inline-flex items-center gap-0.5"
+          >
+            <Icon name="mdi:heart" size="12" class="text-red-500" />
+            {{ item.likeCount }}
+          </span>
+          <span
+            v-if="item.commentCount !== undefined && item.commentCount > 0"
+            class="inline-flex items-center gap-0.5"
+          >
+            <Icon name="mdi:comment-outline" size="12" class="text-sky-500" />
+            {{ item.commentCount }}
+          </span>
+        </div>
+      </div>
+
+      <Icon
+        name="mdi:open-in-new"
+        class="mt-1 hidden shrink-0 text-zinc-400 group-hover:text-sky-600 sm:mt-0 sm:block"
+        size="18"
+      />
+    </a>
+
+    <div class="mt-3 border-t border-zinc-100 pt-3 dark:border-slate-700">
+      <LibraryItemEngagement
+        :item-id="item.slug"
+        kind="resource"
+        @like-changed="onEngagementChanged"
+        @comment-added="onEngagementChanged"
+      />
+    </div>
+  </article>
 </template>

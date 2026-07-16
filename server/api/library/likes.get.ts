@@ -1,8 +1,11 @@
 import { defineEventHandler, getQuery } from 'h3'
-import { getLibraryLikeState } from '~/server/utils/libraryEngagementService'
+import {
+  getLibraryLikeState,
+  parseLibraryEngagementKind,
+} from '~/server/utils/libraryEngagementService'
 
 export default defineEventHandler(async (event) => {
-  const { itemId } = getQuery(event)
+  const { itemId, kind: kindRaw } = getQuery(event)
 
   if (!itemId || typeof itemId !== 'string') {
     return {
@@ -13,11 +16,12 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  try {
-    return await getLibraryLikeState(event, 'gallery', itemId)
-  } catch (error: unknown) {
-    console.error('[API] Failed to get gallery like count:', error)
+  const kind = parseLibraryEngagementKind(kindRaw, 'gallery')
 
+  try {
+    return await getLibraryLikeState(event, kind, itemId)
+  } catch (error: unknown) {
+    console.error('[API] Failed to get library like count:', error)
     return {
       success: false,
       count: 0,

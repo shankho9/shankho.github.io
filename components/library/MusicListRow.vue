@@ -13,6 +13,8 @@ export interface MusicListItem {
   spotifyUrl?: string
   tags?: string[]
   coverImage?: string
+  likeCount?: number
+  commentCount?: number
 }
 
 interface Props {
@@ -118,6 +120,20 @@ const metaLine = computed(() => {
         >
           <Icon name="mdi:spotify" size="12" />
           Spotify
+        </span>
+        <span
+          v-if="item.likeCount !== undefined && item.likeCount > 0"
+          class="inline-flex items-center gap-0.5"
+        >
+          <Icon name="mdi:heart" size="12" class="text-red-500" />
+          {{ item.likeCount }}
+        </span>
+        <span
+          v-if="item.commentCount !== undefined && item.commentCount > 0"
+          class="inline-flex items-center gap-0.5"
+        >
+          <Icon name="mdi:comment-outline" size="12" class="text-sky-500" />
+          {{ item.commentCount }}
         </span>
         <span
           v-for="tag in item.tags?.slice(0, 4)"

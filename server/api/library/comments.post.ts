@@ -1,11 +1,15 @@
 import { createError, defineEventHandler, readBody } from 'h3'
 import { getCurrentUser } from '~/server/utils/auth'
 import { query } from '~/server/utils/db'
-import { toLibraryPostId } from '~/server/utils/libraryEngagement'
+import {
+  parseLibraryEngagementKind,
+  toLibraryPostId,
+} from '~/server/utils/libraryEngagementService'
 
 interface CommentBody {
   itemId: string
   content: string
+  kind?: string
 }
 
 export default defineEventHandler(async (event) => {
@@ -15,7 +19,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<CommentBody>(event)
-  const { itemId, content } = body
+  const { itemId, content, kind: kindRaw } = body || {}
 
   if (!itemId || !content) {
     throw createError({
@@ -38,10 +42,11 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  const kind = parseLibraryEngagementKind(kindRaw, 'gallery')
+  const postId = toLibraryPostId(kind, itemId)
   const userEmail = user.email
   const userName = user.name || user.email
   const userPicture = user.picture || ''
-  const postId = toLibraryPostId('gallery', itemId)
 
   try {
     const result = await query<{ id: number }>(
@@ -64,7 +69,7 @@ export default defineEventHandler(async (event) => {
       },
     }
   } catch (error: unknown) {
-    console.error('Failed to create gallery comment:', error)
+    console.error('Failed to create library comment:', error)
     throw createError({
       statusCode: 500,
       message: 'Failed to create comment',

@@ -12,4 +12,6 @@ export interface AppListItem {
   hasApk: boolean
   hasMsix: boolean
   updatedAt: string | null
+  likeCount?: number
+  commentCount?: number
 }

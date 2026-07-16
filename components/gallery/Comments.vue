@@ -14,9 +14,19 @@ interface Comment {
   created_at: string | Date
 }
 
-const props = defineProps<{
-  itemId: string | number
-}>()
+const props = withDefaults(
+  defineProps<{
+    itemId: string | number
+    /** gallery (default) | music | resource | app */
+    kind?: 'gallery' | 'music' | 'resource' | 'app'
+    /** When true, use dark lightbox styling; otherwise light page styling */
+    dark?: boolean
+  }>(),
+  {
+    kind: 'gallery',
+    dark: true,
+  },
+)
 
 const emit = defineEmits<{
   'comment-added': [itemId: string | number]
@@ -41,6 +51,8 @@ const totalPages = ref(0)
 
 const formatDate = formatDateForDisplay
 
+const commentsApiBase = '/api/library/comments'
+
 const loadComments = async (page: number = currentPage.value, retryCount = 0) => {
   isLoading.value = true
   error.value = null
@@ -50,7 +62,7 @@ const loadComments = async (page: number = currentPage.value, retryCount = 0) =>
       comments: Comment[]
       pagination: { page: number; limit: number; total: number; totalPages: number }
     }>(
-      `/api/gallery/comments?itemId=${encodeURIComponent(props.itemId)}&page=${page}&limit=${commentsPerPage.value}`,
+      `${commentsApiBase}?itemId=${encodeURIComponent(String(props.itemId))}&kind=${props.kind}&page=${page}&limit=${commentsPerPage.value}`,
     )
     comments.value = response.comments
     currentPage.value = response.pagination.page
@@ -126,10 +138,11 @@ const submitComment = async () => {
   error.value = null
   try {
     // Identity fields come from the authenticated session on the server (not the request body).
-    const response = await $fetch<{ success: boolean; comment: Comment }>('/api/gallery/comments', {
+    const response = await $fetch<{ success: boolean; comment: Comment }>(commentsApiBase, {
       method: 'POST',
       body: {
-        itemId: props.itemId,
+        itemId: String(props.itemId),
+        kind: props.kind,
         content: commentText.value,
       },
     })
@@ -167,6 +180,14 @@ watch(isAuthenticated, (newValue) => {
   }
 })
 
+watch(
+  () => [props.itemId, props.kind] as const,
+  () => {
+    currentPage.value = 1
+    loadComments(1)
+  },
+)
+
 onMounted(() => {
   loadStoredUser()
   loadComments()
@@ -174,21 +195,29 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="gallery-comments-section mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-    <h3 class="text-xl font-bold mb-4 text-white">Comments</h3>
+  <div
+    class="gallery-comments-section mt-6 pt-6 border-t"
+    :class="dark ? 'border-gray-200 dark:border-gray-700' : 'border-zinc-200 dark:border-zinc-700'"
+  >
+    <h3
+      class="mb-4 text-xl font-bold"
+      :class="dark ? 'text-white' : 'text-zinc-900 dark:text-zinc-100'"
+    >
+      Comments
+    </h3>
 
     <!-- Comment Form -->
     <div v-if="isAuthenticated && user" class="mb-6">
-      <div class="flex gap-3 mb-4">
+      <div class="mb-4 flex gap-3">
         <img
           v-if="user.picture && !userImageError"
           :src="user.picture"
           :alt="user.name"
-          class="w-10 h-10 rounded-full border-2 border-sky-400"
+          class="h-10 w-10 rounded-full border-2 border-sky-400"
           @error="handleUserImageError"
         />
-        <div v-else class="w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center">
-          <span class="text-white font-semibold text-sm">
+        <div v-else class="flex h-10 w-10 items-center justify-center rounded-full bg-sky-600">
+          <span class="text-sm font-semibold text-white">
             {{ user.name?.charAt(0).toUpperCase() || 'U' }}
           </span>
         </div>
@@ -196,15 +225,21 @@ onMounted(() => {
           <textarea
             v-model="commentText"
             placeholder="Add a comment..."
-            class="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-400 resize-none"
+            :class="
+              dark
+                ? 'w-full resize-none rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-400'
+                : 'w-full resize-none rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100'
+            "
             rows="3"
             :disabled="isSubmitting"
           />
-          <div class="flex justify-between items-center mt-2">
-            <p class="text-xs text-gray-400">{{ commentText.length }}/5000</p>
+          <div class="mt-2 flex items-center justify-between">
+            <p :class="dark ? 'text-xs text-gray-400' : 'text-xs text-zinc-500'">
+              {{ commentText.length }}/5000
+            </p>
             <button
               :disabled="!commentText.trim() || isSubmitting"
-              class="px-4 py-2 bg-sky-600 hover:bg-sky-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-semibold"
+              class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-gray-600"
               @click="submitComment"
             >
               {{ isSubmitting ? 'Posting...' : 'Post Comment' }}
@@ -215,30 +250,45 @@ onMounted(() => {
     </div>
 
     <!-- Sign In Prompt -->
-    <div v-else class="mb-6 p-4 bg-white/10 rounded-lg border border-white/20">
-      <p class="text-white mb-3">Sign in to add a comment</p>
+    <div
+      v-else
+      class="mb-6 rounded-lg border p-4"
+      :class="
+        dark
+          ? 'border-white/20 bg-white/10'
+          : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/50'
+      "
+    >
+      <p :class="dark ? 'mb-3 text-white' : 'mb-3 text-zinc-800 dark:text-zinc-100'">
+        Sign in to add a comment
+      </p>
       <button
-        class="w-full px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors"
+        class="w-full rounded-lg bg-sky-600 px-4 py-2 font-medium text-white transition-colors hover:bg-sky-700"
         @click="openLoginModal"
       >
         Login
       </button>
     </div>
 
-    <!-- Login Modal -->
     <LoginModal :is-open="showLoginModal" @close="closeLoginModal" />
 
-    <!-- Comments List -->
-    <div v-if="isLoading" class="text-center py-8 text-gray-400">Loading comments...</div>
+    <div
+      v-if="isLoading"
+      class="py-8 text-center"
+      :class="dark ? 'text-gray-400' : 'text-zinc-500'"
+    >
+      Loading comments...
+    </div>
     <div
       v-else-if="error"
-      class="text-center py-8 text-red-400 bg-red-900/20 rounded-lg border border-red-500/30"
+      class="rounded-lg border border-red-500/30 bg-red-900/20 py-8 text-center text-red-400"
     >
       {{ error }}
     </div>
     <div
       v-else-if="comments.length === 0 && totalComments === 0"
-      class="text-center py-8 text-gray-400"
+      class="py-8 text-center"
+      :class="dark ? 'text-gray-400' : 'text-zinc-500'"
     >
       No comments yet. Be the first to comment!
     </div>
@@ -246,55 +296,84 @@ onMounted(() => {
       <div
         v-for="comment in comments"
         :key="comment.id"
-        class="flex gap-3 p-4 bg-white/5 rounded-lg border border-white/10"
+        class="flex gap-3 rounded-lg border p-4"
+        :class="
+          dark
+            ? 'border-white/10 bg-white/5'
+            : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/40'
+        "
       >
         <img
           v-if="comment.user_picture && !imageErrors.has(comment.id)"
           :src="comment.user_picture"
           :alt="comment.user_name"
-          class="w-10 h-10 rounded-full border-2 border-sky-400 flex-shrink-0"
+          class="h-10 w-10 flex-shrink-0 rounded-full border-2 border-sky-400"
           @error="handleImageError(comment.id)"
         />
         <div
           v-else
-          class="w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center flex-shrink-0"
+          class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-sky-600"
         >
-          <span class="text-white font-semibold text-sm">
+          <span class="text-sm font-semibold text-white">
             {{ comment.user_name?.charAt(0).toUpperCase() || 'U' }}
           </span>
         </div>
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 mb-1">
-            <span class="font-semibold text-white">{{ comment.user_name }}</span>
-            <span class="text-xs text-gray-400">{{ formatDate(comment.created_at) }}</span>
+        <div class="min-w-0 flex-1">
+          <div class="mb-1 flex items-center gap-2">
+            <span
+              class="font-semibold"
+              :class="dark ? 'text-white' : 'text-zinc-900 dark:text-zinc-100'"
+            >
+              {{ comment.user_name }}
+            </span>
+            <span class="text-xs" :class="dark ? 'text-gray-400' : 'text-zinc-500'">
+              {{ formatDate(comment.created_at) }}
+            </span>
           </div>
-          <p class="text-gray-200 whitespace-pre-wrap break-words">{{ comment.content }}</p>
+          <p
+            class="whitespace-pre-wrap break-words"
+            :class="dark ? 'text-gray-200' : 'text-zinc-700 dark:text-zinc-300'"
+          >
+            {{ comment.content }}
+          </p>
         </div>
       </div>
 
-      <!-- Pagination -->
       <div
         v-if="totalPages > 1"
-        class="flex items-center justify-between pt-4 border-t border-white/10"
+        class="flex items-center justify-between border-t pt-4"
+        :class="dark ? 'border-white/10' : 'border-zinc-200 dark:border-zinc-700'"
       >
         <button
           :disabled="currentPage === 1"
-          class="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm"
+          class="rounded-lg px-4 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          :class="
+            dark
+              ? 'bg-white/10 text-white hover:bg-white/20'
+              : 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:bg-zinc-700 dark:text-zinc-100'
+          "
           @click="goToPage(currentPage - 1)"
         >
           Previous
         </button>
-        <span class="text-sm text-gray-400"> Page {{ currentPage }} of {{ totalPages }} </span>
+        <span class="text-sm" :class="dark ? 'text-gray-400' : 'text-zinc-500'">
+          Page {{ currentPage }} of {{ totalPages }}
+        </span>
         <button
           :disabled="currentPage === totalPages"
-          class="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm"
+          class="rounded-lg px-4 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          :class="
+            dark
+              ? 'bg-white/10 text-white hover:bg-white/20'
+              : 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:bg-zinc-700 dark:text-zinc-100'
+          "
           @click="goToPage(currentPage + 1)"
         >
           Next
         </button>
       </div>
-      <div v-if="totalComments > 0" class="text-center pt-2">
-        <p class="text-sm text-gray-400">
+      <div v-if="totalComments > 0" class="pt-2 text-center">
+        <p class="text-sm" :class="dark ? 'text-gray-400' : 'text-zinc-500'">
           Showing {{ comments.length }} of {{ totalComments }} comments
         </p>
       </div>

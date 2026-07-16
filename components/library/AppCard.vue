@@ -143,6 +143,21 @@ function onCardClick() {
           <Icon name="mdi:microsoft-windows" size="13" />
           MSIX
         </span>
+
+        <span
+          v-if="app.likeCount !== undefined && app.likeCount > 0"
+          class="inline-flex items-center gap-0.5"
+        >
+          <Icon name="mdi:heart" size="12" class="text-red-500" />
+          {{ app.likeCount }}
+        </span>
+        <span
+          v-if="app.commentCount !== undefined && app.commentCount > 0"
+          class="inline-flex items-center gap-0.5"
+        >
+          <Icon name="mdi:comment-outline" size="12" class="text-sky-500" />
+          {{ app.commentCount }}
+        </span>
       </div>
 
       <div v-if="hasAnyAction" class="mt-2.5 flex flex-wrap gap-1.5">

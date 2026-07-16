@@ -54,6 +54,13 @@ const dragStart = ref({ x: 0, y: 0 })
 
 const currentItem = computed(() => props.items[currentIndex.value])
 
+const isVideoItem = computed(() => {
+  const item = currentItem.value
+  if (!item) return false
+  const t = (item.type || '').toLowerCase()
+  return t === 'video' || t.includes('video')
+})
+
 // Like functionality
 const likeCount = ref(0)
 const isLiked = ref(false)
@@ -302,9 +309,10 @@ onUnmounted(() => {
           <Icon name="mdi:chevron-right" size="32" />
         </button>
 
-        <!-- Zoom Controls -->
+        <!-- Zoom Controls (images only) -->
         <div
-          class="absolute top-16 left-4 z-10 flex flex-col gap-2 bg-black bg-opacity-50 rounded-lg p-2"
+          v-if="!isVideoItem"
+          class="absolute top-16 left-4 z-10 flex flex-col gap-2 rounded-lg bg-black bg-opacity-50 p-2"
         >
           <button
             class="p-2 hover:bg-opacity-70 rounded text-white transition-colors"
@@ -352,11 +360,22 @@ onUnmounted(() => {
               transformOrigin: 'center center',
             }"
           >
+            <video
+              v-if="currentItem && isVideoItem"
+              :key="String(currentItem.id)"
+              :src="currentItem.image"
+              class="max-h-[90vh] max-w-full object-contain"
+              controls
+              playsinline
+              preload="metadata"
+              @mousedown.stop
+              @touchstart.stop
+            />
             <NuxtImg
-              v-if="currentItem"
+              v-else-if="currentItem"
               :src="currentItem.image"
               :alt="currentItem.title"
-              class="max-w-full max-h-[90vh] object-contain"
+              class="max-h-[90vh] max-w-full object-contain"
               loading="eager"
             />
           </div>
@@ -426,6 +445,7 @@ onUnmounted(() => {
               <GalleryComments
                 v-if="currentItem"
                 :item-id="String(currentItem.id)"
+                kind="gallery"
                 @comment-added="handleCommentAdded"
               />
             </div>
@@ -457,7 +477,7 @@ onUnmounted(() => {
                 }}</span>
               </span>
               <span class="flex items-center gap-1">
-                <Icon name="mdi:image" size="16" />
+                <Icon :name="isVideoItem ? 'mdi:video' : 'mdi:image'" size="16" />
                 <span>{{ currentIndex + 1 }} / {{ items.length }}</span>
               </span>
             </div>

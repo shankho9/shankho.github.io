@@ -8,8 +8,13 @@ import type { ResourceListItem, ResourceType } from '~/types/resources'
 import { toResourceListItem } from '~/utils/resources/display'
 import { useTinaEditor } from '~/composables/useTinaEditor'
 import { uniqueSortedLabels, useLibraryPagination } from '~/composables/useLibraryPagination'
+import { useAuth } from '~/composables/useAuth'
+import { useLibraryEngagementStats } from '~/composables/useLibraryEngagementStats'
 
 type ResourceTab = 'books' | 'tools' | 'learning'
+
+const { isAuthenticated } = useAuth()
+const { loadStatsForItems } = useLibraryEngagementStats(() => isAuthenticated.value)
 
 const activeResourceTab = ref<ResourceTab>('books')
 const searchQuery = ref('')
@@ -88,6 +93,27 @@ const filteredItems = computed(() => {
 
 const { currentPage, pageItems, totalPages, rangeLabel, resetPage, goToPage } =
   useLibraryPagination(filteredItems)
+
+async function syncPageEngagement() {
+  if (!isAuthenticated.value || pageItems.value.length === 0) return
+  const payload = pageItems.value.map((item) => ({
+    id: item.slug,
+    likeCount: item.likeCount ?? 0,
+    commentCount: item.commentCount ?? 0,
+  }))
+  await loadStatsForItems(payload, 'resource')
+  for (const item of pageItems.value) {
+    const row = payload.find((p) => p.id === item.slug)
+    if (row) {
+      item.likeCount = row.likeCount
+      item.commentCount = row.commentCount
+    }
+  }
+}
+
+watch(pageItems, () => {
+  void syncPageEngagement()
+})
 
 watch(activeResourceTab, () => {
   categoryFilter.value = null
@@ -194,7 +220,13 @@ defineExpose({ items, loadResources, isLoading })
       </p>
 
       <div v-if="pageItems.length > 0" class="flex flex-col gap-3">
-        <ResourceCard v-for="item in pageItems" :key="item.id" :item="item" :type="cardType" />
+        <ResourceCard
+          v-for="item in pageItems"
+          :key="item.id"
+          :item="item"
+          :type="cardType"
+          @engagement-changed="syncPageEngagement"
+        />
       </div>
 
       <div v-else class="py-12 text-center">
