@@ -129,6 +129,13 @@ onUnmounted(() => {
                 <p v-if="app.version" class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                   Version {{ app.version }}
                 </p>
+                <p
+                  v-if="app.techSpec"
+                  class="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-md bg-white/90 px-2.5 py-1 text-xs font-medium text-amber-700 shadow-sm dark:bg-slate-800 dark:text-amber-300"
+                >
+                  <Icon name="mdi:code-braces" size="14" class="shrink-0" />
+                  <span class="truncate">{{ app.techSpec }}</span>
+                </p>
                 <div v-if="app.categories.length" class="mt-3 flex flex-wrap gap-1.5">
                   <span
                     v-for="category in app.categories"

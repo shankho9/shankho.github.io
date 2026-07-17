@@ -180,19 +180,20 @@ On **Vercel → Environment Variables**, set `FROM_EMAIL` to `blogsite@nomadic-n
 
 ### Apps frontmatter schema
 
-| Field       | Type    | Notes                                    |
-| ----------- | ------- | ---------------------------------------- |
-| title       | string  | App name (one row per product)           |
-| description | string  | Short blurb — shown on the app card      |
-| details     | string  | Longer text — shown in the detail modal  |
-| categories  | list    | e.g. `Android`, `Web`                    |
-| version     | string  | e.g. `1.0.0`                             |
-| webUrl      | string  | Web/PWA link (optional)                  |
-| storeUrl    | string  | App store link (Play / Microsoft / etc.) |
-| iconUrl     | string  | R2 public URL or any HTTPS icon URL      |
-| apkKey      | string  | R2 object key (not a full URL)           |
-| msixKey     | string  | R2 object key (optional)                 |
-| published   | boolean | Must be `true` to appear in the library  |
+| Field       | Type    | Notes                                                              |
+| ----------- | ------- | ------------------------------------------------------------------ |
+| title       | string  | App name (one row per product)                                     |
+| description | string  | Short blurb — shown on the app card                                |
+| techSpec    | string  | One-liner tech/coding spec — shown as a chip on the card and modal |
+| details     | string  | Longer text — shown in the detail modal                            |
+| categories  | list    | e.g. `Android`, `Web`                                              |
+| version     | string  | e.g. `1.0.0`                                                       |
+| webUrl      | string  | Web/PWA link (optional)                                            |
+| storeUrl    | string  | App store link (Play / Microsoft / etc.)                           |
+| iconUrl     | string  | R2 public URL or any HTTPS icon URL                                |
+| apkKey      | string  | R2 object key (not a full URL)                                     |
+| msixKey     | string  | R2 object key (optional)                                           |
+| published   | boolean | Must be `true` to appear in the library                            |
 
 **Publish workflow:** Upload binary to R2 → paste object key into Tina `apkKey` / `msixKey` → set `published: true` → save in Tina.
 

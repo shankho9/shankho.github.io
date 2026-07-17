@@ -259,6 +259,14 @@
           },
           {
             "type": "string",
+            "name": "techSpec",
+            "label": "Tech Spec (one-liner, shown on card)",
+            "namespace": ["apps", "techSpec"],
+            "searchable": true,
+            "uid": false
+          },
+          {
+            "type": "string",
             "name": "details",
             "label": "Details (modal body)",
             "ui": { "component": "textarea" },
@@ -1750,6 +1758,12 @@
           },
           {
             "kind": "FieldDefinition",
+            "name": { "kind": "Name", "value": "techSpec" },
+            "arguments": [],
+            "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "String" } }
+          },
+          {
+            "kind": "FieldDefinition",
             "name": { "kind": "Name", "value": "details" },
             "arguments": [],
             "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "String" } }
@@ -1846,6 +1860,11 @@
           {
             "kind": "InputValueDefinition",
             "name": { "kind": "Name", "value": "description" },
+            "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "StringFilter" } }
+          },
+          {
+            "kind": "InputValueDefinition",
+            "name": { "kind": "Name", "value": "techSpec" },
             "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "StringFilter" } }
           },
           {
@@ -2486,6 +2505,11 @@
           {
             "kind": "InputValueDefinition",
             "name": { "kind": "Name", "value": "description" },
+            "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "String" } }
+          },
+          {
+            "kind": "InputValueDefinition",
+            "name": { "kind": "Name", "value": "techSpec" },
             "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "String" } }
           },
           {

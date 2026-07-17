@@ -196,6 +196,11 @@ export default defineConfig({
           },
           {
             type: 'string',
+            name: 'techSpec',
+            label: 'Tech Spec (one-liner, shown on card)',
+          },
+          {
+            type: 'string',
             name: 'details',
             label: 'Details (modal body)',
             ui: { component: 'textarea' },

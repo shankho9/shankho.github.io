@@ -54,6 +54,7 @@ export default defineContentConfig({
       source: 'apps/**/*.{md,mdx}',
       schema: z.object({
         description: z.string().optional(),
+        techSpec: z.string().optional(),
         details: z.string().optional(),
         categories: z.array(z.string()).optional(),
         version: z.string().optional(),

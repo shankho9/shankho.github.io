@@ -3,6 +3,7 @@ export interface AppListItem {
   slug: string
   title: string
   description: string
+  techSpec: string | null
   details: string | null
   version: string
   categories: string[]

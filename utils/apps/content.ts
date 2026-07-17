@@ -8,6 +8,7 @@ export interface AppContentDoc {
   path: string
   title?: string
   description?: string
+  techSpec?: string
   details?: string
   categories?: string[]
   version?: string
@@ -28,6 +29,7 @@ export function toAppListItem(doc: AppContentDoc): AppListItem {
     slug,
     title: doc.title || 'Untitled',
     description: doc.description || '',
+    techSpec: doc.techSpec?.trim() || null,
     details: doc.details?.trim() || null,
     version: doc.version || '',
     categories: doc.categories || [],
