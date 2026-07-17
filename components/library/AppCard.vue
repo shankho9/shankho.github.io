@@ -175,7 +175,7 @@ function onCardClick() {
           :href="app.webUrl"
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-flex items-center justify-center gap-1 rounded-md bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
+          class="inline-flex w-auto items-center justify-center gap-1 rounded-md bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
           title="Open web app"
           @click.stop
         >
@@ -187,7 +187,7 @@ function onCardClick() {
           :href="app.storeUrl"
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-flex items-center justify-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
+          class="inline-flex w-auto items-center justify-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
           title="Open store page"
           @click.stop
         >
@@ -197,7 +197,7 @@ function onCardClick() {
         <a
           v-if="app.hasApk"
           :href="getAppDownloadUrl(app.slug, 'apk')"
-          class="inline-flex items-center justify-center gap-1 rounded-md bg-sky-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-sky-700"
+          class="inline-flex w-auto items-center justify-center gap-1 rounded-md bg-sky-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-sky-700"
           title="Download APK"
           @click.stop
         >
@@ -207,7 +207,7 @@ function onCardClick() {
         <a
           v-if="app.hasMsix"
           :href="getAppDownloadUrl(app.slug, 'msix')"
-          class="inline-flex items-center justify-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
+          class="inline-flex w-auto items-center justify-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
           title="Download MSIX"
           @click.stop
         >
