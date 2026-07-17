@@ -98,11 +98,11 @@ function onCardClick() {
 
       <p
         v-if="app.techSpec"
-        class="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200/70 dark:bg-amber-900/25 dark:text-amber-300 dark:ring-amber-700/40"
+        class="mt-1.5 inline-flex max-w-full items-start gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200/70 dark:bg-amber-900/25 dark:text-amber-300 dark:ring-amber-700/40"
         :title="app.techSpec"
       >
-        <Icon name="mdi:code-braces" size="13" class="shrink-0" />
-        <span class="truncate">{{ app.techSpec }}</span>
+        <Icon name="mdi:code-braces" size="13" class="mt-0.5 shrink-0" />
+        <span class="min-w-0 whitespace-normal break-words">{{ app.techSpec }}</span>
       </p>
 
       <div
