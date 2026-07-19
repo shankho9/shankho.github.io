@@ -1,9 +1,10 @@
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { useRuntimeConfig } from '#imports'
 import { envOrConfig } from '~/server/utils/runtimeEnv'
 
 const DEFAULT_PRESIGN_TTL_SECONDS = 300
+const DEFAULT_UPLOAD_PRESIGN_TTL_SECONDS = 900
 
 function getR2Client(): S3Client {
   const config = useRuntimeConfig()
@@ -26,6 +27,12 @@ function getR2Client(): S3Client {
       secretAccessKey,
     },
   })
+}
+
+export function getDefaultBucketName(): string | undefined {
+  const config = useRuntimeConfig()
+  const bucket = envOrConfig(config.r2BucketName, 'R2_BUCKET_NAME')?.trim()
+  return bucket || undefined
 }
 
 /**
@@ -74,6 +81,35 @@ export function normalizeAppsObjectKey(key: string, bucketName?: string): string
 }
 
 /**
+ * Build `{folder}/{fileName}` for uploads.
+ * Folder may be `Android` or `Android/`; filename is basename-only.
+ */
+export function buildUploadObjectKey(folder: string, fileName: string): string {
+  const folderPart = folder
+    .trim()
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '')
+    .replace(/\\/g, '/')
+
+  const baseName = fileName
+    .trim()
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .pop()
+
+  if (!folderPart || !baseName) {
+    throw new Error('Folder and file name are required.')
+  }
+
+  if (folderPart.includes('..') || baseName.includes('..')) {
+    throw new Error('Object key must not contain "..".')
+  }
+
+  return `${folderPart}/${baseName}`
+}
+
+/**
  * Safe object key under the apps bucket.
  * Layout: {PlatformFolder}/{filename}
  * e.g. Android/Taskora_Android_v1.0.0.apk
@@ -110,8 +146,7 @@ export async function getPresignedDownloadUrl(
   objectKey: string,
   expiresInSeconds: number = DEFAULT_PRESIGN_TTL_SECONDS,
 ): Promise<string> {
-  const config = useRuntimeConfig()
-  const bucketName = envOrConfig(config.r2BucketName, 'R2_BUCKET_NAME')
+  const bucketName = getDefaultBucketName()
 
   if (!bucketName) {
     throw new Error('R2 bucket name is missing. Set R2_BUCKET_NAME.')
@@ -131,3 +166,33 @@ export async function getPresignedDownloadUrl(
 
   return getSignedUrl(client, command, { expiresIn: expiresInSeconds })
 }
+
+export async function getPresignedUploadUrl(options: {
+  bucket: string
+  objectKey: string
+  contentType?: string
+  expiresInSeconds?: number
+}): Promise<string> {
+  const bucket = options.bucket.trim()
+  if (!bucket) {
+    throw new Error('R2 bucket name is required.')
+  }
+
+  const normalizedKey = normalizeAppsObjectKey(options.objectKey, bucket)
+
+  if (!isAllowedAppsKey(normalizedKey)) {
+    throw new Error(`Object key is not allowed: ${options.objectKey}`)
+  }
+
+  const expiresIn = options.expiresInSeconds ?? DEFAULT_UPLOAD_PRESIGN_TTL_SECONDS
+  const client = getR2Client()
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: normalizedKey,
+    ...(options.contentType ? { ContentType: options.contentType } : {}),
+  })
+
+  return getSignedUrl(client, command, { expiresIn })
+}
+
+export { DEFAULT_UPLOAD_PRESIGN_TTL_SECONDS }

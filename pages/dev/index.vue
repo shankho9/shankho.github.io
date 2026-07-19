@@ -322,6 +322,29 @@
               </p>
             </NuxtLink>
             <NuxtLink
+              to="/dev/utilities/r2-upload"
+              class="group flex flex-col rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm transition-all hover:border-cyan-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-cyan-600 active:scale-[0.99] touch-manipulation"
+            >
+              <div class="flex items-center gap-3 mb-3">
+                <div
+                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-100 dark:bg-cyan-900/50"
+                >
+                  <Icon
+                    name="mdi:cloud-upload"
+                    size="22"
+                    class="text-cyan-600 dark:text-cyan-400"
+                  />
+                </div>
+                <div class="min-w-0">
+                  <h3 class="font-semibold text-gray-900 dark:text-gray-100">R2 Upload</h3>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">App & resource binaries</p>
+                </div>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                Upload local app binaries or resources to Cloudflare R2 and copy the object path
+              </p>
+            </NuxtLink>
+            <NuxtLink
               to="/dev/locations"
               class="group flex flex-col rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm transition-all hover:border-green-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-green-600 active:scale-[0.99] touch-manipulation"
             >
