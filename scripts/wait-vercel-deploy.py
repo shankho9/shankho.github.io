@@ -81,20 +81,46 @@ def fetch_deployments(token: str, project_id: str, team_id: str) -> list[dict]:
     return data.get("deployments") or []
 
 
+def deployment_commit(d: dict) -> str:
+    meta = d.get("meta") or {}
+    git = d.get("gitSource") or {}
+    return meta.get("githubCommitSha") or meta.get("commitSha") or git.get("sha") or ""
+
+
 def match_deployment(deployments: list[dict], sha: str) -> tuple[str, str, str]:
     for d in deployments:
-        meta = d.get("meta") or {}
-        git = d.get("gitSource") or {}
-        commit = (
-            meta.get("githubCommitSha") or meta.get("commitSha") or git.get("sha") or ""
-        )
-        if commit != sha:
+        if deployment_commit(d) != sha:
             continue
+        meta = d.get("meta") or {}
         target = d.get("target") or meta.get("target") or ""
         state = d.get("readyState") or d.get("state") or ""
         url = d.get("url") or ""
         return state, target, url
     return "PENDING", "", ""
+
+
+def find_superseding_production_deploy(
+    deployments: list[dict], sha: str
+) -> tuple[str, str, str] | None:
+    """
+    When Vercel cancels a queued production deploy because a newer commit was
+    pushed, another production deploy (QUEUED/BUILDING/READY) usually appears
+    for a different SHA. Treat that as superseded rather than a hard failure.
+    """
+    active = {"QUEUED", "BUILDING", "INITIALIZING", "READY"}
+    for d in deployments:
+        other = deployment_commit(d)
+        if not other or other == sha:
+            continue
+        meta = d.get("meta") or {}
+        target = (d.get("target") or meta.get("target") or "").lower()
+        if target and target != "production":
+            continue
+        state = d.get("readyState") or d.get("state") or ""
+        if state not in active:
+            continue
+        return other, state, d.get("url") or ""
+    return None
 
 
 def main() -> int:
@@ -172,7 +198,25 @@ def main() -> int:
             print(f"Vercel deploy READY: https://{url}" if url else "Vercel deploy READY")
             return 0
 
-        if state in {"ERROR", "CANCELED"}:
+        if state == "CANCELED":
+            superseding = find_superseding_production_deploy(deployments, sha)
+            if superseding:
+                other_sha, other_state, other_url = superseding
+                print(
+                    f"::warning::Deploy for {sha} was CANCELED — superseded by "
+                    f"{other_sha[:12]}… (state={other_state}"
+                    + (f", url={other_url}" if other_url else "")
+                    + "). A newer push will wait for that deploy; treating as OK."
+                )
+                return 0
+            print(
+                "::error::Vercel deploy ended with state=CANCELED "
+                "(no newer production deploy found).",
+                file=sys.stderr,
+            )
+            return 1
+
+        if state == "ERROR":
             print(f"::error::Vercel deploy ended with state={state}", file=sys.stderr)
             return 1
 
