@@ -1,4 +1,9 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import {
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { useRuntimeConfig } from '#imports'
 import { envOrConfig } from '~/server/utils/runtimeEnv'
@@ -82,7 +87,7 @@ export function normalizeAppsObjectKey(key: string, bucketName?: string): string
 
 /**
  * Build `{folder}/{fileName}` for uploads.
- * Folder may be `Android` or `Android/`; filename is basename-only.
+ * Folder may be `Android`, `Android/releases`, etc.; filename is basename-only.
  */
 export function buildUploadObjectKey(folder: string, fileName: string): string {
   const folderPart = folder.trim().replace(/^\/+/, '').replace(/\/+$/, '').replace(/\\/g, '/')
@@ -95,6 +100,11 @@ export function buildUploadObjectKey(folder: string, fileName: string): string {
 
   if (folderPart.includes('..') || baseName.includes('..')) {
     throw new Error('Object key must not contain "..".')
+  }
+
+  const folderSegments = folderPart.split('/').filter(Boolean)
+  if (!folderSegments.every((s) => /^[A-Za-z0-9_-]+$/.test(s))) {
+    throw new Error('Folder path segments may only contain letters, numbers, dash, and underscore.')
   }
 
   return `${folderPart}/${baseName}`
@@ -114,14 +124,14 @@ export function isAllowedAppsKey(key: string): boolean {
     return false
   }
 
-  // platformFolder/filename — at least one slash, no empty segments
+  // platformFolder/.../filename — at least one slash, no empty segments
   const parts = normalized.split('/')
   if (parts.length < 2 || parts.some((p) => !p)) {
     return false
   }
 
-  // First segment = platform folder name (letters, numbers, dash, underscore)
-  if (!/^[A-Za-z0-9_-]+$/.test(parts[0])) {
+  // Every path segment must be a safe folder/file token
+  if (!parts.every((p) => /^[A-Za-z0-9._-]+$/.test(p))) {
     return false
   }
 
@@ -184,6 +194,115 @@ export async function getPresignedUploadUrl(options: {
   })
 
   return getSignedUrl(client, command, { expiresIn })
+}
+
+/**
+ * Server-side PutObject (same-origin admin upload — no R2 CORS required).
+ */
+export async function uploadObjectToR2(options: {
+  bucket: string
+  objectKey: string
+  body: Buffer | Uint8Array
+  contentType?: string
+}): Promise<{ bucket: string; objectKey: string; etag?: string }> {
+  const bucket = options.bucket.trim()
+  if (!bucket) {
+    throw new Error('R2 bucket name is required.')
+  }
+
+  const normalizedKey = normalizeAppsObjectKey(options.objectKey, bucket)
+
+  if (!isAllowedAppsKey(normalizedKey)) {
+    throw new Error(`Object key is not allowed: ${options.objectKey}`)
+  }
+
+  const client = getR2Client()
+  const result = await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: normalizedKey,
+      Body: options.body,
+      ...(options.contentType ? { ContentType: options.contentType } : {}),
+    }),
+  )
+
+  return {
+    bucket,
+    objectKey: normalizedKey,
+    etag: result.ETag,
+  }
+}
+
+/**
+ * List folder paths in a bucket (top-level and nested) via delimiter `/`.
+ * Filters by R2_ALLOWED_KEY_PREFIXES when that allowlist is set.
+ */
+export async function listFolderPaths(bucketName: string): Promise<string[]> {
+  const bucket = bucketName.trim()
+  if (!bucket) {
+    throw new Error('R2 bucket name is required.')
+  }
+
+  const client = getR2Client()
+  const folders = new Set<string>()
+  const queue: string[] = ['']
+  const maxDepth = 6
+  const maxFolders = 500
+
+  while (queue.length > 0 && folders.size < maxFolders) {
+    const prefix = queue.shift()!
+    let continuationToken: string | undefined
+
+    do {
+      const response = await client.send(
+        new ListObjectsV2Command({
+          Bucket: bucket,
+          Prefix: prefix || undefined,
+          Delimiter: '/',
+          MaxKeys: 1000,
+          ContinuationToken: continuationToken,
+        }),
+      )
+
+      for (const common of response.CommonPrefixes || []) {
+        const raw = common.Prefix?.trim()
+        if (!raw) continue
+        const path = raw.replace(/\/+$/, '')
+        const segments = path.split('/').filter(Boolean)
+        if (
+          !segments.length ||
+          segments.length > maxDepth ||
+          path.includes('..') ||
+          !segments.every((s) => /^[A-Za-z0-9_-]+$/.test(s))
+        ) {
+          continue
+        }
+
+        folders.add(path)
+        if (segments.length < maxDepth && folders.size < maxFolders) {
+          queue.push(`${path}/`)
+        }
+      }
+
+      continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined
+    } while (continuationToken && folders.size < maxFolders)
+  }
+
+  const allowed = getAllowedKeyPrefixes()
+  let list = [...folders].sort((a, b) => a.localeCompare(b))
+  if (allowed !== '*') {
+    list = list.filter((path) =>
+      allowed.some((prefix) => path === prefix.replace(/\/+$/, '') || path.startsWith(prefix)),
+    )
+  }
+
+  return list
+}
+
+/** @deprecated Prefer listFolderPaths (includes nested folders). */
+export async function listTopLevelFolders(bucketName: string): Promise<string[]> {
+  const all = await listFolderPaths(bucketName)
+  return all.filter((path) => !path.includes('/'))
 }
 
 export { DEFAULT_UPLOAD_PRESIGN_TTL_SECONDS }

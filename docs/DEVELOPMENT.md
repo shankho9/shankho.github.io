@@ -362,19 +362,7 @@ New top-level folders (e.g. `Web/`) work automatically when `R2_ALLOWED_KEY_PREF
 
 **Preferred:** Admin utility at `/dev/utilities/r2-upload` (Utilities → Content & Data Managers → **R2 Upload**). Enter bucket (defaults to `R2_BUCKET_NAME`), folder (`Android`, `Desktop`, …), pick a local file, and copy the returned object key into Tina `apkKey` / `msixKey`. Requires an R2 API token with **Object Write** (and admin auth + passcode).
 
-The browser uploads directly to R2 via a short-lived presigned URL. Configure **CORS** on the bucket (Cloudflare Dashboard → R2 → bucket → Settings) so your site origin can `PUT`:
-
-```json
-[
-  {
-    "AllowedOrigins": ["https://www.nomadic-notions.co.in", "http://localhost:3000"],
-    "AllowedMethods": ["PUT", "GET", "HEAD"],
-    "AllowedHeaders": ["*"],
-    "ExposeHeaders": ["ETag"],
-    "MaxAgeSeconds": 3600
-  }
-]
-```
+Uploads go through the Nuxt server (`POST /api/admin/r2/upload`) so the browser never talks to R2 directly (no bucket CORS needed). Very large files may hit the host request-body limit (e.g. Vercel); use Wrangler or the dashboard for those.
 
 Fallback — [Wrangler](https://developers.cloudflare.com/workers/wrangler/) CLI:
 
