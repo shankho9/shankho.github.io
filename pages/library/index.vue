@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
-import { useGalleryEngagementStats } from '~/composables/useGalleryEngagementStats'
+import { useLibraryEngagementStats } from '~/composables/useLibraryEngagementStats'
 import { useImageKitFoldersLoader } from '~/composables/useImageKitFolders'
 import { seoData } from '~/data'
 import GalleryLightbox from '~/components/gallery/Lightbox.vue'
@@ -51,7 +51,7 @@ const closeLoginModal = () => {
   showLoginModal.value = false
 }
 
-const { loadStatsForItems, refreshItemStats } = useGalleryEngagementStats(
+const { loadStatsForItems, refreshItemStats } = useLibraryEngagementStats(
   () => isAuthenticated.value,
 )
 

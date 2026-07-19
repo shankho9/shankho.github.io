@@ -43,8 +43,3 @@ export function useLibraryEngagementStats(getIsAuthenticated: () => boolean) {
 
   return { loadStatsForItems, refreshItemStats }
 }
-
-/** @deprecated Prefer useLibraryEngagementStats — kept for gallery photo/video call sites. */
-export function useGalleryEngagementStats(getIsAuthenticated: () => boolean) {
-  return useLibraryEngagementStats(getIsAuthenticated)
-}
