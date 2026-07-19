@@ -1,8 +1,9 @@
-import { createError, readBody } from 'h3'
+import { createError, getRequestHeader, readBody } from 'h3'
 import { requireAdminUser } from '~/server/utils/adminUsers'
 import {
   DEFAULT_UPLOAD_PRESIGN_TTL_SECONDS,
   buildUploadObjectKey,
+  ensureR2UploadCors,
   getDefaultBucketName,
   getPresignedUploadUrl,
   isAllowedAppsKey,
@@ -58,8 +59,12 @@ export default defineEventHandler(async (event) => {
   }
 
   const expiresIn = DEFAULT_UPLOAD_PRESIGN_TTL_SECONDS
+  const requestOrigin = getRequestHeader(event, 'origin') || undefined
 
   try {
+    // Large browser uploads need bucket CORS; configure from the site origin.
+    await ensureR2UploadCors(bucket, requestOrigin)
+
     const uploadUrl = await getPresignedUploadUrl({
       bucket,
       objectKey: normalizedKey,
@@ -73,6 +78,7 @@ export default defineEventHandler(async (event) => {
       objectKey: normalizedKey,
       uploadUrl,
       expiresIn,
+      mode: 'direct',
     }
   } catch (err) {
     throw createError({

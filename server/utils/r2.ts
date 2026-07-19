@@ -1,6 +1,7 @@
 import {
   GetObjectCommand,
   ListObjectsV2Command,
+  PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
@@ -10,6 +11,8 @@ import { envOrConfig } from '~/server/utils/runtimeEnv'
 
 const DEFAULT_PRESIGN_TTL_SECONDS = 300
 const DEFAULT_UPLOAD_PRESIGN_TTL_SECONDS = 900
+/** Stay under typical Vercel/serverless request body limits (~4.5MB). */
+export const SERVER_UPLOAD_MAX_BYTES = Math.floor(3.5 * 1024 * 1024)
 
 function getR2Client(): S3Client {
   const config = useRuntimeConfig()
@@ -194,6 +197,69 @@ export async function getPresignedUploadUrl(options: {
   })
 
   return getSignedUrl(client, command, { expiresIn })
+}
+
+function getUploadCorsOrigins(requestOrigin?: string): string[] {
+  const config = useRuntimeConfig()
+  const siteUrl = String(config.public?.siteUrl || '')
+    .trim()
+    .replace(/\/+$/, '')
+  const origins = new Set<string>(['http://localhost:3000', 'http://127.0.0.1:3000'])
+
+  if (siteUrl) {
+    origins.add(siteUrl)
+    try {
+      const url = new URL(siteUrl)
+      if (url.hostname.startsWith('www.')) {
+        origins.add(`${url.protocol}//${url.hostname.slice(4)}`)
+      } else if (url.hostname.includes('.')) {
+        origins.add(`${url.protocol}//www.${url.hostname}`)
+      }
+    } catch {
+      // ignore invalid siteUrl
+    }
+  }
+
+  const extra = requestOrigin?.trim().replace(/\/+$/, '')
+  if (extra && /^https?:\/\//i.test(extra)) {
+    origins.add(extra)
+  }
+
+  return [...origins]
+}
+
+/**
+ * Allow browser PUT to R2 from the site origin (required for large direct uploads).
+ */
+export async function ensureR2UploadCors(
+  bucketName: string,
+  requestOrigin?: string,
+): Promise<string[]> {
+  const bucket = bucketName.trim()
+  if (!bucket) {
+    throw new Error('R2 bucket name is required.')
+  }
+
+  const allowedOrigins = getUploadCorsOrigins(requestOrigin)
+  const client = getR2Client()
+  await client.send(
+    new PutBucketCorsCommand({
+      Bucket: bucket,
+      CORSConfiguration: {
+        CORSRules: [
+          {
+            AllowedOrigins: allowedOrigins,
+            AllowedMethods: ['PUT', 'GET', 'HEAD'],
+            AllowedHeaders: ['content-type', 'Content-Type'],
+            ExposeHeaders: ['ETag', 'etag'],
+            MaxAgeSeconds: 3600,
+          },
+        ],
+      },
+    }),
+  )
+
+  return allowedOrigins
 }
 
 /**

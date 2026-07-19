@@ -173,25 +173,71 @@ async function upload() {
   isUploading.value = true
   try {
     const contentType = file.type || 'application/octet-stream'
-    const formData = new FormData()
-    if (bucket.value.trim()) formData.append('bucket', bucket.value.trim())
-    formData.append('folder', folderValue)
-    formData.append('fileName', fileName)
-    formData.append('contentType', contentType)
-    formData.append('file', file)
+    // Vercel serverless body limit ~4.5MB — large files go direct to R2 via presigned URL.
+    const useDirectUpload = file.size > 3.5 * 1024 * 1024
 
-    const result = await $fetch<{
-      success: boolean
-      bucket: string
-      objectKey: string
-      etag?: string
-    }>('/api/admin/r2/upload', {
-      method: 'POST',
-      body: formData,
-    })
+    let resultBucket = ''
+    let resultKey = ''
 
-    uploadedObjectKey.value = result.objectKey
-    uploadedBucketPath.value = `${result.bucket}/${result.objectKey}`
+    if (useDirectUpload) {
+      const presign = await $fetch<{
+        success: boolean
+        bucket: string
+        objectKey: string
+        uploadUrl: string
+      }>('/api/admin/r2/presign-upload', {
+        method: 'POST',
+        body: {
+          bucket: bucket.value.trim() || undefined,
+          folder: folderValue,
+          fileName,
+          contentType,
+        },
+      })
+
+      const putResponse = await fetch(presign.uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': contentType,
+        },
+      })
+
+      if (!putResponse.ok) {
+        const detail = await putResponse.text().catch(() => '')
+        throw new Error(
+          `Direct R2 upload failed (${putResponse.status})${
+            detail ? `: ${detail.slice(0, 200)}` : ''
+          }`,
+        )
+      }
+
+      resultBucket = presign.bucket
+      resultKey = presign.objectKey
+    } else {
+      const formData = new FormData()
+      if (bucket.value.trim()) formData.append('bucket', bucket.value.trim())
+      formData.append('folder', folderValue)
+      formData.append('fileName', fileName)
+      formData.append('contentType', contentType)
+      formData.append('file', file)
+
+      const result = await $fetch<{
+        success: boolean
+        bucket: string
+        objectKey: string
+        etag?: string
+      }>('/api/admin/r2/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      resultBucket = result.bucket
+      resultKey = result.objectKey
+    }
+
+    uploadedObjectKey.value = resultKey
+    uploadedBucketPath.value = `${resultBucket}/${resultKey}`
     successMessage.value =
       'Upload complete. Copy the object key into Tina apkKey / msixKey if needed.'
 
@@ -218,9 +264,12 @@ function formatUploadError(err: unknown): string {
     if (fromData) return fromData
     if (e.statusMessage) return e.statusMessage
     if (e.statusCode === 413) {
-      return 'File is too large for the server upload limit. Try a smaller file or upload via Wrangler/dashboard.'
+      return 'File is too large for proxy upload. Refresh the page and try again (large files use direct R2 upload).'
     }
     if (e.message && e.message !== 'Failed to fetch') return e.message
+  }
+  if (err instanceof TypeError || (err instanceof Error && err.message === 'Failed to fetch')) {
+    return 'Direct upload to R2 was blocked (often CORS). Wait a minute after deploy for CORS to apply, then retry. Or use Wrangler/dashboard.'
   }
   if (err instanceof Error && err.message !== 'Failed to fetch') return err.message
   return 'Upload failed. Check you are signed in as admin and R2 env vars are set on the server.'
@@ -238,9 +287,9 @@ onMounted(() => {
     >
       <p class="text-sky-800 dark:text-sky-200">
         <Icon name="mdi:information" class="mr-2 inline" />
-        Upload a local app binary or resource into Cloudflare R2. The file is uploaded through the
-        admin API (no R2 bucket CORS required). Paste the returned object key into Tina (<code
-          class="text-xs"
+        Upload a local app binary or resource into Cloudflare R2. Small files go through the admin
+        API; larger files (e.g. APKs) upload directly to R2 via a short-lived URL (CORS is
+        configured automatically). Paste the returned object key into Tina (<code class="text-xs"
           >apkKey</code
         >
         / <code class="text-xs">msixKey</code>).

@@ -1,6 +1,7 @@
 import { createError, readMultipartFormData } from 'h3'
 import { requireAdminUser } from '~/server/utils/adminUsers'
 import {
+  SERVER_UPLOAD_MAX_BYTES,
   buildUploadObjectKey,
   getDefaultBucketName,
   isAllowedAppsKey,
@@ -30,6 +31,15 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 400,
       statusMessage: 'File is required.',
+    })
+  }
+
+  // Vercel/serverless body limit is ~4.5MB — reject early with a clear message.
+  if (filePart.data.byteLength > SERVER_UPLOAD_MAX_BYTES) {
+    throw createError({
+      statusCode: 413,
+      statusMessage:
+        'File exceeds the server upload limit (~3.5MB). The UI should use direct R2 upload for larger files — refresh and try again, or use Wrangler.',
     })
   }
 
