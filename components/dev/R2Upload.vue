@@ -185,6 +185,8 @@ async function upload() {
         bucket: string
         objectKey: string
         uploadUrl: string
+        corsConfigured?: boolean
+        corsWarning?: string
       }>('/api/admin/r2/presign-upload', {
         method: 'POST',
         body: {
@@ -195,20 +197,31 @@ async function upload() {
         },
       })
 
-      const putResponse = await fetch(presign.uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': contentType,
-        },
-      })
+      let putResponse: Response
+      try {
+        putResponse = await fetch(presign.uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': contentType,
+          },
+        })
+      } catch {
+        throw new Error(
+          (presign.corsWarning ? `${presign.corsWarning} ` : '') +
+            'Browser could not PUT to R2 (usually missing bucket CORS). In Cloudflare → R2 → bucket → Settings → CORS, allow PUT from https://www.nomadic-notions.co.in with AllowedHeaders Content-Type.',
+        )
+      }
 
       if (!putResponse.ok) {
         const detail = await putResponse.text().catch(() => '')
+        const denied = /AccessDenied|Access Denied/i.test(detail)
         throw new Error(
-          `Direct R2 upload failed (${putResponse.status})${
-            detail ? `: ${detail.slice(0, 200)}` : ''
-          }`,
+          denied
+            ? 'R2 rejected the upload (Access Denied). Ensure the API token has Object Write on this bucket and the object key/folder is allowed.'
+            : `Direct R2 upload failed (${putResponse.status})${
+                detail ? `: ${detail.slice(0, 200)}` : ''
+              }`,
         )
       }
 

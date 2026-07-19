@@ -230,11 +230,12 @@ function getUploadCorsOrigins(requestOrigin?: string): string[] {
 
 /**
  * Allow browser PUT to R2 from the site origin (required for large direct uploads).
+ * Many Object Read/Write tokens cannot call PutBucketCors — returns ok:false instead of throwing.
  */
 export async function ensureR2UploadCors(
   bucketName: string,
   requestOrigin?: string,
-): Promise<string[]> {
+): Promise<{ ok: boolean; origins: string[]; error?: string }> {
   const bucket = bucketName.trim()
   if (!bucket) {
     throw new Error('R2 bucket name is required.')
@@ -242,24 +243,29 @@ export async function ensureR2UploadCors(
 
   const allowedOrigins = getUploadCorsOrigins(requestOrigin)
   const client = getR2Client()
-  await client.send(
-    new PutBucketCorsCommand({
-      Bucket: bucket,
-      CORSConfiguration: {
-        CORSRules: [
-          {
-            AllowedOrigins: allowedOrigins,
-            AllowedMethods: ['PUT', 'GET', 'HEAD'],
-            AllowedHeaders: ['content-type', 'Content-Type'],
-            ExposeHeaders: ['ETag', 'etag'],
-            MaxAgeSeconds: 3600,
-          },
-        ],
-      },
-    }),
-  )
-
-  return allowedOrigins
+  try {
+    await client.send(
+      new PutBucketCorsCommand({
+        Bucket: bucket,
+        CORSConfiguration: {
+          CORSRules: [
+            {
+              AllowedOrigins: allowedOrigins,
+              AllowedMethods: ['PUT', 'GET', 'HEAD'],
+              AllowedHeaders: ['content-type', 'Content-Type'],
+              ExposeHeaders: ['ETag', 'etag'],
+              MaxAgeSeconds: 3600,
+            },
+          ],
+        },
+      }),
+    )
+    return { ok: true, origins: allowedOrigins }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.warn('[r2] PutBucketCors failed (set CORS in Cloudflare dashboard):', message)
+    return { ok: false, origins: allowedOrigins, error: message }
+  }
 }
 
 /**

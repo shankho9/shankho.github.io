@@ -362,7 +362,23 @@ New top-level folders (e.g. `Web/`) work automatically when `R2_ALLOWED_KEY_PREF
 
 **Preferred:** Admin utility at `/dev/utilities/r2-upload` (Utilities → Content & Data Managers → **R2 Upload**). Enter bucket (defaults to `R2_BUCKET_NAME`), folder (`Android`, `Desktop`, …), pick a local file, and copy the returned object key into Tina `apkKey` / `msixKey`. Requires an R2 API token with **Object Write** (and admin auth + passcode).
 
-Uploads use the Nuxt admin API for small files. Larger files (above ~3.5MB) use a short-lived presigned URL so the browser uploads straight to R2 — required because Vercel’s serverless request body limit is ~4.5MB. The presign endpoint also applies bucket CORS for your site origin automatically.
+Uploads use the Nuxt admin API for small files. Larger files (above ~3.5MB) use a short-lived presigned URL so the browser uploads straight to R2 — required because Vercel’s serverless request body limit is ~4.5MB.
+
+**CORS (required for large browser uploads):** Object Read/Write API tokens usually **cannot** change CORS. Set it once in Cloudflare Dashboard → R2 → your bucket → **Settings → CORS**:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://www.nomadic-notions.co.in", "http://localhost:3000"],
+    "AllowedMethods": ["PUT", "GET", "HEAD"],
+    "AllowedHeaders": ["Content-Type"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Token needs **Object Write**. “Access Denied” on upload almost always means missing Object Write or wrong account/bucket keys.
 
 Fallback — [Wrangler](https://developers.cloudflare.com/workers/wrangler/) CLI:
 

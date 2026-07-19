@@ -17,6 +17,18 @@ interface PresignUploadBody {
   contentType?: string
 }
 
+function r2ErrorMessage(err: unknown): string {
+  if (!(err instanceof Error)) return 'Failed to create upload URL.'
+  const msg = err.message || ''
+  if (/AccessDenied|Access Denied|not authorized|InvalidAccessKeyId/i.test(msg)) {
+    return (
+      'R2 Access Denied. Check that R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY have Object Write ' +
+      'on this bucket, and R2_ACCOUNT_ID / R2_BUCKET_NAME are correct.'
+    )
+  }
+  return msg
+}
+
 export default defineEventHandler(async (event) => {
   await requireAdminUser(event)
 
@@ -61,10 +73,10 @@ export default defineEventHandler(async (event) => {
   const expiresIn = DEFAULT_UPLOAD_PRESIGN_TTL_SECONDS
   const requestOrigin = getRequestHeader(event, 'origin') || undefined
 
-  try {
-    // Large browser uploads need bucket CORS; configure from the site origin.
-    await ensureR2UploadCors(bucket, requestOrigin)
+  // Best-effort: Object Write tokens often cannot PutBucketCors.
+  const cors = await ensureR2UploadCors(bucket, requestOrigin)
 
+  try {
     const uploadUrl = await getPresignedUploadUrl({
       bucket,
       objectKey: normalizedKey,
@@ -79,11 +91,16 @@ export default defineEventHandler(async (event) => {
       uploadUrl,
       expiresIn,
       mode: 'direct',
+      corsConfigured: cors.ok,
+      corsOrigins: cors.origins,
+      corsWarning: cors.ok
+        ? undefined
+        : 'Could not update bucket CORS via API (token may lack Admin). Set CORS in Cloudflare R2 dashboard for browser uploads to work.',
     }
   } catch (err) {
     throw createError({
       statusCode: 500,
-      statusMessage: err instanceof Error ? err.message : 'Failed to create upload URL.',
+      statusMessage: r2ErrorMessage(err),
     })
   }
 })
