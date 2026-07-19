@@ -1,10 +1,7 @@
 import { createError, defineEventHandler, readBody } from 'h3'
 import { getCurrentUser } from '~/server/utils/auth'
 import { query } from '~/server/utils/db'
-import {
-  parseLibraryEngagementKind,
-  toLibraryPostId,
-} from '~/server/utils/libraryEngagementService'
+import { parseLibraryEngagementKind, toLibraryPostId } from '~/server/utils/libraryEngagement'
 
 interface CommentBody {
   itemId: string

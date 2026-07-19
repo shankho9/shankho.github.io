@@ -1,5 +1,6 @@
 import { readBody, defineEventHandler } from 'h3'
-import { parseLibraryEngagementKind, setLibraryLike } from '~/server/utils/libraryEngagementService'
+import { parseLibraryEngagementKind } from '~/server/utils/libraryEngagement'
+import { setLibraryLike } from '~/server/utils/libraryEngagementService'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)

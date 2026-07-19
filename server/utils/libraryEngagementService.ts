@@ -5,7 +5,6 @@ import { query } from '~/server/utils/db'
 import { getClientIP } from '~/server/utils/getClientIP'
 import {
   fromLibraryPostId,
-  parseLibraryEngagementKind,
   toLibraryPostId,
   type LibraryEngagementKind,
 } from '~/server/utils/libraryEngagement'
@@ -119,5 +118,3 @@ export async function batchLibraryStats(
 
   return stats
 }
-
-export { parseLibraryEngagementKind, toLibraryPostId }

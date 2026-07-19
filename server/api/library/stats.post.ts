@@ -1,9 +1,7 @@
 import { createError, defineEventHandler, readBody } from 'h3'
 import { getCurrentUser } from '~/server/utils/auth'
-import {
-  batchLibraryStats,
-  parseLibraryEngagementKind,
-} from '~/server/utils/libraryEngagementService'
+import { parseLibraryEngagementKind } from '~/server/utils/libraryEngagement'
+import { batchLibraryStats } from '~/server/utils/libraryEngagementService'
 
 interface StatsBody {
   itemIds?: Array<string | number>

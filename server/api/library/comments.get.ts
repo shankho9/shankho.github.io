@@ -1,9 +1,6 @@
 import { defineEventHandler, getQuery } from 'h3'
 import { query } from '~/server/utils/db'
-import {
-  parseLibraryEngagementKind,
-  toLibraryPostId,
-} from '~/server/utils/libraryEngagementService'
+import { parseLibraryEngagementKind, toLibraryPostId } from '~/server/utils/libraryEngagement'
 
 interface Comment extends Record<string, unknown> {
   id: number

@@ -1,8 +1,6 @@
 import { defineEventHandler, getQuery } from 'h3'
-import {
-  getLibraryLikeState,
-  parseLibraryEngagementKind,
-} from '~/server/utils/libraryEngagementService'
+import { parseLibraryEngagementKind } from '~/server/utils/libraryEngagement'
+import { getLibraryLikeState } from '~/server/utils/libraryEngagementService'
 
 export default defineEventHandler(async (event) => {
   const { itemId, kind: kindRaw } = getQuery(event)
