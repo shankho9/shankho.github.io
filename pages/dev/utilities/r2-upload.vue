@@ -14,9 +14,7 @@ definePageMeta({
         class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4"
       >
         <div>
-          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-            R2 Upload
-          </h1>
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">R2 Upload</h1>
           <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
             Upload app binaries and resources to Cloudflare R2 object storage
           </p>

@@ -85,18 +85,9 @@ export function normalizeAppsObjectKey(key: string, bucketName?: string): string
  * Folder may be `Android` or `Android/`; filename is basename-only.
  */
 export function buildUploadObjectKey(folder: string, fileName: string): string {
-  const folderPart = folder
-    .trim()
-    .replace(/^\/+/, '')
-    .replace(/\/+$/, '')
-    .replace(/\\/g, '/')
+  const folderPart = folder.trim().replace(/^\/+/, '').replace(/\/+$/, '').replace(/\\/g, '/')
 
-  const baseName = fileName
-    .trim()
-    .replace(/\\/g, '/')
-    .split('/')
-    .filter(Boolean)
-    .pop()
+  const baseName = fileName.trim().replace(/\\/g, '/').split('/').filter(Boolean).pop()
 
   if (!folderPart || !baseName) {
     throw new Error('Folder and file name are required.')

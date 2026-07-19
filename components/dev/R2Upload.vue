@@ -50,8 +50,7 @@ async function loadConfig() {
       err && typeof err === 'object' && 'data' in err
         ? (err as { data?: { statusMessage?: string } }).data?.statusMessage
         : undefined
-    errorMessage.value =
-      msg || (err instanceof Error ? err.message : 'Failed to load R2 config.')
+    errorMessage.value = msg || (err instanceof Error ? err.message : 'Failed to load R2 config.')
   } finally {
     isLoadingConfig.value = false
   }
@@ -128,15 +127,15 @@ async function upload() {
 
     uploadedObjectKey.value = presign.objectKey
     uploadedBucketPath.value = `${presign.bucket}/${presign.objectKey}`
-    successMessage.value = 'Upload complete. Copy the object key into Tina apkKey / msixKey if needed.'
+    successMessage.value =
+      'Upload complete. Copy the object key into Tina apkKey / msixKey if needed.'
   } catch (err: unknown) {
     const msg =
       err && typeof err === 'object' && 'data' in err
         ? (err as { data?: { statusMessage?: string; message?: string } }).data?.statusMessage ||
           (err as { data?: { message?: string } }).data?.message
         : undefined
-    errorMessage.value =
-      msg || (err instanceof Error ? err.message : 'Upload failed.')
+    errorMessage.value = msg || (err instanceof Error ? err.message : 'Upload failed.')
   } finally {
     isUploading.value = false
   }
@@ -290,7 +289,9 @@ onMounted(() => {
 
       <div v-if="uploadedObjectKey" class="mt-4 space-y-3">
         <div>
-          <p class="mb-1 text-xs font-medium uppercase tracking-wide text-green-700 dark:text-green-300">
+          <p
+            class="mb-1 text-xs font-medium uppercase tracking-wide text-green-700 dark:text-green-300"
+          >
             Object key (for Tina)
           </p>
           <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -315,7 +316,9 @@ onMounted(() => {
         </div>
 
         <div>
-          <p class="mb-1 text-xs font-medium uppercase tracking-wide text-green-700 dark:text-green-300">
+          <p
+            class="mb-1 text-xs font-medium uppercase tracking-wide text-green-700 dark:text-green-300"
+          >
             Bucket path
           </p>
           <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
