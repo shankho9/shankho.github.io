@@ -279,7 +279,9 @@ try {
           <p class="text-xs uppercase tracking-[0.16em] text-sky-700 dark:text-sky-400 font-medium">
             Family invite
           </p>
-          <p class="text-base sm:text-lg font-semibold text-zinc-800 dark:text-zinc-100 group-hover:text-sky-700 dark:group-hover:text-sky-400 transition-colors">
+          <p
+            class="text-base sm:text-lg font-semibold text-zinc-800 dark:text-zinc-100 group-hover:text-sky-700 dark:group-hover:text-sky-400 transition-colors"
+          >
             Celebration at Eureka Park · Flat 702
           </p>
           <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">

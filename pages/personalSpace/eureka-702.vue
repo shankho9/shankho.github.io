@@ -21,8 +21,7 @@ const MAPS_ORIGIN = 'Chittaranjan Park, New Delhi'
 const MAPS_DESTINATION_ADDRESS =
   'CF9P+HFM Eureka Park, SC 02/A1, Sector 150, Noida, Uttar Pradesh 201312'
 /** Shown on page (plus code omitted for readability) */
-const DESTINATION_DISPLAY =
-  'Eureka Park, SC 02/A1, Sector 150, Noida, Uttar Pradesh 201312'
+const DESTINATION_DISPLAY = 'Eureka Park, SC 02/A1, Sector 150, Noida, Uttar Pradesh 201312'
 /** Shared pin (Open destination button) */
 const MAPS_DESTINATION_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(MAPS_DESTINATION_ADDRESS)}`
 const MAPS_EMBED_SRC = `https://www.google.com/maps?saddr=${encodeURIComponent(MAPS_ORIGIN)}&daddr=${encodeURIComponent(MAPS_DESTINATION_ADDRESS)}&output=embed`
@@ -65,9 +64,7 @@ type PanelId = (typeof PANELS)[number]
 
 const activePanel = ref<PanelId>('eureka-hero')
 const showScrollNext = computed(() => activePanel.value !== 'eureka-close')
-const scrollHintTone = computed(() =>
-  activePanel.value === 'eureka-hero' ? 'hero' : 'light',
-)
+const scrollHintTone = computed(() => (activePanel.value === 'eureka-hero' ? 'hero' : 'light'))
 
 function scrollToNextFrom(currentId: PanelId) {
   const index = PANELS.indexOf(currentId)
@@ -226,7 +223,9 @@ onBeforeUnmount(() => {
                 <dt class="eureka-invite-label text-[0.65rem] uppercase tracking-[0.16em]">
                   Date &amp; time
                 </dt>
-                <dd class="eureka-invite-value mt-2 text-lg sm:text-xl font-semibold tracking-tight">
+                <dd
+                  class="eureka-invite-value mt-2 text-lg sm:text-xl font-semibold tracking-tight"
+                >
                   {{ EVENT_DATE }}
                 </dd>
                 <dd class="eureka-invite-accent mt-0.5 font-medium">{{ EVENT_TIME }}</dd>
@@ -238,7 +237,9 @@ onBeforeUnmount(() => {
                 <dt class="eureka-invite-label text-[0.65rem] uppercase tracking-[0.16em]">
                   Location
                 </dt>
-                <dd class="eureka-invite-value mt-2 text-lg sm:text-xl font-semibold tracking-tight">
+                <dd
+                  class="eureka-invite-value mt-2 text-lg sm:text-xl font-semibold tracking-tight"
+                >
                   {{ EVENT_LOCATION }}
                 </dd>
                 <dd class="eureka-invite-muted mt-1 text-sm leading-snug">
@@ -249,10 +250,10 @@ onBeforeUnmount(() => {
                 class="eureka-stagger eureka-detail sm:border-l sm:border-[#e4ddd3] dark:sm:border-slate-700/80 sm:pl-5"
                 style="--i: 2"
               >
-                <dt class="eureka-invite-label text-[0.65rem] uppercase tracking-[0.16em]">
-                  Flow
-                </dt>
-                <dd class="eureka-invite-value mt-2 text-lg sm:text-xl font-semibold tracking-tight">
+                <dt class="eureka-invite-label text-[0.65rem] uppercase tracking-[0.16em]">Flow</dt>
+                <dd
+                  class="eureka-invite-value mt-2 text-lg sm:text-xl font-semibold tracking-tight"
+                >
                   Puja, then lunch
                 </dd>
                 <dd class="eureka-invite-muted mt-0.5 text-sm">Adda &amp; conversations</dd>
@@ -323,7 +324,9 @@ onBeforeUnmount(() => {
         class="eureka-panel eureka-reveal"
         :class="{ 'is-in': revealed.map }"
       >
-        <div class="eureka-panel-inner container mx-auto max-w-6xl px-3 sm:px-6 h-full justify-start sm:justify-center pt-1">
+        <div
+          class="eureka-panel-inner container mx-auto max-w-6xl px-3 sm:px-6 h-full justify-start sm:justify-center pt-1"
+        >
           <div class="text-center mb-2 shrink-0">
             <h2 class="eureka-section-title text-xl sm:text-2xl font-semibold tracking-tight">
               Getting there
@@ -426,11 +429,7 @@ onBeforeUnmount(() => {
         :class="{ 'is-in': revealed.close }"
       >
         <div class="eureka-panel-inner eureka-close-inner text-center px-5 sm:px-8">
-          <Icon
-            name="mdi:heart"
-            class="eureka-close-heart mx-auto"
-            size="64"
-          />
+          <Icon name="mdi:heart" class="eureka-close-heart mx-auto" size="64" />
           <p class="eureka-close-kicker mt-5">With love</p>
           <p class="eureka-close-hosts mt-2">{{ HOSTS }}</p>
           <p class="eureka-close-tagline mt-4">See you at Eureka Park</p>
@@ -725,7 +724,11 @@ html.eureka-snap-html body.eureka-snap-active {
 }
 
 .eureka-hero-glow {
-  background: radial-gradient(ellipse 55% 35% at 50% 70%, rgba(255, 255, 255, 0.1), transparent 70%);
+  background: radial-gradient(
+    ellipse 55% 35% at 50% 70%,
+    rgba(255, 255, 255, 0.1),
+    transparent 70%
+  );
   pointer-events: none;
 }
 
