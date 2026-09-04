@@ -20,3 +20,5 @@ tina/__generated__
 .vscode/terminal-init.sh
 .vscode/bashrc-wrapper.sh
 .vercel
+# Local scratch (tax extracts, vendored python libs, etc.)
+tmp/

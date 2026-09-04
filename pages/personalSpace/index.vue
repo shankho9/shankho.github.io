@@ -264,6 +264,36 @@ try {
   >
     <PersonalSpaceHero />
 
+    <!-- Private family invitation (direct URL; not in public nav/sitemap) -->
+    <div class="px-3 sm:px-6 mb-6">
+      <NuxtLink
+        to="/personalSpace/eureka-702"
+        class="group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5 rounded-2xl border border-sky-200/80 dark:border-sky-800/60 bg-gradient-to-r from-sky-50 to-[#F1F2F4] dark:from-slate-900 dark:to-slate-900 px-4 py-4 sm:px-5 sm:py-4 shadow-sm transition hover:border-sky-400 dark:hover:border-sky-600 hover:shadow-md"
+      >
+        <div
+          class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-700/10 dark:bg-sky-400/10 text-sky-700 dark:text-sky-400"
+        >
+          <Icon name="mdi:home-heart" size="28" />
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-xs uppercase tracking-[0.16em] text-sky-700 dark:text-sky-400 font-medium">
+            Family invite
+          </p>
+          <p class="text-base sm:text-lg font-semibold text-zinc-800 dark:text-zinc-100 group-hover:text-sky-700 dark:group-hover:text-sky-400 transition-colors">
+            Celebration at Eureka Park · Flat 702
+          </p>
+          <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">
+            6 Sep 2026 · Puja, lunch &amp; adda — open invitation page
+          </p>
+        </div>
+        <Icon
+          name="mdi:chevron-right"
+          size="24"
+          class="hidden sm:block shrink-0 text-zinc-400 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-transform group-hover:translate-x-0.5"
+        />
+      </NuxtLink>
+    </div>
+
     <!-- LifeLines Content (Visible to All, Auth Required for Details) -->
     <div>
       <!-- Stats Section -->

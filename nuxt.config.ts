@@ -264,11 +264,13 @@ export default defineNuxtConfig({
     '/categories/**': { ogImage: false },
     // Taskora legal (static public HTML) — keep off search indexes
     '/taskora/**': { robots: 'noindex, nofollow' },
+    // Private family invitation — share via direct URL only
+    '/personalSpace/eureka-702': { robots: 'noindex, nofollow' },
   },
 
   robots: {
     // Extra robots.txt Disallow; page also has <meta name="robots" content="noindex, nofollow">
-    disallow: ['/taskora/'],
+    disallow: ['/taskora/', '/personalSpace/eureka-702'],
   },
 
   // nuxt-og-image v6: pin Satori so CI does not require optional @takumi-rs/* peers
